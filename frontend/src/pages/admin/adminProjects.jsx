@@ -295,8 +295,9 @@ const tryDelete = async (urls) => {
 };
 
 const AdminProjects = () => {
-  const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]);
+const [projects, setProjects] = useState([]);
+const [users, setUsers] = useState([]);
+const [adminProfile, setAdminProfile] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -305,6 +306,7 @@ const AdminProjects = () => {
   const [successMessage, setSuccessMessage] = useState("");
 
   const [searchText, setSearchText] = useState("");
+const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState("all");
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -425,35 +427,128 @@ const fetchUsers = async () => {
   setUsers(dedupeUsers(collectedUsers));
 };
 
-  useEffect(() => {
-    fetchProjects();
-    fetchUsers();
-  }, []);
+const fetchAdminProfile = async () => {
+  try {
+    const response = await api.get("/admin-profile/me");
+
+    const admin =
+      response.data?.admin ||
+      response.data?.profile ||
+      response.data?.user ||
+      response.data?.data ||
+      null;
+
+    setAdminProfile(admin);
+  } catch (error) {
+    console.warn("Admin profile could not be loaded for employee filter.");
+  }
+};
+
+useEffect(() => {
+  fetchProjects();
+  fetchUsers();
+  fetchAdminProfile();
+}, []);
+
+const employeeFilterOptions = useMemo(() => {
+  const adminDepartmentId = adminProfile?.department_id;
+  const adminDepartmentName = String(
+    adminProfile?.department_name || ""
+  )
+    .toLowerCase()
+    .trim();
+
+  const sameDepartmentUsers = users.filter((user) => {
+    const userDepartmentId = user?.department_id;
+    const userDepartmentName = String(user?.department_name || "")
+      .toLowerCase()
+      .trim();
+
+    const matchesDepartmentId =
+      adminDepartmentId &&
+      userDepartmentId &&
+      String(userDepartmentId) === String(adminDepartmentId);
+
+    const matchesDepartmentName =
+      adminDepartmentName &&
+      userDepartmentName &&
+      userDepartmentName === adminDepartmentName;
+
+    return matchesDepartmentId || matchesDepartmentName;
+  });
+
+  return dedupeUsers(sameDepartmentUsers).sort((a, b) =>
+    String(getUserName(a)).localeCompare(String(getUserName(b)))
+  );
+}, [users, adminProfile]);
+
+const selectedEmployeeName = useMemo(() => {
+  if (selectedEmployeeFilter === "all") return "All Department Employees";
+
+  const employee = employeeFilterOptions.find(
+    (user) => String(getUserId(user)) === String(selectedEmployeeFilter)
+  );
+
+  return employee ? getUserName(employee) : "Selected Employee";
+}, [selectedEmployeeFilter, employeeFilterOptions]);
+
+useEffect(() => {
+  if (selectedEmployeeFilter === "all") return;
+
+  const existsInDepartment = employeeFilterOptions.some(
+    (user) => String(getUserId(user)) === String(selectedEmployeeFilter)
+  );
+
+  if (!existsInDepartment) {
+    setSelectedEmployeeFilter("all");
+  }
+}, [selectedEmployeeFilter, employeeFilterOptions]);
 
   const filteredProjects = useMemo(() => {
-    const query = searchText.trim().toLowerCase();
+  const query = searchText.trim().toLowerCase();
+  const selectedEmployeeId = String(selectedEmployeeFilter || "all");
 
-    if (!query) return projects;
+  return projects.filter((project) => {
+    const searchable = [
+      project.project_title,
+      project.project_description,
+      project.status,
+      project.department_name,
+      project.created_by_name,
+      project.created_by_email,
+      ...project.assignees.map((user) => getUserName(user)),
+      ...project.assignees.map((user) => getUserEmail(user)),
+      ...project.main_tasks.map((task) => task.task_title),
+      ...project.main_tasks.flatMap((task) =>
+        (task.assignees || []).map((user) => getUserName(user))
+      ),
+      ...project.main_tasks.flatMap((task) =>
+        (task.assignees || []).map((user) => getUserEmail(user))
+      ),
+    ]
+      .join(" ")
+      .toLowerCase();
 
-    return projects.filter((project) => {
-      const searchable = [
-        project.project_title,
-        project.project_description,
-        project.status,
-        project.department_name,
-        project.created_by_name,
-        project.created_by_email,
-        ...project.assignees.map((user) => getUserName(user)),
-        ...project.assignees.map((user) => getUserEmail(user)),
-        ...project.main_tasks.map((task) => task.task_title),
-      ]
-        .join(" ")
-        .toLowerCase();
+    const matchesSearch = !query || searchable.includes(query);
 
-      return searchable.includes(query);
-    });
-  }, [projects, searchText]);
+    const projectAssigneeMatch = project.assignees.some(
+      (user) => String(getUserId(user)) === selectedEmployeeId
+    );
 
+    const taskAssigneeMatch = project.main_tasks.some((task) =>
+      (task.assignees || []).some(
+        (user) => String(getUserId(user)) === selectedEmployeeId
+      )
+    );
+
+    const matchesEmployee =
+      selectedEmployeeId === "all" ||
+      projectAssigneeMatch ||
+      taskAssigneeMatch;
+
+    return matchesSearch && matchesEmployee;
+  });
+}, [projects, searchText, selectedEmployeeFilter]);
   const projectStats = useMemo(() => {
     return {
       total: projects.length,
@@ -597,6 +692,94 @@ const fetchUsers = async () => {
     setAssignSearch("");
   };
 
+  const handleNewProjectStartDateChange = (value) => {
+    const cleanValue = normalizeDateForInput(value);
+
+    setError("");
+
+    setNewProject((previous) => ({
+      ...previous,
+      start_date: cleanValue,
+      end_date:
+        previous.end_date && cleanValue && previous.end_date < cleanValue
+          ? ""
+          : previous.end_date,
+    }));
+  };
+
+  const handleNewProjectEndDateChange = (value) => {
+    const cleanValue = normalizeDateForInput(value);
+
+    setError("");
+
+    if (!newProject.start_date) {
+      setError("Please select project start date first.");
+      setNewProject((previous) => ({
+        ...previous,
+        end_date: "",
+      }));
+      return;
+    }
+
+    if (cleanValue && cleanValue < newProject.start_date) {
+      setError("Project end date cannot be before project start date.");
+      setNewProject((previous) => ({
+        ...previous,
+        end_date: "",
+      }));
+      return;
+    }
+
+    setNewProject((previous) => ({
+      ...previous,
+      end_date: cleanValue,
+    }));
+  };
+
+  const handleEditProjectStartDateChange = (value) => {
+    const cleanValue = normalizeDateForInput(value);
+
+    setError("");
+
+    setEditProject((previous) => ({
+      ...previous,
+      start_date: cleanValue,
+      end_date:
+        previous.end_date && cleanValue && previous.end_date < cleanValue
+          ? ""
+          : previous.end_date,
+    }));
+  };
+
+  const handleEditProjectEndDateChange = (value) => {
+    const cleanValue = normalizeDateForInput(value);
+
+    setError("");
+
+    if (!editProject.start_date) {
+      setError("Please select project start date first.");
+      setEditProject((previous) => ({
+        ...previous,
+        end_date: "",
+      }));
+      return;
+    }
+
+    if (cleanValue && cleanValue < editProject.start_date) {
+      setError("Project end date cannot be before project start date.");
+      setEditProject((previous) => ({
+        ...previous,
+        end_date: "",
+      }));
+      return;
+    }
+
+    setEditProject((previous) => ({
+      ...previous,
+      end_date: cleanValue,
+    }));
+  };
+
   const refreshSelectedProject = async (projectId) => {
     const latestProjects = await fetchProjects();
 
@@ -716,6 +899,11 @@ const fetchUsers = async () => {
       return;
     }
 
+    if (newProject.end_date < newProject.start_date) {
+      setError("Project end date cannot be before project start date.");
+      return;
+    }
+
     if (!newProject.assignee_ids.length) {
       setError("Select at least one project assignee.");
       return;
@@ -769,6 +957,11 @@ const fetchUsers = async () => {
 
     if (!editProject.start_date || !editProject.end_date) {
       setError("Start date and end date are required.");
+      return;
+    }
+
+    if (editProject.end_date < editProject.start_date) {
+      setError("Project end date cannot be before project start date.");
       return;
     }
 
@@ -1091,22 +1284,44 @@ const fetchUsers = async () => {
               <FolderKanban size={24} color="#ff5733" />
               Project Kanban
             </h2>
-            <p style={styles.sectionSubtitle}>
-              First three columns are visible. Scroll sideways for Done, Rejected
-              and On Hold.
-            </p>
           </div>
 
-          <div className="admin-project-search-shell" style={styles.searchBox}>
-            <Search size={18} color="#64748b" />
-            <input
-              className="admin-project-search-input"
-              style={styles.searchInput}
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search project, assignee, status..."
-            />
-          </div>
+<div style={styles.kanbanFilters}>
+  <div style={styles.employeeFilterBox}>
+    <select
+  style={styles.employeeFilterSelect}
+  onFocus={(event) => {
+    event.target.style.outline = "0";
+    event.target.style.boxShadow = "none";
+  }}
+      value={selectedEmployeeFilter}
+      onChange={(event) => setSelectedEmployeeFilter(event.target.value)}
+    >
+      <option value="all">All Department Employees</option>
+
+      {employeeFilterOptions.map((user) => {
+        const userId = String(getUserId(user));
+
+        return (
+          <option value={userId} key={userId}>
+            {getUserName(user)}
+          </option>
+        );
+      })}
+    </select>
+  </div>
+
+  <div className="admin-project-search-shell" style={styles.searchBox}>
+    <Search size={18} color="#64748b" />
+    <input
+      className="admin-project-search-input"
+      style={styles.searchInput}
+      value={searchText}
+      onChange={(event) => setSearchText(event.target.value)}
+      placeholder="Search project, assignee, status..."
+    />
+  </div>
+</div>
         </div>
 
         <div style={styles.kanbanScroll}>
@@ -1156,18 +1371,18 @@ const fetchUsers = async () => {
       {showAssignModal && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
-            <button
-              type="button"
-              style={styles.closeButton}
-              onClick={() => {
-                setShowAssignModal(false);
-                resetAssignForm();
-              }}
-            >
-              <X size={20} />
-            </button>
+<button
+  type="button"
+  style={styles.assignModalCloseButton}
+  onClick={() => {
+    setShowAssignModal(false);
+    resetAssignForm();
+  }}
+>
+  <X size={26} strokeWidth={3} />
+</button>
 
-            <h2 style={styles.modalTitle}>Assign New Project</h2>
+            <h2 style={styles.assignModalTitle}>Assign New Project</h2>
             <p style={styles.modalSubtitle}>
               Create project details and select project assignees. Main tasks can
               be added after opening the project tile.
@@ -1194,10 +1409,7 @@ const fetchUsers = async () => {
                   type="date"
                   value={newProject.start_date}
                   onChange={(event) =>
-                    setNewProject((previous) => ({
-                      ...previous,
-                      start_date: event.target.value,
-                    }))
+                    handleNewProjectStartDateChange(event.target.value)
                   }
                 />
               </label>
@@ -1207,11 +1419,13 @@ const fetchUsers = async () => {
                 <input
                   type="date"
                   value={newProject.end_date}
+                  min={newProject.start_date || undefined}
+                  disabled={!newProject.start_date}
+                  style={
+                    !newProject.start_date ? styles.disabledDateInput : undefined
+                  }
                   onChange={(event) =>
-                    setNewProject((previous) => ({
-                      ...previous,
-                      end_date: event.target.value,
-                    }))
+                    handleNewProjectEndDateChange(event.target.value)
                   }
                 />
               </label>
@@ -1693,10 +1907,7 @@ const fetchUsers = async () => {
                   type="date"
                   value={editProject.start_date}
                   onChange={(event) =>
-                    setEditProject((previous) => ({
-                      ...previous,
-                      start_date: event.target.value,
-                    }))
+                    handleEditProjectStartDateChange(event.target.value)
                   }
                 />
               </label>
@@ -1706,11 +1917,13 @@ const fetchUsers = async () => {
                 <input
                   type="date"
                   value={editProject.end_date}
+                  min={editProject.start_date || undefined}
+                  disabled={!editProject.start_date}
+                  style={
+                    !editProject.start_date ? styles.disabledDateInput : undefined
+                  }
                   onChange={(event) =>
-                    setEditProject((previous) => ({
-                      ...previous,
-                      end_date: event.target.value,
-                    }))
+                    handleEditProjectEndDateChange(event.target.value)
                   }
                 />
               </label>
@@ -1947,24 +2160,31 @@ const styles = {
     overflow: "hidden",
   },
 
-  kanbanHeader: {
-    display: "grid",
-    gridTemplateColumns: "1fr 420px",
-    gap: "20px",
-    alignItems: "center",
-    marginBottom: "24px",
-  },
+kanbanHeader: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "18px",
+  marginBottom: "24px",
+  flexWrap: "nowrap",
+},
 
-  sectionTitle: {
-    margin: "0 0 8px",
-    color: "#111827",
-    fontSize: "30px",
-    fontWeight: 900,
-    lineHeight: 1.1,
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
+kanbanTitleBlock: {
+  minWidth: "300px",
+  flexShrink: 0,
+},
+
+sectionTitle: {
+  margin: 0,
+  color: "#111827",
+  fontSize: "30px",
+  fontWeight: 900,
+  lineHeight: 1,
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  whiteSpace: "nowrap",
+},
 
   sectionSubtitle: {
     margin: 0,
@@ -1973,20 +2193,55 @@ const styles = {
     lineHeight: 1.45,
   },
 
-  searchBox: {
-    height: "50px",
-    width: "420px",
-    maxWidth: "420px",
-    border: "1px solid #d6dde8",
-    borderRadius: "16px",
-    background: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "0 16px",
-    overflow: "hidden",
-    justifySelf: "end",
-  },
+searchBox: {
+  height: "50px",
+  width: "340px",
+  maxWidth: "340px",
+  border: "1px solid #d6dde8",
+  borderRadius: "16px",
+  background: "#ffffff",
+  display: "flex",
+  alignItems: "center",
+  gap: "10px",
+  padding: "0 16px",
+  overflow: "hidden",
+},
+
+kanbanFilters: {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "flex-end",
+  gap: "12px",
+  flexWrap: "wrap",
+},
+
+employeeFilterBox: {
+  height: "50px",
+  width: "260px",
+  border: "1px solid #d6dde8",
+  borderRadius: "16px",
+  background: "#ffffff",
+  display: "flex",
+  alignItems: "center",
+  padding: "0",
+  boxSizing: "border-box",
+  overflow: "hidden",
+},
+
+employeeFilterSelect: {
+  width: "100%",
+  height: "100%",
+  border: "0",
+  outline: "0",
+  boxShadow: "none",
+  background: "#ffffff",
+  color: "#111827",
+  fontSize: "14px",
+  fontWeight: 900,
+  cursor: "pointer",
+  padding: "0 18px",
+  borderRadius: "16px",
+},
 
   modalSearchBox: {
     height: "54px",
@@ -2175,6 +2430,31 @@ floatingCloseLayer: {
   paddingRight: "8px",
   pointerEvents: "none",
 },
+
+assignModalTitle: {
+  margin: "0 0 10px",
+  color: "#ff5733",
+  fontSize: "34px",
+  fontWeight: 900,
+  lineHeight: 1.1,
+  paddingRight: "70px",
+},
+
+assignModalCloseButton: {
+  position: "absolute",
+  top: "24px",
+  right: "24px",
+  width: "48px",
+  height: "48px",
+  borderRadius: "16px",
+  border: "none",
+  background: "#ff5733",
+  color: "#ffffff",
+  display: "grid",
+  placeItems: "center",
+  cursor: "pointer",
+  boxShadow: "0 12px 26px rgba(255, 87, 51, 0.22)",
+},
   modalTitle: {
     margin: "0 0 10px",
     color: "#111827",
@@ -2281,6 +2561,12 @@ projectModalCloseButton: {
     flexDirection: "column",
     gap: "10px",
     marginBottom: "18px",
+  },
+
+  disabledDateInput: {
+    background: "#f3f4f6",
+    color: "#98a2b3",
+    cursor: "not-allowed",
   },
 
   detailsGrid: {
@@ -2703,4 +2989,4 @@ projectModalCloseButton: {
   },
 };
 
-export default AdminProjects;
+export default AdminProjects; 

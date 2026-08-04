@@ -8,6 +8,7 @@ const formatDateOnly = (value) => {
   }
 
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) return null;
 
   const year = date.getFullYear();
@@ -77,6 +78,7 @@ const timeToMinutes = (timeValue) => {
   if (!timeValue) return null;
 
   const parts = String(timeValue).split(":");
+
   if (parts.length < 2) return null;
 
   const hours = Number(parts[0]);
@@ -97,6 +99,7 @@ const formatMinutes = (minutes) => {
 
   if (hours && mins) return `${hours}h ${mins}m`;
   if (hours) return `${hours}h`;
+
   return `${mins}m`;
 };
 
@@ -214,8 +217,11 @@ const buildUserAttendanceSummary = ({ user, records, workingDates }) => {
         employee_id: user.user_id,
         attendance_date: date,
         status: "Absent",
+        attendance_status: "Absent",
         check_in_time: "-",
         check_out_time: "-",
+        check_in: "-",
+        check_out: "-",
         total_minutes: 0,
         working_hours: "-",
         remarks: "No attendance record",
@@ -236,13 +242,18 @@ const buildUserAttendanceSummary = ({ user, records, workingDates }) => {
       present += 1;
     }
 
+    const displayStatus = getDisplayStatus(record.status);
+
     return {
       attendance_id: record.attendance_id,
       employee_id: record.employee_id,
       attendance_date: date,
-      status: getDisplayStatus(record.status),
+      status: displayStatus,
+      attendance_status: displayStatus,
       check_in_time: record.check_in_time || "-",
       check_out_time: record.check_out_time || "-",
+      check_in: record.check_in_time || "-",
+      check_out: record.check_out_time || "-",
       total_minutes: Number(record.total_minutes || 0),
       working_hours: calculateWorkingHours(record),
       remarks: record.remarks || "-",
@@ -256,9 +267,16 @@ const buildUserAttendanceSummary = ({ user, records, workingDates }) => {
       attendance_date: formatDateOnly(record.attendance_date),
     }))
     .filter((record) => record.attendance_date)
-    .sort((a, b) => String(b.attendance_date).localeCompare(String(a.attendance_date)));
+    .sort((a, b) =>
+      String(b.attendance_date).localeCompare(String(a.attendance_date))
+    );
 
   const latestAttendance = sortedActualRecords[0]?.attendance_date || "-";
+
+  const total = workingDates.length;
+
+  const attendancePercentage =
+    total > 0 ? Math.round((Number(present || 0) / Number(total || 1)) * 100) : 0;
 
   return {
     user_id: user.user_id,
@@ -272,17 +290,45 @@ const buildUserAttendanceSummary = ({ user, records, workingDates }) => {
     role_name: user.role_name,
     status: user.status,
 
-    total: workingDates.length,
+    total,
+    total_records: total,
+    total_marked_days: total,
     present,
+    present_count: present,
     absent,
+    absent_count: absent,
     late,
+    late_count: late,
     leave,
+    leave_count: leave,
+    attendance_percentage: attendancePercentage,
     latest_attendance_date: latestAttendance,
 
     records: completedRecords.sort((a, b) =>
       String(b.attendance_date).localeCompare(String(a.attendance_date))
     ),
   };
+};
+
+const buildFlatRecords = (employeeSummary) => {
+  return employeeSummary.flatMap((employee) => {
+    return (employee.records || []).map((record) => ({
+      ...record,
+      user_id: employee.user_id,
+      employee_id: employee.user_id,
+      employee_code: employee.employee_code,
+      full_name: employee.full_name,
+      email: employee.email,
+      phone: employee.phone,
+      designation: employee.designation,
+      department_id: employee.department_id,
+      department_name: employee.department_name,
+      role_name: employee.role_name,
+      attendance_status: record.attendance_status || record.status,
+      check_in: record.check_in || record.check_in_time,
+      check_out: record.check_out || record.check_out_time,
+    }));
+  });
 };
 
 const getDepartmentAttendance = async (req, res) => {
@@ -322,6 +368,21 @@ const getDepartmentAttendance = async (req, res) => {
     const userIds = users.map((user) => user.user_id);
 
     if (!userIds.length) {
+      const emptySummary = {
+        total_people: 0,
+        total_records: 0,
+        present_count: 0,
+        absent_count: 0,
+        late_count: 0,
+        leave_count: 0,
+        people: 0,
+        total: 0,
+        present: 0,
+        absent: 0,
+        late: 0,
+        leave: 0,
+      };
+
       return res.status(200).json({
         success: true,
         admin,
@@ -340,6 +401,9 @@ const getDepartmentAttendance = async (req, res) => {
           late: 0,
           leave: 0,
         },
+        summary: emptySummary,
+        employees: [],
+        records: [],
       });
     }
 
@@ -429,6 +493,34 @@ const getDepartmentAttendance = async (req, res) => {
       }
     );
 
+    const summary = {
+      total_people: departmentTotals.people || 0,
+      total_records: departmentTotals.total || 0,
+      present_count: departmentTotals.present || 0,
+      absent_count: departmentTotals.absent || 0,
+      late_count: departmentTotals.late || 0,
+      leave_count: departmentTotals.leave || 0,
+
+      people: departmentTotals.people || 0,
+      total: departmentTotals.total || 0,
+      present: departmentTotals.present || 0,
+      absent: departmentTotals.absent || 0,
+      late: departmentTotals.late || 0,
+      leave: departmentTotals.leave || 0,
+    };
+
+    const employees = employeeSummary.map((employee) => ({
+      ...employee,
+      total_records: employee.total || 0,
+      total_marked_days: employee.total || 0,
+      present_count: employee.present || 0,
+      absent_count: employee.absent || 0,
+      late_count: employee.late || 0,
+      leave_count: employee.leave || 0,
+    }));
+
+    const records = buildFlatRecords(employeeSummary);
+
     return res.status(200).json({
       success: true,
       admin,
@@ -438,9 +530,23 @@ const getDepartmentAttendance = async (req, res) => {
         working_days: workingDates.length,
         note: "Absent count is calculated from missing attendance dates and excludes Sundays.",
       },
+
       my_attendance: myAttendance,
       employee_summary: employeeSummary,
       department_totals: departmentTotals,
+
+      summary,
+      employees,
+      records,
+
+      debug: {
+        admin_department_id: admin.department_id,
+        users_found_in_department: users.length,
+        attendance_rows_found: attendanceRows.length,
+        start_date: startDate,
+        end_date: endDate,
+        working_days: workingDates.length,
+      },
     });
   } catch (error) {
     console.error("Get admin department attendance error:", error);
