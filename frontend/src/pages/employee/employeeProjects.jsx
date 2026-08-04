@@ -1,9 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Plus,
-  RefreshCw,
-  X,
-} from "lucide-react";
+import { Plus, RefreshCw, X } from "lucide-react";
 import api from "../../api/axios";
 
 const API_BASE = "/employee-projects";
@@ -41,10 +37,7 @@ const normalizeProjectsResponse = (data) => {
       data?.data ||
       [],
 
-    rejectedProjects:
-      data?.rejectedProjects ||
-      data?.rejected_projects ||
-      [],
+    rejectedProjects: data?.rejectedProjects || data?.rejected_projects || [],
 
     onHoldProjects:
       data?.onHoldProjects ||
@@ -103,8 +96,12 @@ const compareDateOnly = (leftDate, rightDate) => {
   const right = formatDate(rightDate);
 
   if (!left || !right) return 0;
-  if (left < right) return -1;
-  if (left > right) return 1;
+
+  const leftTime = new Date(`${left}T00:00:00`).getTime();
+  const rightTime = new Date(`${right}T00:00:00`).getTime();
+
+  if (leftTime < rightTime) return -1;
+  if (leftTime > rightTime) return 1;
 
   return 0;
 };
@@ -444,6 +441,64 @@ const EmployeeProjects = () => {
     setModalSuccess("");
   };
 
+  const handleSubtaskStartDateChange = (value) => {
+  const cleanValue = formatDate(value);
+  const projectStartDate = getProjectStartDate(selectedProject);
+  const projectEndDate = getProjectEndDate(selectedProject);
+
+  if (projectStartDate && compareDateOnly(cleanValue, projectStartDate) < 0) {
+    setModalError(
+      `Subtask start date cannot be before project start date ${projectStartDate}.`
+    );
+    setSubtaskStartDate(projectStartDate);
+    return;
+  }
+
+  if (projectEndDate && compareDateOnly(cleanValue, projectEndDate) > 0) {
+    setModalError(
+      `Subtask start date cannot exceed project end date ${projectEndDate}.`
+    );
+    setSubtaskStartDate(projectEndDate);
+    return;
+  }
+
+  setModalError("");
+  setSubtaskStartDate(cleanValue);
+
+  if (subtaskEndDate && compareDateOnly(subtaskEndDate, cleanValue) < 0) {
+    setSubtaskEndDate(cleanValue);
+  }
+};
+
+const handleSubtaskEndDateChange = (value) => {
+  const cleanValue = formatDate(value);
+  const projectEndDate = getProjectEndDate(selectedProject);
+  const minAllowedEndDate =
+    subtaskStartDate || getProjectStartDate(selectedProject);
+
+  if (
+    minAllowedEndDate &&
+    compareDateOnly(cleanValue, minAllowedEndDate) < 0
+  ) {
+    setModalError(
+      `Subtask end date cannot be before start date ${minAllowedEndDate}.`
+    );
+    setSubtaskEndDate(minAllowedEndDate);
+    return;
+  }
+
+  if (projectEndDate && compareDateOnly(cleanValue, projectEndDate) > 0) {
+    setModalError(
+      `Subtask end date cannot exceed project end date ${projectEndDate}.`
+    );
+    setSubtaskEndDate(projectEndDate);
+    return;
+  }
+
+  setModalError("");
+  setSubtaskEndDate(cleanValue);
+};
+
   const handleAddSubtask = async (event) => {
     event.preventDefault();
 
@@ -598,7 +653,9 @@ const EmployeeProjects = () => {
           </span>
         </div>
 
-        <p style={styles.projectTileDescription}>{getProjectMainTask(project)}</p>
+        <p style={styles.projectTileDescription}>
+          {getProjectMainTask(project)}
+        </p>
 
         <span style={styles.clickHint}>Click to view full details</span>
       </button>
@@ -626,16 +683,22 @@ const EmployeeProjects = () => {
             onClick={() => openProjectModal(project)}
           >
             <div style={styles.projectTileTop}>
-              <h3 style={styles.projectTileTitle}>{getProjectTitle(project)}</h3>
+              <h3 style={styles.projectTileTitle}>
+                {getProjectTitle(project)}
+              </h3>
 
               <span
-                style={type === "rejected" ? styles.rejectedPill : styles.holdPill}
+                style={
+                  type === "rejected" ? styles.rejectedPill : styles.holdPill
+                }
               >
                 {type === "rejected" ? "Rejected" : "On Hold"}
               </span>
             </div>
 
-            <p style={styles.projectTileDescription}>{getProjectMainTask(project)}</p>
+            <p style={styles.projectTileDescription}>
+              {getProjectMainTask(project)}
+            </p>
 
             <span style={styles.clickHint}>Click to view details</span>
           </button>
@@ -644,22 +707,26 @@ const EmployeeProjects = () => {
     );
   };
 
+  const renderDetailBox = ({ label, value, subValue }) => {
+    return (
+      <div style={styles.detailBox}>
+        <span style={styles.detailLabel}>{label}</span>
+
+        <strong style={styles.detailValue}>{value || "-"}</strong>
+
+        {subValue ? <p style={styles.detailSubValue}>{subValue}</p> : null}
+      </div>
+    );
+  };
+
   return (
     <div style={styles.page}>
-      <div
-  style={{
-    width: "100%",
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    marginBottom: "18px",
-  }}
->
-  <button type="button" style={styles.refreshBtn} onClick={fetchProjects}>
-    <RefreshCw size={18} />
-    Refresh
-  </button>
-</div>
+      <div style={styles.topActions}>
+        <button type="button" style={styles.refreshBtn} onClick={fetchProjects}>
+          <RefreshCw size={18} />
+          Refresh
+        </button>
+      </div>
 
       <section style={styles.tabs}>
         <button
@@ -672,7 +739,9 @@ const EmployeeProjects = () => {
 
         <button
           type="button"
-          style={activeTab === "rejected" ? styles.activeRejectedTab : styles.tab}
+          style={
+            activeTab === "rejected" ? styles.activeRejectedTab : styles.tab
+          }
           onClick={() => setActiveTab("rejected")}
         >
           Rejected Projects <span>{rejectedProjects.length}</span>
@@ -734,63 +803,69 @@ const EmployeeProjects = () => {
         <div style={styles.modalBackdrop} onClick={closeProjectModal}>
           <div style={styles.modal} onClick={(event) => event.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <div>
+              <div style={styles.modalHeaderText}>
                 <h2 style={styles.modalTitle}>
                   {getProjectTitle(selectedProject)}
                 </h2>
+
                 <p style={styles.modalDescription}>
                   {getProjectMainTask(selectedProject)}
                 </p>
               </div>
 
-              <button type="button" style={styles.closeBtn} onClick={closeProjectModal}>
-                <X size={18} />
+              <button
+                type="button"
+                style={styles.closeBtn}
+                onClick={closeProjectModal}
+              >
+                <X size={19} />
               </button>
             </div>
 
             <div style={styles.detailGrid}>
-              <div style={styles.detailBox}>
-                <span>Department</span>
-                <strong>{selectedProject.department_name || "-"}</strong>
-              </div>
+              {renderDetailBox({
+                label: "Department",
+                value: selectedProject.department_name || "-",
+              })}
 
-              <div style={styles.detailBox}>
-                <span>Created By</span>
-                <strong>{selectedProject.created_by_name || "-"}</strong>
-                <p>{selectedProject.created_by_email || "-"}</p>
-              </div>
+              {renderDetailBox({
+                label: "Created By",
+                value: selectedProject.created_by_name || "-",
+                subValue: selectedProject.created_by_email || "-",
+              })}
 
-              <div style={styles.detailBox}>
-                <span>Assigned To</span>
-                <strong>{getAssignedNames(selectedProject)}</strong>
-                <p>{getAssignedEmails(selectedProject)}</p>
-              </div>
+              {renderDetailBox({
+                label: "Assigned To",
+                value: getAssignedNames(selectedProject),
+                subValue: getAssignedEmails(selectedProject),
+              })}
 
-              <div style={styles.detailBox}>
-                <span>Status</span>
-                <strong>
-                  {getStatusLabel(
-                    selectedProject.status_group || selectedProject.status
-                  )}
-                </strong>
-              </div>
+              {renderDetailBox({
+                label: "Status",
+                value: getStatusLabel(
+                  selectedProject.status_group || selectedProject.status
+                ),
+              })}
 
-              <div style={styles.detailBox}>
-                <span>Start Date</span>
-                <strong>{getProjectStartDate(selectedProject) || "-"}</strong>
-              </div>
+              {renderDetailBox({
+                label: "Start Date",
+                value: getProjectStartDate(selectedProject) || "-",
+              })}
 
-              <div style={styles.detailBox}>
-                <span>End Date</span>
-                <strong>{getProjectEndDate(selectedProject) || "-"}</strong>
-              </div>
+              {renderDetailBox({
+                label: "End Date",
+                value: getProjectEndDate(selectedProject) || "-",
+              })}
             </div>
 
             <div style={styles.progressBlock}>
               <div style={styles.progressTop}>
                 <strong>Project Progress</strong>
                 <span>
-                  {selectedProject.progress || selectedProject.overall_progress || 0}%
+                  {selectedProject.progress ||
+                    selectedProject.overall_progress ||
+                    0}
+                  %
                 </span>
               </div>
 
@@ -816,21 +891,25 @@ const EmployeeProjects = () => {
             {isProjectLocked(selectedProject) && (
               <div style={styles.lockNotice}>
                 This project is locked because it is{" "}
-                {getStatusLabel(selectedProject.status_group || selectedProject.status)}.
+                {getStatusLabel(
+                  selectedProject.status_group || selectedProject.status
+                )}
+                .
               </div>
             )}
 
             {!isProjectLocked(selectedProject) && (
               <form style={styles.subtaskForm} onSubmit={handleAddSubtask}>
                 <div style={styles.formTitleRow}>
-                  <Plus size={18} />
+                  <Plus size={19} />
                   <h3>Add Subtask</h3>
                 </div>
 
                 <div style={styles.formGrid}>
                   <div style={styles.field}>
-                    <label>Subtask Title</label>
+                    <label style={styles.inputLabel}>Subtask Title</label>
                     <input
+                      style={styles.input}
                       type="text"
                       value={subtaskTitle}
                       onChange={(event) => setSubtaskTitle(event.target.value)}
@@ -838,33 +917,40 @@ const EmployeeProjects = () => {
                     />
                   </div>
 
-                  <div style={styles.field}>
-                    <label>Start Date</label>
-                    <input
-                      type="date"
-                      value={subtaskStartDate}
-                      min={getProjectStartDate(selectedProject) || undefined}
-                      max={getProjectEndDate(selectedProject) || undefined}
-                      onChange={(event) =>
-                        setSubtaskStartDate(event.target.value)
-                      }
-                    />
-                  </div>
-
-                  <div style={styles.field}>
-                    <label>End Date</label>
-                    <input
-                      type="date"
-                      value={subtaskEndDate}
-                      min={
-                        subtaskStartDate ||
-                        getProjectStartDate(selectedProject) ||
-                        undefined
-                      }
-                      max={getProjectEndDate(selectedProject) || undefined}
-                      onChange={(event) => setSubtaskEndDate(event.target.value)}
-                    />
-                  </div>
+       <div style={styles.field}>
+  <label style={styles.inputLabel}>Start Date</label>
+  <input
+    style={styles.input}
+    type="date"
+    value={subtaskStartDate}
+    min={getProjectStartDate(selectedProject) || undefined}
+    max={getProjectEndDate(selectedProject) || undefined}
+    onChange={(event) =>
+      handleSubtaskStartDateChange(event.target.value)
+    }
+  />
+</div>
+<div style={styles.field}>
+  <label style={styles.inputLabel}>End Date</label>
+  <input
+    style={{
+  ...styles.input,
+  ...(!subtaskStartDate ? styles.disabledInput : {}),
+}}
+    type="date"
+    value={subtaskEndDate}
+    min={
+      subtaskStartDate ||
+      getProjectStartDate(selectedProject) ||
+      undefined
+    }
+    max={getProjectEndDate(selectedProject) || undefined}
+    disabled={!subtaskStartDate}
+    onChange={(event) =>
+      handleSubtaskEndDateChange(event.target.value)
+    }
+  />
+</div>
 
                   <button
                     type="submit"
@@ -875,7 +961,7 @@ const EmployeeProjects = () => {
                   </button>
 
                   <div style={styles.fieldFull}>
-                    <label>Subtask Description</label>
+                    <label style={styles.inputLabel}>Subtask Description</label>
                     <textarea
                       value={subtaskDescription}
                       onChange={(event) =>
@@ -889,7 +975,9 @@ const EmployeeProjects = () => {
               </form>
             )}
 
-            {modalSuccess && <div style={styles.modalSuccess}>{modalSuccess}</div>}
+            {modalSuccess && (
+              <div style={styles.modalSuccess}>{modalSuccess}</div>
+            )}
             {modalError && <div style={styles.modalError}>{modalError}</div>}
 
             <section style={styles.subtaskSection}>
@@ -923,7 +1011,7 @@ const EmployeeProjects = () => {
                           }
                         />
 
-                        <div>
+                        <div style={styles.subtaskContent}>
                           <strong>{getSubtaskTitle(subtask)}</strong>
 
                           <p>
@@ -959,29 +1047,12 @@ const styles = {
     width: "100%",
     paddingBottom: "40px",
   },
-  header: {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "22px",
-    padding: "30px 34px",
-    marginBottom: "22px",
+  topActions: {
+    width: "100%",
     display: "flex",
-    justifyContent: "space-between",
-    gap: "18px",
+    justifyContent: "flex-end",
     alignItems: "center",
-    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)",
-  },
-  h1: {
-    margin: "0 0 8px",
-    color: "#111827",
-    fontSize: "36px",
-    fontWeight: 900,
-  },
-  subtitle: {
-    margin: 0,
-    color: "#667085",
-    fontSize: "16px",
-    lineHeight: 1.5,
+    marginBottom: "18px",
   },
   refreshBtn: {
     border: "0",
@@ -1126,12 +1197,15 @@ const styles = {
     color: "#111827",
     fontSize: "19px",
     fontWeight: 900,
+    lineHeight: 1.2,
+    wordBreak: "break-word",
   },
   projectTileDescription: {
     margin: "0 0 14px",
     color: "#667085",
     fontSize: "14px",
     lineHeight: 1.5,
+    wordBreak: "break-word",
   },
   statusPill: {
     background: "#eef2ff",
@@ -1229,40 +1303,48 @@ const styles = {
     padding: "24px",
   },
   modal: {
-    width: "min(900px, 96vw)",
-    maxHeight: "90vh",
+    width: "min(1040px, 94vw)",
+    maxHeight: "88vh",
     overflowY: "auto",
+    overflowX: "hidden",
     background: "#ffffff",
     borderRadius: "26px",
-    padding: "28px",
+    padding: "32px",
     boxShadow: "0 24px 70px rgba(0,0,0,0.25)",
   },
   modalHeader: {
     display: "flex",
     justifyContent: "space-between",
-    gap: "18px",
+    gap: "20px",
     alignItems: "flex-start",
-    marginBottom: "22px",
+    marginBottom: "24px",
+  },
+  modalHeaderText: {
+    minWidth: 0,
+    flex: 1,
   },
   modalTitle: {
     margin: 0,
     color: "#111827",
-    fontSize: "30px",
+    fontSize: "32px",
     fontWeight: 900,
+    lineHeight: 1.15,
+    wordBreak: "break-word",
   },
   modalDescription: {
     margin: "8px 0 0",
     color: "#667085",
-    fontSize: "15px",
+    fontSize: "16px",
     lineHeight: 1.5,
+    wordBreak: "break-word",
   },
   closeBtn: {
     border: "0",
     background: "#111827",
     color: "#ffffff",
-    borderRadius: "12px",
-    width: "42px",
-    height: "42px",
+    borderRadius: "14px",
+    width: "50px",
+    height: "50px",
     display: "grid",
     placeItems: "center",
     cursor: "pointer",
@@ -1270,26 +1352,61 @@ const styles = {
   },
   detailGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-    gap: "12px",
-    marginBottom: "20px",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "14px",
+    marginBottom: "22px",
   },
   detailBox: {
     background: "#f8fafc",
     border: "1px solid #e5e7eb",
     borderRadius: "16px",
-    padding: "14px",
+    padding: "18px",
+    minHeight: "104px",
+    minWidth: 0,
+    overflow: "hidden",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    gap: "7px",
+  },
+  detailLabel: {
+    display: "block",
+    color: "#667085",
+    fontSize: "12px",
+    fontWeight: 900,
+    lineHeight: 1.1,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  },
+  detailValue: {
+    display: "block",
+    color: "#111827",
+    fontSize: "17px",
+    fontWeight: 900,
+    lineHeight: 1.25,
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
+  },
+  detailSubValue: {
+    margin: 0,
+    color: "#475467",
+    fontSize: "14px",
+    fontWeight: 700,
+    lineHeight: 1.35,
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
   progressBlock: {
     background: "#fff7f4",
     border: "1px solid #ffd4c8",
     borderRadius: "18px",
-    padding: "16px",
-    marginBottom: "18px",
+    padding: "18px",
+    marginBottom: "20px",
   },
   progressTop: {
     display: "flex",
     justifyContent: "space-between",
+    gap: "16px",
     marginBottom: "10px",
     color: "#111827",
     fontWeight: 900,
@@ -1307,7 +1424,7 @@ const styles = {
     background: "#ff5733",
   },
   progressNote: {
-    margin: "8px 0 0",
+    margin: "9px 0 0",
     color: "#667085",
     fontSize: "13px",
     fontWeight: 800,
@@ -1325,34 +1442,65 @@ const styles = {
     border: "1px solid #e5e7eb",
     background: "#f8fafc",
     borderRadius: "18px",
-    padding: "16px",
+    padding: "20px",
     marginBottom: "18px",
+    overflow: "hidden",
   },
   formTitleRow: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    marginBottom: "14px",
+    marginBottom: "18px",
     color: "#ff5733",
   },
   formGrid: {
     display: "grid",
-    gridTemplateColumns: "1.2fr 1fr 1fr auto",
-    gap: "12px",
+    gridTemplateColumns: "minmax(220px, 1.3fr) minmax(150px, 1fr) minmax(150px, 1fr) 84px",
+    gap: "14px",
     alignItems: "end",
   },
   field: {
     display: "grid",
     gap: "7px",
+    minWidth: 0,
   },
   fieldFull: {
     gridColumn: "1 / -1",
     display: "grid",
     gap: "7px",
+    minWidth: 0,
   },
+  inputLabel: {
+    display: "block",
+    color: "#111827",
+    fontSize: "14px",
+    fontWeight: 900,
+    lineHeight: 1.2,
+  },
+
+  disabledInput: {
+  background: "#f3f4f6",
+  color: "#98a2b3",
+  cursor: "not-allowed",
+},
+input: {
+  width: "100%",
+  height: "48px",
+  border: "1px solid #d1d5db",
+  borderRadius: "12px",
+  padding: "0 13px",
+  fontSize: "14px",
+  fontWeight: 700,
+  outline: "0",
+  background: "#ffffff",
+  boxSizing: "border-box",
+  minWidth: 0,
+  color: "#111827",
+  fontFamily: "inherit",
+},
   textarea: {
     width: "100%",
-    minHeight: "85px",
+    minHeight: "86px",
     border: "1px solid #d1d5db",
     borderRadius: "12px",
     padding: "12px",
@@ -1360,16 +1508,18 @@ const styles = {
     outline: "0",
     resize: "vertical",
     fontFamily: "inherit",
+    boxSizing: "border-box",
   },
   addBtn: {
     border: "0",
     background: "#ff5733",
     color: "#ffffff",
     borderRadius: "13px",
-    height: "46px",
+    height: "48px",
     padding: "0 18px",
     fontWeight: 900,
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
   modalSuccess: {
     background: "#f0fdf4",
@@ -1407,15 +1557,19 @@ const styles = {
     borderRadius: "16px",
     padding: "14px",
     display: "grid",
-    gridTemplateColumns: "24px 1fr auto",
+    gridTemplateColumns: "24px minmax(0, 1fr) auto",
     gap: "12px",
     alignItems: "center",
+  },
+  subtaskContent: {
+    minWidth: 0,
   },
   subtaskDescription: {
     margin: "5px 0 0",
     color: "#667085",
     fontSize: "13px",
     lineHeight: 1.45,
+    wordBreak: "break-word",
   },
   doneBadge: {
     background: "#dcfce7",
@@ -1424,6 +1578,7 @@ const styles = {
     padding: "7px 11px",
     fontSize: "12px",
     fontWeight: 900,
+    whiteSpace: "nowrap",
   },
   todoBadge: {
     background: "#eef2ff",
@@ -1432,6 +1587,7 @@ const styles = {
     padding: "7px 11px",
     fontSize: "12px",
     fontWeight: 900,
+    whiteSpace: "nowrap",
   },
 };
 

@@ -1,9 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  // Vite proxies /api to the local backend. When the frontend is hosted
-  // separately, set VITE_API_URL to the public backend URL ending in /api.
-  baseURL: import.meta.env.VITE_API_URL || "/api",
+  baseURL: "http://localhost:5000/api",
 });
 
 api.interceptors.request.use(
@@ -25,17 +23,14 @@ api.interceptors.response.use(
     const message =
       error.response?.data?.message || error.response?.data?.error || "";
 
-    const lowerMessage = String(message).toLowerCase();
-
-    const isRealAuthError =
+    const isAuthError =
       error.response?.status === 401 ||
-      lowerMessage.includes("authorization token missing") ||
-      lowerMessage.includes("invalid token") ||
-      lowerMessage.includes("jwt expired") ||
-      lowerMessage.includes("token expired") ||
-      lowerMessage.includes("malformed token");
+      error.response?.status === 403 ||
+      message.toLowerCase().includes("authorization token missing") ||
+      message.toLowerCase().includes("invalid token") ||
+      message.toLowerCase().includes("jwt expired");
 
-    if (isRealAuthError) {
+    if (isAuthError) {
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");
       localStorage.removeItem("token");
