@@ -1,138 +1,206 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
+  Activity,
   CalendarCheck,
+  CheckCircle2,
   ClipboardList,
-  FolderKanban,
   RefreshCw,
 } from "lucide-react";
 import api from "../../api/axios";
-import "../../layouts/Employeelayout.css";
 
-const getArray = (...values) => {
-  for (const value of values) {
-    if (Array.isArray(value)) return value;
-  }
+const getResponseData = (response) => {
+  return response?.data?.data || response?.data || {};
+};
 
+const asArray = (value) => {
+  if (Array.isArray(value)) return value;
   return [];
 };
 
-const getNumber = (...values) => {
-  for (const value of values) {
-    const number = Number(value);
+const getUser = () => {
+  try {
+    return JSON.parse(
+      sessionStorage.getItem("user") || localStorage.getItem("user") || "{}"
+    );
+  } catch {
+    return {};
+  }
+};
 
-    if (!Number.isNaN(number) && value !== undefined && value !== null) {
-      return number;
-    }
+const normalizeOverviewData = (rawData) => {
+  const data = rawData || {};
+
+  const recentTasks =
+    data.recent_tasks ||
+    data.recentTasks ||
+    data.tasks ||
+    data.my_tasks ||
+    data.assigned_tasks ||
+    [];
+
+  const activityLog =
+    data.activity_log ||
+    data.activityLog ||
+    data.activities ||
+    data.recent_activity ||
+    [];
+
+  const weeklyAttendance =
+    data.weekly_attendance ||
+    data.weeklyAttendance ||
+    data.week_attendance ||
+    data.attendance_week ||
+    data.attendance ||
+    [];
+
+  const summary = data.summary || data.stats || {};
+
+  return {
+    summary,
+    recentTasks: asArray(recentTasks),
+    activityLog: asArray(activityLog),
+    weeklyAttendance: asArray(weeklyAttendance),
+  };
+};
+
+const formatStatus = (status) => {
+  const value = String(status || "not_started")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+  if (["todo", "to_do", "pending", "not_started"].includes(value)) {
+    return "To Do";
   }
 
-  return 0;
-};
-
-const formatDate = (value) => {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value).slice(0, 10);
+  if (["ongoing", "in_progress", "progress"].includes(value)) {
+    return "In Progress";
   }
 
-  return date.toISOString().slice(0, 10);
-};
+  if (["under_review", "review"].includes(value)) {
+    return "Under Review";
+  }
 
-const statusLabel = (status) => {
-  const value = String(status || "").toLowerCase();
+  if (["completed", "done", "complete"].includes(value)) {
+    return "Done";
+  }
 
-  if (value === "not_started") return "To Do";
-  if (value === "todo") return "To Do";
-  if (value === "to_do") return "To Do";
-  if (value === "in_progress") return "In Progress";
-  if (value === "ongoing") return "In Progress";
-  if (value === "under_review") return "Under Review";
-  if (value === "done") return "Done";
-  if (value === "completed") return "Done";
-  if (value === "rejected") return "Rejected";
-  if (value === "on_hold") return "On Hold";
+  if (["rejected", "reject"].includes(value)) {
+    return "Rejected";
+  }
 
-  return status || "-";
-};
+  if (["on_hold", "hold"].includes(value)) {
+    return "On Hold";
+  }
 
-const getProgress = (item) => {
-  return Math.max(
-    0,
-    Math.min(
-      100,
-      getNumber(
-        item?.progress,
-        item?.task_progress,
-        item?.overall_progress,
-        item?.employee_progress,
-        item?.completion_percentage
-      )
-    )
-  );
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 };
 
 const getTaskTitle = (task) => {
+  return task.task_title || task.main_task_title || task.title || "Task";
+};
+
+const getTaskProject = (task) => {
   return (
-    task?.task_title ||
-    task?.title ||
-    task?.task_name ||
-    task?.main_task_title ||
-    "Task"
+    task.project_title ||
+    task.project_name ||
+    task.description ||
+    task.task_description ||
+    "-"
   );
 };
 
-const getProjectTitle = (item) => {
-  return (
-    item?.project_title ||
-    item?.project_name ||
-    item?.title ||
-    item?.name ||
-    "Project"
+const getTaskStartDate = (task) => {
+  return task.start_date || task.task_start_date || "";
+};
+
+const getTaskEndDate = (task) => {
+  return task.due_date || task.end_date || task.task_end_date || "";
+};
+
+const getTaskProgress = (task) => {
+  return Number(
+    task.progress ?? task.task_progress ?? task.overall_progress ?? 0
   );
+};
+
+const getActivityTitle = (activity) => {
+  return (
+    activity.title ||
+    activity.activity_title ||
+    activity.action ||
+    activity.type ||
+    "Activity"
+  );
+};
+
+const getActivityDescription = (activity) => {
+  return (
+    activity.description ||
+    activity.message ||
+    activity.activity_description ||
+    activity.details ||
+    "-"
+  );
+};
+
+const getActivityDate = (activity) => {
+  return (
+    activity.created_at ||
+    activity.createdAt ||
+    activity.activity_date ||
+    activity.date ||
+    activity.updated_at ||
+    ""
+  );
+};
+
+const getAttendanceDate = (item) => {
+  return item.attendance_date || item.date || item.day_name || item.day || "-";
+};
+
+const getAttendanceStatus = (item) => {
+  return formatStatus(item.status || item.attendance_status || "-");
 };
 
 const EmployeeOverview = () => {
-  const navigate = useNavigate();
+  const user = getUser();
 
-  const [overview, setOverview] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [overviewData, setOverviewData] = useState({
+    summary: {},
+    recentTasks: [],
+    activityLog: [],
+    weeklyAttendance: [],
+  });
 
   const fetchOverview = async () => {
+    setLoading(true);
+    setError("");
+
     try {
-      setLoading(true);
-      setMessage("");
+      let response;
 
-      const endpoints = [
-        "/employee-overview",
-        "/employee-overview/overview",
-        "/employee-overview/me",
-      ];
-
-      let response = null;
-      let lastError = null;
-
-      for (const endpoint of endpoints) {
+      try {
+        response = await api.get("/employee-overview");
+      } catch {
         try {
-          response = await api.get(endpoint);
-          break;
-        } catch (error) {
-          lastError = error;
+          response = await api.get("/employee-overview/overview");
+        } catch {
+          response = await api.get("/employee/overview");
         }
       }
 
-      if (!response) {
-        throw lastError || new Error("Failed to load employee overview.");
-      }
-
-      setOverview(response.data);
-    } catch (error) {
-      setMessage(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
+      const normalized = normalizeOverviewData(getResponseData(response));
+      setOverviewData(normalized);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.response?.data?.error ||
           "Failed to load employee overview."
       );
     } finally {
@@ -144,255 +212,253 @@ const EmployeeOverview = () => {
     fetchOverview();
   }, []);
 
-  const data = useMemo(() => {
-    return overview?.data || overview?.overview || overview || {};
-  }, [overview]);
+  const stats = useMemo(() => {
+    const summary = overviewData.summary || {};
 
-  const stats = data?.stats || data?.summary || {};
+    const totalTasks =
+      summary.total_tasks ??
+      summary.totalTasks ??
+      overviewData.recentTasks.length ??
+      0;
 
-  const tasks = getArray(
-    data?.recent_tasks,
-    data?.tasks,
-    data?.assigned_tasks,
-    data?.my_tasks
-  );
+    const inProgressTasks =
+      summary.in_progress_tasks ??
+      summary.inProgressTasks ??
+      overviewData.recentTasks.filter((task) =>
+        ["ongoing", "in_progress"].includes(
+          String(task.status || "").toLowerCase()
+        )
+      ).length;
 
-  const projects = getArray(
-    data?.projects,
-    data?.assigned_projects,
-    data?.my_projects,
-    data?.recent_projects
-  );
+    const completedTasks =
+      summary.completed_tasks ??
+      summary.completedTasks ??
+      overviewData.recentTasks.filter((task) =>
+        ["completed", "done"].includes(String(task.status || "").toLowerCase())
+      ).length;
 
-  const activities = getArray(
-    data?.activity_logs,
-    data?.recent_activity,
-    data?.activities,
-    data?.logs
-  );
+    const attendancePercentage =
+      summary.attendance_percentage ??
+      summary.attendancePercentage ??
+      summary.weekly_attendance_percentage ??
+      0;
 
-  const attendance =
-    data?.attendance_summary ||
-    data?.attendance ||
-    data?.my_attendance ||
-    data?.weekly_attendance ||
-    {};
-
-  const totalProjects = useMemo(() => {
-    const directTotal = getNumber(
-      stats?.total_projects,
-      stats?.my_total_projects,
-      data?.total_projects,
-      data?.my_total_projects
+    const pendingTasks = Math.max(
+      Number(totalTasks || 0) -
+        Number(inProgressTasks || 0) -
+        Number(completedTasks || 0),
+      0
     );
 
-    if (directTotal > 0) return directTotal;
-
-    const projectKeys = new Set();
-
-    projects.forEach((project) => {
-      const key =
-        project?.project_id ||
-        project?.id ||
-        project?.project_title ||
-        project?.project_name;
-
-      if (key) projectKeys.add(key);
-    });
-
-    tasks.forEach((task) => {
-      const key =
-        task?.project_id ||
-        task?.project_title ||
-        task?.project_name;
-
-      if (key) projectKeys.add(key);
-    });
-
-    return projectKeys.size;
-  }, [stats, data, projects, tasks]);
-
-  const totalTasks = useMemo(() => {
-    const directTotal = getNumber(
-      stats?.total_tasks,
-      stats?.my_total_tasks,
-      data?.total_tasks,
-      data?.my_total_tasks
-    );
-
-    if (directTotal > 0) return directTotal;
-
-    return tasks.length;
-  }, [stats, data, tasks]);
-
-  const weeklyAttendance = useMemo(() => {
-    return getNumber(
-      stats?.weekly_attendance,
-      stats?.weekly_attendance_percentage,
-      stats?.attendance_percentage,
-      data?.weekly_attendance,
-      data?.weekly_attendance_percentage,
-      attendance?.weekly_attendance,
-      attendance?.weekly_attendance_percentage,
-      attendance?.attendance_percentage,
-      attendance?.present_percentage
-    );
-  }, [stats, data, attendance]);
-
-  const recentTasks = tasks.slice(0, 6);
-  const recentActivities = activities.slice(0, 6);
-
-  if (loading) {
-    return (
-      <div className="employee-overview-page">
-        <div className="employee-overview-card">
-          <strong>Loading employee overview...</strong>
-        </div>
-      </div>
-    );
-  }
+    return {
+      totalTasks: Number(totalTasks || 0),
+      inProgressTasks: Number(inProgressTasks || 0),
+      completedTasks: Number(completedTasks || 0),
+      pendingTasks,
+      attendancePercentage: Number(attendancePercentage || 0),
+    };
+  }, [overviewData]);
 
   return (
     <div className="employee-overview-page">
-      <div className="employee-overview-top-actions">
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          marginBottom: "22px",
+        }}
+      >
         <button
           type="button"
           className="employee-overview-refresh-btn"
           onClick={fetchOverview}
+          disabled={loading}
         >
-          <RefreshCw size={20} />
-          Refresh
+          <RefreshCw size={18} />
+          {loading ? "Refreshing..." : "Refresh"}
         </button>
       </div>
 
-      {message && <div className="employee-overview-error">{message}</div>}
+      {error && <div className="employee-overview-error">{error}</div>}
 
-      <section className="employee-overview-stats-grid employee-overview-stats-grid-final">
-        <button
-          type="button"
-          className="employee-overview-stat-card-final"
-          onClick={() => navigate("/employee/projects")}
-        >
-          <strong>{totalProjects}</strong>
-
-          <span>
-            <FolderKanban size={22} />
-            Total Projects
-          </span>
-        </button>
-
-        <button
-          type="button"
-          className="employee-overview-stat-card-final"
-          onClick={() => navigate("/employee/tasks")}
-        >
-          <strong>{totalTasks}</strong>
-
-          <span>
+      <div className="employee-overview-stats">
+        <div className="employee-overview-stat-card">
+          <h2>{stats.totalTasks}</h2>
+          <p>
             <ClipboardList size={22} />
             Total Tasks
-          </span>
-        </button>
+          </p>
+        </div>
 
-        <button
-          type="button"
-          className="employee-overview-stat-card-final"
-          onClick={() => navigate("/employee/attendance")}
-        >
-          <strong>{Math.round(weeklyAttendance)}%</strong>
+        <div className="employee-overview-stat-card">
+          <h2>{stats.inProgressTasks}</h2>
+          <p>
+            <Activity size={22} />
+            In Progress Tasks
+          </p>
+        </div>
 
-          <span>
+        <div className="employee-overview-stat-card">
+          <h2>{stats.completedTasks}</h2>
+          <p>
+            <CheckCircle2 size={22} />
+            Completed Tasks
+          </p>
+        </div>
+
+        <div className="employee-overview-stat-card">
+          <h2>{stats.attendancePercentage}%</h2>
+          <p>
             <CalendarCheck size={22} />
             Weekly Attendance
-          </span>
-        </button>
-      </section>
+          </p>
+        </div>
+      </div>
 
-      <section className="employee-overview-main-grid">
-        <div className="employee-overview-card">
-          <div className="employee-overview-card-header">
-            <h2>Recent Tasks</h2>
-            <p>Your latest assigned tasks</p>
-          </div>
-
-          {recentTasks.length > 0 ? (
-            <div className="employee-task-list">
-              {recentTasks.map((task, index) => (
-                <div
-                  className="employee-task-row"
-                  key={task.task_id || task.id || index}
-                >
-                  <div>
-                    <h4>{getTaskTitle(task)}</h4>
-                    <p>{getProjectTitle(task)}</p>
-                    <small>
-                      {formatDate(task.start_date || task.project_start_date)}{" "}
-                      to{" "}
-                      {formatDate(
-                        task.due_date ||
-                          task.end_date ||
-                          task.project_end_date
-                      )}
-                    </small>
-                  </div>
-
-                  <div>
-                    <span>{statusLabel(task.status_group || task.status)}</span>
-                    <p>{getProgress(task)}%</p>
-                  </div>
-                </div>
-              ))}
+      <div className="employee-overview-main-grid">
+        <div className="employee-overview-left-column">
+          <section className="employee-overview-card recent-tasks-card">
+            <div className="employee-overview-card-header">
+              <div>
+                <h2>Recent Tasks</h2>
+                <p>Your latest assigned tasks</p>
+              </div>
             </div>
-          ) : (
-            <div className="employee-empty-state">No recent tasks found.</div>
-          )}
+
+            <div className="recent-tasks-scroll-area">
+              {overviewData.recentTasks.length === 0 ? (
+                <div className="employee-overview-empty">
+                  No recent tasks found.
+                </div>
+              ) : (
+                overviewData.recentTasks.map((task, index) => {
+                  const progress = getTaskProgress(task);
+
+                  return (
+                    <div
+                      className="employee-recent-task-item"
+                      key={task.task_id || task.main_task_id || index}
+                    >
+                      <div>
+                        <h3>{getTaskTitle(task)}</h3>
+                        <p>{getTaskProject(task)}</p>
+                        <span>
+                          {getTaskStartDate(task)}
+                          {getTaskStartDate(task) || getTaskEndDate(task)
+                            ? " to "
+                            : ""}
+                          {getTaskEndDate(task)}
+                        </span>
+                      </div>
+
+                      <div className="employee-recent-task-status">
+                        <strong>
+                          {formatStatus(task.status || task.main_task_status)}
+                        </strong>
+                        <b>{progress}%</b>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+
+          <section className="employee-overview-card employee-task-summary-card">
+            <div className="employee-overview-card-header">
+              <div>
+                <h2>Task Status Summary</h2>
+                <p>Your current task status breakdown</p>
+              </div>
+            </div>
+
+            <div className="employee-task-summary-list">
+              <div className="employee-task-summary-row">
+                <span>Total Tasks</span>
+                <strong>{stats.totalTasks}</strong>
+              </div>
+
+              <div className="employee-task-summary-row">
+                <span>In Progress Tasks</span>
+                <strong>{stats.inProgressTasks}</strong>
+              </div>
+
+              <div className="employee-task-summary-row">
+                <span>Completed Tasks</span>
+                <strong>{stats.completedTasks}</strong>
+              </div>
+
+              <div className="employee-task-summary-row">
+                <span>Pending Tasks</span>
+                <strong>{stats.pendingTasks}</strong>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <div className="employee-overview-card">
-          <div className="employee-overview-card-header">
-            <h2>Activity Log</h2>
-            <p>Recent activity related to your tasks</p>
-          </div>
+        <div className="employee-overview-right-column">
+          <section className="employee-overview-card activity-log-card">
+            <div className="employee-overview-card-header">
+              <div>
+                <h2>Activity Log</h2>
+                <p>Recent activity related to your tasks</p>
+              </div>
+            </div>
 
-          {recentActivities.length > 0 ? (
             <div className="employee-activity-list">
-              {recentActivities.map((activity, index) => (
-                <div
-                  className="employee-activity-row"
-                  key={activity.log_id || activity.activity_id || index}
-                >
-                  <div className="employee-activity-dot" />
+              {overviewData.activityLog.length === 0 ? (
+                <div className="employee-overview-empty">No activity found.</div>
+              ) : (
+                overviewData.activityLog.slice(0, 5).map((activity, index) => (
+                  <div
+                    className="employee-activity-item"
+                    key={activity.activity_id || activity.log_id || index}
+                  >
+                    <div className="employee-activity-dot">
+                      <Activity size={14} />
+                    </div>
 
-                  <div>
-                    <h4>
-                      {activity.action_type ||
-                        activity.type ||
-                        activity.title ||
-                        "Activity"}
-                    </h4>
-
-                    <p>
-                      {activity.description ||
-                        activity.message ||
-                        activity.details ||
-                        "-"}
-                    </p>
-
-                    <span>
-                      {activity.created_at ||
-                        activity.created_date ||
-                        activity.date ||
-                        ""}
-                    </span>
+                    <div>
+                      <h3>{getActivityTitle(activity)}</h3>
+                      <p>{getActivityDescription(activity)}</p>
+                      <span>{getActivityDate(activity)}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
-          ) : (
-            <div className="employee-empty-state">No activity yet.</div>
-          )}
+          </section>
+
+          <section className="employee-overview-card weekly-attendance-card">
+            <div className="employee-overview-card-header">
+              <div>
+                <h2>Week Attendance</h2>
+                <p>Your attendance records for the week</p>
+              </div>
+            </div>
+
+            <div className="employee-week-attendance-list">
+              {overviewData.weeklyAttendance.length === 0 ? (
+                <div className="employee-overview-empty">
+                  No weekly attendance found.
+                </div>
+              ) : (
+                overviewData.weeklyAttendance.map((item, index) => (
+                  <div
+                    className="employee-week-attendance-row"
+                    key={item.attendance_id || index}
+                  >
+                    <span>{getAttendanceDate(item)}</span>
+                    <strong>{getAttendanceStatus(item)}</strong>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </div>
   );
 };

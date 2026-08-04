@@ -1,38 +1,35 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Lock, LogIn, Mail } from "lucide-react";
+import { Lock, LogIn, Mail } from "lucide-react";
 import api from "../api/axios";
+
+const getDashboardRoute = (roleName) => {
+  if (roleName === "administrator") return "/administrator/overview";
+  if (roleName === "superadmin") return "/superadmin/overview";
+  if (roleName === "admin") return "/admin/overview";
+  if (roleName === "employee") return "/employee/overview";
+
+  return "/login";
+};
 
 const LoginPage = () => {
   const navigate = useNavigate();
 
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
 
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   const handleChange = (event) => {
     const { name, value } = event.target;
 
-    setForm((previous) => ({
+    setFormData((previous) => ({
       ...previous,
       [name]: value,
     }));
-  };
-
-  const getRedirectPath = (roleName) => {
-    const role = String(roleName || "").toLowerCase().trim();
-
-    if (role === "superadmin") return "/superadmin/overview";
-    if (role === "administrator") return "/administrator/overview";
-    if (role === "admin") return "/admin/overview";
-    if (role === "employee") return "/employee/overview";
-
-    return "/login";
   };
 
   const handleLogin = async (event) => {
@@ -42,31 +39,45 @@ const LoginPage = () => {
       setLoading(true);
       setMessage("");
 
+      sessionStorage.removeItem("token");
+      sessionStorage.removeItem("user");
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+
       const response = await api.post("/auth/login", {
-        email: form.email.trim(),
-        password: form.password,
+        email: formData.email.trim(),
+        password: formData.password,
       });
 
-      const token = response.data?.token;
-      const user = response.data?.user;
+      const token = response.data.token;
+      const user = response.data.user;
 
       if (!token || !user) {
-        setMessage("Login failed.");
+        setMessage("Login failed. Token or user data missing.");
         return;
       }
 
       sessionStorage.setItem("token", token);
       sessionStorage.setItem("user", JSON.stringify(user));
 
-      localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
 
-      navigate(getRedirectPath(user.role_name), { replace: true });
+      const dashboardRoute = getDashboardRoute(user.role_name);
+
+      if (dashboardRoute === "/login") {
+        setMessage("No dashboard found for this user role.");
+        sessionStorage.removeItem("token");
+        sessionStorage.removeItem("user");
+        localStorage.removeItem("user");
+        return;
+      }
+
+      navigate(dashboardRoute, { replace: true });
     } catch (error) {
       setMessage(
         error.response?.data?.message ||
           error.response?.data?.error ||
-          "Login failed."
+          "Invalid email or password."
       );
     } finally {
       setLoading(false);
@@ -74,204 +85,202 @@ const LoginPage = () => {
   };
 
   return (
-    <div style={styles.page}>
-      <form style={styles.card} onSubmit={handleLogin}>
-        <div style={styles.logoBox}>V</div>
-
-        <h1 style={styles.title}>Valencia RMS</h1>
-
-        <p style={styles.subtitle}>
-          Login to access your role-based dashboard.
-        </p>
-
-        {message && <div style={styles.errorBox}>{message}</div>}
-
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>Email</label>
-
-          <div style={styles.inputWrap}>
-            <Mail size={18} color="#667085" />
-
-            <input
-              style={styles.input}
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              placeholder="Enter your email"
-              autoComplete="email"
-              required
-            />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f6f7fb",
+        display: "grid",
+        placeItems: "center",
+        padding: "24px",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "430px",
+          background: "#ffffff",
+          borderRadius: "28px",
+          padding: "34px",
+          boxShadow: "0 18px 50px rgba(0, 0, 0, 0.08)",
+          border: "1px solid #eeeeee",
+        }}
+      >
+        <div style={{ marginBottom: "26px", textAlign: "center" }}>
+          <div
+            style={{
+              width: "64px",
+              height: "64px",
+              borderRadius: "22px",
+              background: "#ff5733",
+              color: "#ffffff",
+              display: "grid",
+              placeItems: "center",
+              margin: "0 auto 16px",
+              fontWeight: 900,
+              fontSize: "30px",
+            }}
+          >
+            V
           </div>
+
+          <h1
+            style={{
+              margin: 0,
+              color: "#111111",
+              fontSize: "30px",
+              fontWeight: 900,
+            }}
+          >
+            Valencia RMS
+          </h1>
+
+          <p
+            style={{
+              margin: "8px 0 0",
+              color: "#666666",
+              fontSize: "15px",
+            }}
+          >
+            Login to access your role-based dashboard.
+          </p>
         </div>
 
-        <div style={styles.fieldGroup}>
-          <label style={styles.label}>Password</label>
+        {message && (
+          <div
+            style={{
+              background: "#fff1f0",
+              color: "#b42318",
+              border: "1px solid #ffd5d0",
+              borderRadius: "14px",
+              padding: "12px 14px",
+              marginBottom: "18px",
+              fontSize: "14px",
+              fontWeight: 700,
+            }}
+          >
+            {message}
+          </div>
+        )}
 
-          <div style={styles.inputWrap}>
-            <Lock size={18} color="#667085" />
-
-            <input
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: "16px" }}>
+            <label
               style={{
-                ...styles.input,
-                paddingRight: "40px",
+                display: "block",
+                marginBottom: "8px",
+                color: "#333333",
+                fontSize: "14px",
+                fontWeight: 800,
               }}
-              type={showPassword ? "text" : "password"}
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              placeholder="Enter your password"
-              autoComplete="current-password"
-              required
-            />
-
-            <button
-              type="button"
-              style={styles.eyeButton}
-              onClick={() => setShowPassword((previous) => !previous)}
-              title={showPassword ? "Hide password" : "Show password"}
-              aria-label={showPassword ? "Hide password" : "Show password"}
             >
-              {showPassword ? (
-                <EyeOff size={19} color="#667085" />
-              ) : (
-                <Eye size={19} color="#667085" />
-              )}
-            </button>
-          </div>
-        </div>
+              Email
+            </label>
 
-        <button type="submit" style={styles.loginButton} disabled={loading}>
-          <LogIn size={20} />
-          {loading ? "Logging in..." : "Login"}
-        </button>
-      </form>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "1px solid #e5e5e5",
+                borderRadius: "16px",
+                padding: "0 14px",
+                background: "#ffffff",
+              }}
+            >
+              <Mail size={18} color="#777777" />
+
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                required
+                style={{
+                  width: "100%",
+                  border: "0",
+                  outline: "none",
+                  padding: "15px 0",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  background: "transparent",
+                }}
+              />
+            </div>
+          </div>
+
+          <div style={{ marginBottom: "22px" }}>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "8px",
+                color: "#333333",
+                fontSize: "14px",
+                fontWeight: 800,
+              }}
+            >
+              Password
+            </label>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+                border: "1px solid #e5e5e5",
+                borderRadius: "16px",
+                padding: "0 14px",
+                background: "#ffffff",
+              }}
+            >
+              <Lock size={18} color="#777777" />
+
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                required
+                style={{
+                  width: "100%",
+                  border: "0",
+                  outline: "none",
+                  padding: "15px 0",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  background: "transparent",
+                }}
+              />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: "100%",
+              border: "0",
+              borderRadius: "16px",
+              background: loading ? "#ff9a82" : "#ff5733",
+              color: "#ffffff",
+              padding: "15px 18px",
+              fontSize: "16px",
+              fontWeight: 900,
+              cursor: loading ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "10px",
+            }}
+          >
+            <LogIn size={18} />
+            {loading ? "Logging in..." : "Login"}
+          </button>
+        </form>
+      </div>
     </div>
   );
-};
-
-const styles = {
-  page: {
-    minHeight: "100vh",
-    width: "100%",
-    background: "#f5f7fb",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "18px",
-    boxSizing: "border-box",
-  },
-  card: {
-    width: "min(440px, 92vw)",
-    background: "#ffffff",
-    borderRadius: "24px",
-    padding: "30px 34px",
-    boxShadow: "0 22px 54px rgba(15, 23, 42, 0.08)",
-    border: "1px solid #eeeeee",
-    boxSizing: "border-box",
-  },
-  logoBox: {
-    width: "58px",
-    height: "58px",
-    borderRadius: "17px",
-    background: "#ff5733",
-    color: "#ffffff",
-    display: "grid",
-    placeItems: "center",
-    fontSize: "32px",
-    fontWeight: 900,
-    margin: "0 auto 20px",
-  },
-  title: {
-    margin: "0 0 8px",
-    textAlign: "center",
-    color: "#000000",
-    fontSize: "30px",
-    fontWeight: 900,
-    letterSpacing: "-0.04em",
-  },
-  subtitle: {
-    margin: "0 0 26px",
-    textAlign: "center",
-    color: "#667085",
-    fontSize: "15px",
-    fontWeight: 500,
-  },
-  errorBox: {
-    background: "#fff1f2",
-    border: "1px solid #fecdd3",
-    color: "#b42318",
-    borderRadius: "14px",
-    padding: "12px 15px",
-    fontSize: "14px",
-    fontWeight: 900,
-    marginBottom: "18px",
-  },
-  fieldGroup: {
-    marginBottom: "18px",
-  },
-  label: {
-    display: "block",
-    color: "#111827",
-    fontSize: "14px",
-    fontWeight: 900,
-    marginBottom: "8px",
-  },
-  inputWrap: {
-    position: "relative",
-    height: "52px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "16px",
-    background: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    padding: "0 14px",
-    boxSizing: "border-box",
-  },
-  input: {
-    width: "100%",
-    height: "100%",
-    border: "0",
-    outline: "0",
-    background: "transparent",
-    color: "#111827",
-    fontSize: "15px",
-    fontWeight: 800,
-    fontFamily: "inherit",
-    boxSizing: "border-box",
-  },
-  eyeButton: {
-    position: "absolute",
-    right: "10px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    width: "34px",
-    height: "34px",
-    border: "0",
-    borderRadius: "10px",
-    background: "transparent",
-    display: "grid",
-    placeItems: "center",
-    cursor: "pointer",
-  },
-  loginButton: {
-    width: "100%",
-    height: "56px",
-    border: "0",
-    borderRadius: "16px",
-    background: "#ff5733",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "10px",
-    fontSize: "18px",
-    fontWeight: 900,
-    cursor: "pointer",
-    marginTop: "22px",
-    boxShadow: "0 14px 30px rgba(255, 87, 51, 0.2)",
-  },
 };
 
 export default LoginPage;
