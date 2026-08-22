@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { RefreshCw, Save, UserRound } from "lucide-react";
+import {
+ RefreshCw,
+ Save,
+ UserRound,
+ LockKeyhole,
+  Eye,
+ EyeOff
+} from "lucide-react";
 import api from "../../api/axios";
 
 const getStoredUser = () => {
@@ -13,7 +20,24 @@ const getStoredUser = () => {
 };
 
 const getResponseData = (response) => {
-  return response?.data?.data || response?.data?.profile || response?.data || {};
+  const data = response?.data || {};
+  const profile = data.profile || data.data || data;
+
+  const skills = Array.isArray(data.skills)
+    ? data.skills
+        .map((skill) =>
+          typeof skill === "string"
+            ? skill
+            : skill.skill_name
+        )
+        .filter(Boolean)
+        .join(", ")
+    : profile.skills || "";
+
+  return {
+    ...profile,
+    skills,
+  };
 };
 
 const getInitials = (name = "") => {
@@ -71,8 +95,16 @@ const EmployeeProfile = () => {
   const [savingSkills, setSavingSkills] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [oldPassword,setOldPassword]=useState("");
+const [newPassword,setNewPassword]=useState("");
+const [confirmPassword,setConfirmPassword]=useState("");
+const [changingPassword,setChangingPassword]=useState(false);
+const [showPasswordBox,setShowPasswordBox]=useState(false);
 
-  const initials = useMemo(() => getInitials(profile.full_name), [profile.full_name]);
+const [showOldPassword,setShowOldPassword]=useState(false);
+const [showNewPassword,setShowNewPassword]=useState(false);
+const [showConfirmPassword,setShowConfirmPassword]=useState(false); 
+const initials = useMemo(() => getInitials(profile.full_name), [profile.full_name]);
 
   const skillsList = useMemo(() => {
     return String(profile.skills || "")
@@ -82,78 +114,133 @@ const EmployeeProfile = () => {
   }, [profile.skills]);
 
   const fetchProfile = async () => {
+  try {
     setLoading(true);
     setError("");
     setSuccessMessage("");
 
-    try {
-      let response;
+    const response = await api.get(
+      "/employee-profile/me"
+    );
 
-      try {
-        response = await api.get("/employee/profile");
-      } catch {
-        try {
-          response = await api.get("/employee-profile");
-        } catch {
-          try {
-            response = await api.get("/employee-profile/me");
-          } catch {
-            response = await api.get("/employee/me");
-          }
-        }
-      }
+    const normalized = normalizeProfile(
+      getResponseData(response),
+      storedUser
+    );
 
-      const normalized = normalizeProfile(getResponseData(response), storedUser);
-      setProfile(normalized);
-      setSkillsText(normalized.skills || "");
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to load profile."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+    setProfile(normalized);
+    setSkillsText(normalized.skills || "");
+  } catch (err) {
+    console.error("Fetch employee profile error:", err);
+
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to load profile."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const saveSkills = async () => {
+  try {
     setSavingSkills(true);
     setError("");
     setSuccessMessage("");
 
-    try {
-      const payload = {
+    const response = await api.put(
+      "/employee-profile/skills",
+      {
         skills: skillsText,
-      };
-
-      try {
-        await api.put("/employee/profile/skills", payload);
-      } catch {
-        try {
-          await api.put("/employee-profile/skills", payload);
-        } catch {
-          await api.put("/employee-profile/me/skills", payload);
-        }
       }
+    );
 
-      setProfile((previous) => ({
-        ...previous,
-        skills: skillsText,
-      }));
+    const updatedSkills = Array.isArray(response.data?.skills)
+      ? response.data.skills
+          .map((skill) => skill.skill_name)
+          .filter(Boolean)
+          .join(", ")
+      : skillsText;
 
-      setEditingSkills(false);
-      setSuccessMessage("Skills updated successfully.");
-    } catch (err) {
+    setProfile((previous) => ({
+      ...previous,
+      skills: updatedSkills,
+    }));
+
+    setSkillsText(updatedSkills);
+    setEditingSkills(false);
+    setSuccessMessage(
+      response.data?.message || "Skills updated successfully."
+    );
+  } catch (err) {
+    console.error("Save employee skills error:", err);
+
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to update skills."
+    );
+  } finally {
+    setSavingSkills(false);
+  }
+};
+const changePassword = async()=>{
+
+  try{
+
+    setError("");
+    setSuccessMessage("");
+
+    if(newPassword !== confirmPassword){
+
       setError(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to update skills."
+        "New password and confirm password do not match"
       );
-    } finally {
-      setSavingSkills(false);
+
+      return;
+
     }
-  };
+
+
+    setChangingPassword(true);
+
+
+    await api.put(
+      "/employee-profile/change-password",
+      {
+        oldPassword,
+        newPassword
+      }
+    );
+
+
+    setSuccessMessage(
+      "Password changed successfully"
+    );
+
+
+    setOldPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+
+
+  }
+  catch(err){
+
+    setError(
+      err.response?.data?.message ||
+      "Failed to change password"
+    );
+
+  }
+  finally{
+
+    setChangingPassword(false);
+
+  }
+
+};
 
   useEffect(() => {
     fetchProfile();
@@ -298,6 +385,209 @@ const EmployeeProfile = () => {
           <div style={styles.emptySkills}>No skills added yet.</div>
         )}
       </section>
+      <section style={styles.skillsCard}>
+
+  <div style={styles.skillsHeader}>
+
+    <div>
+      <h2 style={styles.cardTitle}>
+        Security
+      </h2>
+
+      <p style={styles.cardSubtitle}>
+        Manage your account password.
+      </p>
+    </div>
+
+
+    <button
+      type="button"
+      style={styles.editBtn}
+      onClick={() =>
+        setShowPasswordBox(!showPasswordBox)
+      }
+    >
+      <LockKeyhole size={17}/>
+
+      {
+        showPasswordBox
+        ? "Close"
+        : "Change Password"
+      }
+
+    </button>
+
+  </div>
+
+
+  {
+    showPasswordBox && (
+
+      <div style={styles.passwordContainer}>
+
+
+        <label style={styles.passwordField}>
+
+          <span>
+            Current Password
+          </span>
+
+
+          <div style={styles.passwordInputWrap}>
+
+            <input
+              type={
+                showOldPassword
+                ? "text"
+                : "password"
+              }
+              value={oldPassword}
+              onChange={(e)=>
+                setOldPassword(e.target.value)
+              }
+              placeholder="Enter current password"
+              style={styles.passwordInput}
+            />
+
+
+            <button
+              type="button"
+              style={styles.eyeBtn}
+              onClick={() =>
+                setShowOldPassword(!showOldPassword)
+              }
+            >
+
+              {
+                showOldPassword
+                ? <EyeOff size={18}/>
+                : <Eye size={18}/>
+              }
+
+            </button>
+
+          </div>
+
+        </label>
+
+
+
+        <label style={styles.passwordField}>
+
+          <span>
+            New Password
+          </span>
+
+
+          <div style={styles.passwordInputWrap}>
+
+            <input
+              type={
+                showNewPassword
+                ? "text"
+                : "password"
+              }
+              value={newPassword}
+              onChange={(e)=>
+                setNewPassword(e.target.value)
+              }
+              placeholder="Enter new password"
+              style={styles.passwordInput}
+            />
+
+
+            <button
+              type="button"
+              style={styles.eyeBtn}
+              onClick={() =>
+                setShowNewPassword(!showNewPassword)
+              }
+            >
+
+              {
+                showNewPassword
+                ? <EyeOff size={18}/>
+                : <Eye size={18}/>
+              }
+
+            </button>
+
+          </div>
+
+        </label>
+
+
+
+        <label style={styles.passwordField}>
+
+          <span>
+            Confirm New Password
+          </span>
+
+
+          <div style={styles.passwordInputWrap}>
+
+            <input
+              type={
+                showConfirmPassword
+                ? "text"
+                : "password"
+              }
+              value={confirmPassword}
+              onChange={(e)=>
+                setConfirmPassword(e.target.value)
+              }
+              placeholder="Confirm new password"
+              style={styles.passwordInput}
+            />
+
+
+            <button
+              type="button"
+              style={styles.eyeBtn}
+              onClick={() =>
+                setShowConfirmPassword(!showConfirmPassword)
+              }
+            >
+
+              {
+                showConfirmPassword
+                ? <EyeOff size={18}/>
+                : <Eye size={18}/>
+              }
+
+            </button>
+
+          </div>
+
+        </label>
+
+
+
+        <button
+          type="button"
+          style={styles.changePasswordBtn}
+          onClick={changePassword}
+          disabled={changingPassword}
+        >
+
+          {
+            changingPassword
+            ? "Saving..."
+            : "Save Password"
+          }
+
+        </button>
+
+
+      </div>
+
+    )
+
+  }
+
+
+</section>
     </div>
   );
 };
@@ -568,6 +858,114 @@ const styles = {
     fontWeight: 900,
     background: "#f8fafc",
   },
+
+
+passwordField: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "9px",
+},
+
+passwordLabel: {
+  color: "#475569",
+  fontSize: "14px",
+  fontWeight: 900,
+},
+
+passwordInput: {
+  width: "100%",
+  height: "54px",
+  border: "1px solid #d6dde8",
+  borderRadius: "16px",
+  padding: "0 16px",
+  fontSize: "15px",
+  fontWeight: 700,
+  outline: "none",
+  color: "#111827",
+  background: "#ffffff",
+},
+
+passwordActionRow: {
+  gridColumn: "1 / -1",
+  display: "flex",
+  justifyContent: "flex-end",
+  marginTop: "4px",
+},
+
+changePasswordBtn: {
+  border: "none",
+  background: "#ff5733",
+  color: "#ffffff",
+  borderRadius: "16px",
+  padding: "14px 22px",
+  fontSize: "16px",
+  fontWeight: 900,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "9px",
+  cursor: "pointer",
+},
+
+disabledPasswordBtn: {
+  opacity: 0.6,
+  cursor: "not-allowed",
+},
+passwordContainer:{
+display:"flex",
+flexDirection:"column",
+gap:"18px",
+},
+
+
+passwordField:{
+display:"flex",
+flexDirection:"column",
+gap:"8px",
+fontWeight:900,
+color:"#475569",
+},
+
+
+passwordInputWrap:{
+position:"relative",
+width:"100%",
+},
+
+
+passwordInput:{
+width:"100%",
+height:"52px",
+border:"1px solid #d6dde8",
+borderRadius:"16px",
+padding:"0 50px 0 16px",
+fontSize:"15px",
+fontWeight:700,
+},
+
+
+eyeBtn:{
+position:"absolute",
+right:"15px",
+top:"50%",
+transform:"translateY(-50%)",
+border:"none",
+background:"transparent",
+cursor:"pointer",
+color:"#64748b",
+},
+
+
+changePasswordBtn:{
+alignSelf:"flex-end",
+border:"none",
+background:"transparent",
+color:"#ff5733",
+fontWeight:900,
+fontSize:"16px",
+cursor:"pointer",
+},
+
 };
 
 export default EmployeeProfile;

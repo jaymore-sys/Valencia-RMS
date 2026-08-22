@@ -2405,6 +2405,7 @@
 }
 
 .employee-recent-task-item {
+  width: 100% !important;
   min-height: 112px;
   border: 1px solid #e5e7eb;
   border-radius: 18px;
@@ -2415,6 +2416,8 @@
   justify-content: space-between;
   gap: 18px;
   background: #ffffff;
+  box-sizing: border-box;
+  text-align: left;
 }
 
 .employee-recent-task-item h3 {
@@ -3070,11 +3073,12 @@
 
 /* Only Recent Tasks gets internal scroll */
 .recent-tasks-scroll-area {
+  width: 100% !important;
   max-height: 508px !important;
   overflow-y: auto !important;
   padding-right: 8px !important;
+  box-sizing: border-box !important;
 }
-
 .recent-tasks-scroll-area::-webkit-scrollbar {
   width: 8px;
 }
@@ -3479,4 +3483,36 @@
   .employee-overview-stats {
     grid-template-columns: 1fr !important;
   }
+}
+/* Activity Log dedicated scroller */
+
+.employee-activity-scroll-area {
+  max-height: 430px !important;
+  overflow-y: auto !important;
+  padding-right: 8px !important;
+}
+
+.employee-activity-scroll-area::-webkit-scrollbar {
+  width: 8px !important;
+}
+
+.employee-activity-scroll-area::-webkit-scrollbar-track {
+  background: #f1f5f9 !important;
+  border-radius: 999px !important;
+}
+
+.employee-activity-scroll-area::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border-radius: 999px !important;
+}
+
+.employee-activity-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
+}
+/* REMOVE EMPLOYEE SIDEBAR TOGGLE SHADOW */
+.employee-sidebar-toggle,
+.employee-sidebar-toggle:hover,
+.employee-layout.sidebar-collapsed .employee-sidebar-toggle,
+.employee-dashboard-shell.sidebar-collapsed .employee-sidebar-toggle {
+  box-shadow: none !important;
 }

@@ -13,11 +13,12 @@ const adminOverviewRoutes = require("./routes/adminoverviewroutes");
 const adminProfileRoutes = require("./routes/adminprofileroutes");
 const adminTaskRoutes = require("./routes/admintaskroutes");
 const adminAttendanceRoutes = require("./routes/adminattendanceroutes");
+const adminLeaveRoutes = require("./routes/adminleaveroutes");
 const employeeOverviewRoutes = require("./routes/employeeoverviewroutes");
 const employeeTaskRoutes = require("./routes/employeetaskroutes");
 const employeeProfileRoutes = require("./routes/employeeprofileroutes");
 const employeeAttendanceRoutes = require("./routes/employeeattendanceroutes");
-
+const employeeLeaveRoutes = require("./routes/employeeleaveroutes");
 const app = express();
 
 const superadminRoutes = require("./routes/superadminroutes");
@@ -26,7 +27,7 @@ const employeeMiniTaskRoutes = require("./routes/employeeminitaskroutes");
 const adminMiniTaskRoutes = require("./routes/adminminitaskroutes");
 const employeeProjectRoutes = require("./routes/employeeprojectroutes");
 const adminReviewRoutes = require("./routes/adminreviewroutes");
-
+const calendarRoutes = require("./routes/calendarroutes");
 /*
 |--------------------------------------------------------------------------
 | CORS Configuration
@@ -146,12 +147,17 @@ app.use("/api/admin-overview", adminOverviewRoutes);
 app.use("/api/admin-profile", adminProfileRoutes);
 app.use("/api/admin-tasks", adminTaskRoutes);
 app.use("/api/admin-attendance", adminAttendanceRoutes);
+app.use("/api/admin-leaves", adminLeaveRoutes);
 app.use("/api/employee-overview", employeeOverviewRoutes);
 app.use("/api/employee-tasks", employeeTaskRoutes);
 app.use("/api/employee-profile", employeeProfileRoutes);
 app.use(
   "/api/employee-attendance",
   employeeAttendanceRoutes
+);
+app.use(
+  "/api/employee-leaves",
+  employeeLeaveRoutes
 );
 app.use("/api/superadmin", superadminRoutes);
 app.use(
@@ -161,7 +167,7 @@ app.use(
 app.use("/api/admin-mini-tasks", adminMiniTaskRoutes);
 app.use("/api/employee-projects", employeeProjectRoutes);
 app.use("/api/admin-review", adminReviewRoutes);
-
+app.use("/api/calendar", calendarRoutes);
 const PORT = process.env.PORT || 5000;
 const HOST = process.env.HOST || "0.0.0.0";
 

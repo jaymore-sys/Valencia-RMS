@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   CalendarCheck,
@@ -9,6 +10,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import AdminReviewPopup from "./AdminReviewPopup";
+
 
 const statusLabels = {
   todo: "To Do",
@@ -38,11 +40,18 @@ const formatDate = (value) => {
   return String(value).slice(0, 10);
 };
 
+const normalizeStatus = (value) =>
+  String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
 const styles = {
   page: {
-    paddingBottom: "40px",
-    marginTop: "-45px",
-  },
+  paddingTop: "38px",
+  paddingBottom: "40px",
+},
   warning: {
     background: "#fff7ed",
     color: "#9a3412",
@@ -111,9 +120,13 @@ const styles = {
     fontSize: "14px",
   },
   activityList: {
-    display: "grid",
-    gap: "14px",
-  },
+  display: "grid",
+  gap: "14px",
+  maxHeight: "420px",
+  overflowY: "auto",
+  paddingRight: "8px",
+  scrollbarWidth: "thin",
+},
   activityItem: {
     border: "1px solid #edf0f4",
     background: "#f8fafc",
@@ -148,21 +161,35 @@ const styles = {
     fontSize: "13px",
     fontWeight: 700,
   },
-  attendanceCircle: {
-    width: "150px",
-    height: "150px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #ff5733, #ff8a65)",
-    color: "#ffffff",
-    display: "grid",
-    placeItems: "center",
-    margin: "4px auto 18px",
-    boxShadow: "0 16px 30px rgba(255,87,51,0.25)",
-  },
-  attendanceNumber: {
-    fontSize: "38px",
-    fontWeight: 900,
-  },
+  attendanceBarContainer: {
+  width: "100%",
+  margin: "20px 0",
+},
+
+attendanceBarLabel: {
+  display: "flex",
+  justifyContent: "space-between",
+  marginBottom: "10px",
+  color: "#111827",
+  fontSize: "15px",
+  fontWeight: 800,
+},
+
+attendanceBarTrack: {
+  width: "100%",
+  height: "22px",
+  background: "#f1f5f9",
+  borderRadius: "999px",
+  overflow: "hidden",
+  border: "1px solid #edf0f4",
+},
+
+attendanceBarFill: {
+  height: "100%",
+  background: "linear-gradient(90deg, #ff5733, #ff8a65)",
+  borderRadius: "999px",
+  transition: "width 0.4s ease",
+},
   miniGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
@@ -194,26 +221,105 @@ const styles = {
     color: "#667085",
     fontWeight: 800,
   },
+  reviewHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "16px",
+    marginBottom: "18px",
+  },
+  reviewCount: {
+    minWidth: "38px",
+    height: "38px",
+    padding: "0 12px",
+    borderRadius: "999px",
+    background: "#fff1eb",
+    color: "#ff5733",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 900,
+    fontSize: "14px",
+  },
+  reviewList: {
+    display: "grid",
+    gap: "12px",
+    maxHeight: "300px",
+    overflowY: "auto",
+    paddingRight: "6px",
+    scrollbarWidth: "thin",
+  },
+  reviewItem: {
+    border: "1px solid #e5e7eb",
+    background: "#f8fafc",
+    borderRadius: "16px",
+    padding: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+  },
+  reviewMain: {
+    minWidth: 0,
+  },
+  reviewTaskName: {
+    margin: "0 0 6px",
+    color: "#111827",
+    fontSize: "16px",
+    fontWeight: 900,
+  },
+  reviewMeta: {
+    margin: 0,
+    color: "#667085",
+    fontSize: "13px",
+    lineHeight: 1.55,
+  },
+  reviewStatus: {
+    display: "inline-flex",
+    marginTop: "8px",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    background: "#ede9fe",
+    color: "#6d28d9",
+    fontSize: "11px",
+    fontWeight: 900,
+  },
+  reviewButton: {
+    flexShrink: 0,
+    minHeight: "40px",
+    border: 0,
+    borderRadius: "12px",
+    padding: "0 15px",
+    background: "#ff5733",
+    color: "#ffffff",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
 };
 
 const AdminOverview = () => {
+  const navigate = useNavigate();
+
   const [profile, setProfile] = useState(null);
   const [tasks, setTasks] = useState([]);
+  const [miniTasks, setMiniTasks] = useState([]);
   const [attendanceSummary, setAttendanceSummary] = useState({});
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
+  const [selectedReviewProject, setSelectedReviewProject] = useState(null);
 
   const fetchOverview = async () => {
     try {
       setLoading(true);
       setMessage("");
 
-      const [profileResult, tasksResult, attendanceResult] =
+      const [profileResult, tasksResult, attendanceResult, miniTasksResult] =
         await Promise.allSettled([
           api.get("/admin-profile/me"),
           api.get("/admin-tasks/department-tasks"),
           api.get("/admin-attendance/department-attendance"),
+          api.get("/admin-mini-tasks/department"),
         ]);
 
       if (profileResult.status === "fulfilled") {
@@ -231,6 +337,12 @@ const AdminOverview = () => {
       if (tasksResult.status === "fulfilled") {
         setTasks(tasksResult.value.data?.tasks || []);
       }
+
+      if (miniTasksResult.status === "fulfilled") {
+  setMiniTasks(
+    miniTasksResult.value.data?.mini_tasks || []
+  );
+}
 
       if (attendanceResult.status === "fulfilled") {
         const attendanceData = attendanceResult.value.data || {};
@@ -318,6 +430,72 @@ const AdminOverview = () => {
     return projectKeys.size;
   }, [tasks]);
 
+  /*
+  Main tasks submitted by employees for Admin review.
+  The department-tasks endpoint is already loaded above,
+  so no additional backend request is required here.
+  */
+  const tasksWaitingForReview = useMemo(() => {
+  return tasks
+    .filter((task) => {
+      const status = normalizeStatus(
+        task.status_group ||
+          task.task_status ||
+          task.status
+      );
+
+      return status === "under_review";
+    })
+    .map((task) => {
+      const assignees = Array.isArray(
+        task.main_task_assignees ||
+          task.assignees
+      )
+        ? task.main_task_assignees ||
+          task.assignees
+        : [];
+
+      return {
+        task_id: Number(
+          task.task_id || 0
+        ),
+
+        key: String(
+          task.task_id ||
+            task.main_task_key ||
+            ""
+        ),
+
+        task_title:
+          task.task_title ||
+          "Untitled Main Task",
+
+        project_title:
+          task.project_title ||
+          "Untitled Project",
+
+        due_date:
+          task.task_end_date ||
+          task.due_date ||
+          task.project_end_date ||
+          task.end_date ||
+          "",
+
+        assignees: assignees
+          .map(
+            (employee) =>
+              employee.full_name ||
+              employee.assigned_name
+          )
+          .filter(Boolean),
+      };
+    })
+    .filter(
+      (task) =>
+        task.task_id
+    );
+}, [tasks]);
+
   const attendancePercentage = useMemo(() => {
     const totalRecords = getNumber(attendanceSummary.total_records);
     const presentCount = getNumber(attendanceSummary.present_count);
@@ -364,40 +542,225 @@ const AdminOverview = () => {
       {message && <div style={styles.warning}>{message}</div>}
 
       <section style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <Users size={21} />
+  <div
+    style={{
+      ...styles.statCard,
+      cursor: "pointer",
+      transition: "0.2s ease",
+    }}
+    onClick={() => navigate("/admin/users")}
+  >
+    <div style={styles.statIcon}>
+      <Users size={21} />
+    </div>
+
+    <span style={styles.statLabel}>
+      Department Users
+    </span>
+
+    <strong style={styles.statValue}>
+      {totalUsers}
+    </strong>
+  </div>
+
+
+  <div
+    style={{
+      ...styles.statCard,
+      cursor: "pointer",
+      transition: "0.2s ease",
+    }}
+    onClick={() => navigate("/admin/projects")}
+  >
+    <div style={styles.statIcon}>
+      <FolderKanban size={21} />
+    </div>
+
+    <span style={styles.statLabel}>
+      Department Projects
+    </span>
+
+    <strong style={styles.statValue}>
+      {totalProjects}
+    </strong>
+  </div>
+
+
+  <div
+    style={{
+      ...styles.statCard,
+      cursor: "pointer",
+      transition: "0.2s ease",
+    }}
+    onClick={() => navigate("/admin/tasks")}
+  >
+    <div style={styles.statIcon}>
+      <ClipboardList size={21} />
+    </div>
+
+    <span style={styles.statLabel}>
+      Department Tasks
+    </span>
+
+    <strong style={styles.statValue}>
+      {totalTasks}
+    </strong>
+  </div>
+
+
+  <div
+    style={{
+      ...styles.statCard,
+      cursor: "pointer",
+      transition: "0.2s ease",
+    }}
+    onClick={() => navigate("/admin/tasks")}
+  >
+    <div style={styles.statIcon}>
+      <CheckCircle2 size={21} />
+    </div>
+
+    <span style={styles.statLabel}>
+      Completed Tasks
+    </span>
+
+    <strong style={styles.statValue}>
+      {completedTasks}
+    </strong>
+  </div>
+</section>
+
+      <section style={styles.card}>
+        <div style={styles.reviewHeader}>
+          <div>
+            <h2 style={styles.sectionTitle}>
+              <ClipboardList
+                size={22}
+                color="#ff5733"
+              />
+              Tasks Waiting For Review
+            </h2>
+
+            <p
+              style={{
+                ...styles.sectionSubtitle,
+                marginBottom: 0,
+              }}
+            >
+              Main tasks submitted by employees and waiting
+              for your review.
+            </p>
           </div>
-          <span style={styles.statLabel}>Department Users</span>
-          <strong style={styles.statValue}>{totalUsers}</strong>
+
+          <span style={styles.reviewCount}>
+            {tasksWaitingForReview.length}
+          </span>
         </div>
 
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <FolderKanban size={21} />
-          </div>
-          <span style={styles.statLabel}>Department Projects</span>
-          <strong style={styles.statValue}>{totalProjects}</strong>
-        </div>
+        {tasksWaitingForReview.length > 0 ? (
+          <div style={styles.reviewList}>
+            {tasksWaitingForReview.map(
+              (task) => (
+                <div
+                  key={task.key}
+                  style={styles.reviewItem}
+                >
+                  <div style={styles.reviewMain}>
+                    <h3 style={styles.reviewTaskName}>
+                      {task.task_title}
+                    </h3>
 
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <ClipboardList size={21} />
-          </div>
-          <span style={styles.statLabel}>Department Tasks</span>
-          <strong style={styles.statValue}>{totalTasks}</strong>
-        </div>
+                    <p style={styles.reviewMeta}>
+                      Project:{" "}
+                      <strong>
+                        {task.project_title}
+                      </strong>
+                      {task.assignees.length > 0
+                        ? ` · Employee: ${task.assignees.join(
+                            ", "
+                          )}`
+                        : ""}
+                      {task.due_date
+                        ? ` · Deadline: ${formatDate(
+                            task.due_date
+                          )}`
+                        : ""}
+                    </p>
 
-        <div style={styles.statCard}>
-          <div style={styles.statIcon}>
-            <CheckCircle2 size={21} />
+                    <span style={styles.reviewStatus}>
+                      Under Review
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    style={styles.reviewButton}
+                    onClick={() =>
+                      navigate(
+                        "/admin/tasks",
+                        {
+                          state: {
+                            openTaskId:
+                              task.task_id,
+                          },
+                        }
+                      )
+                    }
+                  >
+                    Review Task
+                  </button>
+                </div>
+              )
+            )}
           </div>
-          <span style={styles.statLabel}>Completed Tasks</span>
-          <strong style={styles.statValue}>{completedTasks}</strong>
-        </div>
+        ) : (
+          <div style={styles.empty}>
+            No tasks waiting for review.
+          </div>
+        )}
       </section>
 
       <AdminReviewPopup />
+      <section style={styles.card}>
+  <h2 style={styles.sectionTitle}>
+    <ClipboardList size={22} color="#ff5733" />
+    Employee Mini Tasks
+  </h2>
+
+  <p style={styles.sectionSubtitle}>
+    Mini tasks created by employees.
+  </p>
+
+  {miniTasks.length > 0 ? (
+    <div style={styles.activityList}>
+      {miniTasks.map((task, index) => (
+        <div style={styles.activityItem} key={index}>
+          <div style={styles.dot} />
+
+          <div>
+           <h3 style={styles.activityTitle}>
+  {task.mini_task_title || "Mini Task"}
+</h3>
+
+<p style={styles.activityDesc}>
+  {task.mini_task_description || "-"}
+</p>
+
+            <p style={styles.activityMeta}>
+              Employee: {task.employee_name || "-"}
+              {" · "}
+              Date: {formatDate(task.task_date)}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div style={styles.empty}>
+      No mini tasks found.
+    </div>
+  )}
+</section>
 
       <section style={styles.gridTwo}>
         <div style={styles.card}>
@@ -439,10 +802,23 @@ const AdminOverview = () => {
             Department attendance summary for {adminName}.
           </p>
 
-          <div style={styles.attendanceCircle}>
-            <span style={styles.attendanceNumber}>{attendancePercentage}%</span>
-          </div>
+          <div style={styles.attendanceBarContainer}>
 
+  <div style={styles.attendanceBarLabel}>
+    <span>Attendance Completion</span>
+    <strong>{attendancePercentage}%</strong>
+  </div>
+
+  <div style={styles.attendanceBarTrack}>
+    <div
+      style={{
+        ...styles.attendanceBarFill,
+        width: `${attendancePercentage}%`,
+      }}
+    />
+  </div>
+
+</div>
           <div style={styles.miniGrid}>
             <div style={styles.miniCard}>
               <strong style={styles.miniValue}>

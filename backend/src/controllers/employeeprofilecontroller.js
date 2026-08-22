@@ -1,83 +1,149 @@
 const db = require("../config/db");
 
-const getLoggedInUserId = (req) => {
-  return Number(req.user?.user_id || req.user?.id || req.userId || 0);
-};
-
-const ensureEmployeeProfilesTable = async () => {
+const ensureEmployeeSkillsTable = async () => {
   await db.query(`
-    CREATE TABLE IF NOT EXISTS employee_profiles (
-      profile_id INT AUTO_INCREMENT PRIMARY KEY,
-      user_id INT NOT NULL UNIQUE,
-      skills TEXT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    CREATE TABLE IF NOT EXISTS employee_skills (
+      skill_id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT NOT NULL,
+      skill_name VARCHAR(120) NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_employee_skills_user_id (user_id)
     )
   `);
+};
 
-  const [columns] = await db.query("SHOW COLUMNS FROM employee_profiles");
+const getLoggedInEmployee = async (req) => {
+  const loggedInUserId =
+    req.user?.user_id || req.user?.id || req.user?.userId || req.user?.uid;
 
-  const columnNames = columns.map((column) => column.Field);
-
-  if (!columnNames.includes("skills")) {
-    await db.query("ALTER TABLE employee_profiles ADD COLUMN skills TEXT NULL");
+  if (!loggedInUserId) {
+    return {
+      error: {
+        status: 401,
+        message: "Unauthorized. User not found in token.",
+      },
+    };
   }
+
+  const [rows] = await db.query(
+    `
+    SELECT 
+      u.user_id,
+      u.employee_code,
+      u.full_name,
+      u.email,
+      u.phone,
+      u.designation,
+      u.department_id,
+      u.role_id,
+      r.role_name,
+      d.department_name
+    FROM users u
+    LEFT JOIN roles r
+      ON u.role_id = r.role_id
+    LEFT JOIN departments d
+      ON u.department_id = d.department_id
+    WHERE u.user_id = ?
+    LIMIT 1
+    `,
+    [loggedInUserId]
+  );
+
+  if (!rows || rows.length === 0) {
+    return {
+      error: {
+        status: 404,
+        message: "Employee not found.",
+      },
+    };
+  }
+
+  const employee = rows[0];
+  const roleName = String(employee.role_name || "").toLowerCase().trim();
+
+  if (roleName !== "employee") {
+    return {
+      error: {
+        status: 403,
+        message: "Only employees can access employee profile.",
+      },
+    };
+  }
+
+  return { employee };
+};
+
+const normalizeSkills = (skillsInput) => {
+  if (Array.isArray(skillsInput)) {
+    return skillsInput
+      .map((skill) => String(skill || "").trim())
+      .filter(Boolean);
+  }
+
+  return String(skillsInput || "")
+    .split(/[\n,]/)
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+};
+
+const removeDuplicateSkills = (skills) => {
+  const seen = new Set();
+  const uniqueSkills = [];
+
+  skills.forEach((skill) => {
+    const key = skill.toLowerCase();
+
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueSkills.push(skill);
+    }
+  });
+
+  return uniqueSkills;
 };
 
 const getEmployeeProfile = async (req, res) => {
   try {
-    await ensureEmployeeProfilesTable();
+    await ensureEmployeeSkillsTable();
 
-    const userId = getLoggedInUserId(req);
+    const { employee, error } = await getLoggedInEmployee(req);
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized. User not found.",
+    if (error) {
+      return res.status(error.status).json({
+        message: error.message,
       });
     }
 
-    const [rows] = await db.query(
+    const [skills] = await db.query(
       `
-      SELECT
-        u.user_id,
-        u.employee_code,
-        u.full_name,
-        u.email,
-        u.phone,
-        u.designation,
-        u.status,
-        r.role_name,
-        d.department_name,
-        COALESCE(ep.skills, '') AS skills
-      FROM users u
-      LEFT JOIN roles r ON r.role_id = u.role_id
-      LEFT JOIN departments d ON d.department_id = u.department_id
-      LEFT JOIN employee_profiles ep ON ep.user_id = u.user_id
-      WHERE u.user_id = ?
-      LIMIT 1
+      SELECT 
+        skill_id,
+        skill_name
+      FROM employee_skills
+      WHERE user_id = ?
+      ORDER BY skill_name ASC
       `,
-      [userId]
+      [employee.user_id]
     );
 
-    if (!rows.length) {
-      return res.status(404).json({
-        success: false,
-        message: "Employee profile not found.",
-      });
-    }
-
     return res.status(200).json({
-      success: true,
-      profile: rows[0],
-      employee: rows[0],
+      profile: {
+        user_id: employee.user_id,
+        employee_code: employee.employee_code,
+        full_name: employee.full_name,
+        email: employee.email,
+        department_name: employee.department_name,
+        designation: employee.designation,
+        role_name: employee.role_name,
+      },
+      skills,
     });
   } catch (error) {
     console.error("Get employee profile error:", error);
 
     return res.status(500).json({
-      success: false,
-      message: "Failed to load employee profile.",
+      message: "Failed to fetch employee profile.",
       error: error.message,
       sqlMessage: error.sqlMessage || null,
     });
@@ -85,104 +151,160 @@ const getEmployeeProfile = async (req, res) => {
 };
 
 const updateEmployeeSkills = async (req, res) => {
-  const connection = await db.getConnection();
-
   try {
-    await ensureEmployeeProfilesTable();
+    await ensureEmployeeSkillsTable();
 
-    const userId = getLoggedInUserId(req);
+    const { employee, error } = await getLoggedInEmployee(req);
 
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized. User not found.",
+    if (error) {
+      return res.status(error.status).json({
+        message: error.message,
       });
     }
 
-    const skills = String(req.body.skills || "").trim();
+    const rawSkills = normalizeSkills(req.body?.skills);
+    const skills = removeDuplicateSkills(rawSkills).slice(0, 30);
 
-    await connection.beginTransaction();
-
-    const [existingRows] = await connection.query(
+    await db.query(
       `
-      SELECT profile_id
-      FROM employee_profiles
+      DELETE FROM employee_skills
       WHERE user_id = ?
-      LIMIT 1
       `,
-      [userId]
+      [employee.user_id]
     );
 
-    if (existingRows.length) {
-      await connection.query(
+    if (skills.length > 0) {
+      const placeholders = skills.map(() => "(?, ?)").join(", ");
+      const values = [];
+
+      skills.forEach((skill) => {
+        values.push(employee.user_id, skill);
+      });
+
+      await db.query(
         `
-        UPDATE employee_profiles
-        SET skills = ?
-        WHERE user_id = ?
+        INSERT INTO employee_skills
+        (user_id, skill_name)
+        VALUES ${placeholders}
         `,
-        [skills, userId]
-      );
-    } else {
-      await connection.query(
-        `
-        INSERT INTO employee_profiles (user_id, skills)
-        VALUES (?, ?)
-        `,
-        [userId, skills]
+        values
       );
     }
 
-    await connection.commit();
-
-    const [profileRows] = await db.query(
+    const [updatedSkills] = await db.query(
       `
-      SELECT
-        u.user_id,
-        u.employee_code,
-        u.full_name,
-        u.email,
-        u.phone,
-        u.designation,
-        u.status,
-        r.role_name,
-        d.department_name,
-        COALESCE(ep.skills, '') AS skills
-      FROM users u
-      LEFT JOIN roles r ON r.role_id = u.role_id
-      LEFT JOIN departments d ON d.department_id = u.department_id
-      LEFT JOIN employee_profiles ep ON ep.user_id = u.user_id
-      WHERE u.user_id = ?
-      LIMIT 1
+      SELECT 
+        skill_id,
+        skill_name
+      FROM employee_skills
+      WHERE user_id = ?
+      ORDER BY skill_name ASC
+      `,
+      [employee.user_id]
+    );
+
+    return res.status(200).json({
+      message: "Skills updated successfully.",
+      skills: updatedSkills,
+    });
+  } catch (error) {
+    console.error("Update employee skills error:", error);
+
+    return res.status(500).json({
+      message: "Failed to update skills.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  }
+};
+const bcrypt = require("bcryptjs");
+
+const changePassword = async (req, res) => {
+    try {
+    const userId = req.user.user_id;
+
+    const {
+      oldPassword,
+      newPassword,
+    } = req.body;
+
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({
+        message: "Old and new password are required",
+      });
+    }
+
+
+    const [users] = await db.query(
+      `
+      SELECT password_hash
+      FROM users
+      WHERE user_id = ?
       `,
       [userId]
     );
 
-    return res.status(200).json({
-      success: true,
-      message: "Skills saved successfully.",
-      profile: profileRows[0] || null,
-      skills,
-    });
-  } catch (error) {
-    await connection.rollback();
 
-    console.error("Update employee skills error:", error);
+    if (!users.length) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to save skills.",
-      error: error.message,
-      sqlMessage: error.sqlMessage || null,
+
+    const isMatch = await bcrypt.compare(
+      oldPassword,
+      users[0].password_hash
+    );
+
+
+    if (!isMatch) {
+      return res.status(400).json({
+        message: "Current password is incorrect",
+      });
+    }
+
+
+    const hashedPassword =
+      await bcrypt.hash(newPassword, 10);
+
+
+    await db.query(
+      `
+      UPDATE users
+      SET password_hash = ?,
+          force_password_change = 0
+      WHERE user_id = ?
+      `,
+      [
+        hashedPassword,
+        userId,
+      ]
+    );
+
+
+    res.json({
+      message:
+        "Password changed successfully",
     });
-  } finally {
-    connection.release();
+
+
+  } catch(error){
+
+    console.error(
+      "Change password error:",
+      error
+    );
+
+    res.status(500).json({
+      message:"Server error"
+    });
+
   }
 };
-
 module.exports = {
   getEmployeeProfile,
-  getProfile: getEmployeeProfile,
-  getMe: getEmployeeProfile,
   updateEmployeeSkills,
-  updateSkills: updateEmployeeSkills,
+  changePassword,
 };
