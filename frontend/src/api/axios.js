@@ -1,7 +1,9 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "blanchedalmond-turkey-793003.hostingersite.com",
+  baseURL: "	
+
+https://blanchedalmond-turkey-793003.hostingersite.com/api",
 });
 
 api.interceptors.request.use(
