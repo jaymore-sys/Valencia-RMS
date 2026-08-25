@@ -2388,16 +2388,46 @@ const getAdministratorUsers = async (req, res) => {
         u.email,
         u.phone,
         u.designation,
+        u.department_id,
         u.status,
         r.role_name,
         d.department_name,
         ep.skills,
-        DATE_FORMAT(u.created_at, '%d %b %Y') AS created_date
+        DATE_FORMAT(u.created_at, '%d %b %Y') AS created_date,
+
+        COALESCE(
+          (
+            SELECT GROUP_CONCAT(
+              DISTINCT ud.department_id
+              ORDER BY ud.department_id
+              SEPARATOR ','
+            )
+            FROM user_departments ud
+            WHERE ud.user_id = u.user_id
+          ),
+          CAST(u.department_id AS CHAR)
+        ) AS department_ids,
+
+        COALESCE(
+          (
+            SELECT GROUP_CONCAT(
+              DISTINCT dep.department_name
+              ORDER BY dep.department_name
+              SEPARATOR ', '
+            )
+            FROM user_departments ud2
+            JOIN departments dep
+              ON dep.department_id = ud2.department_id
+            WHERE ud2.user_id = u.user_id
+          ),
+          d.department_name
+        ) AS department_names
+
       FROM users u
       JOIN roles r ON r.role_id = u.role_id
       LEFT JOIN departments d ON d.department_id = u.department_id
       LEFT JOIN employee_profiles ep ON ep.user_id = u.user_id
-      WHERE u.status != 'deleted'
+      WHERE COALESCE(u.status, 'active') != 'deleted'
       ORDER BY u.full_name ASC
       `
     );
@@ -2407,10 +2437,13 @@ const getAdministratorUsers = async (req, res) => {
       users,
     });
   } catch (error) {
+    console.error("getAdministratorUsers error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch users.",
       error: error.message,
+      sqlMessage: error.sqlMessage || null,
     });
   }
 };
@@ -2806,18 +2839,50 @@ const updateAdministratorUserRole = async (req, res) => {
 };
 
 const updateAdministratorUserDetails = async (req, res) => {
+  let connection;
+
   try {
+    connection = await db.getConnection();
+
     const userId = Number(req.params.userId);
+    const { email, designation, department_ids } = req.body;
 
-    const { department_name, designation } = req.body;
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid user ID is required.",
+      });
+    }
 
-    const departmentId = await getOrCreateDepartmentId(
-      department_name || "General"
-    );
+    const cleanEmail = normalizeEmail(email);
 
-    const [userRows] = await db.query(
+    if (!cleanEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
+    const departmentIds = [
+      ...new Set(
+        (Array.isArray(department_ids) ? department_ids : [])
+          .map((id) => Number(id))
+          .filter((id) => Number.isInteger(id) && id > 0)
+      ),
+    ];
+
+    if (!departmentIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select at least one department.",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    const [userRows] = await connection.query(
       `
-      SELECT employee_code
+      SELECT user_id, employee_code, email
       FROM users
       WHERE user_id = ?
       LIMIT 1
@@ -2825,36 +2890,136 @@ const updateAdministratorUserDetails = async (req, res) => {
       [userId]
     );
 
-    let employeeCode = userRows[0]?.employee_code;
+    if (!userRows.length) {
+      await connection.rollback();
 
-    if (!employeeCode) {
-      employeeCode = await generateEmployeeCode(db);
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
     }
 
-    await db.query(
+    const [duplicateRows] = await connection.query(
+      `
+      SELECT user_id
+      FROM users
+      WHERE LOWER(TRIM(email)) = LOWER(TRIM(?))
+        AND user_id != ?
+        AND COALESCE(status, 'active') != 'deleted'
+      LIMIT 1
+      `,
+      [cleanEmail, userId]
+    );
+
+    if (duplicateRows.length) {
+      await connection.rollback();
+
+      return res.status(409).json({
+        success: false,
+        message: "This email is already being used by another user.",
+      });
+    }
+
+    const placeholders = departmentIds.map(() => "?").join(",");
+
+    const [departmentRows] = await connection.query(
+      `
+      SELECT department_id, department_name
+      FROM departments
+      WHERE department_id IN (${placeholders})
+      `,
+      departmentIds
+    );
+
+    if (departmentRows.length !== departmentIds.length) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "One or more selected departments are invalid.",
+      });
+    }
+
+    let employeeCode = userRows[0].employee_code;
+
+    if (!employeeCode) {
+      employeeCode = await generateEmployeeCode(connection);
+    }
+
+    const primaryDepartmentId = departmentIds[0];
+
+    await connection.query(
       `
       UPDATE users
       SET
+        email = ?,
         department_id = ?,
         designation = ?,
         employee_code = ?
       WHERE user_id = ?
       `,
-      [departmentId, designation || null, employeeCode, userId]
+      [
+        cleanEmail,
+        primaryDepartmentId,
+        cleanText(designation) || null,
+        employeeCode,
+        userId,
+      ]
     );
+
+    await connection.query(
+      `
+      DELETE FROM user_departments
+      WHERE user_id = ?
+      `,
+      [userId]
+    );
+
+    for (const departmentId of departmentIds) {
+      await connection.query(
+        `
+        INSERT INTO user_departments (user_id, department_id)
+        VALUES (?, ?)
+        `,
+        [userId, departmentId]
+      );
+    }
+
+    await connection.commit();
 
     return res.json({
       success: true,
       message: "User details updated successfully.",
-      employee_code: employeeCode,
+      user: {
+        user_id: userId,
+        email: cleanEmail,
+        designation: cleanText(designation),
+        department_id: primaryDepartmentId,
+        department_ids: departmentIds,
+        employee_code: employeeCode,
+      },
     });
   } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackError) {
+        console.error("ROLLBACK ERROR:", rollbackError);
+      }
+    }
+
+    console.error("updateAdministratorUserDetails error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to update user details.",
       error: error.message,
       sqlMessage: error.sqlMessage || null,
     });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
   }
 };
 
@@ -2917,6 +3082,79 @@ const resetAdministratorUserPassword = async (req, res) => {
       success: false,
       message: "Failed to reset password.",
       error: error.message,
+    });
+  }
+};
+
+const setAdministratorUserPassword = async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const password = String(req.body.password || "");
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid user ID is required.",
+      });
+    }
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required.",
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters.",
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT user_id
+      FROM users
+      WHERE user_id = ?
+        AND COALESCE(status, 'active') != 'deleted'
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    await db.query(
+      `
+      UPDATE users
+      SET
+        password_hash = ?,
+        force_password_change = false
+      WHERE user_id = ?
+      `,
+      [passwordHash, userId]
+    );
+
+    return res.json({
+      success: true,
+      message: "User password updated successfully.",
+    });
+  } catch (error) {
+    console.error("setAdministratorUserPassword error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update user password.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
     });
   }
 };
@@ -3733,6 +3971,7 @@ module.exports = {
   updateAdministratorUserDetails,
   updateAdministratorUserStatus,
   resetAdministratorUserPassword,
+  setAdministratorUserPassword,
   deleteAdministratorUser,
 
   getAdministratorAttendance,
