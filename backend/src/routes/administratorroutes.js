@@ -2,9 +2,7 @@ const express = require("express");
 const multer = require("multer");
 
 const authMiddleware = require("../middleware/authmiddleware");
-const {
-  requireJayAdministrator,
-} = require("../middleware/rolemiddleware");
+const { requireJayAdministrator } = require("../middleware/rolemiddleware");
 
 const {
   getAdministratorOverview,
@@ -25,6 +23,7 @@ const {
   updateAdministratorSkills,
 
   getAdministratorUsersMeta,
+  createAdministratorDepartment,
   getAdministratorUsers,
   createAdministratorUser,
   importAdministratorUsersCsv,
@@ -164,6 +163,17 @@ router.get(
   authMiddleware,
   requireJayAdministrator,
   getAdministratorUsersMeta
+);
+
+/* =========================================================
+   DEPARTMENTS
+========================================================= */
+
+router.post(
+  "/departments",
+  authMiddleware,
+  requireJayAdministrator,
+  createAdministratorDepartment
 );
 
 /* =========================================================

@@ -2377,6 +2377,73 @@ const getAdministratorUsersMeta = async (req, res) => {
   }
 };
 
+const createAdministratorDepartment = async (req, res) => {
+  try {
+    const departmentName = cleanText(req.body.department_name);
+    const description = cleanText(req.body.description);
+
+    if (!departmentName) {
+      return res.status(400).json({
+        success: false,
+        message: "Department name is required.",
+      });
+    }
+
+    if (departmentName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Department name must be 100 characters or less.",
+      });
+    }
+
+    const [existingRows] = await db.query(
+      `
+      SELECT department_id, department_name
+      FROM departments
+      WHERE LOWER(TRIM(department_name)) = LOWER(TRIM(?))
+      LIMIT 1
+      `,
+      [departmentName]
+    );
+
+    if (existingRows.length) {
+      return res.status(409).json({
+        success: false,
+        message: "A department with this name already exists.",
+      });
+    }
+
+    const finalDescription = description || `${departmentName} Department`;
+
+    const [result] = await db.query(
+      `
+      INSERT INTO departments (department_name, description)
+      VALUES (?, ?)
+      `,
+      [departmentName, finalDescription]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Department added successfully.",
+      department: {
+        department_id: result.insertId,
+        department_name: departmentName,
+        description: finalDescription,
+      },
+    });
+  } catch (error) {
+    console.error("createAdministratorDepartment error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add department.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  }
+};
+
 const getAdministratorUsers = async (req, res) => {
   try {
     const [users] = await db.query(
@@ -2882,7 +2949,10 @@ const updateAdministratorUserDetails = async (req, res) => {
 
     const [userRows] = await connection.query(
       `
-      SELECT user_id, employee_code, email
+      SELECT
+        user_id,
+        employee_code,
+        email
       FROM users
       WHERE user_id = ?
       LIMIT 1
@@ -2978,7 +3048,10 @@ const updateAdministratorUserDetails = async (req, res) => {
     for (const departmentId of departmentIds) {
       await connection.query(
         `
-        INSERT INTO user_departments (user_id, department_id)
+        INSERT INTO user_departments (
+          user_id,
+          department_id
+        )
         VALUES (?, ?)
         `,
         [userId, departmentId]
@@ -3964,6 +4037,7 @@ module.exports = {
   updateAdministratorSkills,
 
   getAdministratorUsersMeta,
+  createAdministratorDepartment,
   getAdministratorUsers,
   createAdministratorUser,
   importAdministratorUsersCsv,

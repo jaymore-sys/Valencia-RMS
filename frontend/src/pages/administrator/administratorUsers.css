@@ -1302,3 +1302,411 @@
     width: 100% !important;
   }
 }
+/* =========================================================
+   ADD DEPARTMENT BUTTON
+========================================================= */
+
+.users-page .administrator-add-user-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.users-page .administrator-add-department-btn {
+  min-height: 36px;
+  padding: 0 13px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  flex: 0 0 auto;
+
+  border: 1px solid #ff5733;
+  border-radius: 9px;
+
+  background: #ffffff;
+  color: #ff5733;
+
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 750;
+
+  cursor: pointer;
+
+  transition: 0.18s ease;
+}
+
+.users-page .administrator-add-department-btn:hover {
+  background: #fff4f0;
+}
+
+/* =========================================================
+   ADMIN DEPARTMENT TITLE + ADD BUTTON
+========================================================= */
+
+.users-page .admin-departments-title-row {
+  margin-bottom: 14px;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.users-page
+  .admin-departments-title-row
+  .admin-departments-header {
+  margin: 0 !important;
+}
+
+.users-page .administrator-small-add-department-btn {
+  min-height: 32px;
+  padding: 0 10px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+
+  flex: 0 0 auto;
+
+  border: 1px solid #ffb6a5;
+  border-radius: 8px;
+
+  background: #ffffff;
+  color: #e94f2d;
+
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+.users-page .administrator-small-add-department-btn:hover {
+  border-color: #ff5733;
+  background: #fff4f0;
+}
+
+/* =========================================================
+   SINGLE DEPARTMENT LABEL
+========================================================= */
+
+.users-page .administrator-department-label-row {
+  margin-bottom: 7px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.users-page .administrator-department-label-row label {
+  margin: 0;
+
+  color: #596273;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.users-page .administrator-department-label-row button {
+  padding: 0;
+
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+
+  border: 0;
+
+  background: transparent;
+  color: #ff5733;
+
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 750;
+
+  cursor: pointer;
+}
+
+/* =========================================================
+   ADD DEPARTMENT MODAL BACKDROP
+========================================================= */
+
+.users-page .administrator-department-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+
+  padding: 20px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(15, 23, 42, 0.44);
+
+  backdrop-filter: blur(2px);
+}
+
+/* =========================================================
+   ADD DEPARTMENT MODAL
+========================================================= */
+
+.users-page .administrator-department-modal {
+  width: min(470px, 100%);
+
+  overflow: hidden;
+
+  border: 1px solid #e4e7ec;
+  border-radius: 16px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 25px 70px
+    rgba(15, 23, 42, 0.22);
+}
+
+/* =========================================================
+   MODAL HEADER
+========================================================= */
+
+.users-page .administrator-department-modal-header {
+  padding: 18px 20px;
+
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+
+  border-bottom: 1px solid #eceef2;
+}
+
+.users-page .administrator-department-modal-header h2 {
+  margin: 0;
+
+  color: #172033;
+
+  font-size: 18px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+.users-page .administrator-department-modal-header p {
+  margin: 5px 0 0;
+
+  color: #8a93a1;
+
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.users-page
+  .administrator-department-modal-header
+  > button {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  border: 1px solid #e0e4e9 !important;
+  border-radius: 8px !important;
+
+  background: #ffffff !important;
+  color: #697386 !important;
+
+  box-shadow: none !important;
+
+  cursor: pointer !important;
+}
+
+.users-page
+  .administrator-department-modal-header
+  > button:hover {
+  border-color: #ff5733 !important;
+  color: #ff5733 !important;
+}
+
+/* =========================================================
+   MODAL BODY
+========================================================= */
+
+.users-page .administrator-department-modal-body {
+  padding: 20px;
+}
+
+.users-page .administrator-department-modal-field {
+  margin-bottom: 16px;
+}
+
+.users-page .administrator-department-modal-field label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  color: #4e586a;
+
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.users-page .administrator-department-modal-field input,
+.users-page .administrator-department-modal-field textarea {
+  width: 100% !important;
+
+  margin: 0 !important;
+  padding: 10px 12px !important;
+
+  border: 1px solid #dce1e7 !important;
+  border-radius: 9px !important;
+
+  background: #ffffff !important;
+  color: #253047 !important;
+
+  font-family: inherit !important;
+
+  font-size: 12px !important;
+
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  resize: vertical;
+}
+
+.users-page .administrator-department-modal-field input {
+  height: 41px !important;
+}
+
+.users-page .administrator-department-modal-field textarea {
+  min-height: 82px !important;
+}
+
+.users-page
+  .administrator-department-modal-field
+  input:focus,
+.users-page
+  .administrator-department-modal-field
+  textarea:focus {
+  border-color: #ff5733 !important;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(255, 87, 51, 0.07) !important;
+}
+
+/* =========================================================
+   MODAL ACTIONS
+========================================================= */
+
+.users-page .administrator-department-modal-actions {
+  margin-top: 21px;
+
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 9px;
+}
+
+.users-page .administrator-modal-cancel-btn,
+.users-page .administrator-modal-add-btn {
+  height: 39px !important;
+  min-height: 39px !important;
+
+  margin: 0 !important;
+  padding: 0 15px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  gap: 6px !important;
+
+  border-radius: 9px !important;
+
+  font-family: inherit !important;
+
+  font-size: 11.5px !important;
+  font-weight: 750 !important;
+
+  box-shadow: none !important;
+
+  cursor: pointer !important;
+}
+
+.users-page .administrator-modal-cancel-btn {
+  border: 1px solid #dce1e7 !important;
+
+  background: #ffffff !important;
+  color: #566174 !important;
+}
+
+.users-page .administrator-modal-cancel-btn:hover {
+  border-color: #b8bec7 !important;
+
+  background: #f8f9fa !important;
+}
+
+.users-page .administrator-modal-add-btn {
+  border: 1px solid #ff5733 !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+}
+
+.users-page .administrator-modal-add-btn:hover {
+  border-color: #eb4927 !important;
+
+  background: #eb4927 !important;
+}
+
+.users-page
+  .administrator-modal-cancel-btn:disabled,
+.users-page
+  .administrator-modal-add-btn:disabled {
+  opacity: 0.55 !important;
+
+  cursor: not-allowed !important;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 620px) {
+  .users-page .administrator-add-user-heading {
+    flex-direction: column;
+  }
+
+  .users-page .administrator-add-department-btn {
+    width: 100%;
+  }
+
+  .users-page .admin-departments-title-row {
+    flex-direction: column;
+  }
+
+  .users-page .administrator-small-add-department-btn {
+    width: 100%;
+  }
+
+  .users-page .administrator-department-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .users-page .administrator-modal-cancel-btn,
+  .users-page .administrator-modal-add-btn {
+    width: 100% !important;
+  }
+}

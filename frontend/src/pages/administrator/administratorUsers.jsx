@@ -4,7 +4,9 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Plus,
   RefreshCw,
+  Save,
   Search,
   ShieldCheck,
   Trash2,
@@ -12,20 +14,10 @@ import {
   UserPlus,
   Users,
   X,
-  Save,
 } from "lucide-react";
 
 import api from "../../api/axios";
 import "./administratorUsers.css";
-
-const fixedDepartments = [
-  "IT",
-  "Sales",
-  "Creatives",
-  "Finance",
-  "Nutracare",
-  "POS",
-];
 
 const emptyForm = {
   employee_code: "",
@@ -35,6 +27,11 @@ const emptyForm = {
   designation: "",
   department_name: "",
   role_name: "employee",
+};
+
+const emptyDepartmentForm = {
+  department_name: "",
+  description: "",
 };
 
 const normalizeRole = (value) =>
@@ -50,6 +47,7 @@ const AdministratorUsers = () => {
   const [roles, setRoles] = useState([]);
 
   const [form, setForm] = useState(emptyForm);
+
   const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
@@ -58,11 +56,9 @@ const AdministratorUsers = () => {
 
   const [message, setMessage] = useState("");
 
-  /*
-  =========================================================
-  SELECTED USER
-  =========================================================
-  */
+  /* =========================================================
+     SELECTED USER
+  ========================================================= */
 
   const [selectedUser, setSelectedUser] = useState(null);
 
@@ -70,78 +66,63 @@ const AdministratorUsers = () => {
   const [selectedEmail, setSelectedEmail] = useState("");
   const [selectedDesignation, setSelectedDesignation] = useState("");
 
-  const [
-    selectedDepartmentIds,
-    setSelectedDepartmentIds,
-  ] = useState([]);
+  const [selectedDepartmentIds, setSelectedDepartmentIds] = useState([]);
 
-  const [updatingRole, setUpdatingRole] =
-    useState(false);
+  const [updatingRole, setUpdatingRole] = useState(false);
+  const [updatingDetails, setUpdatingDetails] = useState(false);
 
-  const [updatingDetails, setUpdatingDetails] =
-    useState(false);
+  /* =========================================================
+     PASSWORD
+  ========================================================= */
 
-  /*
-  =========================================================
-  PASSWORD
-  =========================================================
-  */
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  const [newPassword, setNewPassword] =
-    useState("");
+  /* =========================================================
+     ADD DEPARTMENT MODAL
+  ========================================================= */
 
-  const [showPassword, setShowPassword] =
-    useState(false);
+  const [showAddDepartment, setShowAddDepartment] = useState(false);
 
-  const [
-    updatingPassword,
-    setUpdatingPassword,
-  ] = useState(false);
+  const [departmentForm, setDepartmentForm] = useState(
+    emptyDepartmentForm
+  );
 
-  /*
-  =========================================================
-  VISIBLE DEPARTMENTS
-  =========================================================
-  */
+  const [creatingDepartment, setCreatingDepartment] = useState(false);
+
+  /* =========================================================
+     ALL DEPARTMENTS
+
+     IMPORTANT:
+     No fixed department filtering anymore.
+     Newly-created departments immediately appear.
+  ========================================================= */
 
   const visibleDepartments = useMemo(() => {
-    return departments.filter((department) =>
-      fixedDepartments.includes(
-        department.department_name
+    return [...departments].sort((a, b) =>
+      String(a.department_name || "").localeCompare(
+        String(b.department_name || "")
       )
     );
   }, [departments]);
 
-  /*
-  =========================================================
-  FETCH USERS
-  =========================================================
-  */
+  /* =========================================================
+     FETCH USERS
+  ========================================================= */
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      setMessage("");
 
-      const [
-        usersResponse,
-        metaResponse,
-      ] = await Promise.all([
+      const [usersResponse, metaResponse] = await Promise.all([
         api.get("/administrator/users"),
         api.get("/administrator/users/meta"),
       ]);
 
-      setUsers(
-        usersResponse.data.users || []
-      );
-
-      setDepartments(
-        metaResponse.data.departments || []
-      );
-
-      setRoles(
-        metaResponse.data.roles || []
-      );
+      setUsers(usersResponse.data.users || []);
+      setDepartments(metaResponse.data.departments || []);
+      setRoles(metaResponse.data.roles || []);
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
@@ -157,63 +138,35 @@ const AdministratorUsers = () => {
     fetchUsers();
   }, []);
 
-  /*
-  =========================================================
-  FILTER
-  =========================================================
-  */
+  /* =========================================================
+     FILTER USERS
+  ========================================================= */
 
   const filteredUsers = useMemo(() => {
-    const value = search
-      .trim()
-      .toLowerCase();
+    const value = search.trim().toLowerCase();
+
+    if (!value) return users;
 
     return users.filter((user) => {
       return (
-        user.full_name
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.email
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.employee_code
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.designation
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.department_name
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.department_names
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.role_name
-          ?.toLowerCase()
-          .includes(value) ||
-
-        user.status
-          ?.toLowerCase()
-          .includes(value)
+        user.full_name?.toLowerCase().includes(value) ||
+        user.email?.toLowerCase().includes(value) ||
+        user.employee_code?.toLowerCase().includes(value) ||
+        user.designation?.toLowerCase().includes(value) ||
+        user.department_name?.toLowerCase().includes(value) ||
+        user.department_names?.toLowerCase().includes(value) ||
+        user.role_name?.toLowerCase().includes(value) ||
+        user.status?.toLowerCase().includes(value)
       );
     });
   }, [users, search]);
 
-  /*
-  =========================================================
-  ADD USER FORM
-  =========================================================
-  */
+  /* =========================================================
+     ADD USER FORM
+  ========================================================= */
 
   const handleChange = (event) => {
-    const { name, value } =
-      event.target;
+    const { name, value } = event.target;
 
     setForm((previous) => ({
       ...previous,
@@ -228,13 +181,10 @@ const AdministratorUsers = () => {
       setCreating(true);
       setMessage("");
 
-      const response = await api.post(
-        "/administrator/users",
-        form
-      );
+      const response = await api.post("/administrator/users", form);
 
       setMessage(
-        `${response.data.message} Default Password: ${
+        `${response.data.message || "User created successfully."} Default Password: ${
           response.data.default_password || "Valencia@123"
         }`
       );
@@ -253,67 +203,127 @@ const AdministratorUsers = () => {
     }
   };
 
-  /*
-  =========================================================
-  IMPORT
-  =========================================================
-  */
+  /* =========================================================
+     ADD DEPARTMENT
+  ========================================================= */
+
+  const openAddDepartmentModal = () => {
+    setDepartmentForm(emptyDepartmentForm);
+    setShowAddDepartment(true);
+  };
+
+  const closeAddDepartmentModal = () => {
+    if (creatingDepartment) return;
+
+    setDepartmentForm(emptyDepartmentForm);
+    setShowAddDepartment(false);
+  };
+
+  const handleDepartmentFormChange = (event) => {
+    const { name, value } = event.target;
+
+    setDepartmentForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
+  };
+
+  const createDepartment = async (event) => {
+    event.preventDefault();
+
+    const departmentName = departmentForm.department_name.trim();
+
+    if (!departmentName) {
+      setMessage("Department name is required.");
+      return;
+    }
+
+    try {
+      setCreatingDepartment(true);
+      setMessage("");
+
+      const response = await api.post("/administrator/departments", {
+        department_name: departmentName,
+        description: departmentForm.description.trim(),
+      });
+
+      const createdDepartment = response.data.department;
+
+      setMessage(
+        response.data.message || "Department added successfully."
+      );
+
+      setShowAddDepartment(false);
+      setDepartmentForm(emptyDepartmentForm);
+
+      const metaResponse = await api.get("/administrator/users/meta");
+
+      setDepartments(metaResponse.data.departments || []);
+
+      /*
+        If Add Department was opened while creating a user,
+        automatically select the newly-created department.
+      */
+      if (createdDepartment?.department_name) {
+        setForm((previous) => ({
+          ...previous,
+          department_name: createdDepartment.department_name,
+        }));
+      }
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to add department."
+      );
+    } finally {
+      setCreatingDepartment(false);
+    }
+  };
+
+  /* =========================================================
+     IMPORT
+  ========================================================= */
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
   };
 
   const importUsers = async (event) => {
-    const file =
-      event.target.files?.[0];
+    const file = event.target.files?.[0];
 
     if (!file) return;
 
-    const formData =
-      new FormData();
+    const formData = new FormData();
 
-    formData.append(
-      "file",
-      file
-    );
+    formData.append("file", file);
 
     try {
       setImporting(true);
       setMessage("");
 
-      const response =
-        await api.post(
-          "/administrator/users/import",
-          formData,
-          {
-            headers: {
-              "Content-Type":
-                "multipart/form-data",
-            },
-          }
-        );
+      const response = await api.post(
+        "/administrator/users/import",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
 
       setMessage(
-        `${
-          response.data.message ||
-          "Users imported successfully."
-        } Imported: ${
-          response.data
-            .inserted_users ??
-          response.data
-            .importedRows ??
+        `${response.data.message || "Users imported successfully."} Imported: ${
+          response.data.inserted_users ??
+          response.data.importedRows ??
           0
         }, Updated: ${
-          response.data
-            .updated_users ??
-          response.data
-            .updatedRows ??
+          response.data.updated_users ??
+          response.data.updatedRows ??
           0
         }, Skipped: ${
-          response.data
-            .skipped_rows ??
-          response.data
-            .skippedRows ??
+          response.data.skipped_rows ??
+          response.data.skippedRows ??
           0
         }`
       );
@@ -334,103 +344,60 @@ const AdministratorUsers = () => {
     }
   };
 
-  /*
-  =========================================================
-  PARSE USER DEPARTMENTS
-  =========================================================
-  */
+  /* =========================================================
+     USER DEPARTMENTS
+  ========================================================= */
 
-  const getUserDepartmentIds = (
-    user
-  ) => {
+  const getUserDepartmentIds = (user) => {
     if (!user) return [];
 
-    if (
-      Array.isArray(
-        user.department_ids
-      )
-    ) {
+    if (Array.isArray(user.department_ids)) {
       return user.department_ids
         .map(Number)
         .filter(Boolean);
     }
 
     if (
-      user.department_ids !==
-        undefined &&
-      user.department_ids !==
-        null &&
-      String(
-        user.department_ids
-      ).trim() !== ""
+      user.department_ids !== undefined &&
+      user.department_ids !== null &&
+      String(user.department_ids).trim() !== ""
     ) {
-      return String(
-        user.department_ids
-      )
+      return String(user.department_ids)
         .split(",")
-        .map((id) =>
-          Number(id.trim())
-        )
+        .map((id) => Number(id.trim()))
         .filter(Boolean);
     }
 
     if (user.department_id) {
-      return [
-        Number(
-          user.department_id
-        ),
-      ].filter(Boolean);
+      return [Number(user.department_id)].filter(Boolean);
     }
 
-    const department =
-      visibleDepartments.find(
-        (item) =>
-          item.department_name ===
-          user.department_name
-      );
+    const department = visibleDepartments.find(
+      (item) => item.department_name === user.department_name
+    );
 
     if (department) {
-      return [
-        Number(
-          department.department_id
-        ),
-      ];
+      return [Number(department.department_id)];
     }
 
     return [];
   };
 
-  /*
-  =========================================================
-  OPEN USER
-  =========================================================
-  */
+  /* =========================================================
+     USER DIALOG
+  ========================================================= */
 
-  const openUserDialog = (
-    user
-  ) => {
+  const openUserDialog = (user) => {
     setSelectedUser(user);
 
-    setSelectedRole(
-      user.role_name ||
-        "employee"
-    );
+    setSelectedRole(user.role_name || "employee");
+    setSelectedEmail(user.email || "");
+    setSelectedDesignation(user.designation || "");
 
-    setSelectedEmail(
-      user.email || ""
-    );
-
-    setSelectedDesignation(
-      user.designation || ""
-    );
-
-    setSelectedDepartmentIds(
-      getUserDepartmentIds(user)
-    );
+    setSelectedDepartmentIds(getUserDepartmentIds(user));
 
     setNewPassword("");
     setShowPassword(false);
-
     setMessage("");
   };
 
@@ -438,17 +405,12 @@ const AdministratorUsers = () => {
     setSelectedUser(null);
 
     setSelectedRole("");
-
     setSelectedEmail("");
-
     setSelectedDesignation("");
 
-    setSelectedDepartmentIds(
-      []
-    );
+    setSelectedDepartmentIds([]);
 
     setNewPassword("");
-
     setShowPassword(false);
 
     setUpdatingRole(false);
@@ -456,395 +418,65 @@ const AdministratorUsers = () => {
     setUpdatingPassword(false);
   };
 
-  /*
-  =========================================================
-  DEPARTMENT HANDLING
-  =========================================================
-  */
+  /* =========================================================
+     DEPARTMENT SELECTION
+  ========================================================= */
 
-  const toggleDepartment = (
-    departmentId
-  ) => {
-    const id =
-      Number(departmentId);
+  const toggleDepartment = (departmentId) => {
+    const id = Number(departmentId);
 
-    /*
-      Only Admin role can have
-      multiple departments.
-    */
-
-    if (
-      normalizeRole(
-        selectedRole
-      ) !== "admin"
-    ) {
-      setSelectedDepartmentIds([
-        id,
-      ]);
-
+    if (normalizeRole(selectedRole) !== "admin") {
+      setSelectedDepartmentIds([id]);
       return;
     }
 
-    setSelectedDepartmentIds(
-      (previous) => {
-        if (
-          previous.includes(id)
-        ) {
-          return previous.filter(
-            (item) =>
-              item !== id
-          );
-        }
-
-        return [
-          ...previous,
-          id,
-        ];
+    setSelectedDepartmentIds((previous) => {
+      if (previous.includes(id)) {
+        return previous.filter((item) => item !== id);
       }
-    );
+
+      return [...previous, id];
+    });
   };
 
-  const handleSingleDepartmentChange =
-    (event) => {
-      const value =
-        Number(
-          event.target.value
-        );
+  const handleSingleDepartmentChange = (event) => {
+    const value = Number(event.target.value);
 
-      setSelectedDepartmentIds(
-        value ? [value] : []
+    setSelectedDepartmentIds(value ? [value] : []);
+  };
+
+  /* =========================================================
+     ROLE
+  ========================================================= */
+
+  const handleRoleSelectionChange = (event) => {
+    const nextRole = event.target.value;
+
+    setSelectedRole(nextRole);
+
+    if (normalizeRole(nextRole) !== "admin") {
+      setSelectedDepartmentIds((previous) =>
+        previous.length ? [previous[0]] : []
       );
-    };
+    }
+  };
 
-  /*
-  =========================================================
-  ROLE CHANGE SELECT
-  =========================================================
-  */
-
-  const handleRoleSelectionChange =
-    (event) => {
-      const nextRole =
-        event.target.value;
-
-      setSelectedRole(
-        nextRole
-      );
-
-      /*
-        If changing away from
-        Admin, keep only primary
-        department.
-      */
-
-      if (
-        normalizeRole(
-          nextRole
-        ) !== "admin"
-      ) {
-        setSelectedDepartmentIds(
-          (previous) =>
-            previous.length
-              ? [previous[0]]
-              : []
-        );
-      }
-    };
-
-  /*
-  =========================================================
-  SAVE USER DETAILS
-  =========================================================
-  */
-
-  const updateUserDetails =
-    async () => {
-      if (!selectedUser) return;
-
-      const cleanEmail =
-        selectedEmail
-          .trim()
-          .toLowerCase();
-
-      if (!cleanEmail) {
-        setMessage(
-          "Please enter an email address."
-        );
-
-        return;
-      }
-
-      if (
-        !selectedDepartmentIds
-          .length
-      ) {
-        setMessage(
-          "Please select at least one department."
-        );
-
-        return;
-      }
-
-      try {
-        setUpdatingDetails(
-          true
-        );
-
-        setMessage("");
-
-        const response =
-          await api.put(
-            `/administrator/users/${selectedUser.user_id}/details`,
-            {
-              email:
-                cleanEmail,
-
-              designation:
-                selectedDesignation.trim(),
-
-              department_ids:
-                selectedDepartmentIds,
-            }
-          );
-
-        setMessage(
-          response.data.message ||
-            "User details updated successfully."
-        );
-
-        await fetchUsers();
-
-        closeUserDialog();
-      } catch (error) {
-        setMessage(
-          error.response?.data
-            ?.error ||
-            error.response?.data
-              ?.message ||
-            "Failed to update user details."
-        );
-      } finally {
-        setUpdatingDetails(
-          false
-        );
-      }
-    };
-
-  /*
-  =========================================================
-  UPDATE ROLE
-  =========================================================
-  */
-
-  const updateUserRole =
-    async () => {
-      if (!selectedUser) return;
-
-      try {
-        setUpdatingRole(true);
-        setMessage("");
-
-        const response =
-          await api.put(
-            `/administrator/users/${selectedUser.user_id}/role`,
-            {
-              role_name:
-                selectedRole,
-            }
-          );
-
-        setMessage(
-          response.data.message ||
-            "User role updated successfully."
-        );
-
-        await fetchUsers();
-
-        closeUserDialog();
-      } catch (error) {
-        setMessage(
-          error.response?.data
-            ?.error ||
-            error.response?.data
-              ?.message ||
-            "Failed to update user role."
-        );
-      } finally {
-        setUpdatingRole(
-          false
-        );
-      }
-    };
-
-  /*
-  =========================================================
-  SET CUSTOM PASSWORD
-  =========================================================
-  */
-
-  const updateUserPassword =
-    async () => {
-      if (!selectedUser) return;
-
-      if (
-        newPassword.length < 8
-      ) {
-        setMessage(
-          "Password must be at least 8 characters."
-        );
-
-        return;
-      }
-
-      try {
-        setUpdatingPassword(
-          true
-        );
-
-        setMessage("");
-
-        const response =
-          await api.put(
-            `/administrator/users/${selectedUser.user_id}/password`,
-            {
-              password:
-                newPassword,
-            }
-          );
-
-        setMessage(
-          response.data.message ||
-            "User password updated successfully."
-        );
-
-        setNewPassword("");
-        setShowPassword(false);
-      } catch (error) {
-        setMessage(
-          error.response?.data
-            ?.error ||
-            error.response?.data
-              ?.message ||
-            "Failed to update user password."
-        );
-      } finally {
-        setUpdatingPassword(
-          false
-        );
-      }
-    };
-
-  /*
-  =========================================================
-  STATUS
-  =========================================================
-  */
-
-  const updateUserStatus =
-    async (
-      userId,
-      status
-    ) => {
-      try {
-        setMessage("");
-
-        const response =
-          await api.put(
-            `/administrator/users/${userId}/status`,
-            {
-              status,
-            }
-          );
-
-        setMessage(
-          response.data.message
-        );
-
-        await fetchUsers();
-
-        closeUserDialog();
-      } catch (error) {
-        setMessage(
-          error.response?.data
-            ?.error ||
-            error.response?.data
-              ?.message ||
-            "Failed to update user status."
-        );
-      }
-    };
-
-  /*
-  =========================================================
-  RESET PASSWORD
-  =========================================================
-  */
-
-  const resetPassword =
-    async (userId) => {
-      const confirmReset =
-        window.confirm(
-          "Reset this user's password to Valencia@123?"
-        );
-
-      if (!confirmReset) return;
-
-      try {
-        setMessage("");
-
-        const response =
-          await api.put(
-            `/administrator/users/${userId}/reset-password`
-          );
-
-        setMessage(
-          `${
-            response.data.message
-          } Default Password: ${
-            response.data
-              .default_password ||
-            "Valencia@123"
-          }`
-        );
-
-        closeUserDialog();
-      } catch (error) {
-        setMessage(
-          error.response?.data
-            ?.error ||
-            error.response?.data
-              ?.message ||
-            "Failed to reset password."
-        );
-      }
-    };
-
-  /*
-  =========================================================
-  DELETE
-  =========================================================
-  */
-
-  const deleteUser = async (
-    userId
-  ) => {
-    const confirmDelete =
-      window.confirm(
-        "Delete this user permanently?"
-      );
-
-    if (!confirmDelete) return;
+  const updateUserRole = async () => {
+    if (!selectedUser) return;
 
     try {
+      setUpdatingRole(true);
       setMessage("");
 
-      const response =
-        await api.delete(
-          `/administrator/users/${userId}`
-        );
+      const response = await api.put(
+        `/administrator/users/${selectedUser.user_id}/role`,
+        {
+          role_name: selectedRole,
+        }
+      );
 
       setMessage(
-        response.data.message
+        response.data.message || "User role updated successfully."
       );
 
       await fetchUsers();
@@ -853,18 +485,202 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data
-            ?.message ||
+          error.response?.data?.message ||
+          "Failed to update user role."
+      );
+    } finally {
+      setUpdatingRole(false);
+    }
+  };
+
+  /* =========================================================
+     SAVE DETAILS
+  ========================================================= */
+
+  const updateUserDetails = async () => {
+    if (!selectedUser) return;
+
+    const cleanEmail = selectedEmail.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setMessage("Please enter an email address.");
+      return;
+    }
+
+    if (!selectedDepartmentIds.length) {
+      setMessage("Please select at least one department.");
+      return;
+    }
+
+    try {
+      setUpdatingDetails(true);
+      setMessage("");
+
+      const response = await api.put(
+        `/administrator/users/${selectedUser.user_id}/details`,
+        {
+          email: cleanEmail,
+          designation: selectedDesignation.trim(),
+          department_ids: selectedDepartmentIds,
+        }
+      );
+
+      setMessage(
+        response.data.message || "User details updated successfully."
+      );
+
+      await fetchUsers();
+
+      closeUserDialog();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to update user details."
+      );
+    } finally {
+      setUpdatingDetails(false);
+    }
+  };
+
+  /* =========================================================
+     PASSWORD
+  ========================================================= */
+
+  const updateUserPassword = async () => {
+    if (!selectedUser) return;
+
+    if (newPassword.length < 8) {
+      setMessage("Password must be at least 8 characters.");
+      return;
+    }
+
+    try {
+      setUpdatingPassword(true);
+      setMessage("");
+
+      const response = await api.put(
+        `/administrator/users/${selectedUser.user_id}/password`,
+        {
+          password: newPassword,
+        }
+      );
+
+      setMessage(
+        response.data.message || "User password updated successfully."
+      );
+
+      setNewPassword("");
+      setShowPassword(false);
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to update user password."
+      );
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  /* =========================================================
+     STATUS
+  ========================================================= */
+
+  const updateUserStatus = async (userId, status) => {
+    try {
+      setMessage("");
+
+      const response = await api.put(
+        `/administrator/users/${userId}/status`,
+        {
+          status,
+        }
+      );
+
+      setMessage(response.data.message);
+
+      await fetchUsers();
+
+      closeUserDialog();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to update user status."
+      );
+    }
+  };
+
+  /* =========================================================
+     RESET PASSWORD
+  ========================================================= */
+
+  const resetPassword = async (userId) => {
+    const confirmReset = window.confirm(
+      "Reset this user's password to Valencia@123?"
+    );
+
+    if (!confirmReset) return;
+
+    try {
+      setMessage("");
+
+      const response = await api.put(
+        `/administrator/users/${userId}/reset-password`
+      );
+
+      setMessage(
+        `${response.data.message} Default Password: ${
+          response.data.default_password || "Valencia@123"
+        }`
+      );
+
+      closeUserDialog();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to reset password."
+      );
+    }
+  };
+
+  /* =========================================================
+     DELETE
+  ========================================================= */
+
+  const deleteUser = async (userId) => {
+    const confirmDelete = window.confirm(
+      "Delete this user permanently?"
+    );
+
+    if (!confirmDelete) return;
+
+    try {
+      setMessage("");
+
+      const response = await api.delete(
+        `/administrator/users/${userId}`
+      );
+
+      setMessage(response.data.message);
+
+      await fetchUsers();
+
+      closeUserDialog();
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
           "Failed to delete user."
       );
     }
   };
 
-  /*
-  =========================================================
-  EXPORT CSV
-  =========================================================
-  */
+  /* =========================================================
+     EXPORT
+  ========================================================= */
 
   const exportUsersCsv = () => {
     const headers = [
@@ -878,70 +694,45 @@ const AdministratorUsers = () => {
       "status",
     ];
 
-    const rows =
-      filteredUsers.map((user) =>
-        headers
-          .map((header) => {
-            let value =
-              user[header] || "";
+    const rows = filteredUsers.map((user) =>
+      headers
+        .map((header) => {
+          let value = user[header] || "";
 
-            if (
-              header ===
-                "department_names" &&
-              !value
-            ) {
-              value =
-                user.department_name ||
-                "";
-            }
+          if (
+            header === "department_names" &&
+            !value
+          ) {
+            value = user.department_name || "";
+          }
 
-            const stringValue =
-              String(value);
+          const stringValue = String(value);
 
-            if (
-              stringValue.includes(
-                ","
-              ) ||
-              stringValue.includes(
-                '"'
-              ) ||
-              stringValue.includes(
-                "\n"
-              )
-            ) {
-              return `"${stringValue.replaceAll(
-                '"',
-                '""'
-              )}"`;
-            }
+          if (
+            stringValue.includes(",") ||
+            stringValue.includes('"') ||
+            stringValue.includes("\n")
+          ) {
+            return `"${stringValue.replaceAll('"', '""')}"`;
+          }
 
-            return stringValue;
-          })
-          .join(",")
-      );
+          return stringValue;
+        })
+        .join(",")
+    );
 
     const csvContent = [
       headers.join(","),
       ...rows,
     ].join("\n");
 
-    const blob =
-      new Blob(
-        [csvContent],
-        {
-          type: "text/csv;charset=utf-8;",
-        }
-      );
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
 
-    const url =
-      window.URL.createObjectURL(
-        blob
-      );
+    const url = window.URL.createObjectURL(blob);
 
-    const link =
-      document.createElement(
-        "a"
-      );
+    const link = document.createElement("a");
 
     link.href = url;
 
@@ -950,27 +741,16 @@ const AdministratorUsers = () => {
       "valencia-rms-users.csv"
     );
 
-    document.body.appendChild(
-      link
-    );
+    document.body.appendChild(link);
 
     link.click();
+
     link.remove();
 
-    window.URL.revokeObjectURL(
-      url
-    );
+    window.URL.revokeObjectURL(url);
   };
 
-  /*
-  =========================================================
-  USER DEPARTMENT DISPLAY
-  =========================================================
-  */
-
-  const getDepartmentDisplay = (
-    user
-  ) => {
+  const getDepartmentDisplay = (user) => {
     return (
       user.department_names ||
       user.department_name ||
@@ -978,11 +758,9 @@ const AdministratorUsers = () => {
     );
   };
 
-  /*
-  =========================================================
-  JSX
-  =========================================================
-  */
+  /* =========================================================
+     UI
+  ========================================================= */
 
   return (
     <div className="users-page">
@@ -1013,40 +791,30 @@ const AdministratorUsers = () => {
               }
             />
 
-            <span>
-              Refresh
-            </span>
+            Refresh
           </button>
 
           <button
             type="button"
             className="administrator-users-header-btn"
-            onClick={
-              exportUsersCsv
-            }
+            onClick={exportUsersCsv}
           >
             <Download size={14} />
 
-            <span>
-              Export CSV
-            </span>
+            Export CSV
           </button>
 
           <button
             type="button"
             className="administrator-users-header-btn administrator-users-import-btn"
-            onClick={
-              handleImportClick
-            }
+            onClick={handleImportClick}
             disabled={importing}
           >
             <Upload size={14} />
 
-            <span>
-              {importing
-                ? "Importing..."
-                : "Import Users"}
-            </span>
+            {importing
+              ? "Importing..."
+              : "Import Users"}
           </button>
 
           <input
@@ -1059,27 +827,34 @@ const AdministratorUsers = () => {
         </div>
       </div>
 
-      {/* MESSAGE */}
-
       {message && (
         <div className="administrator-users-message">
           {message}
         </div>
       )}
 
-      {/* ADD SINGLE USER */}
+      {/* ADD USER */}
 
       <section className="administrator-add-user-card">
         <div className="administrator-add-user-heading">
-          <h2>
-            Add Single User
-          </h2>
+          <div>
+            <h2>Add Single User</h2>
 
-          <p>
-            New users receive
-            default password:
-            Valencia@123
-          </p>
+            <p>
+              New users receive default password:
+              Valencia@123
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="administrator-add-department-btn"
+            onClick={openAddDepartmentModal}
+          >
+            <Plus size={15} />
+
+            Add Department
+          </button>
         </div>
 
         <form
@@ -1087,9 +862,7 @@ const AdministratorUsers = () => {
           onSubmit={createUser}
         >
           <div className="administrator-form-field">
-            <label>
-              Employee Code
-            </label>
+            <label>Employee Code</label>
 
             <input
               value="Auto generated"
@@ -1098,139 +871,91 @@ const AdministratorUsers = () => {
           </div>
 
           <div className="administrator-form-field">
-            <label>
-              Full Name *
-            </label>
+            <label>Full Name *</label>
 
             <input
               name="full_name"
-              value={
-                form.full_name
-              }
-              onChange={
-                handleChange
-              }
+              value={form.full_name}
+              onChange={handleChange}
               placeholder="Employee name"
               required
             />
           </div>
 
           <div className="administrator-form-field">
-            <label>
-              Email *
-            </label>
+            <label>Email *</label>
 
             <input
               name="email"
               type="email"
               value={form.email}
-              onChange={
-                handleChange
-              }
+              onChange={handleChange}
               placeholder="name@valencianutrition.com"
               required
             />
           </div>
 
           <div className="administrator-form-field">
-            <label>
-              Phone
-            </label>
+            <label>Phone</label>
 
             <input
               name="phone"
               value={form.phone}
-              onChange={
-                handleChange
-              }
+              onChange={handleChange}
               placeholder="Phone number"
             />
           </div>
 
           <div className="administrator-form-field">
-            <label>
-              Designation
-            </label>
+            <label>Designation</label>
 
             <input
               name="designation"
-              value={
-                form.designation
-              }
-              onChange={
-                handleChange
-              }
+              value={form.designation}
+              onChange={handleChange}
               placeholder="Designation"
             />
           </div>
 
           <div className="administrator-form-field">
-            <label>
-              Department
-            </label>
+            <label>Department</label>
 
             <select
               name="department_name"
-              value={
-                form.department_name
-              }
-              onChange={
-                handleChange
-              }
+              value={form.department_name}
+              onChange={handleChange}
             >
               <option value="">
                 Select department
               </option>
 
-              {fixedDepartments.map(
-                (department) => (
-                  <option
-                    key={
-                      department
-                    }
-                    value={
-                      department
-                    }
-                  >
-                    {
-                      department
-                    }
-                  </option>
-                )
-              )}
+              {visibleDepartments.map((department) => (
+                <option
+                  key={department.department_id}
+                  value={department.department_name}
+                >
+                  {department.department_name}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="administrator-form-field">
-            <label>
-              Role
-            </label>
+            <label>Role</label>
 
             <select
               name="role_name"
-              value={
-                form.role_name
-              }
-              onChange={
-                handleChange
-              }
+              value={form.role_name}
+              onChange={handleChange}
             >
-              {roles.map(
-                (role) => (
-                  <option
-                    key={
-                      role.role_id
-                    }
-                    value={
-                      role.role_name
-                    }
-                  >
-                    {
-                      role.role_name
-                    }
-                  </option>
-                )
-              )}
+              {roles.map((role) => (
+                <option
+                  key={role.role_id}
+                  value={role.role_name}
+                >
+                  {role.role_name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -1240,9 +965,7 @@ const AdministratorUsers = () => {
               className="administrator-primary-btn"
               disabled={creating}
             >
-              <UserPlus
-                size={16}
-              />
+              <UserPlus size={16} />
 
               {creating
                 ? "Creating..."
@@ -1252,7 +975,7 @@ const AdministratorUsers = () => {
         </form>
       </section>
 
-      {/* SEARCH */}
+      {/* TOOLBAR */}
 
       <div className="administrator-users-toolbar">
         <div className="administrator-users-search">
@@ -1261,17 +984,14 @@ const AdministratorUsers = () => {
           <input
             value={search}
             onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
+              setSearch(event.target.value)
             }
             placeholder="Search users, email, role or department..."
           />
         </div>
 
         <span className="administrator-total-users">
-          Total:{" "}
-          {filteredUsers.length}
+          Total: {filteredUsers.length}
         </span>
       </div>
 
@@ -1288,92 +1008,65 @@ const AdministratorUsers = () => {
               <tr>
                 <th>User</th>
                 <th>Role</th>
-                <th>
-                  Department
-                </th>
-                <th>
-                  Designation
-                </th>
+                <th>Department</th>
+                <th>Designation</th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredUsers.length >
-              0 ? (
-                filteredUsers.map(
-                  (user) => (
-                    <tr
-                      key={
-                        user.user_id
-                      }
-                      onClick={() =>
-                        openUserDialog(
-                          user
-                        )
-                      }
-                    >
-                      <td>
-                        <div className="administrator-user-cell">
-                          <div className="administrator-user-avatar">
-                            <Users
-                              size={
-                                17
-                              }
-                            />
-                          </div>
-
-                          <div className="administrator-user-main">
-                            <strong>
-                              {
-                                user.full_name
-                              }
-                            </strong>
-
-                            <span>
-                              {
-                                user.email
-                              }
-                            </span>
-
-                            <small>
-                              {user.employee_code ||
-                                "Code not generated"}
-                            </small>
-                          </div>
+              {filteredUsers.length > 0 ? (
+                filteredUsers.map((user) => (
+                  <tr
+                    key={user.user_id}
+                    onClick={() => openUserDialog(user)}
+                  >
+                    <td>
+                      <div className="administrator-user-cell">
+                        <div className="administrator-user-avatar">
+                          <Users size={17} />
                         </div>
-                      </td>
 
-                      <td>
-                        <span className="administrator-role-pill">
-                          {
-                            user.role_name
-                          }
-                        </span>
-                      </td>
+                        <div className="administrator-user-main">
+                          <strong>
+                            {user.full_name}
+                          </strong>
 
-                      <td>
-                        <span className="administrator-department-text">
-                          {getDepartmentDisplay(
-                            user
-                          )}
-                        </span>
-                      </td>
+                          <span>
+                            {user.email}
+                          </span>
 
-                      <td>
-                        {user.designation ||
-                          "-"}
-                      </td>
-                    </tr>
-                  )
-                )
+                          <small>
+                            {user.employee_code ||
+                              "Code not generated"}
+                          </small>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td>
+                      <span className="administrator-role-pill">
+                        {user.role_name}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span className="administrator-department-text">
+                        {getDepartmentDisplay(user)}
+                      </span>
+                    </td>
+
+                    <td>
+                      {user.designation || "-"}
+                    </td>
+                  </tr>
+                ))
               ) : (
                 <tr>
                   <td
                     colSpan="4"
                     className="administrator-users-empty"
                   >
-                    No users
-                    found.
+                    No users found.
                   </td>
                 </tr>
               )}
@@ -1387,70 +1080,50 @@ const AdministratorUsers = () => {
       {selectedUser && (
         <div
           className="administrator-user-dialog-backdrop"
-          onMouseDown={
-            closeUserDialog
-          }
+          onMouseDown={closeUserDialog}
         >
           <div
             className="administrator-user-dialog"
-            onMouseDown={(
-              event
-            ) =>
+            onMouseDown={(event) =>
               event.stopPropagation()
             }
           >
-            {/* DIALOG HEADER */}
-
             <div className="administrator-user-dialog-header">
               <div>
                 <h2>
-                  {
-                    selectedUser.full_name
-                  }
+                  {selectedUser.full_name}
                 </h2>
 
                 <p>
-                  Edit user
-                  information,
-                  departments,
-                  role and
-                  password.
+                  Edit user information,
+                  departments, role and password.
                 </p>
               </div>
 
               <button
                 type="button"
                 className="administrator-dialog-close"
-                onClick={
-                  closeUserDialog
-                }
+                onClick={closeUserDialog}
               >
                 <X size={19} />
               </button>
             </div>
 
             <div className="administrator-user-dialog-body">
-              {/* BASIC INFORMATION */}
-
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
-                  <h3>
-                    User Details
-                  </h3>
+                  <h3>User Details</h3>
 
                   <p>
-                    Update email,
-                    designation
-                    and department
-                    access.
+                    Update email, designation
+                    and department access.
                   </p>
                 </div>
 
                 <div className="administrator-user-details-grid">
                   <div className="administrator-dialog-field">
                     <label>
-                      Employee
-                      Code
+                      Employee Code
                     </label>
 
                     <div className="administrator-static-field">
@@ -1461,8 +1134,7 @@ const AdministratorUsers = () => {
 
                   <div className="administrator-dialog-field">
                     <label>
-                      Current
-                      Role
+                      Current Role
                     </label>
 
                     <div className="administrator-static-field">
@@ -1472,24 +1144,16 @@ const AdministratorUsers = () => {
                   </div>
 
                   <div className="administrator-dialog-field administrator-dialog-field-full">
-                    <label>
-                      Email
-                    </label>
+                    <label>Email</label>
 
                     <input
                       type="email"
-                      value={
-                        selectedEmail
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      value={selectedEmail}
+                      onChange={(event) =>
                         setSelectedEmail(
-                          event.target
-                            .value
+                          event.target.value
                         )
                       }
-                      placeholder="Enter email"
                     />
                   </div>
 
@@ -1499,25 +1163,17 @@ const AdministratorUsers = () => {
                     </label>
 
                     <input
-                      value={
-                        selectedDesignation
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      value={selectedDesignation}
+                      onChange={(event) =>
                         setSelectedDesignation(
-                          event.target
-                            .value
+                          event.target.value
                         )
                       }
-                      placeholder="Enter designation"
                     />
                   </div>
 
                   <div className="administrator-dialog-field">
-                    <label>
-                      Status
-                    </label>
+                    <label>Status</label>
 
                     <div className="administrator-static-field">
                       {selectedUser.status ||
@@ -1526,32 +1182,34 @@ const AdministratorUsers = () => {
                   </div>
                 </div>
 
-                {/* ADMIN MULTIPLE DEPARTMENTS */}
-
-                {normalizeRole(
-                  selectedRole
-                ) === "admin" ? (
+                {normalizeRole(selectedRole) === "admin" ? (
                   <div className="admin-departments-section">
-                    <div className="admin-departments-header">
-                      <h4>
-                        Admin
-                        Departments
-                      </h4>
+                    <div className="admin-departments-title-row">
+                      <div className="admin-departments-header">
+                        <h4>
+                          Admin Departments
+                        </h4>
 
-                      <p>
-                        Select all
-                        departments
-                        this Admin
-                        should
-                        manage.
-                      </p>
+                        <p>
+                          Select all departments
+                          this Admin should manage.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="administrator-small-add-department-btn"
+                        onClick={openAddDepartmentModal}
+                      >
+                        <Plus size={14} />
+
+                        Add Department
+                      </button>
                     </div>
 
                     <div className="admin-departments-grid">
                       {visibleDepartments.map(
-                        (
-                          department
-                        ) => {
+                        (department) => {
                           const departmentId =
                             Number(
                               department.department_id
@@ -1575,9 +1233,7 @@ const AdministratorUsers = () => {
                             >
                               <input
                                 type="checkbox"
-                                checked={
-                                  isChecked
-                                }
+                                checked={isChecked}
                                 onChange={() =>
                                   toggleDepartment(
                                     departmentId
@@ -1603,32 +1259,36 @@ const AdministratorUsers = () => {
                     </div>
                   </div>
                 ) : (
-                  /* NORMAL USER SINGLE DEPARTMENT */
-
                   <div className="administrator-single-department-section">
-                    <label>
-                      Department
-                    </label>
+                    <div className="administrator-department-label-row">
+                      <label>
+                        Department
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={openAddDepartmentModal}
+                      >
+                        <Plus size={13} />
+                        Add Department
+                      </button>
+                    </div>
 
                     <select
                       value={
-                        selectedDepartmentIds[
-                          0
-                        ] || ""
+                        selectedDepartmentIds[0] ||
+                        ""
                       }
                       onChange={
                         handleSingleDepartmentChange
                       }
                     >
                       <option value="">
-                        Select
-                        department
+                        Select department
                       </option>
 
                       {visibleDepartments.map(
-                        (
-                          department
-                        ) => (
+                        (department) => (
                           <option
                             key={
                               department.department_id
@@ -1651,16 +1311,10 @@ const AdministratorUsers = () => {
                   <button
                     type="button"
                     className="administrator-primary-btn"
-                    onClick={
-                      updateUserDetails
-                    }
-                    disabled={
-                      updatingDetails
-                    }
+                    onClick={updateUserDetails}
+                    disabled={updatingDetails}
                   >
-                    <Save
-                      size={16}
-                    />
+                    <Save size={16} />
 
                     {updatingDetails
                       ? "Saving..."
@@ -1673,58 +1327,38 @@ const AdministratorUsers = () => {
 
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
-                  <h3>
-                    Change Role
-                  </h3>
+                  <h3>Change Role</h3>
 
                   <p>
-                    Select the
-                    dashboard role
-                    this user
-                    should have.
+                    Select the dashboard role
+                    this user should have.
                   </p>
                 </div>
 
                 <div className="administrator-role-control">
                   <select
-                    value={
-                      selectedRole
-                    }
+                    value={selectedRole}
                     onChange={
                       handleRoleSelectionChange
                     }
                   >
-                    {roles.map(
-                      (role) => (
-                        <option
-                          key={
-                            role.role_id
-                          }
-                          value={
-                            role.role_name
-                          }
-                        >
-                          {
-                            role.role_name
-                          }
-                        </option>
-                      )
-                    )}
+                    {roles.map((role) => (
+                      <option
+                        key={role.role_id}
+                        value={role.role_name}
+                      >
+                        {role.role_name}
+                      </option>
+                    ))}
                   </select>
 
                   <button
                     type="button"
                     className="administrator-primary-btn"
-                    onClick={
-                      updateUserRole
-                    }
-                    disabled={
-                      updatingRole
-                    }
+                    onClick={updateUserRole}
+                    disabled={updatingRole}
                   >
-                    <Save
-                      size={16}
-                    />
+                    <Save size={16} />
 
                     {updatingRole
                       ? "Saving..."
@@ -1738,18 +1372,13 @@ const AdministratorUsers = () => {
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
                   <h3>
-                    Set New
-                    Password
+                    Set New Password
                   </h3>
 
                   <p>
-                    The existing
-                    password
-                    cannot be
-                    viewed. You
-                    can set a new
-                    password for
-                    this user.
+                    Existing passwords cannot
+                    be viewed. Set a new password
+                    for this user.
                   </p>
                 </div>
 
@@ -1761,15 +1390,10 @@ const AdministratorUsers = () => {
                           ? "text"
                           : "password"
                       }
-                      value={
-                        newPassword
-                      }
-                      onChange={(
-                        event
-                      ) =>
+                      value={newPassword}
+                      onChange={(event) =>
                         setNewPassword(
-                          event.target
-                            .value
+                          event.target.value
                         )
                       }
                       placeholder="Minimum 8 characters"
@@ -1780,25 +1404,15 @@ const AdministratorUsers = () => {
                       className="administrator-password-eye"
                       onClick={() =>
                         setShowPassword(
-                          (
-                            previous
-                          ) =>
+                          (previous) =>
                             !previous
                         )
                       }
                     >
                       {showPassword ? (
-                        <EyeOff
-                          size={
-                            18
-                          }
-                        />
+                        <EyeOff size={18} />
                       ) : (
-                        <Eye
-                          size={
-                            18
-                          }
-                        />
+                        <Eye size={18} />
                       )}
                     </button>
                   </div>
@@ -1806,18 +1420,13 @@ const AdministratorUsers = () => {
                   <button
                     type="button"
                     className="administrator-primary-btn"
-                    onClick={
-                      updateUserPassword
-                    }
+                    onClick={updateUserPassword}
                     disabled={
                       updatingPassword ||
-                      newPassword.length <
-                        8
+                      newPassword.length < 8
                     }
                   >
-                    <Lock
-                      size={16}
-                    />
+                    <Lock size={16} />
 
                     {updatingPassword
                       ? "Updating..."
@@ -1826,20 +1435,17 @@ const AdministratorUsers = () => {
                 </div>
               </section>
 
-              {/* ACCOUNT ACTIONS */}
+              {/* ACTIONS */}
 
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
                   <h3>
-                    Account
-                    Actions
+                    Account Actions
                   </h3>
 
                   <p>
-                    Reset,
-                    block/unblock
-                    or remove this
-                    account.
+                    Reset, block/unblock
+                    or remove this account.
                   </p>
                 </div>
 
@@ -1853,16 +1459,12 @@ const AdministratorUsers = () => {
                       )
                     }
                   >
-                    <Lock
-                      size={16}
-                    />
+                    <Lock size={16} />
 
-                    Reset to
-                    Default
+                    Reset to Default
                   </button>
 
-                  {selectedUser.status ===
-                  "blocked" ? (
+                  {selectedUser.status === "blocked" ? (
                     <button
                       type="button"
                       className="administrator-action-btn"
@@ -1873,14 +1475,9 @@ const AdministratorUsers = () => {
                         )
                       }
                     >
-                      <ShieldCheck
-                        size={
-                          16
-                        }
-                      />
+                      <ShieldCheck size={16} />
 
-                      Unblock
-                      User
+                      Unblock User
                     </button>
                   ) : (
                     <button
@@ -1893,11 +1490,7 @@ const AdministratorUsers = () => {
                         )
                       }
                     >
-                      <ShieldCheck
-                        size={
-                          16
-                        }
-                      />
+                      <ShieldCheck size={16} />
 
                       Block User
                     </button>
@@ -1912,15 +1505,121 @@ const AdministratorUsers = () => {
                       )
                     }
                   >
-                    <Trash2
-                      size={16}
-                    />
+                    <Trash2 size={16} />
 
                     Delete User
                   </button>
                 </div>
               </section>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ADD DEPARTMENT MODAL */}
+
+      {showAddDepartment && (
+        <div
+          className="administrator-department-modal-backdrop"
+          onMouseDown={closeAddDepartmentModal}
+        >
+          <div
+            className="administrator-department-modal"
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="administrator-department-modal-header">
+              <div>
+                <h2>
+                  Add Department
+                </h2>
+
+                <p>
+                  Create a new company department.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={
+                  closeAddDepartmentModal
+                }
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={createDepartment}
+              className="administrator-department-modal-body"
+            >
+              <div className="administrator-department-modal-field">
+                <label>
+                  Department Name *
+                </label>
+
+                <input
+                  autoFocus
+                  name="department_name"
+                  value={
+                    departmentForm.department_name
+                  }
+                  onChange={
+                    handleDepartmentFormChange
+                  }
+                  placeholder="Example: HR"
+                  required
+                />
+              </div>
+
+              <div className="administrator-department-modal-field">
+                <label>
+                  Description
+                </label>
+
+                <textarea
+                  name="description"
+                  value={
+                    departmentForm.description
+                  }
+                  onChange={
+                    handleDepartmentFormChange
+                  }
+                  placeholder="Optional description"
+                  rows={3}
+                />
+              </div>
+
+              <div className="administrator-department-modal-actions">
+                <button
+                  type="button"
+                  className="administrator-modal-cancel-btn"
+                  onClick={
+                    closeAddDepartmentModal
+                  }
+                  disabled={
+                    creatingDepartment
+                  }
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  className="administrator-modal-add-btn"
+                  disabled={
+                    creatingDepartment
+                  }
+                >
+                  <Plus size={15} />
+
+                  {creatingDepartment
+                    ? "Adding..."
+                    : "Add Department"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
