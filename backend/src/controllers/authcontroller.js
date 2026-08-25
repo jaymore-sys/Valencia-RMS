@@ -7,9 +7,13 @@ const FIXED_LEAVE_RECIPIENTS = [
   "rathika.haleangadi@valencianutrition.com",
 ];
 
+/* =========================================================
+   LOGIN
+========================================================= */
+
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({
@@ -24,6 +28,26 @@ const login = async (req, res) => {
         message: "Server authentication is not configured.",
       });
     }
+
+    /*
+    =========================================================
+    NORMALIZE EMAIL
+    =========================================================
+    */
+
+    email = String(email).trim().toLowerCase();
+
+    console.log("====================================");
+    console.log("LOGIN ATTEMPT");
+    console.log("EMAIL:", email);
+    console.log("DATABASE:", process.env.DB_NAME);
+    console.log("====================================");
+
+    /*
+    =========================================================
+    FIND USER
+    =========================================================
+    */
 
     const [rows] = await db.query(
       `
@@ -42,15 +66,30 @@ const login = async (req, res) => {
         r.role_name,
         d.department_name
       FROM users u
-      JOIN roles r ON r.role_id = u.role_id
-      LEFT JOIN departments d ON d.department_id = u.department_id
-      WHERE LOWER(u.email) = LOWER(?)
+
+      JOIN roles r
+        ON r.role_id = u.role_id
+
+      LEFT JOIN departments d
+        ON d.department_id = u.department_id
+
+      WHERE LOWER(TRIM(u.email)) = ?
       LIMIT 1
       `,
       [email]
     );
 
+    console.log("ROWS FOUND:", rows.length);
+
+    /*
+    =========================================================
+    USER NOT FOUND
+    =========================================================
+    */
+
     if (!rows.length) {
+      console.log("LOGIN FAILED: USER NOT FOUND");
+
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
@@ -59,28 +98,100 @@ const login = async (req, res) => {
 
     const user = rows[0];
 
-    if (user.status === "blocked") {
+    console.log("USER FOUND:", {
+      user_id: user.user_id,
+      full_name: user.full_name,
+      email: user.email,
+      role_name: user.role_name,
+      status: user.status,
+      department_id: user.department_id,
+      has_password_hash: Boolean(user.password_hash),
+      hash_prefix: user.password_hash
+        ? user.password_hash.substring(0, 7)
+        : null,
+    });
+
+    /*
+    =========================================================
+    BLOCKED USER
+    =========================================================
+    */
+
+    if (
+      String(user.status || "")
+        .trim()
+        .toLowerCase() === "blocked"
+    ) {
+      console.log("LOGIN FAILED: USER BLOCKED");
+
       return res.status(403).json({
         success: false,
-        message: "Your account is blocked. Please contact administrator.",
+        message:
+          "Your account is blocked. Please contact administrator.",
       });
     }
 
-    if (user.status === "deleted") {
+    /*
+    =========================================================
+    DELETED USER
+    =========================================================
+    */
+
+    if (
+      String(user.status || "")
+        .trim()
+        .toLowerCase() === "deleted"
+    ) {
+      console.log("LOGIN FAILED: USER DELETED");
+
       return res.status(403).json({
         success: false,
         message: "Your account has been deleted.",
       });
     }
 
-    const isPasswordValid = await bcrypt.compare(password, user.password_hash);
+    /*
+    =========================================================
+    PASSWORD HASH CHECK
+    =========================================================
+    */
 
-    if (!isPasswordValid) {
+    if (!user.password_hash) {
+      console.log("LOGIN FAILED: PASSWORD HASH MISSING");
+
       return res.status(401).json({
         success: false,
         message: "Invalid email or password.",
       });
     }
+
+    /*
+    =========================================================
+    VERIFY PASSWORD
+    =========================================================
+    */
+
+    const isPasswordValid = await bcrypt.compare(
+      String(password),
+      user.password_hash
+    );
+
+    console.log("PASSWORD VALID:", isPasswordValid);
+
+    if (!isPasswordValid) {
+      console.log("LOGIN FAILED: PASSWORD DOES NOT MATCH");
+
+      return res.status(401).json({
+        success: false,
+        message: "Invalid email or password.",
+      });
+    }
+
+    /*
+    =========================================================
+    CREATE JWT
+    =========================================================
+    */
 
     const token = jwt.sign(
       {
@@ -94,7 +205,22 @@ const login = async (req, res) => {
       }
     );
 
+    /*
+    =========================================================
+    REMOVE PASSWORD HASH BEFORE RESPONSE
+    =========================================================
+    */
+
     delete user.password_hash;
+
+    console.log("LOGIN SUCCESS:", user.email);
+    console.log("====================================");
+
+    /*
+    =========================================================
+    SUCCESS RESPONSE
+    =========================================================
+    */
 
     return res.json({
       success: true,
@@ -102,15 +228,20 @@ const login = async (req, res) => {
       token,
       user,
     });
-  }catch (error) {
-  console.error("LOGIN ERROR:", error);
+  } catch (error) {
+    console.error("LOGIN ERROR:", error);
 
-  return res.status(500).json({
-    message: "Login failed",
-    error: error.message,
-  });
-}
+    return res.status(500).json({
+      success: false,
+      message: "Login failed.",
+      error: error.message,
+    });
+  }
 };
+
+/* =========================================================
+   GET CURRENT USER
+========================================================= */
 
 const getMe = async (req, res) => {
   return res.json({
@@ -118,6 +249,10 @@ const getMe = async (req, res) => {
     user: req.user,
   });
 };
+
+/* =========================================================
+   GET LEAVE MAIL INFO
+========================================================= */
 
 const getLeaveMailInfo = async (req, res) => {
   try {
@@ -135,8 +270,13 @@ const getLeaveMailInfo = async (req, res) => {
         d.department_name,
         r.role_name
       FROM users u
-      JOIN roles r ON r.role_id = u.role_id
-      LEFT JOIN departments d ON d.department_id = u.department_id
+
+      JOIN roles r
+        ON r.role_id = u.role_id
+
+      LEFT JOIN departments d
+        ON d.department_id = u.department_id
+
       WHERE u.user_id = ?
       LIMIT 1
       `,
@@ -151,9 +291,10 @@ const getLeaveMailInfo = async (req, res) => {
     }
 
     const user = userRows[0];
+
     const finalRecipients = [
-  ...FIXED_LEAVE_RECIPIENTS,
-];
+      ...FIXED_LEAVE_RECIPIENTS,
+    ];
 
     const subject = "LEAVE APPLICATION";
 
@@ -180,6 +321,8 @@ Leave Details:
       body,
     });
   } catch (error) {
+    console.error("GET LEAVE MAIL INFO ERROR:", error);
+
     return res.status(500).json({
       success: false,
       message: "Failed to prepare leave application email.",
@@ -187,6 +330,10 @@ Leave Details:
     });
   }
 };
+
+/* =========================================================
+   EXPORTS
+========================================================= */
 
 module.exports = {
   login,

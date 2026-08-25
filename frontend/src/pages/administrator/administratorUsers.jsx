@@ -5,6 +5,7 @@ import {
   EyeOff,
   Lock,
   RefreshCw,
+  Save,
   Search,
   ShieldCheck,
   Trash2,
@@ -12,7 +13,6 @@ import {
   UserPlus,
   Users,
   X,
-  Save,
 } from "lucide-react";
 
 import api from "../../api/axios";
@@ -54,11 +54,9 @@ const AdministratorUsers = () => {
   const [message, setMessage] = useState("");
 
   const [selectedUser, setSelectedUser] = useState(null);
-
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedEmail, setSelectedEmail] = useState("");
   const [selectedDesignation, setSelectedDesignation] = useState("");
-
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState([]);
 
   const [updatingRole, setUpdatingRole] = useState(false);
@@ -67,12 +65,6 @@ const AdministratorUsers = () => {
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
-
-  /*
-  ============================================================
-  FETCH USERS
-  ============================================================
-  */
 
   const fetchUsers = async () => {
     try {
@@ -85,16 +77,14 @@ const AdministratorUsers = () => {
       ]);
 
       setUsers(usersResponse.data.users || []);
-
       setDepartments(metaResponse.data.departments || []);
-
       setRoles(metaResponse.data.roles || []);
     } catch (error) {
       console.error("FETCH USERS ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to load users."
       );
     } finally {
@@ -106,11 +96,9 @@ const AdministratorUsers = () => {
     fetchUsers();
   }, []);
 
-  /*
-  ============================================================
-  FILTER USERS
-  ============================================================
-  */
+  const visibleDepartments = departments.filter((department) =>
+    fixedDepartments.includes(department.department_name)
+  );
 
   const filteredUsers = users.filter((user) => {
     const value = search.trim().toLowerCase();
@@ -118,9 +106,7 @@ const AdministratorUsers = () => {
     return (
       user.full_name?.toLowerCase().includes(value) ||
       user.email?.toLowerCase().includes(value) ||
-      String(user.employee_code || "")
-        .toLowerCase()
-        .includes(value) ||
+      String(user.employee_code || "").toLowerCase().includes(value) ||
       user.designation?.toLowerCase().includes(value) ||
       user.department_name?.toLowerCase().includes(value) ||
       user.department_names?.toLowerCase().includes(value) ||
@@ -128,12 +114,6 @@ const AdministratorUsers = () => {
       user.status?.toLowerCase().includes(value)
     );
   });
-
-  /*
-  ============================================================
-  CREATE USER FORM
-  ============================================================
-  */
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -154,7 +134,7 @@ const AdministratorUsers = () => {
       const response = await api.post("/administrator/users", form);
 
       setMessage(
-        `${response.data.message} Default Password: ${
+        `${response.data.message || "User created successfully."} Default Password: ${
           response.data.default_password || "Valencia@123"
         }`
       );
@@ -166,20 +146,14 @@ const AdministratorUsers = () => {
       console.error("CREATE USER ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to create user."
       );
     } finally {
       setCreating(false);
     }
   };
-
-  /*
-  ============================================================
-  IMPORT USERS
-  ============================================================
-  */
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -191,7 +165,6 @@ const AdministratorUsers = () => {
     if (!file) return;
 
     const formData = new FormData();
-
     formData.append("file", file);
 
     try {
@@ -208,67 +181,48 @@ const AdministratorUsers = () => {
         }
       );
 
-      const inserted =
-        response.data.inserted_users ||
-        response.data.imported_users ||
-        0;
-
-      const duplicates =
-        response.data.duplicate_emails || 0;
-
-      const skipped =
-        response.data.skipped_rows || 0;
-
-      setMessage(
-        `${
-          response.data.message || "Import completed."
-        } Imported: ${inserted}, Duplicates: ${duplicates}, Skipped: ${skipped}`
-      );
+      setMessage(response.data.message || "Users imported successfully.");
 
       await fetchUsers();
     } catch (error) {
       console.error("IMPORT USERS ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to import users."
       );
     } finally {
       setImporting(false);
 
-      event.target.value = "";
+      if (event.target) {
+        event.target.value = "";
+      }
     }
   };
 
-  /*
-  ============================================================
-  PARSE USER DEPARTMENTS
-  ============================================================
-  */
-
   const getUserDepartmentIds = (user) => {
-    if (!user) return [];
+    if (!user) {
+      return [];
+    }
 
     if (Array.isArray(user.department_ids)) {
-      return user.department_ids
-        .map((id) => Number(id))
-        .filter(Boolean);
+      return user.department_ids.map(Number).filter(Boolean);
     }
 
     if (user.department_ids) {
       return String(user.department_ids)
         .split(",")
-        .map((id) => Number(id.trim()))
+        .map((id) => Number(String(id).trim()))
         .filter(Boolean);
     }
 
     if (user.department_id) {
-      return [Number(user.department_id)];
+      return [Number(user.department_id)].filter(Boolean);
     }
 
     if (user.department_name) {
-      const matchedDepartment = departments.find(
+      const matchingDepartment = departments.find(
         (department) =>
           String(department.department_name || "")
             .trim()
@@ -278,142 +232,94 @@ const AdministratorUsers = () => {
             .toLowerCase()
       );
 
-      if (matchedDepartment) {
-        return [Number(matchedDepartment.department_id)];
+      if (matchingDepartment) {
+        return [Number(matchingDepartment.department_id)];
       }
     }
 
     return [];
   };
 
-  /*
-  ============================================================
-  OPEN USER
-  ============================================================
-  */
-
   const openUserDialog = (user) => {
     setSelectedUser(user);
-
     setSelectedRole(user.role_name || "employee");
-
     setSelectedEmail(user.email || "");
-
     setSelectedDesignation(user.designation || "");
-
     setSelectedDepartmentIds(getUserDepartmentIds(user));
 
     setNewPassword("");
-
     setShowPassword(false);
-
     setMessage("");
   };
 
-  /*
-  ============================================================
-  CLOSE USER
-  ============================================================
-  */
-
   const closeUserDialog = () => {
     setSelectedUser(null);
-
     setSelectedRole("");
-
     setSelectedEmail("");
-
     setSelectedDesignation("");
-
     setSelectedDepartmentIds([]);
 
     setNewPassword("");
-
     setShowPassword(false);
 
     setUpdatingRole(false);
-
     setUpdatingDetails(false);
-
     setUpdatingPassword(false);
   };
 
-  /*
-  ============================================================
-  DEPARTMENT SELECTION
-  ============================================================
-  */
-
-  const toggleDepartment = (departmentId) => {
-    const numericId = Number(departmentId);
-
-    /*
-      ADMIN:
-      Can manage multiple departments.
-
-      OTHER ROLES:
-      Keep only one department.
-    */
-
-    if (selectedRole !== "admin") {
-      setSelectedDepartmentIds([numericId]);
-
-      return;
-    }
-
-    setSelectedDepartmentIds((previous) => {
-      if (previous.includes(numericId)) {
-        return previous.filter((id) => id !== numericId);
-      }
-
-      return [...previous, numericId];
-    });
-  };
-
-  /*
-  ============================================================
-  CHANGE ROLE IN UI
-  ============================================================
-  */
-
   const handleRoleChange = (roleName) => {
     setSelectedRole(roleName);
-
-    /*
-      If changing away from admin,
-      only keep one primary department.
-    */
 
     if (
       roleName !== "admin" &&
       selectedDepartmentIds.length > 1
     ) {
-      setSelectedDepartmentIds([
-        selectedDepartmentIds[0],
-      ]);
+      setSelectedDepartmentIds([selectedDepartmentIds[0]]);
     }
   };
 
-  /*
-  ============================================================
-  SAVE USER DETAILS
-  ============================================================
-  */
+  const toggleDepartment = (departmentId) => {
+    const numericId = Number(departmentId);
+
+    if (selectedRole !== "admin") {
+      setSelectedDepartmentIds([numericId]);
+      return;
+    }
+
+    setSelectedDepartmentIds((current) => {
+      if (current.includes(numericId)) {
+        return current.filter((id) => id !== numericId);
+      }
+
+      return [...current, numericId];
+    });
+  };
+
+  const handleSingleDepartmentChange = (event) => {
+    const departmentId = Number(event.target.value);
+
+    if (!departmentId) {
+      setSelectedDepartmentIds([]);
+      return;
+    }
+
+    setSelectedDepartmentIds([departmentId]);
+  };
 
   const updateUserDetails = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      return;
+    }
 
     const cleanEmail = selectedEmail.trim().toLowerCase();
 
     if (!cleanEmail) {
       setMessage("Please enter an email.");
-
       return;
     }
 
-    if (!selectedDepartmentIds.length) {
+    if (selectedDepartmentIds.length === 0) {
       setMessage("Please select at least one department.");
-
       return;
     }
 
@@ -425,27 +331,23 @@ const AdministratorUsers = () => {
         `/administrator/users/${selectedUser.user_id}/details`,
         {
           email: cleanEmail,
-
           designation: selectedDesignation.trim(),
-
           department_ids: selectedDepartmentIds,
         }
       );
 
       setMessage(
-        response.data.message ||
-          "User details updated successfully."
+        response.data.message || "User details updated successfully."
       );
 
       await fetchUsers();
-
       closeUserDialog();
     } catch (error) {
-      console.error("UPDATE DETAILS ERROR:", error);
+      console.error("UPDATE USER DETAILS ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to update user details."
       );
     } finally {
@@ -453,14 +355,10 @@ const AdministratorUsers = () => {
     }
   };
 
-  /*
-  ============================================================
-  SAVE ROLE
-  ============================================================
-  */
-
   const updateUserRole = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      return;
+    }
 
     try {
       setUpdatingRole(true);
@@ -474,19 +372,17 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        response.data.message ||
-          "User role updated successfully."
+        response.data.message || "User role updated successfully."
       );
 
       await fetchUsers();
-
       closeUserDialog();
     } catch (error) {
-      console.error("UPDATE ROLE ERROR:", error);
+      console.error("UPDATE USER ROLE ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to update user role."
       );
     } finally {
@@ -494,26 +390,18 @@ const AdministratorUsers = () => {
     }
   };
 
-  /*
-  ============================================================
-  SET NEW PASSWORD
-  ============================================================
-  */
-
   const updateUserPassword = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser) {
+      return;
+    }
 
     if (!newPassword) {
       setMessage("Please enter a new password.");
-
       return;
     }
 
     if (newPassword.length < 8) {
-      setMessage(
-        "Password must contain at least 8 characters."
-      );
-
+      setMessage("Password must be at least 8 characters.");
       return;
     }
 
@@ -521,7 +409,9 @@ const AdministratorUsers = () => {
       `Change password for ${selectedUser.full_name}?`
     );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       setUpdatingPassword(true);
@@ -535,18 +425,17 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        response.data.message ||
-          "User password updated successfully."
+        response.data.message || "Password updated successfully."
       );
 
       setNewPassword("");
       setShowPassword(false);
     } catch (error) {
-      console.error("UPDATE PASSWORD ERROR:", error);
+      console.error("UPDATE USER PASSWORD ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to update password."
       );
     } finally {
@@ -554,11 +443,39 @@ const AdministratorUsers = () => {
     }
   };
 
-  /*
-  ============================================================
-  STATUS
-  ============================================================
-  */
+  const resetPassword = async (userId) => {
+    const confirmed = window.confirm(
+      "Reset this user's password to Valencia@123?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      setMessage("");
+
+      const response = await api.put(
+        `/administrator/users/${userId}/reset-password`
+      );
+
+      setMessage(
+        `${response.data.message || "Password reset successfully."} Default Password: ${
+          response.data.default_password || "Valencia@123"
+        }`
+      );
+
+      closeUserDialog();
+    } catch (error) {
+      console.error("RESET PASSWORD ERROR:", error);
+
+      setMessage(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Failed to reset password."
+      );
+    }
+  };
 
   const updateUserStatus = async (userId, status) => {
     try {
@@ -572,75 +489,30 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        response.data.message ||
-          "User status updated successfully."
+        response.data.message || "User status updated successfully."
       );
 
       await fetchUsers();
-
       closeUserDialog();
     } catch (error) {
-      console.error("STATUS ERROR:", error);
+      console.error("UPDATE STATUS ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to update user status."
       );
     }
   };
 
-  /*
-  ============================================================
-  RESET PASSWORD
-  ============================================================
-  */
-
-  const resetPassword = async (userId) => {
-    const confirmReset = window.confirm(
-      "Reset this user's password to Valencia@123?"
-    );
-
-    if (!confirmReset) return;
-
-    try {
-      setMessage("");
-
-      const response = await api.put(
-        `/administrator/users/${userId}/reset-password`
-      );
-
-      setMessage(
-        `${response.data.message} Default Password: ${
-          response.data.default_password ||
-          "Valencia@123"
-        }`
-      );
-
-      closeUserDialog();
-    } catch (error) {
-      console.error("RESET PASSWORD ERROR:", error);
-
-      setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to reset password."
-      );
-    }
-  };
-
-  /*
-  ============================================================
-  DELETE USER
-  ============================================================
-  */
-
   const deleteUser = async (userId) => {
-    const confirmDelete = window.confirm(
+    const confirmed = window.confirm(
       "Delete this user? This will remove access but keep records safe."
     );
 
-    if (!confirmDelete) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       setMessage("");
@@ -650,29 +522,21 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        response.data.message ||
-          "User deleted successfully."
+        response.data.message || "User deleted successfully."
       );
 
       await fetchUsers();
-
       closeUserDialog();
     } catch (error) {
       console.error("DELETE USER ERROR:", error);
 
       setMessage(
-        error.response?.data?.error ||
-          error.response?.data?.message ||
+        error.response?.data?.message ||
+          error.response?.data?.error ||
           "Failed to delete user."
       );
     }
   };
-
-  /*
-  ============================================================
-  EXPORT CSV
-  ============================================================
-  */
 
   const exportUsersCsv = () => {
     const headers = [
@@ -705,10 +569,7 @@ const AdministratorUsers = () => {
             stringValue.includes('"') ||
             stringValue.includes("\n")
           ) {
-            return `"${stringValue.replaceAll(
-              '"',
-              '""'
-            )}"`;
+            return `"${stringValue.replaceAll('"', '""')}"`;
           }
 
           return stringValue;
@@ -730,7 +591,6 @@ const AdministratorUsers = () => {
     const link = document.createElement("a");
 
     link.href = url;
-
     link.setAttribute(
       "download",
       "valencia-rms-users.csv"
@@ -739,40 +599,14 @@ const AdministratorUsers = () => {
     document.body.appendChild(link);
 
     link.click();
-
     link.remove();
 
     window.URL.revokeObjectURL(url);
   };
 
-  /*
-  ============================================================
-  DEPARTMENTS TO SHOW
-  ============================================================
-  */
-
-  const visibleDepartments = departments.filter(
-    (department) =>
-      fixedDepartments.includes(
-        department.department_name
-      )
-  );
-
-  /*
-  ============================================================
-  JSX
-  ============================================================
-  */
-
   return (
     <div className="users-page">
-
-      {/* ====================================================
-          HEADER
-      ==================================================== */}
-
       <div className="administrator-users-header">
-
         <div className="administrator-users-heading">
           <h1>Users</h1>
 
@@ -783,14 +617,12 @@ const AdministratorUsers = () => {
         </div>
 
         <div className="administrator-users-header-actions">
-
           <button
             type="button"
             className="administrator-users-header-btn"
             onClick={fetchUsers}
           >
             <RefreshCw size={14} />
-
             <span>Refresh</span>
           </button>
 
@@ -800,7 +632,6 @@ const AdministratorUsers = () => {
             onClick={exportUsersCsv}
           >
             <Download size={14} />
-
             <span>Export CSV</span>
           </button>
 
@@ -826,13 +657,8 @@ const AdministratorUsers = () => {
             hidden
             onChange={importUsers}
           />
-
         </div>
       </div>
-
-      {/* ====================================================
-          MESSAGE
-      ==================================================== */}
 
       {message && (
         <div className="projects-message">
@@ -840,12 +666,7 @@ const AdministratorUsers = () => {
         </div>
       )}
 
-      {/* ====================================================
-          ADD USER
-      ==================================================== */}
-
       <div className="user-form-card">
-
         <div className="section-title-row">
           <div>
             <h2>Add Single User</h2>
@@ -861,7 +682,6 @@ const AdministratorUsers = () => {
           className="user-form-grid"
           onSubmit={createUser}
         >
-
           <div className="form-field">
             <label>Employee Code</label>
 
@@ -963,7 +783,6 @@ const AdministratorUsers = () => {
           </div>
 
           <div className="form-submit-field">
-
             <button
               className="primary-action-btn"
               type="submit"
@@ -975,20 +794,12 @@ const AdministratorUsers = () => {
                 ? "Creating..."
                 : "Create User"}
             </button>
-
           </div>
-
         </form>
       </div>
 
-      {/* ====================================================
-          SEARCH
-      ==================================================== */}
-
       <div className="projects-toolbar">
-
         <div className="projects-search">
-
           <Search size={16} />
 
           <input
@@ -998,14 +809,8 @@ const AdministratorUsers = () => {
             }
             placeholder="Search users, email, role, department, status..."
           />
-
         </div>
-
       </div>
-
-      {/* ====================================================
-          TABLE
-      ==================================================== */}
 
       {loading ? (
         <div className="page-loader">
@@ -1013,9 +818,7 @@ const AdministratorUsers = () => {
         </div>
       ) : (
         <div className="projects-table-card administrator-users-table-card">
-
           <table className="projects-table users-table administrator-users-table">
-
             <thead>
               <tr>
                 <th>User</th>
@@ -1026,7 +829,6 @@ const AdministratorUsers = () => {
             </thead>
 
             <tbody>
-
               {filteredUsers.length > 0 ? (
                 filteredUsers.map((user) => (
                   <tr
@@ -1036,10 +838,8 @@ const AdministratorUsers = () => {
                       openUserDialog(user)
                     }
                   >
-
                     <td>
                       <div className="user-name-cell">
-
                         <div className="user-avatar-small">
                           <Users size={16} />
                         </div>
@@ -1056,7 +856,6 @@ const AdministratorUsers = () => {
                               "Code not generated yet"}
                           </p>
                         </div>
-
                       </div>
                     </td>
 
@@ -1075,7 +874,6 @@ const AdministratorUsers = () => {
                     <td>
                       {user.designation || "-"}
                     </td>
-
                   </tr>
                 ))
               ) : (
@@ -1088,20 +886,12 @@ const AdministratorUsers = () => {
                   </td>
                 </tr>
               )}
-
             </tbody>
-
           </table>
-
         </div>
       )}
 
-      {/* ====================================================
-          CSV HELP
-      ==================================================== */}
-
       <div className="csv-help-card">
-
         <h3>CSV Import Format</h3>
 
         <p>
@@ -1115,34 +905,22 @@ const AdministratorUsers = () => {
 
         <p className="csv-note">
           Employee code will be auto-generated when
-          administrator saves employee details from the
-          dialog.
+          administrator saves employee details.
         </p>
-
       </div>
 
-      {/* ====================================================
-          USER POPUP
-      ==================================================== */}
-
       {selectedUser && (
-
         <div
           className="user-dialog-backdrop"
           onClick={closeUserDialog}
         >
-
           <div
             className="user-dialog"
             onClick={(event) =>
               event.stopPropagation()
             }
           >
-
-            {/* HEADER */}
-
             <div className="user-dialog-header">
-
               <div>
                 <h2>
                   {selectedUser.full_name}
@@ -1160,17 +938,10 @@ const AdministratorUsers = () => {
               >
                 <X size={18} />
               </button>
-
             </div>
 
-            {/* ==================================================
-                DETAILS GRID
-            ================================================== */}
-
             <div className="user-dialog-grid">
-
               <div className="dialog-field">
-
                 <label>
                   Employee Code
                 </label>
@@ -1179,11 +950,9 @@ const AdministratorUsers = () => {
                   {selectedUser.employee_code ||
                     "Will be generated automatically after saving details"}
                 </p>
-
               </div>
 
               <div className="dialog-field">
-
                 <label>
                   Current Role
                 </label>
@@ -1191,13 +960,9 @@ const AdministratorUsers = () => {
                 <p>
                   {selectedUser.role_name || "-"}
                 </p>
-
               </div>
 
-              {/* EMAIL */}
-
               <div className="dialog-field">
-
                 <label>Email</label>
 
                 <input
@@ -1210,13 +975,9 @@ const AdministratorUsers = () => {
                   }
                   placeholder="Email address"
                 />
-
               </div>
 
-              {/* DESIGNATION */}
-
               <div className="dialog-field">
-
                 <label>
                   Designation
                 </label>
@@ -1230,108 +991,125 @@ const AdministratorUsers = () => {
                   }
                   placeholder="Enter designation"
                 />
-
               </div>
 
-              {/* STATUS */}
-
               <div className="dialog-field">
-
                 <label>Status</label>
 
                 <p>
                   {selectedUser.status || "-"}
                 </p>
-
               </div>
 
-              {/* SKILLS */}
-
               <div className="dialog-field">
-
                 <label>Skills</label>
 
                 <p>
                   {selectedUser.skills || "-"}
                 </p>
-
               </div>
 
-              {/* =================================================
-                  DEPARTMENTS
-              ================================================= */}
-
               <div className="dialog-field administrator-multi-department-field">
-
                 <label>
                   {selectedRole === "admin"
                     ? "Admin Departments"
                     : "Department"}
                 </label>
 
-                <p className="administrator-department-help">
+                {selectedRole === "admin" ? (
+                  <>
+                    <p className="administrator-department-help">
+                      Select all departments this Admin should manage.
+                    </p>
 
-                  {selectedRole === "admin"
-                    ? "Select all departments this Admin should manage."
-                    : "Select the user's department."}
+                    <div className="administrator-department-options">
+                      {visibleDepartments.map(
+                        (department) => {
+                          const departmentId =
+                            Number(
+                              department.department_id
+                            );
 
-                </p>
+                          const checked =
+                            selectedDepartmentIds.includes(
+                              departmentId
+                            );
 
-                <div className="administrator-department-options">
+                          return (
+                            <label
+                              key={
+                                department.department_id
+                              }
+                              className={`administrator-department-option ${
+                                checked
+                                  ? "selected"
+                                  : ""
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  toggleDepartment(
+                                    departmentId
+                                  )
+                                }
+                              />
 
-                  {visibleDepartments.map(
-                    (department) => {
-                      const departmentId =
-                        Number(
-                          department.department_id
-                        );
+                              <span>
+                                {
+                                  department.department_name
+                                }
+                              </span>
+                            </label>
+                          );
+                        }
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="administrator-department-help">
+                      Select the user&apos;s department.
+                    </p>
 
-                      const checked =
-                        selectedDepartmentIds.includes(
-                          departmentId
-                        );
+                    <select
+                      className="administrator-single-department-select"
+                      value={
+                        selectedDepartmentIds.length > 0
+                          ? selectedDepartmentIds[0]
+                          : ""
+                      }
+                      onChange={
+                        handleSingleDepartmentChange
+                      }
+                    >
+                      <option value="">
+                        Select department
+                      </option>
 
-                      return (
-                        <label
-                          key={
-                            department.department_id
-                          }
-                          className={`administrator-department-option ${
-                            checked
-                              ? "selected"
-                              : ""
-                          }`}
-                        >
-
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() =>
-                              toggleDepartment(
-                                departmentId
-                              )
+                      {visibleDepartments.map(
+                        (department) => (
+                          <option
+                            key={
+                              department.department_id
                             }
-                          />
-
-                          <span>
+                            value={
+                              department.department_id
+                            }
+                          >
                             {
                               department.department_name
                             }
-                          </span>
-
-                        </label>
-                      );
-                    }
-                  )}
-
-                </div>
-
+                          </option>
+                        )
+                      )}
+                    </select>
+                  </>
+                )}
               </div>
 
-              {/* SAVE DETAILS */}
-
               <div className="dialog-save-details-row">
-
                 <button
                   type="button"
                   className="primary-action-btn"
@@ -1344,23 +1122,13 @@ const AdministratorUsers = () => {
                     ? "Saving..."
                     : "Save Details"}
                 </button>
-
               </div>
-
             </div>
 
-            {/* ==================================================
-                CHANGE ROLE
-            ================================================== */}
-
             <div className="dialog-role-section">
-
-              <label>
-                Change Role
-              </label>
+              <label>Change Role</label>
 
               <div className="dialog-role-control">
-
                 <select
                   value={selectedRole}
                   onChange={(event) =>
@@ -1369,7 +1137,6 @@ const AdministratorUsers = () => {
                     )
                   }
                 >
-
                   {roles.map((role) => (
                     <option
                       key={role.role_id}
@@ -1378,7 +1145,6 @@ const AdministratorUsers = () => {
                       {role.role_name}
                     </option>
                   ))}
-
                 </select>
 
                 <button
@@ -1393,38 +1159,27 @@ const AdministratorUsers = () => {
                     ? "Saving..."
                     : "Save Role"}
                 </button>
-
               </div>
-
             </div>
 
-            {/* ==================================================
-                SET NEW PASSWORD
-            ================================================== */}
-
             <div className="administrator-user-password-section">
-
               <div className="administrator-user-password-title">
-
                 <div>
                   <h3>
                     Set New Password
                   </h3>
 
                   <p>
-                    Existing password cannot be displayed.
+                    Existing passwords cannot be viewed.
                     You can set a new password for this user.
                   </p>
                 </div>
 
                 <Lock size={20} />
-
               </div>
 
               <div className="administrator-user-password-row">
-
                 <div className="administrator-user-password-input">
-
                   <input
                     type={
                       showPassword
@@ -1449,22 +1204,22 @@ const AdministratorUsers = () => {
                       )
                     }
                   >
-
                     {showPassword ? (
                       <EyeOff size={18} />
                     ) : (
                       <Eye size={18} />
                     )}
-
                   </button>
-
                 </div>
 
                 <button
                   type="button"
                   className="primary-action-btn"
                   onClick={updateUserPassword}
-                  disabled={updatingPassword}
+                  disabled={
+                    updatingPassword ||
+                    newPassword.length < 8
+                  }
                 >
                   <Save size={16} />
 
@@ -1472,17 +1227,10 @@ const AdministratorUsers = () => {
                     ? "Saving..."
                     : "Save Password"}
                 </button>
-
               </div>
-
             </div>
 
-            {/* ==================================================
-                ACTIONS
-            ================================================== */}
-
             <div className="dialog-actions">
-
               <button
                 type="button"
                 className="dialog-action-btn"
@@ -1493,12 +1241,10 @@ const AdministratorUsers = () => {
                 }
               >
                 <Lock size={16} />
-
                 Reset Password
               </button>
 
               {selectedUser.status === "blocked" ? (
-
                 <button
                   type="button"
                   className="dialog-action-btn"
@@ -1510,12 +1256,9 @@ const AdministratorUsers = () => {
                   }
                 >
                   <ShieldCheck size={16} />
-
                   Unblock User
                 </button>
-
               ) : (
-
                 <button
                   type="button"
                   className="dialog-action-btn"
@@ -1527,10 +1270,8 @@ const AdministratorUsers = () => {
                   }
                 >
                   <ShieldCheck size={16} />
-
                   Block User
                 </button>
-
               )}
 
               <button
@@ -1543,35 +1284,19 @@ const AdministratorUsers = () => {
                 }
               >
                 <Trash2 size={16} />
-
                 Delete User
               </button>
-
             </div>
-
-            {/* ==================================================
-                INFO
-            ================================================== */}
 
             <div className="dialog-warning">
-
-              Email, designation and departments are
-              saved using{" "}
-              <strong>Save Details</strong>.
-
-              Role is saved separately using{" "}
-              <strong>Save Role</strong>.
-
-              Password is saved separately using{" "}
+              Email, designation and departments are saved using{" "}
+              <strong>Save Details</strong>. Role is saved using{" "}
+              <strong>Save Role</strong>. Password is saved using{" "}
               <strong>Save Password</strong>.
-
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 };

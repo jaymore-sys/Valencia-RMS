@@ -1,18 +1,15 @@
 /* =========================================================
    ADMINISTRATOR USERS PAGE
-   Complete replacement stylesheet
+   FULL UPDATED STYLESHEET
 ========================================================= */
 
 .users-page {
   width: 100%;
   max-width: 100%;
   min-width: 0;
-
   margin: 0;
   padding: 0 30px 35px 0;
-
   color: #111827;
-
   overflow-x: hidden;
   box-sizing: border-box;
 }
@@ -51,9 +48,7 @@
 
 .users-page .administrator-users-heading h1 {
   margin: 0;
-
   color: #111827;
-
   font-size: 34px;
   font-weight: 900;
   line-height: 1.1;
@@ -61,16 +56,14 @@
 
 .users-page .administrator-users-heading p {
   margin: 8px 0 0;
-
   color: #64748b;
-
   font-size: 15px;
   font-weight: 400;
   line-height: 1.4;
 }
 
 /* =========================================================
-   TOP-RIGHT ACTION BUTTONS
+   HEADER ACTIONS
 ========================================================= */
 
 .users-page .administrator-users-header-actions {
@@ -125,39 +118,7 @@
 
   white-space: nowrap !important;
 
-  overflow: visible !important;
-  text-overflow: clip !important;
-
   cursor: pointer !important;
-}
-
-.users-page button.administrator-users-header-btn span {
-  display: inline-block !important;
-
-  width: auto !important;
-  min-width: 0 !important;
-  max-width: none !important;
-
-  color: inherit !important;
-
-  font-size: inherit !important;
-  font-weight: inherit !important;
-  line-height: 1 !important;
-
-  white-space: nowrap !important;
-
-  overflow: visible !important;
-  text-overflow: clip !important;
-}
-
-.users-page button.administrator-users-header-btn svg {
-  width: 14px !important;
-  height: 14px !important;
-  min-width: 14px !important;
-
-  flex: 0 0 14px !important;
-
-  overflow: visible !important;
 }
 
 .users-page button.administrator-users-header-btn:hover {
@@ -170,6 +131,18 @@
   cursor: not-allowed !important;
 }
 
+.users-page button.administrator-users-header-btn span {
+  display: inline-block !important;
+  white-space: nowrap !important;
+}
+
+.users-page button.administrator-users-header-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  flex: 0 0 14px !important;
+}
+
 /* =========================================================
    MESSAGE
 ========================================================= */
@@ -177,7 +150,6 @@
 .users-page .projects-message {
   width: 100%;
   max-width: 100%;
-
   margin-bottom: 18px;
 }
 
@@ -189,8 +161,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-
-  box-sizing: border-box;
 }
 
 .users-page .section-title-row {
@@ -218,8 +188,6 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-
-  box-sizing: border-box;
 }
 
 .users-page .form-submit-field .primary-action-btn {
@@ -228,7 +196,7 @@
 }
 
 /* =========================================================
-   SEARCH SECTION
+   SEARCH
 ========================================================= */
 
 .users-page .projects-toolbar {
@@ -281,7 +249,7 @@
 }
 
 /* =========================================================
-   USERS TABLE
+   TABLE
 ========================================================= */
 
 .users-page table.administrator-users-table {
@@ -296,10 +264,6 @@
 
   margin: 0 !important;
 }
-
-/* =========================================================
-   STICKY TABLE HEADER
-========================================================= */
 
 .users-page .administrator-users-table thead {
   position: relative;
@@ -335,10 +299,6 @@
   box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
 }
 
-/* =========================================================
-   TABLE BODY
-========================================================= */
-
 .users-page .administrator-users-table td {
   min-width: 0 !important;
 
@@ -367,7 +327,7 @@
 }
 
 /* =========================================================
-   TABLE COLUMNS
+   TABLE COLUMN WIDTHS
 ========================================================= */
 
 .users-page .administrator-users-table th:nth-child(1),
@@ -391,7 +351,7 @@
 }
 
 /* =========================================================
-   USER INFORMATION CELL
+   USER INFO CELL
 ========================================================= */
 
 .users-page .administrator-users-table .user-name-cell {
@@ -410,24 +370,12 @@
   .user-name-cell
   > div:last-child {
   flex: 1 1 auto;
-
   width: 0;
   min-width: 0;
   max-width: 100%;
 }
 
-.users-page .administrator-users-table .user-name-cell strong {
-  display: block;
-
-  width: 100%;
-  max-width: 100%;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+.users-page .administrator-users-table .user-name-cell strong,
 .users-page .administrator-users-table .user-name-cell p {
   display: block;
 
@@ -462,7 +410,15 @@
 }
 
 /* =========================================================
-   USER DIALOG BACKDROP
+   CLICKABLE USER ROW
+========================================================= */
+
+.users-page .clickable-user-row {
+  cursor: pointer;
+}
+
+/* =========================================================
+   DIALOG BACKDROP
 ========================================================= */
 
 .users-page .user-dialog-backdrop {
@@ -475,9 +431,9 @@
   align-items: center;
   justify-content: center;
 
-  padding: 22px;
+  padding: 20px;
 
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(15, 23, 42, 0.48);
 
   backdrop-filter: blur(3px);
 }
@@ -489,8 +445,8 @@
 .users-page .user-dialog {
   position: relative;
 
-  width: min(900px, 96vw);
-  max-width: 900px;
+  width: min(920px, 96vw);
+  max-width: 920px;
 
   max-height: 92vh;
 
@@ -521,7 +477,7 @@
 .users-page .user-dialog-header {
   position: sticky;
   top: -26px;
-  z-index: 20;
+  z-index: 30;
 
   display: flex;
   align-items: flex-start;
@@ -583,12 +539,11 @@
 }
 
 /* =========================================================
-   USER DIALOG GRID
+   DIALOG GRID
 ========================================================= */
 
 .users-page .user-dialog-grid {
   display: grid;
-
   grid-template-columns: repeat(2, minmax(0, 1fr));
 
   gap: 16px;
@@ -670,12 +625,11 @@
 }
 
 /* =========================================================
-   MULTI DEPARTMENT
+   DEPARTMENT SECTION
 ========================================================= */
 
 .users-page .administrator-multi-department-field {
   grid-column: 1 / -1;
-
   background: #ffffff;
 }
 
@@ -689,25 +643,61 @@
   line-height: 1.5 !important;
 }
 
+/* =========================================================
+   SINGLE DEPARTMENT DROPDOWN
+========================================================= */
+
+.users-page .administrator-single-department-select {
+  width: 100%;
+  height: 52px;
+
+  padding: 0 15px;
+
+  border: 1px solid #d9dde3;
+  border-radius: 12px;
+
+  outline: none;
+
+  background: #ffffff;
+  color: #111827;
+
+  font-size: 14px;
+  font-weight: 700;
+
+  cursor: pointer;
+}
+
+.users-page .administrator-single-department-select:focus {
+  border-color: #ff5733;
+
+  box-shadow:
+    0 0 0 3px rgba(255, 87, 51, 0.08);
+}
+
+/* =========================================================
+   MULTI DEPARTMENT OPTIONS
+========================================================= */
+
 .users-page .administrator-department-options {
   display: grid;
 
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
 
-  gap: 10px;
+  gap: 12px;
 
   width: 100%;
 }
 
 .users-page .administrator-department-option {
-  min-height: 50px;
+  min-height: 54px;
 
   display: flex;
   align-items: center;
 
-  gap: 10px;
+  gap: 12px;
 
-  padding: 0 14px;
+  padding: 0 16px;
 
   border: 1px solid #dfe3e8;
   border-radius: 12px;
@@ -735,14 +725,34 @@
     0 0 0 2px rgba(255, 87, 51, 0.06);
 }
 
-.users-page .administrator-department-option input {
-  width: 17px;
-  height: 17px;
+/* IMPORTANT:
+   Override generic dialog input styling
+   for checkbox
+*/
 
-  min-height: 0;
+.users-page
+  .administrator-department-option
+  input[type="checkbox"] {
+  appearance: auto !important;
 
-  margin: 0;
-  padding: 0;
+  width: 18px !important;
+  height: 18px !important;
+
+  min-width: 18px !important;
+  min-height: 18px !important;
+
+  max-width: 18px !important;
+  max-height: 18px !important;
+
+  flex: 0 0 18px;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: initial !important;
+  border-radius: 3px !important;
+
+  box-shadow: none !important;
 
   accent-color: #ff5733;
 
@@ -757,7 +767,7 @@
 }
 
 /* =========================================================
-   SAVE DETAILS ROW
+   SAVE DETAILS
 ========================================================= */
 
 .users-page .dialog-save-details-row {
@@ -802,9 +812,12 @@
 .users-page .dialog-role-control {
   display: grid;
 
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns:
+    minmax(0, 1fr) auto;
 
   gap: 14px;
+
+  align-items: center;
 }
 
 .users-page .dialog-role-control select {
@@ -819,7 +832,6 @@
   outline: none;
 
   background: #ffffff;
-
   color: #111827;
 
   font-size: 14px;
@@ -889,7 +901,8 @@
 .users-page .administrator-user-password-row {
   display: grid;
 
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns:
+    minmax(0, 1fr) auto;
 
   gap: 14px;
 
@@ -971,13 +984,54 @@
 }
 
 /* =========================================================
+   PRIMARY BUTTONS INSIDE DIALOG
+========================================================= */
+
+.users-page .user-dialog .primary-action-btn {
+  min-height: 50px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 0 20px;
+
+  border: none;
+  border-radius: 12px;
+
+  background: #ff5733;
+  color: #ffffff;
+
+  font-size: 14px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.users-page .user-dialog .primary-action-btn:hover {
+  background: #e94b2d;
+}
+
+.users-page .user-dialog .primary-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* =========================================================
    BOTTOM ACTIONS
 ========================================================= */
 
 .users-page .dialog-actions {
   display: grid;
 
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
 
   gap: 14px;
 
@@ -1046,42 +1100,6 @@
 }
 
 /* =========================================================
-   PRIMARY BUTTON CONSISTENCY INSIDE DIALOG
-========================================================= */
-
-.users-page .user-dialog .primary-action-btn {
-  min-height: 50px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  gap: 8px;
-
-  padding: 0 20px;
-
-  border: none;
-  border-radius: 12px;
-
-  background: #ff5733;
-  color: #ffffff;
-
-  font-size: 14px;
-  font-weight: 800;
-
-  cursor: pointer;
-}
-
-.users-page .user-dialog .primary-action-btn:hover {
-  background: #e94b2d;
-}
-
-.users-page .user-dialog .primary-action-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* =========================================================
    LAPTOP
 ========================================================= */
 
@@ -1118,7 +1136,7 @@
 }
 
 /* =========================================================
-   SMALL LAPTOP / TABLET
+   TABLET
 ========================================================= */
 
 @media (max-width: 1050px) {
