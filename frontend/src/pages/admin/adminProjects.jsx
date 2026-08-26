@@ -25,7 +25,9 @@ const PROJECT_DIVISIONS = [
   "Cans",
   "PET",
   "Crunzo",
-  "Healthybites",
+  "VBSW",
+  "VNL",
+  
 ];
 
 const asArray = (value) => {
