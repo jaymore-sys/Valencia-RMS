@@ -428,3 +428,180 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+
+
+/* =========================================================
+   ADMINISTRATOR TASKS - TAB BACKGROUND + SCROLLBAR CLEANUP
+========================================================= */
+
+
+/* =========================================================
+   1. REMOVE WHITE BACKGROUND AROUND MY TASKS / ALL TASKS
+========================================================= */
+
+/* Main tabs wrapper */
+.administrator-tasks-tabs,
+.admin-tasks-tabs,
+.tasks-tabs,
+.task-tabs,
+.tabs-container {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+
+  padding: 0 !important;
+  margin-bottom: 12px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+
+/* Keep active buttons orange */
+.administrator-tasks-tabs button,
+.admin-tasks-tabs button,
+.tasks-tabs button,
+.task-tabs button,
+.tabs-container button {
+  border-radius: 12px !important;
+}
+
+
+/* Active tab */
+.administrator-tasks-tabs button.active,
+.admin-tasks-tabs button.active,
+.tasks-tabs button.active,
+.task-tabs button.active,
+.tabs-container button.active {
+  background: #ff5733 !important;
+  color: #ffffff !important;
+  border-color: #ff5733 !important;
+}
+
+
+/* If both tabs currently have orange background,
+   keep them clean and only active state strong */
+.administrator-tasks-tabs button:not(.active),
+.admin-tasks-tabs button:not(.active),
+.tasks-tabs button:not(.active),
+.task-tabs button:not(.active),
+.tabs-container button:not(.active) {
+  background: #ffffff !important;
+  color: #101828 !important;
+  border: 1px solid #d0d5dd !important;
+}
+
+
+/* =========================================================
+   2. REMOVE ALL VISIBLE SCROLLBARS
+   Scrolling remains functional
+========================================================= */
+
+/* Entire Tasks page */
+.administrator-tasks-page,
+.admin-tasks-page,
+.tasks-page {
+  overflow-x: hidden !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-tasks-page::-webkit-scrollbar,
+.admin-tasks-page::-webkit-scrollbar,
+.tasks-page::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Main Kanban board */
+.administrator-tasks-kanban,
+.admin-tasks-kanban,
+.tasks-kanban,
+.task-kanban,
+.kanban-board,
+.kanban-grid {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-tasks-kanban::-webkit-scrollbar,
+.admin-tasks-kanban::-webkit-scrollbar,
+.tasks-kanban::-webkit-scrollbar,
+.task-kanban::-webkit-scrollbar,
+.kanban-board::-webkit-scrollbar,
+.kanban-grid::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Individual Kanban columns */
+.administrator-task-column,
+.admin-task-column,
+.task-column,
+.kanban-column {
+  overflow-x: hidden !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-task-column::-webkit-scrollbar,
+.admin-task-column::-webkit-scrollbar,
+.task-column::-webkit-scrollbar,
+.kanban-column::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Column card areas - still vertically scrollable */
+.administrator-task-column-body,
+.admin-task-column-body,
+.task-column-body,
+.kanban-column-body,
+.task-list {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-task-column-body::-webkit-scrollbar,
+.admin-task-column-body::-webkit-scrollbar,
+.task-column-body::-webkit-scrollbar,
+.kanban-column-body::-webkit-scrollbar,
+.task-list::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Any generic scroll container inside Tasks */
+.administrator-tasks-page * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-tasks-page *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Prevent horizontal page scrollbar */
+html,
+body {
+  overflow-x: hidden !important;
+}
