@@ -488,12 +488,13 @@
 
 
 /* =========================================================
-   ADMINISTRATOR OVERVIEW - CLEAN NEUTRAL UI FIX
-   Removes heavy orange backgrounds
+   ADMINISTRATOR OVERVIEW - REMOVE ORANGE BOX BACKGROUNDS ONLY
+   Keep orange buttons + icons
 ========================================================= */
 
 /* -----------------------------------------
    TOP STAT CARDS
+   White cards, orange icons stay
 ----------------------------------------- */
 
 .administrator-overview-stat-card {
@@ -503,14 +504,14 @@
 }
 
 .administrator-overview-stat-card:hover {
-  background: #ffffff !important;
+  background: #f9fafb !important;
   border-color: #d0d5dd !important;
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07) !important;
 }
 
+/* KEEP ORANGE ICON STYLE */
 .administrator-overview-stat-icon {
-  background: #f2f4f7 !important;
-  color: #344054 !important;
+  background: #fff1ec !important;
+  color: #ff5733 !important;
 }
 
 .administrator-overview-stat-card span {
@@ -524,6 +525,7 @@
 
 /* -----------------------------------------
    ACTIVE PROJECT CARDS
+   Remove orange background only
 ----------------------------------------- */
 
 .administrator-overview-project-item {
@@ -545,23 +547,29 @@
   color: #667085 !important;
 }
 
+/* keep percentage orange */
 .administrator-overview-project-item strong {
-  color: #344054 !important;
+  color: #ff5733 !important;
 }
 
 
-/* Progress bar - subtle instead of orange */
+/* -----------------------------------------
+   PROGRESS BAR
+   Keep orange accent
+----------------------------------------- */
+
 .administrator-overview-progress-track {
-  background: #eaecf0 !important;
+  background: #ffe5de !important;
 }
 
 .administrator-overview-progress-track div {
-  background: #475467 !important;
+  background: #ff5733 !important;
 }
 
 
 /* -----------------------------------------
    RECENT TASKS
+   Remove orange background only
 ----------------------------------------- */
 
 .administrator-overview-list button {
@@ -583,8 +591,9 @@
   color: #667085 !important;
 }
 
+/* keep status orange */
 .administrator-overview-list button em {
-  color: #475467 !important;
+  color: #ff5733 !important;
 }
 
 
@@ -602,9 +611,10 @@
   border-color: #d0d5dd !important;
 }
 
+/* KEEP ORANGE ICON */
 .administrator-overview-meeting-icon {
-  background: #f2f4f7 !important;
-  color: #475467 !important;
+  background: #fff1ec !important;
+  color: #ff5733 !important;
 }
 
 
@@ -617,9 +627,10 @@
   border: 1px solid #e4e7ec !important;
 }
 
+/* KEEP ORANGE ICON */
 .administrator-overview-activity-icon {
-  background: #f2f4f7 !important;
-  color: #475467 !important;
+  background: #fff1ec !important;
+  color: #ff5733 !important;
 }
 
 
@@ -637,27 +648,36 @@
 
 /* -----------------------------------------
    BUTTONS
-   Keep orange only as small accent
+   KEEP ORANGE
 ----------------------------------------- */
 
-.administrator-overview-panel-header button,
-.administrator-overview-refresh {
-  background: #ffffff !important;
-  color: #344054 !important;
-  border: 1px solid #d0d5dd !important;
-  box-shadow: none !important;
+.administrator-overview-panel-header button {
+  background: #ff5733 !important;
+  color: #ffffff !important;
+  border: 1px solid #ff5733 !important;
 }
 
-.administrator-overview-panel-header button:hover,
+.administrator-overview-panel-header button:hover {
+  background: #ea4a29 !important;
+  border-color: #ea4a29 !important;
+  color: #ffffff !important;
+}
+
+.administrator-overview-refresh {
+  background: #ff5733 !important;
+  color: #ffffff !important;
+  border: 1px solid #ff5733 !important;
+}
+
 .administrator-overview-refresh:hover {
-  background: #f9fafb !important;
-  color: #101828 !important;
-  border-color: #98a2b3 !important;
+  background: #ea4a29 !important;
+  border-color: #ea4a29 !important;
+  color: #ffffff !important;
 }
 
 
 /* -----------------------------------------
-   CHARTS
+   CHART CARDS
 ----------------------------------------- */
 
 .administrator-overview-chart-card {
