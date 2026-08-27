@@ -483,3 +483,193 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+
+
+
+/* =========================================================
+   ADMINISTRATOR OVERVIEW - CLEAN NEUTRAL UI FIX
+   Removes heavy orange backgrounds
+========================================================= */
+
+/* -----------------------------------------
+   TOP STAT CARDS
+----------------------------------------- */
+
+.administrator-overview-stat-card {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.05) !important;
+}
+
+.administrator-overview-stat-card:hover {
+  background: #ffffff !important;
+  border-color: #d0d5dd !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.07) !important;
+}
+
+.administrator-overview-stat-icon {
+  background: #f2f4f7 !important;
+  color: #344054 !important;
+}
+
+.administrator-overview-stat-card span {
+  color: #667085 !important;
+}
+
+.administrator-overview-stat-card strong {
+  color: #101828 !important;
+}
+
+
+/* -----------------------------------------
+   ACTIVE PROJECT CARDS
+----------------------------------------- */
+
+.administrator-overview-project-item {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+  box-shadow: none !important;
+}
+
+.administrator-overview-project-item:hover {
+  background: #f9fafb !important;
+  border-color: #d0d5dd !important;
+}
+
+.administrator-overview-project-item h3 {
+  color: #101828 !important;
+}
+
+.administrator-overview-project-item p {
+  color: #667085 !important;
+}
+
+.administrator-overview-project-item strong {
+  color: #344054 !important;
+}
+
+
+/* Progress bar - subtle instead of orange */
+.administrator-overview-progress-track {
+  background: #eaecf0 !important;
+}
+
+.administrator-overview-progress-track div {
+  background: #475467 !important;
+}
+
+
+/* -----------------------------------------
+   RECENT TASKS
+----------------------------------------- */
+
+.administrator-overview-list button {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+  box-shadow: none !important;
+}
+
+.administrator-overview-list button:hover {
+  background: #f9fafb !important;
+  border-color: #d0d5dd !important;
+}
+
+.administrator-overview-list button strong {
+  color: #101828 !important;
+}
+
+.administrator-overview-list button span {
+  color: #667085 !important;
+}
+
+.administrator-overview-list button em {
+  color: #475467 !important;
+}
+
+
+/* -----------------------------------------
+   UPCOMING MEETINGS
+----------------------------------------- */
+
+.administrator-overview-meeting-item {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+}
+
+.administrator-overview-meeting-item:hover {
+  background: #f9fafb !important;
+  border-color: #d0d5dd !important;
+}
+
+.administrator-overview-meeting-icon {
+  background: #f2f4f7 !important;
+  color: #475467 !important;
+}
+
+
+/* -----------------------------------------
+   ACTIVITY LOG
+----------------------------------------- */
+
+.administrator-overview-activity-item {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+}
+
+.administrator-overview-activity-icon {
+  background: #f2f4f7 !important;
+  color: #475467 !important;
+}
+
+
+/* -----------------------------------------
+   MAIN PANELS
+----------------------------------------- */
+
+.administrator-overview-panel,
+.administrator-overview-analytics-panel {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.035) !important;
+}
+
+
+/* -----------------------------------------
+   BUTTONS
+   Keep orange only as small accent
+----------------------------------------- */
+
+.administrator-overview-panel-header button,
+.administrator-overview-refresh {
+  background: #ffffff !important;
+  color: #344054 !important;
+  border: 1px solid #d0d5dd !important;
+  box-shadow: none !important;
+}
+
+.administrator-overview-panel-header button:hover,
+.administrator-overview-refresh:hover {
+  background: #f9fafb !important;
+  color: #101828 !important;
+  border-color: #98a2b3 !important;
+}
+
+
+/* -----------------------------------------
+   CHARTS
+----------------------------------------- */
+
+.administrator-overview-chart-card {
+  background: #ffffff !important;
+  border: 1px solid #e4e7ec !important;
+}
+
+
+/* -----------------------------------------
+   PAGE BACKGROUND
+----------------------------------------- */
+
+.administrator-overview-page {
+  background: #f5f7fa !important;
+}
