@@ -670,3 +670,770 @@
     display: none !important;
   }
 }
+
+
+
+
+/* =========================================================
+   ADMINISTRATOR USERS - USER POPUP FIX
+========================================================= */
+
+/* Dark page overlay */
+.administrator-user-dialog-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+
+  padding: 28px !important;
+
+  background: rgba(15, 23, 42, 0.55) !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  z-index: 999999 !important;
+
+  overflow: hidden !important;
+}
+
+
+/* Main user popup */
+.administrator-user-dialog {
+  position: relative !important;
+
+  width: min(900px, calc(100vw - 50px)) !important;
+  max-width: 900px !important;
+
+  max-height: calc(100vh - 56px) !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 20px !important;
+
+  box-shadow:
+    0 30px 70px rgba(15, 23, 42, 0.24) !important;
+
+  overflow: hidden !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  z-index: 1000000 !important;
+}
+
+
+/* =========================================================
+   POPUP HEADER
+========================================================= */
+
+.administrator-user-dialog-header {
+  flex: 0 0 auto !important;
+
+  min-height: 86px !important;
+
+  padding: 20px 22px !important;
+
+  border-bottom: 1px solid #e4e7ec !important;
+
+  background: #ffffff !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  gap: 18px !important;
+}
+
+.administrator-user-dialog-header h2 {
+  margin: 0 !important;
+
+  color: #101828 !important;
+
+  font-size: 22px !important;
+  font-weight: 900 !important;
+}
+
+.administrator-user-dialog-header p {
+  margin: 5px 0 0 !important;
+
+  color: #667085 !important;
+
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+
+
+/* Close X */
+.administrator-dialog-close {
+  flex: 0 0 40px !important;
+
+  width: 40px !important;
+  height: 40px !important;
+
+  min-width: 40px !important;
+  min-height: 40px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 0 !important;
+  border-radius: 11px !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  cursor: pointer !important;
+
+  z-index: 20 !important;
+}
+
+.administrator-dialog-close svg {
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.administrator-dialog-close:hover {
+  background: #e94b2c !important;
+}
+
+
+/* =========================================================
+   POPUP BODY
+========================================================= */
+
+.administrator-user-dialog-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+
+  padding: 20px 22px 24px !important;
+
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  background: #f8fafc !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-user-dialog-body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+}
+
+
+/* =========================================================
+   SECTIONS
+========================================================= */
+
+.administrator-dialog-section {
+  padding: 18px !important;
+
+  margin-bottom: 14px !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 15px !important;
+}
+
+.administrator-dialog-section:last-child {
+  margin-bottom: 0 !important;
+}
+
+.administrator-dialog-section-heading {
+  margin-bottom: 16px !important;
+}
+
+.administrator-dialog-section-heading h3 {
+  margin: 0 !important;
+
+  color: #101828 !important;
+
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.administrator-dialog-section-heading p {
+  margin: 4px 0 0 !important;
+
+  color: #98a2b3 !important;
+
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+}
+
+
+/* =========================================================
+   USER DETAILS GRID
+========================================================= */
+
+.administrator-user-details-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+
+  gap: 13px !important;
+}
+
+.administrator-dialog-field {
+  min-width: 0 !important;
+}
+
+.administrator-dialog-field-full {
+  grid-column: 1 / -1 !important;
+}
+
+.administrator-dialog-field label {
+  display: block !important;
+
+  margin-bottom: 6px !important;
+
+  color: #475467 !important;
+
+  font-size: 10.5px !important;
+  font-weight: 850 !important;
+}
+
+.administrator-dialog-field input,
+.administrator-dialog-field select,
+.administrator-single-department-section select,
+.administrator-role-control select,
+.administrator-password-input-wrap input {
+  width: 100% !important;
+
+  height: 44px !important;
+
+  padding: 0 13px !important;
+
+  border: 1px solid #d0d5dd !important;
+  border-radius: 10px !important;
+
+  background: #ffffff !important;
+  color: #101828 !important;
+
+  font-family: inherit !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+
+  outline: none !important;
+}
+
+.administrator-dialog-field input:focus,
+.administrator-dialog-field select:focus,
+.administrator-single-department-section select:focus,
+.administrator-role-control select:focus,
+.administrator-password-input-wrap input:focus {
+  border-color: #ff5733 !important;
+
+  box-shadow:
+    0 0 0 3px rgba(255, 87, 51, 0.08) !important;
+}
+
+
+/* Static fields */
+.administrator-static-field {
+  min-height: 44px !important;
+
+  padding: 0 13px !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 10px !important;
+
+  background: #f8fafc !important;
+
+  color: #344054 !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  font-size: 11.5px !important;
+  font-weight: 750 !important;
+}
+
+
+/* =========================================================
+   SINGLE DEPARTMENT
+========================================================= */
+
+.administrator-single-department-section {
+  margin-top: 14px !important;
+}
+
+.administrator-department-label-row {
+  margin-bottom: 7px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  gap: 12px !important;
+}
+
+.administrator-department-label-row label {
+  color: #475467 !important;
+
+  font-size: 10.5px !important;
+  font-weight: 850 !important;
+}
+
+.administrator-department-label-row button,
+.administrator-small-add-department-btn {
+  min-height: 32px !important;
+
+  padding: 0 10px !important;
+
+  border: 1px solid #ff5733 !important;
+  border-radius: 8px !important;
+
+  background: #ffffff !important;
+  color: #ff5733 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+
+  gap: 5px !important;
+
+  font-size: 10px !important;
+  font-weight: 850 !important;
+
+  cursor: pointer !important;
+}
+
+
+/* =========================================================
+   MULTI-DEPARTMENT ADMIN
+========================================================= */
+
+.admin-departments-section {
+  margin-top: 14px !important;
+}
+
+.admin-departments-title-row {
+  margin-bottom: 11px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  gap: 12px !important;
+}
+
+.admin-departments-header h4 {
+  margin: 0 !important;
+
+  color: #101828 !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.admin-departments-header p {
+  margin: 3px 0 0 !important;
+
+  color: #98a2b3 !important;
+
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}
+
+.admin-departments-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+
+  gap: 9px !important;
+}
+
+.admin-department-card {
+  min-height: 44px !important;
+
+  padding: 0 11px !important;
+
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 10px !important;
+
+  background: #ffffff !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  gap: 8px !important;
+
+  cursor: pointer !important;
+}
+
+.admin-department-card input {
+  display: none !important;
+}
+
+.admin-department-card.selected {
+  border-color: #ff5733 !important;
+  background: #fff5f1 !important;
+}
+
+.admin-department-checkmark {
+  width: 20px !important;
+  height: 20px !important;
+
+  border: 1px solid #d0d5dd !important;
+  border-radius: 6px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  color: #ffffff !important;
+
+  font-size: 11px !important;
+  font-weight: 900 !important;
+}
+
+.admin-department-card.selected
+  .admin-department-checkmark {
+  border-color: #ff5733 !important;
+  background: #ff5733 !important;
+}
+
+.admin-department-name {
+  color: #344054 !important;
+
+  font-size: 10.5px !important;
+  font-weight: 800 !important;
+}
+
+
+/* =========================================================
+   SAVE DETAILS
+========================================================= */
+
+.administrator-dialog-save-row {
+  margin-top: 14px !important;
+
+  display: flex !important;
+  justify-content: flex-end !important;
+}
+
+
+/* =========================================================
+   ROLE
+========================================================= */
+
+.administrator-role-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+
+  gap: 10px !important;
+}
+
+
+/* =========================================================
+   PASSWORD
+========================================================= */
+
+.administrator-password-control {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+
+  gap: 10px !important;
+}
+
+.administrator-password-input-wrap {
+  position: relative !important;
+}
+
+.administrator-password-input-wrap input {
+  padding-right: 45px !important;
+}
+
+.administrator-password-eye {
+  position: absolute !important;
+
+  top: 50% !important;
+  right: 7px !important;
+
+  transform: translateY(-50%) !important;
+
+  width: 30px !important;
+  height: 30px !important;
+
+  padding: 0 !important;
+
+  border: 0 !important;
+
+  background: transparent !important;
+  color: #667085 !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  cursor: pointer !important;
+}
+
+
+/* =========================================================
+   PRIMARY BUTTONS
+========================================================= */
+
+.administrator-user-dialog .administrator-primary-btn {
+  min-height: 40px !important;
+
+  padding: 0 14px !important;
+
+  border: 1px solid #ff5733 !important;
+  border-radius: 10px !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  gap: 7px !important;
+
+  font-size: 10.5px !important;
+  font-weight: 900 !important;
+
+  white-space: nowrap !important;
+
+  cursor: pointer !important;
+}
+
+
+/* =========================================================
+   ACCOUNT ACTIONS
+========================================================= */
+
+.administrator-dialog-actions {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+
+  gap: 9px !important;
+}
+
+.administrator-action-btn {
+  min-height: 40px !important;
+
+  padding: 0 13px !important;
+
+  border: 1px solid #d0d5dd !important;
+  border-radius: 10px !important;
+
+  background: #ffffff !important;
+  color: #344054 !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+
+  gap: 7px !important;
+
+  font-size: 10.5px !important;
+  font-weight: 850 !important;
+
+  cursor: pointer !important;
+}
+
+.administrator-action-btn:hover {
+  background: #f8fafc !important;
+}
+
+.administrator-action-btn.danger {
+  border-color: #fecaca !important;
+
+  background: #fef2f2 !important;
+  color: #dc2626 !important;
+}
+
+
+/* =========================================================
+   ADD DEPARTMENT MODAL
+========================================================= */
+
+.administrator-department-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+
+  padding: 24px !important;
+
+  background: rgba(15, 23, 42, 0.55) !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  z-index: 1100000 !important;
+}
+
+.administrator-department-modal {
+  width: min(500px, calc(100vw - 40px)) !important;
+
+  background: #ffffff !important;
+
+  border-radius: 18px !important;
+
+  overflow: hidden !important;
+
+  box-shadow:
+    0 28px 65px rgba(15, 23, 42, 0.25) !important;
+}
+
+.administrator-department-modal-header {
+  padding: 18px 20px !important;
+
+  border-bottom: 1px solid #e4e7ec !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+}
+
+.administrator-department-modal-header h2 {
+  margin: 0 !important;
+
+  color: #101828 !important;
+
+  font-size: 18px !important;
+  font-weight: 900 !important;
+}
+
+.administrator-department-modal-header p {
+  margin: 4px 0 0 !important;
+
+  color: #98a2b3 !important;
+
+  font-size: 10px !important;
+}
+
+.administrator-department-modal-header button {
+  width: 36px !important;
+  height: 36px !important;
+
+  padding: 0 !important;
+
+  border: 0 !important;
+  border-radius: 9px !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  cursor: pointer !important;
+}
+
+.administrator-department-modal-body {
+  padding: 20px !important;
+}
+
+.administrator-department-modal-field {
+  margin-bottom: 14px !important;
+}
+
+.administrator-department-modal-field label {
+  display: block !important;
+
+  margin-bottom: 6px !important;
+
+  color: #475467 !important;
+
+  font-size: 10.5px !important;
+  font-weight: 850 !important;
+}
+
+.administrator-department-modal-field input,
+.administrator-department-modal-field textarea {
+  width: 100% !important;
+
+  padding: 11px 12px !important;
+
+  border: 1px solid #d0d5dd !important;
+  border-radius: 10px !important;
+
+  background: #ffffff !important;
+  color: #101828 !important;
+
+  font-family: inherit !important;
+  font-size: 11.5px !important;
+
+  outline: none !important;
+}
+
+.administrator-department-modal-actions {
+  margin-top: 16px !important;
+
+  display: flex !important;
+  justify-content: flex-end !important;
+
+  gap: 9px !important;
+}
+
+.administrator-modal-cancel-btn,
+.administrator-modal-add-btn {
+  min-height: 40px !important;
+
+  padding: 0 14px !important;
+
+  border-radius: 10px !important;
+
+  font-size: 10.5px !important;
+  font-weight: 900 !important;
+
+  cursor: pointer !important;
+}
+
+.administrator-modal-cancel-btn {
+  border: 1px solid #d0d5dd !important;
+
+  background: #ffffff !important;
+  color: #344054 !important;
+}
+
+.administrator-modal-add-btn {
+  border: 1px solid #ff5733 !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 700px) {
+  .administrator-user-dialog-backdrop {
+    padding: 12px !important;
+  }
+
+  .administrator-user-dialog {
+    width: 100% !important;
+    max-height: calc(100vh - 24px) !important;
+  }
+
+  .administrator-user-details-grid,
+  .admin-departments-grid,
+  .administrator-role-control,
+  .administrator-password-control {
+    grid-template-columns: 1fr !important;
+  }
+
+  .administrator-dialog-actions {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .administrator-action-btn {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}

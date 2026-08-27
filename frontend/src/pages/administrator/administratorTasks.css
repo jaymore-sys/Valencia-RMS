@@ -605,3 +605,58 @@ html,
 body {
   overflow-x: hidden !important;
 }
+
+/* =========================================================
+   REMOVE WHITE BACKGROUND AROUND MY TASKS / ALL TASKS
+========================================================= */
+
+.administrator-task-tabs {
+  display: inline-flex !important;
+  align-items: center !important;
+
+  gap: 8px !important;
+
+  padding: 0 !important;
+  margin-bottom: 18px !important;
+
+  border: none !important;
+  border-radius: 0 !important;
+
+  background: transparent !important;
+
+  box-shadow: none !important;
+}
+
+.administrator-task-tabs button {
+  min-width: 120px !important;
+  height: 42px !important;
+
+  padding: 0 18px !important;
+
+  border: 1px solid #d0d5dd !important;
+  border-radius: 12px !important;
+
+  background: #ffffff !important;
+  color: #344054 !important;
+
+  font-size: 13px !important;
+  font-weight: 900 !important;
+
+  cursor: pointer !important;
+
+  box-shadow: none !important;
+}
+
+.administrator-task-tabs button.active {
+  background: #ff5733 !important;
+  color: #ffffff !important;
+
+  border-color: #ff5733 !important;
+
+  box-shadow: 0 8px 18px rgba(255, 87, 51, 0.14) !important;
+}
+
+.administrator-task-tabs button:hover:not(.active) {
+  background: #f9fafb !important;
+  border-color: #c5cad3 !important;
+}
