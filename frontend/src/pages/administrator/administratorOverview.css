@@ -693,3 +693,190 @@
 .administrator-overview-page {
   background: #f5f7fa !important;
 }
+
+
+
+
+/* =========================================================
+   RECENT TASKS - EMPLOYEE STYLE
+========================================================= */
+
+.administrator-overview-recent-tasks {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+
+  max-height: 485px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  padding-right: 6px !important;
+}
+
+/* subtle scrollbar like reference */
+.administrator-overview-recent-tasks::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.administrator-overview-recent-tasks::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.administrator-overview-recent-tasks::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border-radius: 999px !important;
+}
+
+
+/* individual task card */
+.administrator-overview-recent-task-card {
+  width: 100% !important;
+  min-height: 118px !important;
+
+  padding: 20px 22px !important;
+
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 18px !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+
+  text-align: left !important;
+
+  box-shadow: none !important;
+
+  transition: 0.18s ease !important;
+}
+
+.administrator-overview-recent-task-card:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+
+  transform: translateY(-1px) !important;
+
+  box-shadow:
+    0 6px 16px rgba(15, 23, 42, 0.05) !important;
+}
+
+
+/* LEFT SIDE */
+.administrator-overview-recent-task-left {
+  min-width: 0 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+
+  gap: 5px !important;
+}
+
+.administrator-overview-recent-task-left > strong {
+  color: #101828 !important;
+
+  font-size: 16px !important;
+  font-weight: 900 !important;
+
+  line-height: 1.25 !important;
+}
+
+.administrator-overview-recent-task-left > span {
+  color: #667085 !important;
+
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+.administrator-overview-recent-task-left > p {
+  margin: 1px 0 0 !important;
+
+  color: #667085 !important;
+
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+
+/* RIGHT SIDE */
+.administrator-overview-recent-task-right {
+  min-width: 90px !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+
+  gap: 14px !important;
+}
+
+
+/* STATUS PILL */
+.administrator-overview-task-status-pill {
+  min-height: 38px !important;
+
+  padding: 0 16px !important;
+
+  border-radius: 999px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: #eef2ff !important;
+  color: #253047 !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* PROGRESS */
+.administrator-overview-task-progress {
+  color: #ff5733 !important;
+
+  font-size: 16px !important;
+  font-weight: 900 !important;
+
+  line-height: 1 !important;
+}
+
+
+/* Keep main Recent Tasks container clean */
+.administrator-overview-bottom-grid
+  .administrator-overview-panel {
+  overflow: hidden !important;
+}
+
+
+/* Mobile */
+@media (max-width: 700px) {
+  .administrator-overview-recent-task-card {
+    min-height: auto !important;
+
+    padding: 16px !important;
+
+    align-items: flex-start !important;
+  }
+
+  .administrator-overview-recent-task-left > strong {
+    font-size: 14px !important;
+  }
+
+  .administrator-overview-recent-task-right {
+    min-width: 75px !important;
+  }
+
+  .administrator-overview-task-status-pill {
+    min-height: 34px !important;
+    padding: 0 12px !important;
+
+    font-size: 11px !important;
+  }
+
+  .administrator-overview-task-progress {
+    font-size: 14px !important;
+  }
+}

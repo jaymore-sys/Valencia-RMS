@@ -960,42 +960,75 @@ const AdministratorOverview = () => {
             </button>
           </div>
 
-          <div className="administrator-overview-list">
+          <div className="administrator-overview-list administrator-overview-recent-tasks">
             {recentTasks.length > 0 ? (
-              recentTasks.slice(0, 5).map((task) => (
-                <button
-                  type="button"
-                  key={task.task_id || task.id}
-                  onClick={() =>
-                    navigate("/administrator/tasks?tab=my")
-                  }
-                >
-                  <div>
-                    <strong>
-                      {task.task_title ||
-                        task.title ||
-                        "Untitled Task"}
-                    </strong>
+              recentTasks.slice(0, 5).map((task) => {
+                const taskStatus = normalizeStatus(
+                  task.status,
+                  task.progress
+                );
 
-                    <span>
-                      {task.project_title || "No project"}
-                    </span>
-                  </div>
+                const progress = Math.min(
+                  100,
+                  Number(
+                    task.progress ??
+                      task.computed_progress ??
+                      task.progress_percentage ??
+                      (taskStatus === "completed" ? 100 : 0)
+                  ) || 0
+                );
 
-                  <em>
-                    {statusLabels[
-                      normalizeStatus(
-                        task.status,
-                        task.progress
-                      )
-                    ] ||
-                      normalizeStatus(
-                        task.status,
-                        task.progress
-                      )}
-                  </em>
-                </button>
-              ))
+                return (
+                  <button
+                    type="button"
+                    className="administrator-overview-recent-task-card"
+                    key={task.task_id || task.id}
+                    onClick={() =>
+                      navigate("/administrator/tasks?tab=my")
+                    }
+                  >
+                    <div className="administrator-overview-recent-task-left">
+                      <strong>
+                        {task.task_title ||
+                          task.title ||
+                          "Untitled Task"}
+                      </strong>
+
+                      <span>
+                        {task.project_title || "No project"}
+                      </span>
+
+                      <p>
+                        {formatDate(
+                          task.start_date ||
+                            task.task_start_date
+                        )}
+                        {" to "}
+                        {formatDate(
+                          task.due_date ||
+                            task.end_date ||
+                            task.task_end_date
+                        )}
+                      </p>
+                    </div>
+
+                    <div className="administrator-overview-recent-task-right">
+                      <span className="administrator-overview-task-status-pill">
+                        {statusLabels[taskStatus] ||
+                          taskStatus
+                            .replaceAll("_", " ")
+                            .replace(/\b\w/g, (letter) =>
+                              letter.toUpperCase()
+                            )}
+                      </span>
+
+                      <strong className="administrator-overview-task-progress">
+                        {progress}%
+                      </strong>
+                    </div>
+                  </button>
+                );
+              })
             ) : (
               <div className="administrator-overview-empty">
                 No recent tasks.
