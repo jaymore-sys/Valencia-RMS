@@ -1,31 +1,35 @@
 /* =========================================================
-   PAGE
+   ADMINISTRATOR USERS PAGE
+   This file only overrides the Users header and Users table.
+   Existing form, dialog and search styles remain unchanged.
 ========================================================= */
 
 .users-page {
   width: 100%;
+  max-width: 100%;
   min-width: 0;
-  padding: 0;
-  box-sizing: border-box;
-  color: #172033;
-}
-
-.users-page *,
-.users-page *::before,
-.users-page *::after {
-  box-sizing: border-box;
+  padding-right: 0;
+  overflow-x: hidden;
 }
 
 /* =========================================================
-   HEADER
+   PAGE HEADER
 ========================================================= */
 
 .administrator-users-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  margin-bottom: 22px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 18px;
+
+  margin: -8px 0 22px;
+  padding: 0 2px 0 0;
+
+  overflow: visible;
 }
 
 .administrator-users-heading {
@@ -35,1678 +39,419 @@
 .administrator-users-heading h1 {
   margin: 0;
   color: #111827;
-  font-size: 26px;
-  line-height: 1.15;
-  font-weight: 800;
+  font-size: 34px;
+  font-weight: 900;
+  line-height: 1.1;
 }
 
 .administrator-users-heading p {
   margin: 7px 0 0;
-  color: #7a8495;
-  font-size: 13px;
-  line-height: 1.5;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.4;
 }
 
+/* =========================================================
+   TOP-RIGHT BUTTONS
+========================================================= */
+
 .administrator-users-header-actions {
+  min-width: max-content;
+
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 9px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 8px;
+
+  margin: 0;
+  padding: 0;
+
+  overflow: visible;
 }
 
 .administrator-users-header-btn {
-  min-height: 36px;
-  padding: 0 13px;
+  width: auto !important;
+  min-width: max-content !important;
+  max-width: none !important;
 
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
+  height: 34px !important;
+  min-height: 34px !important;
 
-  border: 1px solid #e1e5eb;
-  border-radius: 9px;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: 0 0 auto !important;
+  gap: 6px !important;
 
-  background: #ffffff;
-  color: #374151;
+  margin: 0 !important;
+  padding: 0 12px !important;
 
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
+  border: 1px solid #ff5733 !important;
+  border-radius: 9px !important;
 
-  cursor: pointer;
-  transition: 0.18s ease;
+  background: #ff5733 !important;
+  color: #ffffff !important;
+
+  font-family: Arial, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+
+  cursor: pointer !important;
+}
+
+.administrator-users-header-btn span {
+  display: inline-block !important;
+  width: auto !important;
+  min-width: max-content !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+.administrator-users-header-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  min-width: 14px !important;
+  flex: 0 0 14px !important;
 }
 
 .administrator-users-header-btn:hover {
-  border-color: #ff5733;
-  color: #ff5733;
-  background: #fff8f5;
+  border-color: #e94a2c !important;
+  background: #e94a2c !important;
 }
 
 .administrator-users-header-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.administrator-users-import-btn {
-  background: #ff5733;
-  border-color: #ff5733;
-  color: #ffffff;
-}
-
-.administrator-users-import-btn:hover {
-  background: #ef4927;
-  border-color: #ef4927;
-  color: #ffffff;
+  opacity: 0.65 !important;
+  cursor: not-allowed !important;
 }
 
 /* =========================================================
-   MESSAGE
+   USERS TABLE CARD
+   Vertical scrolling only; no horizontal scrolling.
 ========================================================= */
 
-.administrator-users-message {
-  margin-bottom: 18px;
-  padding: 12px 15px;
+.users-page .administrator-users-table-card {
+  position: relative;
 
-  border: 1px solid #fed7c9;
-  border-radius: 10px;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 560px;
 
-  background: #fff8f5;
-  color: #a84024;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
 
-  font-size: 13px;
-  font-weight: 650;
-}
-
-/* =========================================================
-   ADD USER CARD
-========================================================= */
-
-.administrator-add-user-card {
-  margin-bottom: 20px;
-  padding: 20px;
-
-  border: 1px solid #e4e8ee;
-  border-radius: 15px;
-
-  background: #ffffff;
-}
-
-.administrator-add-user-heading {
-  margin-bottom: 17px;
-}
-
-.administrator-add-user-heading h2 {
-  margin: 0;
-  color: #111827;
-  font-size: 17px;
-  font-weight: 800;
-}
-
-.administrator-add-user-heading p {
-  margin: 5px 0 0;
-  color: #87909e;
-  font-size: 12px;
-}
-
-.administrator-user-form-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  align-items: end;
-}
-
-.administrator-form-field {
-  min-width: 0;
-}
-
-.administrator-form-field label {
-  display: block;
-  margin-bottom: 7px;
-
-  color: #4b5563;
-  font-size: 11px;
-  font-weight: 750;
-}
-
-.administrator-form-field input,
-.administrator-form-field select {
-  width: 100%;
-  height: 40px;
-  padding: 0 12px;
-
-  border: 1px solid #dfe4ea;
-  border-radius: 9px;
-
-  background: #ffffff;
-  color: #1f2937;
-
-  font-family: inherit;
-  font-size: 12px;
-
-  outline: none;
-  transition: 0.18s ease;
-}
-
-.administrator-form-field input:focus,
-.administrator-form-field select:focus {
-  border-color: #ff5733;
-  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.08);
-}
-
-.administrator-form-field input:disabled {
-  background: #f7f8fa;
-  color: #9aa2ae;
-  cursor: not-allowed;
-}
-
-.administrator-form-submit {
-  display: flex;
-  align-items: flex-end;
-}
-
-/* =========================================================
-   PRIMARY BUTTON
-========================================================= */
-
-.users-page .administrator-primary-btn {
-  min-height: 40px;
-  padding: 0 15px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-
-  border: 1px solid #ff5733;
-  border-radius: 9px;
-
-  background: #ff5733;
-  color: #ffffff;
-
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 750;
-
-  cursor: pointer;
-  transition: 0.18s ease;
-
-  box-shadow: none;
-}
-
-.users-page .administrator-primary-btn:hover {
-  background: #ed4826;
-  border-color: #ed4826;
-}
-
-.users-page .administrator-primary-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-/* =========================================================
-   TOOLBAR
-========================================================= */
-
-.administrator-users-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 13px;
-}
-
-.administrator-users-search {
-  width: min(460px, 100%);
-  height: 40px;
-  padding: 0 13px;
-
-  display: flex;
-  align-items: center;
-  gap: 9px;
-
-  border: 1px solid #dfe4ea;
-  border-radius: 10px;
-
-  background: #ffffff;
-  color: #9299a5;
-}
-
-.administrator-users-search:focus-within {
-  border-color: #ff5733;
-  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.07);
-}
-
-.administrator-users-search input {
-  flex: 1;
-  min-width: 0;
-
-  border: 0;
-  outline: 0;
-
-  background: transparent;
-  color: #253047;
-
-  font-family: inherit;
-  font-size: 12px;
-}
-
-.administrator-total-users {
-  color: #798292;
-  font-size: 12px;
-  font-weight: 750;
-}
-
-/* =========================================================
-   TABLE
-========================================================= */
-
-.administrator-users-table-card {
-  width: 100%;
-  overflow: auto;
-
-  border: 1px solid #e4e8ee;
-  border-radius: 14px;
-
-  background: #ffffff;
-
-  scrollbar-width: none;
-}
-
-.administrator-users-table-card::-webkit-scrollbar {
-  display: none;
-}
-
-.administrator-users-table {
-  width: 100%;
-  min-width: 780px;
-
-  border-collapse: separate;
-  border-spacing: 0;
-  table-layout: fixed;
-}
-
-.administrator-users-table th:nth-child(1),
-.administrator-users-table td:nth-child(1) {
-  width: 42%;
-}
-
-.administrator-users-table th:nth-child(2),
-.administrator-users-table td:nth-child(2) {
-  width: 16%;
-}
-
-.administrator-users-table th:nth-child(3),
-.administrator-users-table td:nth-child(3) {
-  width: 23%;
-}
-
-.administrator-users-table th:nth-child(4),
-.administrator-users-table td:nth-child(4) {
-  width: 19%;
-}
-
-.administrator-users-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-
-  padding: 13px 16px;
-
-  border-bottom: 1px solid #e7eaf0;
-
-  background: #fafbfc;
-  color: #667085;
-
-  font-size: 11px;
-  font-weight: 800;
-  text-align: left;
-}
-
-.administrator-users-table tbody td {
-  padding: 13px 16px;
-
-  border-bottom: 1px solid #eef0f3;
-
-  color: #323c4f;
-  font-size: 12px;
-
-  vertical-align: middle;
-}
-
-.administrator-users-table tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.administrator-users-table tbody tr {
-  cursor: pointer;
-  transition: 0.15s ease;
-}
-
-.administrator-users-table tbody tr:hover {
-  background: #fff9f6;
-}
-
-.administrator-user-cell {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-}
-
-.administrator-user-avatar {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border-radius: 50%;
-
-  background: #fff1eb;
-  color: #ff5733;
-}
-
-.administrator-user-main {
-  min-width: 0;
-
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.administrator-user-main strong {
-  overflow: hidden;
-
-  color: #182033;
-  font-size: 12px;
-  font-weight: 800;
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.administrator-user-main span,
-.administrator-user-main small {
-  overflow: hidden;
-
-  color: #8a93a1;
-  font-size: 10.5px;
-
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.administrator-role-pill {
-  display: inline-flex;
-  align-items: center;
-
-  padding: 5px 9px;
-
-  border-radius: 999px;
-
-  background: #f1f3f6;
-  color: #596273;
-
-  font-size: 10px;
-  font-weight: 800;
-
-  text-transform: capitalize;
-}
-
-.administrator-department-text {
-  display: block;
-  overflow: hidden;
-
-  line-height: 1.45;
-
-  text-overflow: ellipsis;
-  white-space: normal;
-}
-
-.administrator-users-empty,
-.administrator-users-loading {
-  padding: 35px !important;
-  text-align: center;
-  color: #8a93a1;
-  font-size: 12px;
-}
-
-/* =========================================================
-   DIALOG BACKDROP
-========================================================= */
-
-.administrator-user-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 2000;
-
-  padding: 24px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: rgba(15, 23, 42, 0.38);
-  backdrop-filter: blur(2px);
-}
-
-/* =========================================================
-   DIALOG
-========================================================= */
-
-.administrator-user-dialog {
-  width: min(920px, 100%);
-  max-height: 92vh;
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  border: 1px solid #e3e6eb;
   border-radius: 18px;
-
   background: #ffffff;
-
-  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.18);
-}
-
-.administrator-user-dialog-header {
-  flex: 0 0 auto;
-
-  padding: 18px 21px;
-
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 18px;
-
-  border-bottom: 1px solid #ebedf1;
-
-  background: #ffffff;
-}
-
-.administrator-user-dialog-header h2 {
-  margin: 0;
-  color: #171f31;
-  font-size: 19px;
-  font-weight: 850;
-}
-
-.administrator-user-dialog-header p {
-  margin: 5px 0 0;
-  color: #8a93a1;
-  font-size: 11.5px;
-}
-
-.administrator-dialog-close {
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  border: 1px solid #e0e4e9;
-  border-radius: 9px;
-
-  background: #ffffff;
-  color: #687283;
-
-  cursor: pointer;
-}
-
-.administrator-dialog-close:hover {
-  border-color: #ff5733;
-  color: #ff5733;
 }
 
 /* =========================================================
-   DIALOG BODY
+   USERS TABLE
 ========================================================= */
 
-.administrator-user-dialog-body {
-  padding: 18px 20px 22px;
-
-  overflow-y: auto;
-  overflow-x: hidden;
-
-  scrollbar-width: none;
-}
-
-.administrator-user-dialog-body::-webkit-scrollbar {
-  display: none;
-}
-
-.users-page .administrator-dialog-section {
-  padding: 18px;
-
-  border: 1px solid #e4e7ec;
-  border-radius: 13px;
-
-  background: #ffffff;
-}
-
-.users-page
-  .administrator-dialog-section
-  + .administrator-dialog-section {
-  margin-top: 14px;
-}
-
-.users-page .administrator-dialog-section-heading {
-  margin-bottom: 15px;
-}
-
-.users-page .administrator-dialog-section-heading h3 {
-  margin: 0;
-
-  color: #172033;
-  font-size: 15px;
-  line-height: 1.3;
-  font-weight: 800;
-}
-
-.users-page .administrator-dialog-section-heading p {
-  margin: 5px 0 0;
-
-  color: #7b8494;
-  font-size: 11.5px;
-  line-height: 1.45;
-  font-weight: 500;
-}
-
-/* =========================================================
-   DETAILS
-========================================================= */
-
-.administrator-user-details-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 13px;
-}
-
-.administrator-dialog-field {
-  min-width: 0;
-}
-
-.administrator-dialog-field-full {
-  grid-column: 1 / -1;
-}
-
-.administrator-dialog-field label,
-.administrator-single-department-section > label {
-  display: block;
-  margin-bottom: 7px;
-
-  color: #596273;
-  font-size: 10.5px;
-  font-weight: 800;
-}
-
-.administrator-dialog-field input,
-.administrator-dialog-field select,
-.administrator-single-department-section select,
-.administrator-role-control select,
-.administrator-password-input-wrap input {
-  width: 100%;
-  height: 40px;
-  padding: 0 12px;
-
-  border: 1px solid #dfe4ea;
-  border-radius: 9px;
-
-  background: #ffffff;
-  color: #253047;
-
-  font-family: inherit;
-  font-size: 12px;
-
-  outline: none;
-  transition: 0.18s ease;
-}
-
-.administrator-dialog-field input:focus,
-.administrator-dialog-field select:focus,
-.administrator-single-department-section select:focus,
-.administrator-role-control select:focus,
-.administrator-password-input-wrap input:focus {
-  border-color: #ff5733;
-  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.07);
-}
-
-.administrator-static-field {
-  min-height: 40px;
-  padding: 0 12px;
-
-  display: flex;
-  align-items: center;
-
-  border: 1px solid #ebedf1;
-  border-radius: 9px;
-
-  background: #f8f9fb;
-  color: #6b7280;
-
-  font-size: 12px;
-}
-
-/* =========================================================
-   SINGLE DEPARTMENT
-========================================================= */
-
-.administrator-single-department-section {
-  margin-top: 15px;
-}
-
-/* =========================================================
-   ADMIN DEPARTMENTS
-========================================================= */
-
-.users-page .admin-departments-section {
-  margin-top: 16px !important;
-  padding: 18px !important;
-
-  border: 1px solid #e4e7ec !important;
-  border-radius: 14px !important;
-
-  background: #fafbfc !important;
-}
-
-.users-page .admin-departments-header {
-  margin: 0 0 15px !important;
-}
-
-.users-page .admin-departments-header h4 {
-  margin: 0 !important;
-  padding: 0 !important;
-
-  color: #172033 !important;
-
-  font-size: 15px !important;
-  line-height: 1.25 !important;
-  font-weight: 800 !important;
-}
-
-.users-page .admin-departments-header p {
-  margin: 5px 0 0 !important;
-  padding: 0 !important;
-
-  color: #7b8494 !important;
-
-  font-size: 12px !important;
-  line-height: 1.4 !important;
-  font-weight: 500 !important;
-}
-
-.users-page .admin-departments-grid {
+.users-page .administrator-users-table {
   width: 100% !important;
-
-  display: grid !important;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-
-  gap: 10px !important;
-}
-
-.users-page .admin-department-card {
-  position: relative !important;
-
-  width: 100% !important;
+  max-width: 100% !important;
   min-width: 0 !important;
 
-  height: 52px !important;
-  min-height: 52px !important;
+  table-layout: fixed !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
 
   margin: 0 !important;
-  padding: 0 14px !important;
+}
 
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  justify-content: flex-start !important;
+/* Sticky heading stays inside the table card */
 
-  gap: 10px !important;
+.users-page .administrator-users-table th {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
 
-  border: 1px solid #dfe3e8 !important;
-  border-radius: 11px !important;
+  min-width: 0 !important;
+  padding: 17px 18px !important;
 
   background: #ffffff !important;
+  color: #64748b !important;
 
-  cursor: pointer !important;
-  overflow: hidden !important;
-
-  box-shadow: none !important;
-
-  transition:
-    border-color 0.16s ease,
-    background 0.16s ease;
-}
-
-.users-page .admin-department-card:hover {
-  border-color: #ff9d87 !important;
-  background: #fffaf8 !important;
-}
-
-.users-page .admin-department-card.selected {
-  border-color: #ff5733 !important;
-  background: #fff4f0 !important;
-}
-
-.users-page .admin-department-card input[type="checkbox"] {
-  position: absolute !important;
-
-  width: 1px !important;
-  height: 1px !important;
-
-  min-width: 1px !important;
-  min-height: 1px !important;
-
-  margin: 0 !important;
-  padding: 0 !important;
-
-  opacity: 0 !important;
-
-  appearance: none !important;
-  -webkit-appearance: none !important;
-
-  pointer-events: none !important;
-}
-
-.users-page .admin-department-checkmark {
-  width: 21px !important;
-  height: 21px !important;
-
-  min-width: 21px !important;
-  min-height: 21px !important;
-
-  flex: 0 0 21px !important;
-
-  margin: 0 !important;
-  padding: 0 !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  border: 1.5px solid #cdd3db !important;
-  border-radius: 5px !important;
-
-  background: #ffffff !important;
-  color: transparent !important;
+  border-bottom: 1px solid #e5e7eb !important;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.04);
 
   font-size: 13px !important;
-  line-height: 1 !important;
-  font-weight: 900 !important;
-
-  box-shadow: none !important;
-}
-
-.users-page
-  .admin-department-card.selected
-  .admin-department-checkmark {
-  border-color: #ff5733 !important;
-  background: #ff5733 !important;
-  color: #ffffff !important;
-}
-
-.users-page .admin-department-name {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
-
-  margin: 0 !important;
-  padding: 0 !important;
-
-  display: block !important;
-
-  color: #30394a !important;
-
-  font-size: 12px !important;
-  line-height: 1 !important;
-  font-weight: 700 !important;
+  font-weight: 800 !important;
+  line-height: 1.3 !important;
+  text-align: left !important;
+  vertical-align: middle !important;
 
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
 }
 
-.users-page
-  .admin-department-card.selected
-  .admin-department-name {
-  color: #d94727 !important;
-}
-
-/* =========================================================
-   SAVE DETAILS
-========================================================= */
-
-.users-page .administrator-dialog-save-row {
-  width: 100% !important;
-
-  margin-top: 16px !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-}
-
-.users-page
-  .administrator-dialog-save-row
-  .administrator-primary-btn {
-  width: auto !important;
-  min-width: 135px !important;
-
-  height: 40px !important;
-  min-height: 40px !important;
-
-  padding: 0 16px !important;
-
-  border-radius: 9px !important;
-
-  font-size: 12px !important;
-}
-
-/* =========================================================
-   CHANGE ROLE
-========================================================= */
-
-.users-page .administrator-role-control {
-  width: 100% !important;
-
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 145px !important;
-
-  align-items: center !important;
-  gap: 12px !important;
-}
-
-.users-page .administrator-role-control select {
-  width: 100% !important;
-  height: 42px !important;
-
-  margin: 0 !important;
-  padding: 0 38px 0 12px !important;
-
-  border: 1px solid #d9dee6 !important;
-  border-radius: 9px !important;
-
-  background-color: #ffffff !important;
-  color: #273044 !important;
-
-  font-family: inherit !important;
-  font-size: 12px !important;
-  font-weight: 600 !important;
-
-  outline: none !important;
-  box-shadow: none !important;
-}
-
-.users-page .administrator-role-control select:focus {
-  border-color: #ff5733 !important;
-
-  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.07) !important;
-}
-
-.users-page
-  .administrator-role-control
-  .administrator-primary-btn {
-  width: 145px !important;
-
-  height: 42px !important;
-  min-height: 42px !important;
-
-  margin: 0 !important;
-  padding: 0 14px !important;
-
-  border-radius: 9px !important;
-
-  font-size: 12px !important;
-}
-
-/* =========================================================
-   PASSWORD
-========================================================= */
-
-.users-page .administrator-password-control {
-  width: 100% !important;
-
-  display: grid !important;
-  grid-template-columns: minmax(0, 1fr) 160px !important;
-
-  align-items: center !important;
-  gap: 12px !important;
-}
-
-.users-page .administrator-password-input-wrap {
-  position: relative !important;
-
-  width: 100% !important;
+.users-page .administrator-users-table td {
   min-width: 0 !important;
+  padding: 18px !important;
 
-  height: 42px !important;
+  background: #ffffff;
+  border-bottom: 1px solid #eef2f7;
+
+  font-size: 13px;
+  line-height: 1.4;
+  vertical-align: middle;
+
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
 }
 
-.users-page .administrator-password-input-wrap input {
-  width: 100% !important;
-  height: 42px !important;
-
-  margin: 0 !important;
-  padding: 0 46px 0 13px !important;
-
-  border: 1px solid #d9dee6 !important;
-  border-radius: 9px !important;
-
-  background: #ffffff !important;
-  color: #273044 !important;
-
-  font-family: inherit !important;
-  font-size: 12px !important;
-  font-weight: 500 !important;
-
-  outline: none !important;
-  box-shadow: none !important;
+.users-page .administrator-users-table tbody tr:hover td {
+  background: #fff8f5;
 }
 
-.users-page
-  .administrator-password-input-wrap
-  input:focus {
-  border-color: #ff5733 !important;
+/* Exactly four columns: User, Role, Department, Designation */
 
-  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.07) !important;
+.users-page .administrator-users-table th:nth-child(1),
+.users-page .administrator-users-table td:nth-child(1) {
+  width: 44% !important;
 }
 
-.users-page
-  .administrator-password-input-wrap
-  input::placeholder {
-  color: #9aa2af !important;
-  font-weight: 500 !important;
+.users-page .administrator-users-table th:nth-child(2),
+.users-page .administrator-users-table td:nth-child(2) {
+  width: 18% !important;
 }
 
-.users-page .administrator-password-eye {
-  position: absolute !important;
-
-  top: 50% !important;
-  right: 8px !important;
-
-  transform: translateY(-50%) !important;
-
-  width: 30px !important;
-  height: 30px !important;
-
-  min-width: 30px !important;
-  min-height: 30px !important;
-
-  margin: 0 !important;
-  padding: 0 !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  border: none !important;
-  border-radius: 7px !important;
-
-  background: transparent !important;
-  color: #667085 !important;
-
-  box-shadow: none !important;
-
-  cursor: pointer !important;
+.users-page .administrator-users-table th:nth-child(3),
+.users-page .administrator-users-table td:nth-child(3) {
+  width: 19% !important;
 }
 
-.users-page .administrator-password-eye:hover {
-  background: #f4f5f7 !important;
-  color: #ff5733 !important;
+.users-page .administrator-users-table th:nth-child(4),
+.users-page .administrator-users-table td:nth-child(4) {
+  width: 19% !important;
 }
 
-.users-page .administrator-password-eye svg {
-  width: 17px !important;
-  height: 17px !important;
+/* Prevent user details from widening the table */
 
-  stroke: currentColor !important;
+.users-page .administrator-users-table .user-name-cell {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 13px;
 }
 
-.users-page
-  .administrator-password-control
-  > .administrator-primary-btn {
-  width: 160px !important;
-
-  height: 42px !important;
-  min-height: 42px !important;
-
-  margin: 0 !important;
-  padding: 0 14px !important;
-
-  border-radius: 9px !important;
-
-  font-size: 12px !important;
+.users-page .administrator-users-table .user-name-cell > div:last-child {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 
-.users-page
-  .administrator-password-control
-  > .administrator-primary-btn:disabled {
-  border-color: #ffd1c6 !important;
+.users-page .administrator-users-table .user-name-cell strong,
+.users-page .administrator-users-table .user-name-cell p {
+  display: block;
+  width: 100%;
+  max-width: 100%;
 
-  background: #ffd1c6 !important;
-  color: #ffffff !important;
-
-  opacity: 1 !important;
-
-  cursor: not-allowed !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* =========================================================
-   ACCOUNT ACTIONS
-========================================================= */
-
-.users-page .administrator-dialog-actions {
-  width: 100% !important;
-
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-
-  gap: 10px !important;
-  flex-wrap: wrap !important;
+.users-page .administrator-users-table .user-avatar-small {
+  flex-shrink: 0;
 }
 
-.users-page
-  .administrator-dialog-actions
-  .administrator-action-btn {
-  width: auto !important;
-  min-width: 0 !important;
+.users-page .administrator-users-table .role-badge {
+  display: inline-flex;
+  max-width: 100%;
 
-  height: 40px !important;
-  min-height: 40px !important;
-
-  margin: 0 !important;
-  padding: 0 14px !important;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 7px !important;
-
-  border: 1px solid #dce1e7 !important;
-  border-radius: 9px !important;
-
-  background: #ffffff !important;
-  color: #465166 !important;
-
-  font-family: inherit !important;
-  font-size: 12px !important;
-  font-weight: 700 !important;
-
-  box-shadow: none !important;
-
-  cursor: pointer !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.users-page
-  .administrator-dialog-actions
-  .administrator-action-btn:hover {
-  border-color: #ff5733 !important;
+/* Vertical scrollbar */
 
-  background: #fff7f4 !important;
-  color: #ff5733 !important;
+.users-page .administrator-users-table-card::-webkit-scrollbar {
+  width: 7px;
 }
 
-.users-page
-  .administrator-dialog-actions
-  .administrator-action-btn
-  svg {
-  width: 15px !important;
-  height: 15px !important;
-
-  stroke: currentColor !important;
+.users-page .administrator-users-table-card::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.users-page
-  .administrator-dialog-actions
-  .administrator-action-btn.danger {
-  border-color: #efc8c8 !important;
-
-  background: #ffffff !important;
-  color: #d14343 !important;
+.users-page .administrator-users-table-card::-webkit-scrollbar-thumb {
+  border-radius: 10px;
+  background: #d2d8e0;
 }
 
-.users-page
-  .administrator-dialog-actions
-  .administrator-action-btn.danger:hover {
-  border-color: #d93636 !important;
-
-  background: #fff4f4 !important;
-  color: #c92f2f !important;
-}
-
-/* =========================================================
-   SPINNER
-========================================================= */
-
-@keyframes administratorUsersSpin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.administrator-spin {
-  animation: administratorUsersSpin 0.8s linear infinite;
+.users-page .administrator-users-table-card::-webkit-scrollbar-thumb:hover {
+  background: #b8c0ca;
 }
 
 /* =========================================================
    RESPONSIVE
 ========================================================= */
 
-@media (max-width: 1100px) {
-  .administrator-user-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+@media (max-width: 1180px) {
+  .administrator-users-header {
+    grid-template-columns: 1fr;
+    row-gap: 14px;
+  }
+
+  .administrator-users-header-actions {
+    min-width: 0;
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 }
 
-@media (max-width: 900px) {
-  .users-page .admin-departments-grid {
+@media (max-width: 700px) {
+  .administrator-users-heading h1 {
+    font-size: 28px;
+  }
+
+  .administrator-users-heading p {
+    font-size: 13px;
+  }
+
+  .administrator-users-header-btn {
+    min-width: 100px !important;
+    padding: 0 9px !important;
+    font-size: 11px !important;
+  }
+
+  .users-page .administrator-users-table-card {
+    height: 500px;
+  }
+
+  .users-page .administrator-users-table th,
+  .users-page .administrator-users-table td {
+    padding: 11px 5px !important;
+    font-size: 9px !important;
+  }
+
+  .users-page .administrator-users-table .user-avatar-small {
+    display: none;
+  }
+}
+
+/* =========================================================
+   FINAL FIX - ADD USER DEPARTMENT + ROLE SELECT VISIBILITY
+   This block intentionally overrides any global select styles.
+========================================================= */
+.users-page .administrator-user-form-grid .administrator-form-field select,
+.users-page .administrator-single-department-section select,
+.users-page .administrator-role-control select {
+  width: 100% !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  max-height: 52px !important;
+  display: block !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 46px 0 18px !important;
+  border: 1px solid #d6dde7 !important;
+  border-radius: 16px !important;
+  background-color: #ffffff !important;
+  color: #172033 !important;
+  -webkit-text-fill-color: #172033 !important;
+  opacity: 1 !important;
+  font-family: inherit !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  line-height: 50px !important;
+  text-align: left !important;
+  text-indent: 0 !important;
+  white-space: nowrap !important;
+  overflow: visible !important;
+  cursor: pointer !important;
+  outline: none !important;
+  box-shadow: none !important;
+  appearance: auto !important;
+  -webkit-appearance: menulist !important;
+}
+
+.users-page .administrator-user-form-grid .administrator-form-field select option,
+.users-page .administrator-single-department-section select option,
+.users-page .administrator-role-control select option {
+  color: #172033 !important;
+  background: #ffffff !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.users-page .administrator-user-form-grid .administrator-form-field select:focus,
+.users-page .administrator-single-department-section select:focus,
+.users-page .administrator-role-control select:focus {
+  border-color: #ff5733 !important;
+  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.08) !important;
+}
+
+.users-page .administrator-user-form-grid {
+  align-items: end !important;
+}
+
+.users-page .administrator-form-field {
+  min-width: 0 !important;
+  overflow: visible !important;
+}
+
+.users-page .administrator-form-field label {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #172033 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  line-height: 1.2 !important;
+}
+
+.users-page .administrator-form-field input,
+.users-page .administrator-form-field select {
+  width: 100% !important;
+}
+
+/* Make the Add User grid give Department and Role enough room. */
+.users-page .administrator-user-form-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 18px !important;
+}
+
+.users-page .administrator-form-submit {
+  display: flex !important;
+  align-items: end !important;
+  min-height: 52px !important;
+}
+
+.users-page .administrator-form-submit .administrator-primary-btn {
+  min-width: 150px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  white-space: nowrap !important;
+}
+
+@media (max-width: 1250px) {
+  .users-page .administrator-user-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
-@media (max-width: 760px) {
-  .administrator-users-header {
-    flex-direction: column;
-  }
-
-  .administrator-users-header-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .administrator-users-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .administrator-users-search {
-    width: 100%;
-  }
-
-  .administrator-user-details-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .administrator-dialog-field-full {
-    grid-column: auto;
-  }
-
-  .users-page .administrator-role-control,
-  .users-page .administrator-password-control {
+@media (max-width: 680px) {
+  .users-page .administrator-user-form-grid {
     grid-template-columns: 1fr !important;
   }
 
-  .users-page
-    .administrator-role-control
-    .administrator-primary-btn,
-  .users-page
-    .administrator-password-control
-    > .administrator-primary-btn {
-    width: 100% !important;
-  }
-
-  .administrator-user-dialog-backdrop {
-    padding: 10px;
-  }
-
-  .administrator-user-dialog {
-    max-height: 96vh;
-  }
-}
-
-@media (max-width: 560px) {
-  .administrator-user-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .administrator-add-user-card {
-    padding: 16px;
-  }
-
-  .administrator-user-dialog-header,
-  .administrator-user-dialog-body {
-    padding-left: 14px;
-    padding-right: 14px;
-  }
-
-  .users-page .administrator-dialog-section {
-    padding: 14px !important;
-  }
-
-  .users-page .admin-departments-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .users-page .administrator-dialog-actions {
-    flex-direction: column !important;
-    align-items: stretch !important;
-  }
-
-  .users-page
-    .administrator-dialog-actions
-    .administrator-action-btn {
-    width: 100% !important;
-  }
-
-  .users-page
-    .administrator-dialog-save-row
-    .administrator-primary-btn {
-    width: 100% !important;
-  }
-}
-/* =========================================================
-   ADD DEPARTMENT BUTTON
-========================================================= */
-
-.users-page .administrator-add-user-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.users-page .administrator-add-department-btn {
-  min-height: 36px;
-  padding: 0 13px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-
-  flex: 0 0 auto;
-
-  border: 1px solid #ff5733;
-  border-radius: 9px;
-
-  background: #ffffff;
-  color: #ff5733;
-
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 750;
-
-  cursor: pointer;
-
-  transition: 0.18s ease;
-}
-
-.users-page .administrator-add-department-btn:hover {
-  background: #fff4f0;
-}
-
-/* =========================================================
-   ADMIN DEPARTMENT TITLE + ADD BUTTON
-========================================================= */
-
-.users-page .admin-departments-title-row {
-  margin-bottom: 14px;
-
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 15px;
-}
-
-.users-page
-  .admin-departments-title-row
-  .admin-departments-header {
-  margin: 0 !important;
-}
-
-.users-page .administrator-small-add-department-btn {
-  min-height: 32px;
-  padding: 0 10px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-
-  flex: 0 0 auto;
-
-  border: 1px solid #ffb6a5;
-  border-radius: 8px;
-
-  background: #ffffff;
-  color: #e94f2d;
-
-  font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 750;
-
-  cursor: pointer;
-}
-
-.users-page .administrator-small-add-department-btn:hover {
-  border-color: #ff5733;
-  background: #fff4f0;
-}
-
-/* =========================================================
-   SINGLE DEPARTMENT LABEL
-========================================================= */
-
-.users-page .administrator-department-label-row {
-  margin-bottom: 7px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.users-page .administrator-department-label-row label {
-  margin: 0;
-
-  color: #596273;
-  font-size: 10.5px;
-  font-weight: 800;
-}
-
-.users-page .administrator-department-label-row button {
-  padding: 0;
-
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-
-  border: 0;
-
-  background: transparent;
-  color: #ff5733;
-
-  font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 750;
-
-  cursor: pointer;
-}
-
-/* =========================================================
-   ADD DEPARTMENT MODAL BACKDROP
-========================================================= */
-
-.users-page .administrator-department-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 5000;
-
-  padding: 20px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: rgba(15, 23, 42, 0.44);
-
-  backdrop-filter: blur(2px);
-}
-
-/* =========================================================
-   ADD DEPARTMENT MODAL
-========================================================= */
-
-.users-page .administrator-department-modal {
-  width: min(470px, 100%);
-
-  overflow: hidden;
-
-  border: 1px solid #e4e7ec;
-  border-radius: 16px;
-
-  background: #ffffff;
-
-  box-shadow:
-    0 25px 70px
-    rgba(15, 23, 42, 0.22);
-}
-
-/* =========================================================
-   MODAL HEADER
-========================================================= */
-
-.users-page .administrator-department-modal-header {
-  padding: 18px 20px;
-
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-
-  border-bottom: 1px solid #eceef2;
-}
-
-.users-page .administrator-department-modal-header h2 {
-  margin: 0;
-
-  color: #172033;
-
-  font-size: 18px;
-  line-height: 1.3;
-  font-weight: 800;
-}
-
-.users-page .administrator-department-modal-header p {
-  margin: 5px 0 0;
-
-  color: #8a93a1;
-
-  font-size: 11.5px;
-  line-height: 1.45;
-}
-
-.users-page
-  .administrator-department-modal-header
-  > button {
-  width: 32px !important;
-  height: 32px !important;
-  min-width: 32px !important;
-  min-height: 32px !important;
-
-  margin: 0 !important;
-  padding: 0 !important;
-
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  border: 1px solid #e0e4e9 !important;
-  border-radius: 8px !important;
-
-  background: #ffffff !important;
-  color: #697386 !important;
-
-  box-shadow: none !important;
-
-  cursor: pointer !important;
-}
-
-.users-page
-  .administrator-department-modal-header
-  > button:hover {
-  border-color: #ff5733 !important;
-  color: #ff5733 !important;
-}
-
-/* =========================================================
-   MODAL BODY
-========================================================= */
-
-.users-page .administrator-department-modal-body {
-  padding: 20px;
-}
-
-.users-page .administrator-department-modal-field {
-  margin-bottom: 16px;
-}
-
-.users-page .administrator-department-modal-field label {
-  display: block;
-
-  margin-bottom: 7px;
-
-  color: #4e586a;
-
-  font-size: 11px;
-  font-weight: 750;
-}
-
-.users-page .administrator-department-modal-field input,
-.users-page .administrator-department-modal-field textarea {
-  width: 100% !important;
-
-  margin: 0 !important;
-  padding: 10px 12px !important;
-
-  border: 1px solid #dce1e7 !important;
-  border-radius: 9px !important;
-
-  background: #ffffff !important;
-  color: #253047 !important;
-
-  font-family: inherit !important;
-
-  font-size: 12px !important;
-
-  outline: none !important;
-
-  box-shadow: none !important;
-
-  resize: vertical;
-}
-
-.users-page .administrator-department-modal-field input {
-  height: 41px !important;
-}
-
-.users-page .administrator-department-modal-field textarea {
-  min-height: 82px !important;
-}
-
-.users-page
-  .administrator-department-modal-field
-  input:focus,
-.users-page
-  .administrator-department-modal-field
-  textarea:focus {
-  border-color: #ff5733 !important;
-
-  box-shadow:
-    0 0 0 3px
-    rgba(255, 87, 51, 0.07) !important;
-}
-
-/* =========================================================
-   MODAL ACTIONS
-========================================================= */
-
-.users-page .administrator-department-modal-actions {
-  margin-top: 21px;
-
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-
-  gap: 9px;
-}
-
-.users-page .administrator-modal-cancel-btn,
-.users-page .administrator-modal-add-btn {
-  height: 39px !important;
-  min-height: 39px !important;
-
-  margin: 0 !important;
-  padding: 0 15px !important;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-
-  gap: 6px !important;
-
-  border-radius: 9px !important;
-
-  font-family: inherit !important;
-
-  font-size: 11.5px !important;
-  font-weight: 750 !important;
-
-  box-shadow: none !important;
-
-  cursor: pointer !important;
-}
-
-.users-page .administrator-modal-cancel-btn {
-  border: 1px solid #dce1e7 !important;
-
-  background: #ffffff !important;
-  color: #566174 !important;
-}
-
-.users-page .administrator-modal-cancel-btn:hover {
-  border-color: #b8bec7 !important;
-
-  background: #f8f9fa !important;
-}
-
-.users-page .administrator-modal-add-btn {
-  border: 1px solid #ff5733 !important;
-
-  background: #ff5733 !important;
-  color: #ffffff !important;
-}
-
-.users-page .administrator-modal-add-btn:hover {
-  border-color: #eb4927 !important;
-
-  background: #eb4927 !important;
-}
-
-.users-page
-  .administrator-modal-cancel-btn:disabled,
-.users-page
-  .administrator-modal-add-btn:disabled {
-  opacity: 0.55 !important;
-
-  cursor: not-allowed !important;
-}
-
-/* =========================================================
-   RESPONSIVE
-========================================================= */
-
-@media (max-width: 620px) {
-  .users-page .administrator-add-user-heading {
-    flex-direction: column;
-  }
-
-  .users-page .administrator-add-department-btn {
-    width: 100%;
-  }
-
-  .users-page .admin-departments-title-row {
-    flex-direction: column;
-  }
-
-  .users-page .administrator-small-add-department-btn {
-    width: 100%;
-  }
-
-  .users-page .administrator-department-modal-actions {
-    flex-direction: column-reverse;
-  }
-
-  .users-page .administrator-modal-cancel-btn,
-  .users-page .administrator-modal-add-btn {
+  .users-page .administrator-form-submit .administrator-primary-btn {
     width: 100% !important;
   }
 }

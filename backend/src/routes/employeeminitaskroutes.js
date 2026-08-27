@@ -10,17 +10,25 @@ const {
 
 const router = express.Router();
 
+const workerAccess = [
+  authMiddleware,
+  requireRole(
+    "employee",
+    "administrator",
+    "admin",
+    "superadmin"
+  ),
+];
+
 router.get(
   "/my",
-  authMiddleware,
-  requireRole("employee"),
+  ...workerAccess,
   getMyMiniTasks
 );
 
 router.post(
   "/",
-  authMiddleware,
-  requireRole("employee"),
+  ...workerAccess,
   createEmployeeMiniTask
 );
 
