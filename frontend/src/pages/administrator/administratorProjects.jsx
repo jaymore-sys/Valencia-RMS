@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Search, X } from "lucide-react";
 import api from "../../api/axios";
+import "./administratorProjects.css";
 
 const API_BASE = "/employee-projects";
 
@@ -840,36 +841,36 @@ const AdministratorProjects = () => {
     return (
       <button
         type="button"
+        className="administrator-project-tile"
         style={styles.projectTile}
         key={project.project_id}
         onClick={() => openProjectModal(project)}
       >
-        <div style={styles.projectTileTop}>
-          <h3 style={styles.projectTileTitle}>
+        <div className="administrator-project-tile-top" style={styles.projectTileTop}>
+          <h3 className="administrator-project-tile-title" style={styles.projectTileTitle}>
             {getProjectTitle(project)}
           </h3>
 
-          <span style={styles.statusPill}>
+          <span className="administrator-project-status-pill" style={styles.statusPill}>
             {getStatusLabel(
-              selectedMainTask?.status ||
-              selectedProject?.status_group ||
-              selectedProject?.status ||
-              selectedProject?.project_status
+              project.status_group ||
+              project.status ||
+              project.project_status
             )}
           </span>
         </div>
 
-        <p style={styles.projectTileMeta}>
+        <p className="administrator-project-main-task-count" style={styles.projectTileMeta}>
           {mainTasks.length} Main{" "}
           {mainTasks.length === 1 ? "Task" : "Tasks"}
         </p>
 
-        <p style={styles.projectDate}>
+        <p className="administrator-project-date" style={styles.projectDate}>
           {formatDisplayDate(getProjectStartDate(project))} →{" "}
           {formatDisplayDate(getProjectEndDate(project))}
         </p>
 
-        <span style={styles.clickHint}>
+        <span className="administrator-project-click-hint" style={styles.clickHint}>
           Click to view Project and Main Tasks
         </span>
       </button>
@@ -1150,6 +1151,7 @@ const AdministratorProjects = () => {
         <section style={styles.stageRow}>
           {statusColumns.map((column) => (
             <div
+              className="administrator-project-stage-column"
               style={styles.stageColumn}
               key={column.key}
             >
@@ -1169,7 +1171,7 @@ const AdministratorProjects = () => {
                 </span>
               </div>
 
-              <div style={styles.stageBody}>
+              <div className="administrator-project-stage-body" style={styles.stageBody}>
                 {grouped[column.key]?.length === 0 ? (
                   <div style={styles.emptyColumn}>
                     No projects here.
@@ -1197,10 +1199,12 @@ const AdministratorProjects = () => {
 
       {selectedProject && (
         <div
+          className="administrator-project-modal-backdrop"
           style={styles.modalBackdrop}
           onClick={closeProjectModal}
         >
           <div
+            className="administrator-project-modal"
             style={styles.modal}
             onClick={(event) => event.stopPropagation()}
           >
@@ -1219,8 +1223,11 @@ const AdministratorProjects = () => {
 
                 <button
                   type="button"
+                  className="administrator-project-modal-close"
                   style={styles.closeBtn}
                   onClick={closeProjectModal}
+                  aria-label="Close project"
+                  title="Close"
                 >
                   <X size={18} />
                 </button>
@@ -2125,6 +2132,7 @@ const styles = {
   projectTile: {
     width: "100%",
     boxSizing: "border-box",
+    display: "block",
     textAlign: "left",
     border: "1px solid #e3e8ef",
     background: "#ffffff",
@@ -2135,9 +2143,10 @@ const styles = {
   },
 
   projectTileTop: {
+    width: "100%",
     display: "flex",
     justifyContent: "space-between",
-    gap: "12px",
+    gap: "14px",
     alignItems: "flex-start",
     marginBottom: "10px",
   },
@@ -2317,12 +2326,17 @@ const styles = {
   },
 
   closeBtn: {
+    position: "relative",
+    zIndex: 20,
     border: 0,
-    background: "#111827",
+    background: "#ff5733",
     color: "#ffffff",
     borderRadius: "12px",
     width: "42px",
+    minWidth: "42px",
     height: "42px",
+    minHeight: "42px",
+    padding: 0,
     display: "grid",
     placeItems: "center",
     cursor: "pointer",

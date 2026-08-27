@@ -880,3 +880,27 @@
     font-size: 14px !important;
   }
 }
+
+
+/* =========================================================
+   HIDE RECENT TASKS SCROLLBAR
+   Keep scrolling enabled
+========================================================= */
+
+.administrator-overview-recent-tasks {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  /* Firefox */
+  scrollbar-width: none !important;
+
+  /* IE / old Edge */
+  -ms-overflow-style: none !important;
+}
+
+/* Chrome / Edge / Safari */
+.administrator-overview-recent-tasks::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

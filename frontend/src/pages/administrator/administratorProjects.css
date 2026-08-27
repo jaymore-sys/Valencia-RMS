@@ -1445,3 +1445,247 @@
   color:#ff5733 !important;
 
 }
+
+
+
+
+
+
+
+/* =========================================================
+   ADMINISTRATOR PROJECTS - CLEAN EMPLOYEE-STYLE CARDS
+   + VISIBLE MODAL CLOSE BUTTON
+========================================================= */
+
+/* Keep each project card vertical even if a global button rule exists */
+.administrator-project-tile {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: auto !important;
+  min-height: 176px !important;
+
+  padding: 20px !important;
+
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 18px !important;
+
+  text-align: left !important;
+  color: #101828 !important;
+
+  box-shadow: none !important;
+  overflow: visible !important;
+}
+
+.administrator-project-tile:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.05) !important;
+  transform: translateY(-1px) !important;
+}
+
+
+/* Project title + status */
+.administrator-project-tile-top {
+  width: 100% !important;
+
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+
+  gap: 14px !important;
+
+  margin-bottom: 14px !important;
+}
+
+.administrator-project-tile-title {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+
+  margin: 0 !important;
+
+  color: #101828 !important;
+  font-size: 18px !important;
+  line-height: 1.25 !important;
+  font-weight: 900 !important;
+
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+}
+
+.administrator-project-status-pill {
+  flex: 0 0 auto !important;
+
+  min-width: 74px !important;
+  height: 38px !important;
+
+  padding: 0 14px !important;
+
+  border-radius: 999px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  background: #eef2ff !important;
+  color: #253047 !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+
+  white-space: nowrap !important;
+}
+
+
+/* Details below title */
+.administrator-project-main-task-count {
+  display: block !important;
+
+  margin: 0 0 10px !important;
+
+  color: #596780 !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.administrator-project-date {
+  display: block !important;
+
+  margin: 0 0 14px !important;
+
+  color: #344054 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+
+  white-space: normal !important;
+}
+
+.administrator-project-click-hint {
+  display: block !important;
+
+  color: #ff5733 !important;
+
+  font-size: 12px !important;
+  font-weight: 900 !important;
+
+  white-space: normal !important;
+}
+
+
+/* Kanban column body stays scrollable but scrollbar is hidden */
+.administrator-project-stage-body {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-project-stage-body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Also hide the horizontal board scrollbar */
+.administrator-projects-page,
+.administrator-project-stage-column {
+  scrollbar-width: none !important;
+}
+
+.administrator-projects-page::-webkit-scrollbar,
+.administrator-project-stage-column::-webkit-scrollbar {
+  display: none !important;
+}
+
+
+/* =========================================================
+   PROJECT MODAL
+========================================================= */
+
+.administrator-project-modal-backdrop {
+  z-index: 99999 !important;
+}
+
+.administrator-project-modal {
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+
+/* Close button MUST stay visible */
+.administrator-project-modal-close {
+  position: relative !important;
+  z-index: 999999 !important;
+
+  flex: 0 0 42px !important;
+
+  width: 42px !important;
+  min-width: 42px !important;
+  max-width: 42px !important;
+
+  height: 42px !important;
+  min-height: 42px !important;
+  max-height: 42px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 0 !important;
+  border-radius: 12px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+
+  cursor: pointer !important;
+
+  box-shadow: 0 8px 18px rgba(255, 87, 51, 0.22) !important;
+
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.administrator-project-modal-close svg {
+  width: 20px !important;
+  height: 20px !important;
+
+  color: #ffffff !important;
+  stroke: #ffffff !important;
+
+  display: block !important;
+}
+
+.administrator-project-modal-close:hover {
+  background: #e94b2c !important;
+}
+
+
+/* Safety: keep modal header above modal body */
+.administrator-project-modal .administrator-project-modal-close {
+  pointer-events: auto !important;
+}
+
+
+/* Responsive */
+@media (max-width: 900px) {
+  .administrator-project-tile {
+    min-height: 160px !important;
+    padding: 16px !important;
+  }
+
+  .administrator-project-tile-title {
+    font-size: 16px !important;
+  }
+
+  .administrator-project-status-pill {
+    min-width: 66px !important;
+    height: 34px !important;
+    padding: 0 11px !important;
+    font-size: 11px !important;
+  }
+}
