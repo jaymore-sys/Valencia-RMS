@@ -5,13 +5,22 @@ const employeeAttendanceController = require("../controllers/employeeattendancec
 
 const router = express.Router();
 
-const onlyEmployee = (req, res, next) => {
-  const roleName = String(req.user?.role_name || "").toLowerCase();
+const employeeAttendanceAccess = (req, res, next) => {
+  const roleName = String(req.user?.role_name || "")
+    .toLowerCase()
+    .trim();
 
-  if (roleName !== "employee") {
+  if (
+    ![
+      "employee",
+      "administrator",
+      "admin",
+      "superadmin",
+    ].includes(roleName)
+  ) {
     return res.status(403).json({
       success: false,
-      message: "Access denied. Employee only.",
+      message: "Access denied.",
     });
   }
 
@@ -21,14 +30,14 @@ const onlyEmployee = (req, res, next) => {
 router.get(
   "/",
   authMiddleware,
-  onlyEmployee,
+  employeeAttendanceAccess,
   employeeAttendanceController.getEmployeeAttendance
 );
 
 router.get(
   "/my",
   authMiddleware,
-  onlyEmployee,
+  employeeAttendanceAccess,
   employeeAttendanceController.getEmployeeAttendance
 );
 

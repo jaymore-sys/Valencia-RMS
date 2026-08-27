@@ -21,6 +21,7 @@ const {
 
   getAdministratorProfile,
   updateAdministratorSkills,
+  changeAdministratorPassword,
 
   getAdministratorUsersMeta,
   createAdministratorDepartment,
@@ -152,6 +153,13 @@ router.put(
   authMiddleware,
   requireJayAdministrator,
   updateAdministratorSkills
+);
+
+router.put(
+  "/profile/change-password",
+  authMiddleware,
+  requireJayAdministrator,
+  changeAdministratorPassword
 );
 
 /* =========================================================

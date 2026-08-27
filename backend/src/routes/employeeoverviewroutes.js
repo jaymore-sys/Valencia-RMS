@@ -9,7 +9,26 @@ const {
 
 const router = express.Router();
 
-router.get("/", authMiddleware, requireRole("employee"), getEmployeeOverview);
-router.get("/overview", authMiddleware, requireRole("employee"), getEmployeeOverview);
+const overviewAccess = [
+  authMiddleware,
+  requireRole(
+    "employee",
+    "administrator",
+    "admin",
+    "superadmin"
+  ),
+];
+
+router.get(
+  "/",
+  ...overviewAccess,
+  getEmployeeOverview
+);
+
+router.get(
+  "/overview",
+  ...overviewAccess,
+  getEmployeeOverview
+);
 
 module.exports = router;

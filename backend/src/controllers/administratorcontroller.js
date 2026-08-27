@@ -2341,6 +2341,158 @@ const updateAdministratorSkills = async (req, res) => {
   }
 };
 
+const changeAdministratorPassword = async (req, res) => {
+  try {
+    const userId = Number(req.user?.user_id || 0);
+
+    const oldPassword = String(
+      req.body?.oldPassword || ""
+    );
+
+    const newPassword = String(
+      req.body?.newPassword || ""
+    );
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Current password and new password are required.",
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be at least 8 characters.",
+      });
+    }
+
+    if (oldPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "New password must be different from your current password.",
+      });
+    }
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        user_id,
+        password_hash
+
+      FROM users
+
+      WHERE
+        user_id = ?
+
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    const isMatch = await bcrypt.compare(
+      oldPassword,
+      rows[0].password_hash
+    );
+
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Current password is incorrect.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(
+      newPassword,
+      10
+    );
+
+    await db.query(
+      `
+      UPDATE users
+
+      SET
+        password_hash = ?,
+        force_password_change = 0
+
+      WHERE
+        user_id = ?
+      `,
+      [
+        hashedPassword,
+        userId,
+      ]
+    );
+
+    try {
+      await db.query(
+        `
+        INSERT INTO activity_logs (
+          user_id,
+          action_type,
+          entity_type,
+          entity_id,
+          description
+        )
+
+        VALUES (
+          ?,
+          'password_changed',
+          'user',
+          ?,
+          'Administrator changed their password.'
+        )
+        `,
+        [
+          userId,
+          userId,
+        ]
+      );
+    } catch (activityError) {
+      console.warn(
+        "Password activity log skipped:",
+        activityError.message
+      );
+    }
+
+    return res.json({
+      success: true,
+      message:
+        "Password changed successfully.",
+    });
+  } catch (error) {
+    console.error(
+      "Change Administrator password error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to change password.",
+      error: error.message,
+    });
+  }
+};
+
 const getAdministratorUsersMeta = async (req, res) => {
   try {
     for (const department of DEFAULT_DEPARTMENTS) {
@@ -4035,6 +4187,7 @@ module.exports = {
 
   getAdministratorProfile,
   updateAdministratorSkills,
+  changeAdministratorPassword,
 
   getAdministratorUsersMeta,
   createAdministratorDepartment,

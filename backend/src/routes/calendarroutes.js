@@ -80,6 +80,13 @@ router.get(
   getEmployeeCalendar
 );
 
+router.get(
+  "/administrator",
+  authMiddleware,
+  requireRole("administrator"),
+  getEmployeeCalendar
+);
+
 /*
 ========================================================
 UPCOMING MEETINGS
@@ -91,7 +98,8 @@ router.get(
   authMiddleware,
   requireRole(
     "admin",
-    "employee"
+    "employee",
+    "administrator"
   ),
   getUpcomingMeetings
 );

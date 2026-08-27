@@ -1,0 +1,47 @@
+/* =========================================================
+   ADMINISTRATOR CALENDAR ADDITIONS
+   The main calendar styling is intentionally reused from:
+   frontend/src/layouts/adminCalendar.css
+========================================================= */
+
+.admin-main-calendar .administrator-calendar-subtitle {
+  margin: 5px 0 0 !important;
+  color: #667085 !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+/* Subtasks use their own visual treatment without changing the shared calendar. */
+.admin-main-calendar .admin-cal-event-bar-subtask {
+  background: #f3edff !important;
+  color: #7c3aed !important;
+}
+
+.admin-main-calendar .admin-cal-detail-dot.admin-cal-subtask-dot,
+.admin-main-calendar .admin-cal-legend-dot.subtask {
+  background: #7c3aed !important;
+}
+
+.admin-main-calendar .admin-cal-subtask-text {
+  color: #7c3aed !important;
+}
+
+/* Keep Administrator calendar comfortably inside the main dashboard content. */
+.admin-main-calendar {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.admin-main-calendar .admin-cal-page {
+  padding: 18px 24px 26px !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 900px) {
+  .admin-main-calendar .admin-cal-page {
+    padding: 14px 14px 22px !important;
+  }
+}

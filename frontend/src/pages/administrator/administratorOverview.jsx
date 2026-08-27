@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Activity,
   CalendarDays,
+  CheckCircle2,
   ClipboardList,
   Clock3,
   FolderKanban,
+  RefreshCw,
+  Users,
 } from "lucide-react";
 import {
   Bar,
@@ -19,7 +23,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+
 import api from "../../api/axios";
+import "./administratorOverview.css";
 
 const statusLabels = {
   not_started: "To Do",
@@ -60,6 +66,43 @@ const chartColors = [
   "#f97316",
 ];
 
+const normalizeStatus = (status, progress = 0) => {
+  const value = String(status || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
+
+  if (
+    Number(progress || 0) >= 100 ||
+    ["completed", "done", "complete"].includes(value)
+  ) {
+    return "completed";
+  }
+
+  if (["ongoing", "in_progress", "progress"].includes(value)) {
+    return "ongoing";
+  }
+
+  if (["under_review", "review"].includes(value)) {
+    return "under_review";
+  }
+
+  if (["rejected", "reject"].includes(value)) {
+    return "rejected";
+  }
+
+  if (["on_hold", "hold"].includes(value)) {
+    return "on_hold";
+  }
+
+  if (["todo", "to_do", "pending", "not_started", ""].includes(value)) {
+    return "not_started";
+  }
+
+  return value || "not_started";
+};
+
 const numberValue = (...values) => {
   for (const value of values) {
     const number = Number(value);
@@ -72,11 +115,41 @@ const numberValue = (...values) => {
   return 0;
 };
 
-const normalizeText = (value) => {
-  return String(value || "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, " ");
+const formatDate = (value) => {
+  if (!value) return "-";
+
+  const text = String(value);
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    const [year, month, day] = text.slice(0, 10).split("-");
+    return `${day}-${month}-${year}`;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) return text;
+
+  return parsed.toLocaleDateString("en-IN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
+
+const formatTime = (value) => {
+  if (!value) return "";
+
+  const text = String(value).slice(0, 5);
+  const [hours, minutes] = text.split(":").map(Number);
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return text;
+  }
+
+  const suffix = hours >= 12 ? "PM" : "AM";
+  const displayHour = hours % 12 || 12;
+
+  return `${displayHour}:${String(minutes).padStart(2, "0")} ${suffix}`;
 };
 
 const getProjectSubtasks = (project) => {
@@ -105,9 +178,7 @@ const getProjectSubtaskStats = (project) => {
         Boolean(subtask.is_checked) ||
         Boolean(subtask.checked) ||
         Boolean(subtask.is_completed) ||
-        subtask.status === "completed" ||
-        subtask.status === "done" ||
-        Number(subtask.progress || 0) === 100
+        normalizeStatus(subtask.status, subtask.progress) === "completed"
       );
     }).length;
 
@@ -117,73 +188,36 @@ const getProjectSubtaskStats = (project) => {
     };
   }
 
-  const total = numberValue(
-    project.total_subtasks,
-    project.totalSubtasks,
-    project.total_tasks,
-    project.totalTasks,
-    project.subtask_count,
-    project.subtaskCount,
-    project.total_subtask_count,
-    project.task_count
-  );
-
-  const completed = numberValue(
-    project.completed_subtasks,
-    project.completedSubtasks,
-    project.completed_tasks,
-    project.completedTasks,
-    project.done_subtasks,
-    project.doneSubtasks,
-    project.checked_subtasks,
-    project.checkedSubtasks,
-    project.completed_subtask_count,
-    project.completed_task_count,
-    project.done_count,
-    project.checked_count
-  );
-
   return {
-    total,
-    completed,
+    total: numberValue(
+      project.total_subtasks,
+      project.totalSubtasks,
+      project.total_tasks,
+      project.totalTasks,
+      project.subtask_count,
+      project.subtaskCount
+    ),
+    completed: numberValue(
+      project.completed_subtasks,
+      project.completedSubtasks,
+      project.completed_tasks,
+      project.completedTasks,
+      project.done_subtasks,
+      project.checked_subtasks
+    ),
   };
 };
 
 const getProjectStatus = (project) => {
   if (!project) return "not_started";
 
-  const originalStatus =
+  return normalizeStatus(
     project.status ||
-    project.project_status ||
-    project.computed_status ||
-    project.display_status ||
-    "not_started";
-
-  if (
-    originalStatus === "completed" ||
-    originalStatus === "done" ||
-    originalStatus === "on_hold" ||
-    originalStatus === "cancelled" ||
-    originalStatus === "rejected"
-  ) {
-    return originalStatus;
-  }
-
-  const stats = getProjectSubtaskStats(project);
-
-  if (stats.total > 0) {
-    if (stats.completed === 0) {
-      return "not_started";
-    }
-
-    if (stats.completed < stats.total) {
-      return "ongoing";
-    }
-
-    return "under_review";
-  }
-
-  return originalStatus;
+      project.project_status ||
+      project.computed_status ||
+      project.display_status,
+    project.progress
+  );
 };
 
 const getProjectProgress = (project) => {
@@ -195,32 +229,19 @@ const getProjectProgress = (project) => {
     return Math.round((stats.completed / stats.total) * 100);
   }
 
-  const directProgress = numberValue(
-    project.computed_progress,
-    project.progress,
-    project.overall_progress,
-    project.employee_progress,
-    project.assignment_progress,
-    project.progress_percentage,
-    project.completion_percentage,
-    project.percentage
+  return Math.min(
+    numberValue(
+      project.computed_progress,
+      project.progress,
+      project.overall_progress,
+      project.employee_progress,
+      project.assignment_progress,
+      project.progress_percentage,
+      project.completion_percentage,
+      project.percentage
+    ),
+    100
   );
-
-  if (directProgress > 0) {
-    return Math.min(directProgress, 100);
-  }
-
-  const status = getProjectStatus(project);
-
-  if (
-    status === "under_review" ||
-    status === "completed" ||
-    status === "done"
-  ) {
-    return 100;
-  }
-
-  return 0;
 };
 
 const extractProjects = (payload) => {
@@ -228,9 +249,7 @@ const extractProjects = (payload) => {
 
   const data = payload.data || payload;
 
-  if (Array.isArray(data)) {
-    return data;
-  }
+  if (Array.isArray(data)) return data;
 
   const possibleArrays = [
     data.projects,
@@ -238,73 +257,34 @@ const extractProjects = (payload) => {
     data.myProjects,
     data.assigned_projects,
     data.assignedProjects,
-    data.data,
     data.rows,
     data.result,
   ];
 
   for (const item of possibleArrays) {
-    if (Array.isArray(item)) {
-      return item;
-    }
+    if (Array.isArray(item)) return item;
   }
 
-  const kanbanArrays = [
-    data.to_do,
-    data.todo,
-    data.not_started,
-    data.in_progress,
-    data.ongoing,
-    data.under_review,
-    data.done,
-    data.completed,
-    data.on_hold,
-    data.cancelled,
-    data.rejected,
-  ];
-
-  const flattened = [];
-
-  kanbanArrays.forEach((array) => {
-    if (Array.isArray(array)) {
-      flattened.push(...array);
-    }
-  });
-
-  if (flattened.length > 0) {
-    return flattened;
-  }
-
-  if (data.kanban && typeof data.kanban === "object") {
-    Object.values(data.kanban).forEach((value) => {
-      if (Array.isArray(value)) {
-        flattened.push(...value);
-      }
-    });
-  }
-
-  return flattened;
+  return [];
 };
 
 const dedupeProjects = (projects) => {
-  const projectMap = new Map();
+  const map = new Map();
 
-  projects.forEach((project) => {
-    if (!project) return;
-
+  projects.filter(Boolean).forEach((project) => {
     const key =
       project.project_id ||
       project.id ||
-      `${project.project_title}-${project.assigned_to_email || ""}`;
+      `${project.project_title || project.title}-${project.created_at || ""}`;
 
-    if (!projectMap.has(key)) {
-      projectMap.set(key, project);
+    if (!map.has(key)) {
+      map.set(key, project);
       return;
     }
 
-    const existing = projectMap.get(key);
+    const existing = map.get(key);
 
-    projectMap.set(key, {
+    map.set(key, {
       ...existing,
       ...project,
       subtasks:
@@ -314,42 +294,13 @@ const dedupeProjects = (projects) => {
     });
   });
 
-  return Array.from(projectMap.values());
-};
-
-const isProjectAssignedToUser = (project, profile) => {
-  if (!project || !profile) return false;
-
-  const userName = normalizeText(profile.full_name);
-  const userEmail = normalizeText(profile.email);
-
-  const assignedText = normalizeText(
-    [
-      project.assigned_employees,
-      project.assigned_employee,
-      project.assigned_employee_name,
-      project.assigned_to_name,
-      project.employee_name,
-      project.assignee_name,
-      project.assigned_to_email,
-      project.assigned_employee_email,
-      project.employee_email,
-      project.assignee_email,
-      project.assigned_emails,
-      project.assigned_names,
-    ]
-      .filter(Boolean)
-      .join(" ")
-  );
-
-  const nameMatched = userName && assignedText.includes(userName);
-  const emailMatched = userEmail && assignedText.includes(userEmail);
-
-  return nameMatched || emailMatched;
+  return Array.from(map.values());
 };
 
 const getAttendanceStyle = (status) => {
-  const normalizedStatus = status || "not_marked";
+  const normalizedStatus = String(status || "not_marked")
+    .toLowerCase()
+    .replace(/\s+/g, "_");
 
   const stylesByStatus = {
     present: {
@@ -387,470 +338,14 @@ const getAttendanceStyle = (status) => {
   return stylesByStatus[normalizedStatus] || stylesByStatus.not_marked;
 };
 
-const styles = {
-  page: {
-    width: "100%",
-    minWidth: 0,
-    paddingBottom: "40px",
-    overflowX: "hidden",
-  },
-
-  titleRow: {
-    marginBottom: "24px",
-  },
-
-  title: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "34px",
-    fontWeight: 900,
-  },
-
-  subtitle: {
-    margin: "8px 0 0",
-    color: "#666666",
-    fontSize: "16px",
-  },
-
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, minmax(160px, 1fr))",
-    gap: "18px",
-    marginBottom: "24px",
-  },
-
-  statCard: {
-    background: "#ffffff",
-    border: "1px solid #eeeeee",
-    borderRadius: "22px",
-    padding: "22px",
-    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.045)",
-  },
-
-  statLabel: {
-    display: "block",
-    color: "#777777",
-    fontSize: "14px",
-    fontWeight: 700,
-    marginBottom: "10px",
-  },
-
-  statValue: {
-    display: "block",
-    color: "#111111",
-    fontSize: "34px",
-    fontWeight: 900,
-  },
-
-  mainGrid: {
-    display: "grid",
-    gridTemplateColumns: "minmax(370px, 0.95fr) minmax(600px, 1.7fr)",
-    gap: "20px",
-    alignItems: "stretch",
-    marginBottom: "24px",
-    minWidth: 0,
-  },
-
-  card: {
-    background: "#ffffff",
-    border: "1px solid #eeeeee",
-    borderRadius: "24px",
-    padding: "24px",
-    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.045)",
-    minWidth: 0,
-  },
-
-  activeProjectCard: {
-    background: "#ffffff",
-    border: "1px solid #eeeeee",
-    borderRadius: "24px",
-    padding: "24px",
-    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.045)",
-    minHeight: "520px",
-    display: "flex",
-    flexDirection: "column",
-    minWidth: 0,
-  },
-
-  activeTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    color: "#666666",
-    fontSize: "17px",
-    marginBottom: "20px",
-  },
-
-  activeTitle: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "22px",
-    fontWeight: 900,
-  },
-
-  activeCount: {
-    minWidth: "38px",
-    height: "38px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    background: "#fff1eb",
-    color: "#ff5733",
-    borderRadius: "50%",
-    fontSize: "18px",
-    fontWeight: 900,
-  },
-
-  assignedProjectsList: {
-    display: "grid",
-    gap: "14px",
-    overflowY: "auto",
-    overflowX: "hidden",
-    paddingRight: "4px",
-    maxHeight: "600px",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-  },
-
-  projectItem: {
-    border: "1px solid #eeeeee",
-    borderRadius: "18px",
-    padding: "18px",
-    background: "#ffffff",
-  },
-
-  projectTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    gap: "12px",
-    marginBottom: "14px",
-  },
-
-  projectTitle: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "18px",
-    fontWeight: 900,
-    lineHeight: 1.3,
-    overflowWrap: "anywhere",
-  },
-
-  projectDesc: {
-    margin: "6px 0 0",
-    color: "#777777",
-    fontSize: "13px",
-    lineHeight: 1.45,
-    overflowWrap: "anywhere",
-  },
-
-  statusBadge: {
-    background: "#eef2ff",
-    color: "#334155",
-    borderRadius: "999px",
-    padding: "7px 12px",
-    fontSize: "12px",
-    fontWeight: 900,
-    whiteSpace: "nowrap",
-  },
-
-  progressRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    marginTop: "12px",
-  },
-
-  progressTrack: {
-    width: "100%",
-    height: "10px",
-    background: "#ffd6cc",
-    borderRadius: "999px",
-    overflow: "hidden",
-  },
-
-  progressFill: {
-    height: "100%",
-    background: "#ff5733",
-    borderRadius: "999px",
-    transition: "width 0.3s ease",
-  },
-
-  progressText: {
-    color: "#ff5733",
-    fontSize: "14px",
-    fontWeight: 900,
-    minWidth: "42px",
-    textAlign: "right",
-  },
-
-  subtaskText: {
-    margin: "10px 0 0",
-    color: "#666666",
-    fontSize: "13px",
-    fontWeight: 800,
-  },
-
-  analyticsCard: {
-    background: "#ffffff",
-    border: "1px solid #eeeeee",
-    borderRadius: "24px",
-    padding: "24px",
-    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.045)",
-    minHeight: "520px",
-    minWidth: 0,
-  },
-
-  analyticsTitleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "22px",
-  },
-
-  analyticsTitleIcon: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "12px",
-    background: "#fff1eb",
-    color: "#ff5733",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  analyticsTitle: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "24px",
-    fontWeight: 900,
-  },
-
-  chartsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "20px",
-    minWidth: 0,
-  },
-
-  chartSection: {
-    minWidth: 0,
-    border: "1px solid #eeeeee",
-    borderRadius: "18px",
-    padding: "18px",
-    background: "#ffffff",
-  },
-
-  chartHeading: {
-    margin: "0 0 4px",
-    color: "#111111",
-    fontSize: "20px",
-    fontWeight: 900,
-  },
-
-  chartDescription: {
-    margin: "0 0 14px",
-    color: "#777777",
-    fontSize: "13px",
-  },
-
-  weeklyCard: {
-    background: "#ffffff",
-    border: "1px solid #eeeeee",
-    borderRadius: "24px",
-    padding: "26px",
-    marginBottom: "24px",
-    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.045)",
-    minWidth: 0,
-  },
-
-  weeklyHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    marginBottom: "24px",
-  },
-
-  weeklyIcon: {
-    width: "44px",
-    height: "44px",
-    borderRadius: "14px",
-    background: "#fff1eb",
-    color: "#ff5733",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  weeklyTitle: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "28px",
-    fontWeight: 900,
-  },
-
-  weeklySubtitle: {
-    margin: "4px 0 0",
-    color: "#777777",
-    fontSize: "14px",
-  },
-
-  weeklyRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(7, minmax(110px, 1fr))",
-    gap: "14px",
-  },
-
-  dayCard: {
-    border: "1px solid #eeeeee",
-    borderRadius: "18px",
-    padding: "18px 12px",
-    textAlign: "center",
-    background: "#ffffff",
-    minHeight: "190px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  dayName: {
-    color: "#111827",
-    fontSize: "16px",
-    fontWeight: 900,
-  },
-
-  dayDate: {
-    display: "block",
-    color: "#777777",
-    fontSize: "14px",
-    marginTop: "4px",
-  },
-
-  attendanceCircle: {
-    width: "56px",
-    height: "56px",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "16px auto 12px",
-    fontSize: "26px",
-    fontWeight: 900,
-    borderWidth: "1px",
-    borderStyle: "solid",
-  },
-
-  attendanceText: {
-    margin: 0,
-    fontSize: "14px",
-    fontWeight: 900,
-  },
-
-  bottomGrid: {
-    display: "flex",
-    gap: "18px",
-    width: "100%",
-    maxWidth: "100%",
-    overflowX: "auto",
-    overflowY: "hidden",
-    paddingBottom: "4px",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-    WebkitOverflowScrolling: "touch",
-  },
-
-  bottomCard: {
-    background: "#ffffff",
-    border: "1px solid #eeeeee",
-    borderRadius: "24px",
-    padding: "24px",
-    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.045)",
-    flex: "0 0 calc((100% - 36px) / 3)",
-    minWidth: "360px",
-    maxHeight: "620px",
-    overflowY: "auto",
-    overflowX: "hidden",
-    scrollbarWidth: "none",
-    msOverflowStyle: "none",
-  },
-
-  sectionTitle: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    marginBottom: "18px",
-    color: "#ff5733",
-  },
-
-  sectionHeading: {
-    margin: 0,
-    color: "#111111",
-    fontSize: "20px",
-    fontWeight: 900,
-  },
-
-  list: {
-    display: "grid",
-    gap: "12px",
-    minWidth: 0,
-  },
-
-  listItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "14px",
-    alignItems: "flex-start",
-    border: "1px solid #eeeeee",
-    background: "#f8f8f8",
-    borderRadius: "16px",
-    padding: "14px",
-    minWidth: 0,
-    overflow: "hidden",
-  },
-
-  listContent: {
-    minWidth: 0,
-    flex: 1,
-  },
-
-  listTitle: {
-    display: "block",
-    color: "#111111",
-    fontSize: "14px",
-    fontWeight: 900,
-    overflowWrap: "anywhere",
-  },
-
-  listDescription: {
-    margin: "5px 0 0",
-    color: "#777777",
-    fontSize: "13px",
-    lineHeight: 1.4,
-    overflowWrap: "anywhere",
-  },
-
-  listDate: {
-    color: "#777777",
-    fontSize: "12px",
-    whiteSpace: "nowrap",
-    flexShrink: 0,
-  },
-
-  emptyText: {
-    color: "#888888",
-    fontSize: "14px",
-    padding: "22px",
-    textAlign: "center",
-    border: "1px dashed #dddddd",
-    borderRadius: "16px",
-  },
-};
-
 const AdministratorOverview = () => {
-  const [overview, setOverview] = useState(null);
+  const navigate = useNavigate();
+
+  const [administratorOverview, setAdministratorOverview] = useState(null);
+  const [employeeOverview, setEmployeeOverview] = useState(null);
   const [myProjects, setMyProjects] = useState([]);
-  const [allProjects, setAllProjects] = useState([]);
+  const [upcomingMeetings, setUpcomingMeetings] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -859,18 +354,33 @@ const AdministratorOverview = () => {
       setLoading(true);
       setMessage("");
 
-      const [overviewResponse, myProjectsResponse, allProjectsResponse] =
-        await Promise.all([
-          api.get("/administrator/overview"),
-          api.get("/administrator/projects/my"),
-          api.get("/administrator/projects/all").catch(() => ({
-            data: {},
-          })),
-        ]);
+      const [
+        administratorResponse,
+        employeeResponse,
+        myProjectsResponse,
+        upcomingResponse,
+      ] = await Promise.all([
+        api.get("/administrator/overview"),
+        api.get("/employee-overview"),
+        api.get("/employee-projects/projects"),
+        api.get("/calendar/upcoming").catch(() => ({
+          data: { meetings: [] },
+        })),
+      ]);
 
-      setOverview(overviewResponse.data);
+      setAdministratorOverview(administratorResponse.data || {});
+      setEmployeeOverview(
+        employeeResponse.data?.data ||
+          employeeResponse.data ||
+          {}
+      );
       setMyProjects(extractProjects(myProjectsResponse.data));
-      setAllProjects(extractProjects(allProjectsResponse.data));
+      setUpcomingMeetings(
+        upcomingResponse.data?.meetings ||
+          upcomingResponse.data?.upcoming_meetings ||
+          upcomingResponse.data?.data ||
+          []
+      );
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
@@ -886,363 +396,526 @@ const AdministratorOverview = () => {
     fetchOverview();
   }, []);
 
-  const profile = overview?.profile || {};
+  const profile =
+    administratorOverview?.profile || {};
+
+  const adminStats =
+    administratorOverview?.stats || {};
+
+  const personalSummary =
+    employeeOverview?.summary || {};
+
+  const recentTasks =
+    employeeOverview?.recent_tasks ||
+    administratorOverview?.recent_tasks ||
+    [];
+
+  const activityLog =
+    employeeOverview?.activity_log ||
+    administratorOverview?.activity_logs ||
+    [];
+
+  const weeklyAttendance =
+    employeeOverview?.weekly_attendance ||
+    administratorOverview?.weekly_attendance ||
+    [];
 
   const assignedProjects = useMemo(() => {
-    const fallbackAssignedProjects = allProjects.filter((project) =>
-      isProjectAssignedToUser(project, profile)
-    );
-
-    const combinedProjects = dedupeProjects([
-      overview?.active_project,
-      ...fallbackAssignedProjects,
+    return dedupeProjects([
       ...myProjects,
-      ...(overview?.assigned_projects || []),
-      ...(overview?.recent_projects || []),
-    ]);
-
-    return combinedProjects
+      ...(administratorOverview?.assigned_projects || []),
+      ...(administratorOverview?.recent_projects || []),
+      administratorOverview?.active_project,
+    ])
       .filter((project) => {
-        if (!project) return false;
-
         const status = getProjectStatus(project);
 
-        return (
-          status !== "completed" &&
-          status !== "done" &&
-          status !== "cancelled" &&
-          status !== "rejected"
-        );
+        return ![
+          "completed",
+          "rejected",
+          "cancelled",
+        ].includes(status);
       })
-      .sort((firstProject, secondProject) => {
+      .sort((a, b) => {
         const order = {
           not_started: 1,
           ongoing: 2,
-          in_progress: 2,
           under_review: 3,
           on_hold: 4,
         };
 
         return (
-          (order[getProjectStatus(firstProject)] || 99) -
-          (order[getProjectStatus(secondProject)] || 99)
+          (order[getProjectStatus(a)] || 99) -
+          (order[getProjectStatus(b)] || 99)
         );
       });
-  }, [myProjects, allProjects, overview, profile]);
+  }, [myProjects, administratorOverview]);
 
-  const stats = overview?.stats || {};
-  const myTaskStats = overview?.my_task_stats || {};
+  const projectSplitData = useMemo(() => {
+    const backendData =
+      administratorOverview?.project_split || [];
+
+    if (backendData.length > 0) {
+      return backendData
+        .map((item) => ({
+          name:
+            statusLabels[normalizeStatus(item.status)] ||
+            String(item.status || "")
+              .replaceAll("_", " ")
+              .replace(/\b\w/g, (letter) =>
+                letter.toUpperCase()
+              ),
+          value: Number(item.count || item.value || 0),
+        }))
+        .filter((item) => item.value > 0);
+    }
+
+    const counts = {};
+
+    myProjects.forEach((project) => {
+      const status = getProjectStatus(project);
+      counts[status] = (counts[status] || 0) + 1;
+    });
+
+    return Object.entries(counts).map(([status, value]) => ({
+      name: statusLabels[status] || status,
+      value,
+    }));
+  }, [administratorOverview, myProjects]);
 
   const taskOverviewData = [
     {
       name: "Total",
-      value: Number(myTaskStats.total || stats.my_tasks || 0),
+      value: Number(personalSummary.total_tasks || 0),
     },
     {
       name: "In Progress",
-      value: Number(myTaskStats.in_progress || 0),
+      value: Number(personalSummary.in_progress_tasks || 0),
     },
     {
       name: "Completed",
-      value: Number(myTaskStats.completed || 0),
+      value: Number(personalSummary.completed_tasks || 0),
     },
   ];
 
-  const projectSplitData = useMemo(() => {
-    const backendData = overview?.project_split || [];
-
-    return backendData
-      .map((item) => ({
-        ...item,
-        status:
-          statusLabels[item.status] ||
-          String(item.status || "")
-            .replaceAll("_", " ")
-            .replace(/\b\w/g, (character) => character.toUpperCase()),
-        count: Number(item.count || item.value || 0),
-      }))
-      .filter((item) => item.count > 0);
-  }, [overview]);
-
-  const weeklyAttendance = overview?.weekly_attendance || [];
+  const statCards = [
+    {
+      label: "Total Users",
+      value: adminStats.total_users || 0,
+      icon: Users,
+      onClick: () => navigate("/administrator/users"),
+    },
+    {
+      label: "My Projects",
+      value: myProjects.length,
+      icon: FolderKanban,
+      onClick: () => navigate("/administrator/projects"),
+    },
+    {
+      label: "My Tasks",
+      value: personalSummary.total_tasks || 0,
+      icon: ClipboardList,
+      onClick: () =>
+        navigate("/administrator/tasks?tab=my"),
+    },
+    {
+      label: "In Progress",
+      value: personalSummary.in_progress_tasks || 0,
+      icon: Activity,
+      onClick: () =>
+        navigate(
+          "/administrator/tasks?tab=my&status=in_progress"
+        ),
+    },
+    {
+      label: "Completed",
+      value: personalSummary.completed_tasks || 0,
+      icon: CheckCircle2,
+      onClick: () =>
+        navigate(
+          "/administrator/tasks?tab=my&status=completed"
+        ),
+    },
+    {
+      label: "Weekly Attendance",
+      value: `${personalSummary.attendance_percentage || 0}%`,
+      icon: CalendarDays,
+      onClick: () => navigate("/administrator/attendance"),
+    },
+  ];
 
   if (loading) {
-    return <div className="page-loader">Loading overview...</div>;
+    return (
+      <div className="administrator-overview-loader">
+        Loading overview...
+      </div>
+    );
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.titleRow}>
-        <h1 style={styles.title}>Administrator Overview</h1>
+    <div className="administrator-overview-page">
+      <section className="administrator-overview-header">
+        <div>
+          <h1>Administrator Overview</h1>
 
-        <p style={styles.subtitle}>
-          Welcome back, {profile.full_name || "Jay More"}. Here is your complete
-          work overview.
-        </p>
-      </div>
-
-      {message && <div className="projects-message">{message}</div>}
-
-      <div className="administrator-overview-stats" style={styles.statsGrid}>
-        <div style={styles.statCard}>
-          <span style={styles.statLabel}>Total Users</span>
-          <strong style={styles.statValue}>{stats.total_users || 0}</strong>
+          <p>
+            Welcome back, {profile.full_name || "Administrator"}.
+            Your personal work and Administrator overview are
+            synchronized here.
+          </p>
         </div>
 
-        <div style={styles.statCard}>
-          <span style={styles.statLabel}>Total Projects</span>
-          <strong style={styles.statValue}>{stats.total_projects || 0}</strong>
+        <button
+          type="button"
+          className="administrator-overview-refresh"
+          onClick={fetchOverview}
+          disabled={loading}
+        >
+          <RefreshCw size={15} />
+          Refresh
+        </button>
+      </section>
+
+      {message && (
+        <div className="administrator-overview-message">
+          {message}
         </div>
+      )}
 
-        <div style={styles.statCard}>
-          <span style={styles.statLabel}>My Projects</span>
-          <strong style={styles.statValue}>{assignedProjects.length}</strong>
-        </div>
+      <section className="administrator-overview-stat-grid">
+        {statCards.map((card) => {
+          const Icon = card.icon;
 
-        <div style={styles.statCard}>
-          <span style={styles.statLabel}>My Tasks</span>
-          <strong style={styles.statValue}>{stats.my_tasks || 0}</strong>
-        </div>
-      </div>
+          return (
+            <button
+              type="button"
+              key={card.label}
+              className="administrator-overview-stat-card"
+              onClick={card.onClick}
+            >
+              <div className="administrator-overview-stat-icon">
+                <Icon size={19} />
+              </div>
 
-      <div className="administrator-overview-main-grid" style={styles.mainGrid}>
-        <section style={styles.activeProjectCard}>
-          <div style={styles.activeTop}>
-            <h2 style={styles.activeTitle}>Active Projects</h2>
+              <div>
+                <span>{card.label}</span>
+                <strong>{card.value}</strong>
+              </div>
+            </button>
+          );
+        })}
+      </section>
 
-            <strong style={styles.activeCount}>
-              {assignedProjects.length}
-            </strong>
+      <section className="administrator-overview-main-grid">
+        <article className="administrator-overview-panel">
+          <div className="administrator-overview-panel-header">
+            <div>
+              <h2>Active Projects</h2>
+              <p>
+                Projects currently assigned to you.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/administrator/projects")
+              }
+            >
+              View Projects
+            </button>
           </div>
 
-          {assignedProjects.length > 0 ? (
-            <div
-              className="administrator-hidden-scrollbar active-project-scroll"
-              style={styles.assignedProjectsList}
-            >
-              {assignedProjects.map((project, index) => {
-                const progress = getProjectProgress(project);
-                const subtaskStats = getProjectSubtaskStats(project);
-                const status = getProjectStatus(project);
+          <div className="administrator-overview-project-list">
+            {assignedProjects.length > 0 ? (
+              assignedProjects.slice(0, 8).map((project) => {
+                const progress =
+                  getProjectProgress(project);
 
                 return (
-                  <div
-                    style={styles.projectItem}
-                    key={project.project_id || project.id || index}
+                  <button
+                    type="button"
+                    className="administrator-overview-project-item"
+                    key={project.project_id || project.id}
+                    onClick={() =>
+                      navigate("/administrator/projects")
+                    }
                   >
-                    <div style={styles.projectTop}>
+                    <div className="administrator-overview-project-item-top">
                       <div>
-                        <h3 style={styles.projectTitle}>
+                        <h3>
                           {project.project_title ||
                             project.title ||
                             "Untitled Project"}
                         </h3>
 
-                        <p style={styles.projectDesc}>
-                          {project.project_description ||
-                            project.description ||
-                            "No description"}
+                        <p>
+                          {statusLabels[
+                            getProjectStatus(project)
+                          ] || getProjectStatus(project)}
                         </p>
                       </div>
 
-                      <span style={styles.statusBadge}>
-                        {statusLabels[status] || status}
-                      </span>
+                      <strong>{progress}%</strong>
                     </div>
 
-                    <div style={styles.progressRow}>
-                      <div style={styles.progressTrack}>
-                        <div
-                          style={{
-                            ...styles.progressFill,
-                            width: `${progress}%`,
-                          }}
-                        />
-                      </div>
-
-                      <span style={styles.progressText}>{progress}%</span>
+                    <div className="administrator-overview-progress-track">
+                      <div
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
                     </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className="administrator-overview-empty">
+                No active projects assigned to you.
+              </div>
+            )}
+          </div>
+        </article>
 
-                    <p style={styles.subtaskText}>
-                      {subtaskStats.completed}/{subtaskStats.total} subtasks
-                      done
+        <article className="administrator-overview-panel">
+          <div className="administrator-overview-panel-header">
+            <div>
+              <h2>Upcoming Meetings</h2>
+              <p>
+                Meetings currently assigned to you.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/administrator/calendar")
+              }
+            >
+              View Calendar
+            </button>
+          </div>
+
+          <div className="administrator-overview-meeting-list">
+            {upcomingMeetings.length > 0 ? (
+              upcomingMeetings.slice(0, 5).map((meeting) => (
+                <button
+                  type="button"
+                  className="administrator-overview-meeting-item"
+                  key={meeting.id || meeting.meeting_id}
+                  onClick={() =>
+                    navigate("/administrator/calendar")
+                  }
+                >
+                  <div className="administrator-overview-meeting-icon">
+                    <CalendarDays size={18} />
+                  </div>
+
+                  <div>
+                    <strong>
+                      {meeting.title ||
+                        meeting.meeting_title ||
+                        "Meeting"}
+                    </strong>
+
+                    <span>
+                      {formatDate(
+                        meeting.meeting_date ||
+                          meeting.date
+                      )}
+                      {meeting.start_time
+                        ? ` · ${formatTime(meeting.start_time)}`
+                        : ""}
+                    </span>
+
+                    <p>
+                      {meeting.created_by_name
+                        ? `Scheduled by ${meeting.created_by_name}`
+                        : meeting.description || ""}
                     </p>
                   </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={styles.emptyText}>No assigned projects yet.</div>
-          )}
-        </section>
-
-        <section style={styles.analyticsCard}>
-          <div style={styles.analyticsTitleRow}>
-            <div style={styles.analyticsTitleIcon}>
-              <Activity size={21} />
-            </div>
-
-            <h2 style={styles.analyticsTitle}>Work Analytics</h2>
+                </button>
+              ))
+            ) : (
+              <div className="administrator-overview-empty">
+                No upcoming meetings.
+              </div>
+            )}
           </div>
+        </article>
+      </section>
 
-          <div
-            className="administrator-overview-charts"
-            style={styles.chartsGrid}
-          >
-            <div style={styles.chartSection}>
-              <h3 style={styles.chartHeading}>Task Overview</h3>
-
-              <p style={styles.chartDescription}>
-                Summary of your assigned tasks.
-              </p>
-
-              {taskOverviewData.some((item) => item.value > 0) ? (
-                <ResponsiveContainer width="100%" height={330}>
-                  <BarChart
-                    data={taskOverviewData}
-                    margin={{
-                      top: 20,
-                      right: 10,
-                      left: -20,
-                      bottom: 10,
-                    }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      vertical={false}
-                      stroke="#eeeeee"
-                    />
-
-                    <XAxis
-                      dataKey="name"
-                      tick={{
-                        fill: "#666666",
-                        fontSize: 12,
-                      }}
-                      axisLine={{
-                        stroke: "#dddddd",
-                      }}
-                      tickLine={false}
-                    />
-
-                    <YAxis
-                      allowDecimals={false}
-                      tick={{
-                        fill: "#666666",
-                        fontSize: 12,
-                      }}
-                      axisLine={false}
-                      tickLine={false}
-                    />
-
-                    <Tooltip
-                      cursor={{
-                        fill: "rgba(255, 87, 51, 0.06)",
-                      }}
-                    />
-
-                    <Bar
-                      dataKey="value"
-                      fill="#ff5733"
-                      radius={[10, 10, 0, 0]}
-                      maxBarSize={62}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={styles.emptyText}>No task data available.</div>
-              )}
-            </div>
-
-            <div style={styles.chartSection}>
-              <h3 style={styles.chartHeading}>Project Split</h3>
-
-              <p style={styles.chartDescription}>
-                Projects divided by their current status.
-              </p>
-
-              {projectSplitData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={330}>
-                  <PieChart>
-                    <Pie
-                      data={projectSplitData}
-                      dataKey="count"
-                      nameKey="status"
-                      cx="50%"
-                      cy="45%"
-                      outerRadius={105}
-                      innerRadius={48}
-                      paddingAngle={2}
-                      label={({ count }) => count}
-                    >
-                      {projectSplitData.map((entry, index) => (
-                        <Cell
-                          key={`${entry.status}-${index}`}
-                          fill={chartColors[index % chartColors.length]}
-                        />
-                      ))}
-                    </Pie>
-
-                    <Tooltip />
-
-                    <Legend
-                      verticalAlign="bottom"
-                      height={42}
-                      iconType="circle"
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={styles.emptyText}>No project data available.</div>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-
-      <section style={styles.weeklyCard}>
-        <div style={styles.weeklyHeader}>
-          <div style={styles.weeklyIcon}>
-            <CalendarDays size={22} />
-          </div>
-
+      <section className="administrator-overview-analytics-panel">
+        <div className="administrator-overview-panel-header">
           <div>
-            <h2 style={styles.weeklyTitle}>This Week</h2>
-
-            <p style={styles.weeklySubtitle}>
-              Your attendance status for the current week.
+            <h2>Work Analytics</h2>
+            <p>
+              Personal task progress and project status distribution.
             </p>
           </div>
         </div>
 
-        {weeklyAttendance.length > 0 ? (
-          <div
-            className="administrator-weekly-attendance"
-            style={styles.weeklyRow}
+        <div className="administrator-overview-charts-grid">
+          <div className="administrator-overview-chart-card">
+            <h3>My Task Overview</h3>
+
+            {taskOverviewData.some(
+              (item) => item.value > 0
+            ) ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart
+                  data={taskOverviewData}
+                  margin={{
+                    top: 15,
+                    right: 10,
+                    left: -20,
+                    bottom: 5,
+                  }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke="#edf0f4"
+                  />
+
+                  <XAxis
+                    dataKey="name"
+                    tick={{
+                      fill: "#667085",
+                      fontSize: 11,
+                    }}
+                    axisLine={{
+                      stroke: "#e4e7ec",
+                    }}
+                    tickLine={false}
+                  />
+
+                  <YAxis
+                    allowDecimals={false}
+                    tick={{
+                      fill: "#667085",
+                      fontSize: 11,
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+
+                  <Tooltip />
+
+                  <Bar
+                    dataKey="value"
+                    fill="#ff5733"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={54}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="administrator-overview-empty">
+                No task data available.
+              </div>
+            )}
+          </div>
+
+          <div className="administrator-overview-chart-card">
+            <h3>Project Split</h3>
+
+            {projectSplitData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={projectSplitData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="43%"
+                    outerRadius={86}
+                    innerRadius={40}
+                    paddingAngle={2}
+                  >
+                    {projectSplitData.map((entry, index) => (
+                      <Cell
+                        key={`${entry.name}-${index}`}
+                        fill={
+                          chartColors[
+                            index % chartColors.length
+                          ]
+                        }
+                      />
+                    ))}
+                  </Pie>
+
+                  <Tooltip />
+                  <Legend
+                    verticalAlign="bottom"
+                    iconType="circle"
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="administrator-overview-empty">
+                No project data available.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <section className="administrator-overview-panel administrator-overview-week-panel">
+        <div className="administrator-overview-panel-header">
+          <div>
+            <h2>This Week</h2>
+            <p>
+              Your recent working-day attendance.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate("/administrator/attendance")
+            }
           >
-            {weeklyAttendance.map((day, index) => {
-              const status = day.status || "not_marked";
-              const attendanceStyle = getAttendanceStyle(status);
+            View Attendance
+          </button>
+        </div>
+
+        <div className="administrator-overview-week-grid">
+          {weeklyAttendance.length > 0 ? (
+            weeklyAttendance.map((day, index) => {
+              const status =
+                String(day.status || "not_marked")
+                  .toLowerCase()
+                  .replace(/\s+/g, "_");
+
+              const style =
+                getAttendanceStyle(status);
 
               return (
                 <div
-                  style={styles.dayCard}
-                  key={day.date || `${day.day_name}-${index}`}
+                  className="administrator-overview-day-card"
+                  key={
+                    day.attendance_date ||
+                    day.date ||
+                    `${day.day_name}-${index}`
+                  }
                 >
-                  <strong style={styles.dayName}>
+                  <strong>
                     {day.day_name || "-"}
                   </strong>
 
-                  <span style={styles.dayDate}>
-                    {day.display_date || day.date || "-"}
+                  <span>
+                    {formatDate(
+                      day.attendance_date ||
+                        day.date
+                    )}
                   </span>
 
                   <div
                     style={{
-                      ...styles.attendanceCircle,
-                      background: attendanceStyle.background,
-                      color: attendanceStyle.color,
-                      borderColor: attendanceStyle.border,
+                      background: style.background,
+                      color: style.color,
+                      borderColor: style.border,
                     }}
                   >
                     {attendanceSymbols[status] || "—"}
@@ -1250,247 +923,144 @@ const AdministratorOverview = () => {
 
                   <p
                     style={{
-                      ...styles.attendanceText,
-                      color: attendanceStyle.color,
+                      color: style.color,
                     }}
                   >
-                    {attendanceLabels[status] || "Not Marked"}
+                    {attendanceLabels[status] ||
+                      "Not Marked"}
                   </p>
                 </div>
               );
-            })}
-          </div>
-        ) : (
-          <div style={styles.emptyText}>
-            No attendance information available for this week.
-          </div>
-        )}
+            })
+          ) : (
+            <div className="administrator-overview-empty">
+              No attendance information available.
+            </div>
+          )}
+        </div>
       </section>
 
-      <div
-        className="administrator-overview-bottom-grid administrator-hidden-scrollbar"
-        style={styles.bottomGrid}
-      >
-        <section
-          className="administrator-bottom-card administrator-hidden-scrollbar"
-          style={styles.bottomCard}
-        >
-          <div style={styles.sectionTitle}>
-            <FolderKanban size={20} />
-
-            <h2 style={styles.sectionHeading}>My Recent Projects</h2>
-          </div>
-
-          {assignedProjects.length > 0 ? (
-            <div style={styles.list}>
-              {assignedProjects.slice(0, 5).map((project, index) => (
-                <div
-                  style={styles.listItem}
-                  key={project.project_id || project.id || index}
-                >
-                  <div style={styles.listContent}>
-                    <strong style={styles.listTitle}>
-                      {project.project_title ||
-                        project.title ||
-                        "Untitled Project"}
-                    </strong>
-
-                    <p style={styles.listDescription}>
-                      {statusLabels[getProjectStatus(project)] ||
-                        getProjectStatus(project)}{" "}
-                      · {getProjectProgress(project)}%
-                    </p>
-                  </div>
-
-                  <span style={styles.listDate}>
-                    {project.due_date ||
-                      project.end_date ||
-                      project.project_end_date ||
-                      "-"}
-                  </span>
-                </div>
-              ))}
+      <section className="administrator-overview-bottom-grid">
+        <article className="administrator-overview-panel">
+          <div className="administrator-overview-panel-header">
+            <div>
+              <h2>Recent Tasks</h2>
+              <p>
+                Same personal task source as My Tasks.
+              </p>
             </div>
-          ) : (
-            <div style={styles.emptyText}>No projects assigned yet.</div>
-          )}
-        </section>
 
-        <section
-          className="administrator-bottom-card administrator-hidden-scrollbar"
-          style={styles.bottomCard}
-        >
-          <div style={styles.sectionTitle}>
-            <ClipboardList size={20} />
-
-            <h2 style={styles.sectionHeading}>My Recent Tasks</h2>
+            <button
+              type="button"
+              onClick={() =>
+                navigate("/administrator/tasks?tab=my")
+              }
+            >
+              View Tasks
+            </button>
           </div>
 
-          {overview?.recent_tasks?.length > 0 ? (
-            <div style={styles.list}>
-              {overview.recent_tasks.slice(0, 5).map((task, index) => (
-                <div
-                  style={styles.listItem}
-                  key={task.task_id || task.id || index}
+          <div className="administrator-overview-list">
+            {recentTasks.length > 0 ? (
+              recentTasks.slice(0, 5).map((task) => (
+                <button
+                  type="button"
+                  key={task.task_id || task.id}
+                  onClick={() =>
+                    navigate("/administrator/tasks?tab=my")
+                  }
                 >
-                  <div style={styles.listContent}>
-                    <strong style={styles.listTitle}>
-                      {task.task_title || task.title || "Untitled Task"}
+                  <div>
+                    <strong>
+                      {task.task_title ||
+                        task.title ||
+                        "Untitled Task"}
                     </strong>
 
-                    <p style={styles.listDescription}>
+                    <span>
                       {task.project_title || "No project"}
-                    </p>
+                    </span>
                   </div>
 
-                  <span style={styles.listDate}>
-                    {statusLabels[task.status] ||
-                      String(task.status || "-").replaceAll("_", " ")}
-                  </span>
-                </div>
-              ))}
+                  <em>
+                    {statusLabels[
+                      normalizeStatus(
+                        task.status,
+                        task.progress
+                      )
+                    ] ||
+                      normalizeStatus(
+                        task.status,
+                        task.progress
+                      )}
+                  </em>
+                </button>
+              ))
+            ) : (
+              <div className="administrator-overview-empty">
+                No recent tasks.
+              </div>
+            )}
+          </div>
+        </article>
+
+        <article className="administrator-overview-panel">
+          <div className="administrator-overview-panel-header">
+            <div>
+              <h2>Activity Log</h2>
+              <p>
+                Recent activity from your assigned work.
+              </p>
             </div>
-          ) : (
-            <div style={styles.emptyText}>No tasks assigned yet.</div>
-          )}
-        </section>
-
-        <section
-          className="administrator-bottom-card administrator-hidden-scrollbar"
-          style={styles.bottomCard}
-        >
-          <div style={styles.sectionTitle}>
-            <Clock3 size={20} />
-
-            <h2 style={styles.sectionHeading}>Activity Log</h2>
           </div>
 
-          {overview?.activity_logs?.length > 0 ? (
-            <div style={styles.list}>
-              {overview.activity_logs.slice(0, 5).map((activity, index) => (
+          <div className="administrator-overview-list">
+            {activityLog.length > 0 ? (
+              activityLog.slice(0, 5).map((activity, index) => (
                 <div
-                  style={styles.listItem}
-                  key={activity.log_id || activity.id || index}
+                  className="administrator-overview-activity-item"
+                  key={
+                    activity.activity_id ||
+                    activity.log_id ||
+                    activity.id ||
+                    index
+                  }
                 >
-                  <div style={styles.listContent}>
-                    <strong style={styles.listTitle}>
-                      {String(
-                        activity.action_type || "Activity"
-                      ).replaceAll("_", " ")}
-                    </strong>
-
-                    <p style={styles.listDescription}>
-                      {activity.description || "No description"}
-                    </p>
+                  <div className="administrator-overview-activity-icon">
+                    <Clock3 size={16} />
                   </div>
 
-                  <span style={styles.listDate}>
-                    {activity.created_date ||
-                      activity.created_at ||
-                      activity.date ||
-                      "-"}
-                  </span>
+                  <div>
+                    <strong>
+                      {activity.title ||
+                        String(
+                          activity.action_type ||
+                            "Activity"
+                        ).replaceAll("_", " ")}
+                    </strong>
+
+                    <span>
+                      {activity.description ||
+                        "No description"}
+                    </span>
+
+                    <small>
+                      {activity.created_at ||
+                        activity.created_date ||
+                        activity.date ||
+                        ""}
+                    </small>
+                  </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div style={styles.emptyText}>No activity yet.</div>
-          )}
-        </section>
-      </div>
-
-      <style>
-        {`
-          .administrator-hidden-scrollbar {
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-          }
-
-          .administrator-hidden-scrollbar::-webkit-scrollbar {
-            display: none;
-            width: 0;
-            height: 0;
-          }
-
-          .active-project-scroll::-webkit-scrollbar {
-            display: none;
-            width: 0;
-            height: 0;
-          }
-
-          .administrator-overview-bottom-grid::-webkit-scrollbar {
-            display: none;
-            width: 0;
-            height: 0;
-          }
-
-          .administrator-bottom-card::-webkit-scrollbar {
-            display: none;
-            width: 0;
-            height: 0;
-          }
-
-          @media (max-width: 1350px) {
-            .administrator-overview-main-grid {
-              grid-template-columns: 1fr !important;
-            }
-          }
-
-          @media (max-width: 1050px) {
-            .administrator-overview-stats {
-              grid-template-columns: repeat(
-                2,
-                minmax(160px, 1fr)
-              ) !important;
-            }
-
-            .administrator-overview-charts {
-              grid-template-columns: 1fr !important;
-            }
-
-            .administrator-weekly-attendance {
-              grid-template-columns: repeat(
-                4,
-                minmax(120px, 1fr)
-              ) !important;
-            }
-
-            .administrator-bottom-card {
-              flex-basis: 420px !important;
-              min-width: 420px !important;
-            }
-          }
-
-          @media (max-width: 700px) {
-            .administrator-overview-stats {
-              grid-template-columns: 1fr !important;
-            }
-
-            .administrator-weekly-attendance {
-              grid-template-columns: repeat(
-                2,
-                minmax(120px, 1fr)
-              ) !important;
-            }
-
-            .administrator-bottom-card {
-              flex-basis: 340px !important;
-              min-width: 340px !important;
-            }
-          }
-
-          @media (max-width: 450px) {
-            .administrator-weekly-attendance {
-              grid-template-columns: 1fr !important;
-            }
-
-            .administrator-bottom-card {
-              flex-basis: calc(100vw - 70px) !important;
-              min-width: calc(100vw - 70px) !important;
-            }
-          }
-        `}
-      </style>
+              ))
+            ) : (
+              <div className="administrator-overview-empty">
+                No recent activity.
+              </div>
+            )}
+          </div>
+        </article>
+      </section>
     </div>
   );
 };
