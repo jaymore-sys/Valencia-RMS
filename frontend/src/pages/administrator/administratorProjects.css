@@ -1689,3 +1689,142 @@
     font-size: 11px !important;
   }
 }
+
+
+/* =========================================================
+   ADMINISTRATOR PROJECTS - REMOVE ALL VISIBLE SCROLLBARS
+   Keep 3 columns fitted inside page
+========================================================= */
+
+/* Main projects page */
+.administrator-projects-page {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-projects-page::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Kanban row */
+.administrator-project-stage-row {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+
+  gap: 18px !important;
+
+  overflow-x: hidden !important;
+  overflow-y: visible !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-project-stage-row::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Individual Kanban columns */
+.administrator-project-stage-column {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+
+  overflow: hidden !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-project-stage-column::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Column body can still vertically scroll */
+.administrator-project-stage-body {
+  width: 100% !important;
+  min-width: 0 !important;
+
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-project-stage-body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* Prevent cards from creating horizontal overflow */
+.administrator-project-tile {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+
+  overflow: hidden !important;
+}
+
+
+/* Prevent long text from forcing page width */
+.administrator-project-tile-title,
+.administrator-project-main-task-count,
+.administrator-project-date,
+.administrator-project-click-hint {
+  max-width: 100% !important;
+
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+
+/* Toolbar must also stay inside page */
+.administrator-projects-toolbar {
+  width: 100% !important;
+  max-width: 100% !important;
+
+  overflow: hidden !important;
+
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+
+/* Tablet */
+@media (max-width: 1100px) {
+  .administrator-project-stage-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+
+/* Mobile */
+@media (max-width: 720px) {
+  .administrator-project-stage-row {
+    grid-template-columns: 1fr !important;
+  }
+}
