@@ -13,7 +13,6 @@ import AdministratorProfile from "./pages/administrator/administratorProfile";
 import AdministratorUsers from "./pages/administrator/administratorUsers";
 import AdministratorAttendance from "./pages/administrator/administratorAttendance";
 import AdministratorLeaveApplications from "./pages/administrator/administratorLeaveApplications";
-import AdministratorCalendar from "./pages/administrator/administratorCalendar";
 
 /* ================= EMPLOYEE ================= */
 
@@ -157,11 +156,6 @@ const App = () => {
         <Route
           path="tasks"
           element={<AdministratorTasks />}
-        />
-
-        <Route
-          path="calendar"
-          element={<AdministratorCalendar />}
         />
 
         <Route
