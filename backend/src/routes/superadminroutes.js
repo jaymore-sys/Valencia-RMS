@@ -1,7 +1,16 @@
-const express = require("express");
+const express =
+  require("express");
 
-const authMiddleware = require("../middleware/authmiddleware");
-const { requireRole } = require("../middleware/rolemiddleware");
+const authMiddleware =
+  require(
+    "../middleware/authmiddleware"
+  );
+
+const {
+  requireRole,
+} = require(
+  "../middleware/rolemiddleware"
+);
 
 const {
   getSuperadminOverview,
@@ -9,23 +18,136 @@ const {
   getSuperadminUserDetails,
   getSuperadminTasks,
   getSuperadminProjects,
-} = require("../controllers/superadmincontroller");
+} = require(
+  "../controllers/superadmincontroller"
+);
 
-const router = express.Router();
+const {
+  getSuperadminProjectOptions,
+  createSuperadminProject,
+  getSuperadminProjectContext,
+  updateSuperadminProjectAssignees,
+  createSuperadminMainTask,
+  deleteOwnSuperadminProject,
+} = require(
+  "../controllers/superadminprojectassignmentcontroller"
+);
 
-router.get("/overview", authMiddleware, requireRole("superadmin"), getSuperadminOverview);
+const router =
+  express.Router();
 
-router.get("/users", authMiddleware, requireRole("superadmin"), getSuperadminUsers);
+const superadminOnly = [
+  authMiddleware,
+  requireRole("superadmin"),
+];
+
+/* =========================================================
+   OVERVIEW
+========================================================= */
+
+router.get(
+  "/overview",
+  ...superadminOnly,
+  getSuperadminOverview
+);
+
+/* =========================================================
+   USERS
+========================================================= */
+
+router.get(
+  "/users",
+  ...superadminOnly,
+  getSuperadminUsers
+);
 
 router.get(
   "/users/:userId",
-  authMiddleware,
-  requireRole("superadmin"),
+  ...superadminOnly,
   getSuperadminUserDetails
 );
 
-router.get("/tasks", authMiddleware, requireRole("superadmin"), getSuperadminTasks);
+/* =========================================================
+   TASKS
+========================================================= */
 
-router.get("/projects", authMiddleware, requireRole("superadmin"), getSuperadminProjects);
+router.get(
+  "/tasks",
+  ...superadminOnly,
+  getSuperadminTasks
+);
+
+/* =========================================================
+   PROJECT OPTIONS
+
+   IMPORTANT:
+   Must remain ABOVE /projects/:projectId
+========================================================= */
+
+router.get(
+  "/project-options",
+  ...superadminOnly,
+  getSuperadminProjectOptions
+);
+
+/* =========================================================
+   PROJECT LIST
+========================================================= */
+
+router.get(
+  "/projects",
+  ...superadminOnly,
+  getSuperadminProjects
+);
+
+/* =========================================================
+   CREATE / ASSIGN PROJECT
+========================================================= */
+
+router.post(
+  "/projects/assign",
+  ...superadminOnly,
+  createSuperadminProject
+);
+
+/* =========================================================
+   PROJECT COMPLETE CONTEXT
+========================================================= */
+
+router.get(
+  "/projects/:projectId/context",
+  ...superadminOnly,
+  getSuperadminProjectContext
+);
+
+/* =========================================================
+   MANAGE PROJECT ASSIGNEES
+========================================================= */
+
+router.put(
+  "/projects/:projectId/assignees",
+  ...superadminOnly,
+  updateSuperadminProjectAssignees
+);
+
+/* =========================================================
+   ADD MAIN TASK
+========================================================= */
+
+router.post(
+  "/projects/:projectId/tasks",
+  ...superadminOnly,
+  createSuperadminMainTask
+);
+
+/* =========================================================
+   DELETE OWN PROJECT ONLY
+========================================================= */
+
+router.delete(
+  "/projects/:projectId",
+  ...superadminOnly,
+  deleteOwnSuperadminProject
+);
 
 module.exports = router;
