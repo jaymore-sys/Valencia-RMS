@@ -7,7 +7,7 @@ const {
 } = require("../middleware/rolemiddleware");
 
 /* =========================================================
-   EXISTING SUPERADMIN CONTROLLER
+   EXISTING WORKING SUPERADMIN CONTROLLER
 ========================================================= */
 
 const {
@@ -18,26 +18,7 @@ const {
   getSuperadminProjects,
 } = require("../controllers/superadmincontroller");
 
-/* =========================================================
-   NEW SUPERADMIN PROJECT MANAGEMENT CONTROLLER
-========================================================= */
-
-const {
-  getSuperadminProjectOptions,
-  createSuperadminProject,
-  getSuperadminProjectContext,
-  updateSuperadminProjectAssignees,
-  createSuperadminMainTask,
-  deleteOwnSuperadminProject,
-} = require(
-  "../controllers/superadminprojectassignmentcontroller"
-);
-
 const router = express.Router();
-
-/* =========================================================
-   SUPERADMIN AUTH
-========================================================= */
 
 const superadminOnly = [
   authMiddleware,
@@ -45,7 +26,8 @@ const superadminOnly = [
 ];
 
 /* =========================================================
-   OVERVIEW
+   EXISTING WORKING ROUTES
+   DO NOT REMOVE THESE
 ========================================================= */
 
 router.get(
@@ -53,10 +35,6 @@ router.get(
   ...superadminOnly,
   getSuperadminOverview
 );
-
-/* =========================================================
-   USERS
-========================================================= */
 
 router.get(
   "/users",
@@ -70,38 +48,16 @@ router.get(
   getSuperadminUserDetails
 );
 
-/* =========================================================
-   TASKS
-========================================================= */
-
 router.get(
   "/tasks",
   ...superadminOnly,
   getSuperadminTasks
 );
 
-/* =========================================================
-   PROJECT OPTIONS
-
-   Used for:
-   - Department dropdown
-   - Division dropdown
-   - Employee/Admin assignee list
-========================================================= */
-
-router.get(
-  "/project-options",
-  ...superadminOnly,
-  getSuperadminProjectOptions
-);
-
-/* =========================================================
-   PROJECTS
-
-   IMPORTANT:
-   Keep your existing working project GET controller.
-========================================================= */
-
+/*
+  IMPORTANT:
+  This is your original working Projects endpoint.
+*/
 router.get(
   "/projects",
   ...superadminOnly,
@@ -109,60 +65,168 @@ router.get(
 );
 
 /* =========================================================
-   CREATE + ASSIGN PROJECT
+   NEW PROJECT MANAGEMENT ROUTES
+
+   Load safely so that if there is any problem inside the
+   new controller, existing Superadmin routes STILL WORK.
 ========================================================= */
 
-router.post(
-  "/projects/assign",
-  ...superadminOnly,
-  createSuperadminProject
-);
+try {
+  const projectManagementController = require(
+    "../controllers/superadminprojectassignmentcontroller"
+  );
 
-/* =========================================================
-   COMPLETE PROJECT CONTEXT
+  const {
+    getSuperadminProjectOptions,
+    createSuperadminProject,
+    getSuperadminProjectContext,
+    updateSuperadminProjectAssignees,
+    createSuperadminMainTask,
+    deleteOwnSuperadminProject,
+  } = projectManagementController;
 
-   Gives frontend:
-   - project assignees
-   - ownership/can_delete
-========================================================= */
+  /* =======================================================
+     PROJECT OPTIONS
+  ======================================================= */
 
-router.get(
-  "/projects/:projectId/context",
-  ...superadminOnly,
-  getSuperadminProjectContext
-);
+  if (
+    typeof getSuperadminProjectOptions === "function"
+  ) {
+    router.get(
+      "/project-options",
+      ...superadminOnly,
+      getSuperadminProjectOptions
+    );
+  } else {
+    console.error(
+      "Superadmin project management: getSuperadminProjectOptions is missing."
+    );
+  }
 
-/* =========================================================
-   CHANGE PROJECT ASSIGNEES
-========================================================= */
+  /* =======================================================
+     CREATE PROJECT
+  ======================================================= */
 
-router.put(
-  "/projects/:projectId/assignees",
-  ...superadminOnly,
-  updateSuperadminProjectAssignees
-);
+  if (
+    typeof createSuperadminProject === "function"
+  ) {
+    router.post(
+      "/projects/assign",
+      ...superadminOnly,
+      createSuperadminProject
+    );
+  } else {
+    console.error(
+      "Superadmin project management: createSuperadminProject is missing."
+    );
+  }
 
-/* =========================================================
-   CREATE MAIN TASK
-========================================================= */
+  /* =======================================================
+     PROJECT CONTEXT
+  ======================================================= */
 
-router.post(
-  "/projects/:projectId/tasks",
-  ...superadminOnly,
-  createSuperadminMainTask
-);
+  if (
+    typeof getSuperadminProjectContext === "function"
+  ) {
+    router.get(
+      "/projects/:projectId/context",
+      ...superadminOnly,
+      getSuperadminProjectContext
+    );
+  } else {
+    console.error(
+      "Superadmin project management: getSuperadminProjectContext is missing."
+    );
+  }
 
-/* =========================================================
-   DELETE PROJECT
+  /* =======================================================
+     MANAGE PROJECT ASSIGNEES
+  ======================================================= */
 
-   Backend controller must enforce:
-   Superadmin can delete ONLY projects created by them.
-========================================================= */
+  if (
+    typeof updateSuperadminProjectAssignees === "function"
+  ) {
+    router.put(
+      "/projects/:projectId/assignees",
+      ...superadminOnly,
+      updateSuperadminProjectAssignees
+    );
+  } else {
+    console.error(
+      "Superadmin project management: updateSuperadminProjectAssignees is missing."
+    );
+  }
 
-router.delete(
-  "/projects/:projectId",
-  ...superadminOnly,
-  deleteOwnSuperadminProject
-);
+  /* =======================================================
+     CREATE MAIN TASK
+  ======================================================= */
+
+  if (
+    typeof createSuperadminMainTask === "function"
+  ) {
+    router.post(
+      "/projects/:projectId/tasks",
+      ...superadminOnly,
+      createSuperadminMainTask
+    );
+  } else {
+    console.error(
+      "Superadmin project management: createSuperadminMainTask is missing."
+    );
+  }
+
+  /* =======================================================
+     DELETE OWN PROJECT
+  ======================================================= */
+
+  if (
+    typeof deleteOwnSuperadminProject === "function"
+  ) {
+    router.delete(
+      "/projects/:projectId",
+      ...superadminOnly,
+      deleteOwnSuperadminProject
+    );
+  } else {
+    console.error(
+      "Superadmin project management: deleteOwnSuperadminProject is missing."
+    );
+  }
+
+  console.log(
+    "Superadmin project management routes loaded."
+  );
+} catch (error) {
+  /*
+    VERY IMPORTANT:
+    The existing Projects page will still work even if
+    the new controller has an error.
+  */
+
+  console.error(
+    "\n=============================================="
+  );
+
+  console.error(
+    "SUPERADMIN PROJECT MANAGEMENT CONTROLLER FAILED"
+  );
+
+  console.error(
+    "Existing Superadmin routes will continue working."
+  );
+
+  console.error(
+    "Error:",
+    error.message
+  );
+
+  console.error(
+    error.stack
+  );
+
+  console.error(
+    "==============================================\n"
+  );
+}
 
 module.exports = router;
