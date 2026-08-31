@@ -8,9 +8,20 @@ const {
   buildLeaveBalances,
 } = require("../utils/leavepolicy");
 
+/*
+========================================================
+FIXED LEAVE EMAIL RECIPIENTS
 
-const LEAVE_APPLICATION_RECIPIENTS = [
-  "premal.mehta@valencianutrition.com",
+Always receive every leave application:
+- Manish
+- Rathika
+
+Department Admin(s) are added dynamically.
+========================================================
+*/
+
+const FIXED_LEAVE_RECIPIENTS = [
+  "manish@valencianutrition.com",
   "rathika.haleangadi@valencianutrition.com",
 ];
 
@@ -260,15 +271,12 @@ const getIndiaToday = () => {
     new Intl.DateTimeFormat(
       "en-CA",
       {
-        timeZone:
-          "Asia/Kolkata",
+        timeZone: "Asia/Kolkata",
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
       }
-    ).formatToParts(
-      new Date()
-    );
+    ).formatToParts(new Date());
 
   const values = {};
 
@@ -299,6 +307,104 @@ const getLeaveColumns = async () => {
   );
 };
 
+/*
+========================================================
+GET DEPARTMENT ADMINS
+
+Important:
+There is NO hard-coded Premal logic.
+
+Whichever active user has:
+role_name = admin
+AND same department_id as employee
+
+will receive the leave email.
+========================================================
+*/
+
+const getDepartmentAdmins = async (
+  departmentId
+) => {
+  if (!departmentId) {
+    return [];
+  }
+
+  const [adminRows] =
+    await db.query(
+      `
+      SELECT DISTINCT
+        a.user_id,
+        a.full_name,
+        a.email,
+        a.department_id
+
+      FROM users a
+
+      INNER JOIN roles r
+        ON r.role_id =
+          a.role_id
+
+      WHERE
+        a.department_id = ?
+
+        AND LOWER(
+          COALESCE(
+            r.role_name,
+            ''
+          )
+        ) = 'admin'
+
+        AND LOWER(
+          COALESCE(
+            a.status,
+            'active'
+          )
+        ) = 'active'
+
+        AND a.email IS NOT NULL
+
+        AND TRIM(a.email) != ''
+
+      ORDER BY
+        a.full_name ASC,
+        a.user_id ASC
+      `,
+      [departmentId]
+    );
+
+  return adminRows || [];
+};
+
+/*
+========================================================
+BUILD FINAL EMAIL RECIPIENTS
+========================================================
+*/
+
+const buildLeaveRecipients = (
+  departmentAdmins
+) => {
+  const recipients = [
+    ...FIXED_LEAVE_RECIPIENTS,
+
+    ...(departmentAdmins || []).map(
+      (admin) =>
+        admin.email
+    ),
+  ];
+
+  return [
+    ...new Set(
+      recipients
+        .map((email) =>
+          String(email || "")
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    ),
+  ];
+};
 
 /*
 ========================================================
@@ -330,11 +436,11 @@ const getEmployeeLeaveSummary =
           : currentYear;
 
       const balances =
-  await buildLeaveBalances(
-    db,
-    employeeId,
-    year
-  );
+        await buildLeaveBalances(
+          db,
+          employeeId,
+          year
+        );
 
       const columns =
         await getLeaveColumns();
@@ -442,30 +548,31 @@ const getEmployeeLeaveSummary =
         year,
 
         configuration: {
-  policy_start_date:
-    POLICY_START_DATE,
+          policy_start_date:
+            POLICY_START_DATE,
 
-  sick_entitlement:
-    getAnnualEntitlements(
-      year
-    ).sick,
+          sick_entitlement:
+            getAnnualEntitlements(
+              year
+            ).sick,
 
-  casual_entitlement:
-    getAnnualEntitlements(
-      year
-    ).casual,
+          casual_entitlement:
+            getAnnualEntitlements(
+              year
+            ).casual,
 
-  privileged_monthly_credit:
-    MONTHLY_PRIVILEGED_CREDIT,
+          privileged_monthly_credit:
+            MONTHLY_PRIVILEGED_CREDIT,
 
-  privileged_carry_forward:
-    true,
+          privileged_carry_forward:
+            true,
 
-  holiday_entitlement:
-    getAnnualEntitlements(
-      year
-    ).festival,
-},
+          holiday_entitlement:
+            getAnnualEntitlements(
+              year
+            ).festival,
+        },
+
         balances,
 
         applications:
@@ -486,21 +593,21 @@ const getEmployeeLeaveSummary =
         error
       );
 
-      return res.status(
-        500
-      ).json({
-        success: false,
+      return res
+        .status(500)
+        .json({
+          success: false,
 
-        message:
-          "Failed to fetch leave information.",
+          message:
+            "Failed to fetch leave information.",
 
-        error:
-          error.message,
+          error:
+            error.message,
 
-        sqlMessage:
-          error.sqlMessage ||
-          null,
-      });
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
     }
   };
 
@@ -543,18 +650,21 @@ const applyEmployeeLeave =
       const startDate =
         String(
           req.body
-            .start_date || ""
+            .start_date ||
+            ""
         ).trim();
 
       let endDate =
         String(
           req.body
-            .end_date || ""
+            .end_date ||
+            ""
         ).trim();
 
       const reason =
         String(
-          req.body.reason || ""
+          req.body.reason ||
+            ""
         ).trim();
 
       /*
@@ -620,19 +730,20 @@ const applyEmployeeLeave =
               "Invalid leave date.",
           });
       }
-      if (
-  startDate <
-  POLICY_START_DATE
-) {
-  return res
-    .status(400)
-    .json({
-      success: false,
 
-      message:
-        "The new Leave policy starts from 01-09-2026.",
-    });
-}
+      if (
+        startDate <
+        POLICY_START_DATE
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "The new Leave policy starts from 01-09-2026.",
+          });
+      }
 
       /*
       ------------------------------
@@ -702,11 +813,6 @@ const applyEmployeeLeave =
             });
         }
 
-        /*
-        Holiday Leave is always
-        exactly one full day.
-        */
-
         endDate =
           startDate;
       } else if (
@@ -714,9 +820,7 @@ const applyEmployeeLeave =
         "half_day"
       ) {
         /*
-        ------------------------------
-        NORMAL HALF DAY LEAVE
-        ------------------------------
+        NORMAL HALF DAY
         */
 
         endDate =
@@ -741,9 +845,7 @@ const applyEmployeeLeave =
         }
       } else {
         /*
-        ------------------------------
-        NORMAL FULL DAY LEAVE
-        ------------------------------
+        NORMAL FULL DAY
         */
 
         if (
@@ -776,7 +878,13 @@ const applyEmployeeLeave =
             });
         }
       }
-            if (
+
+      /*
+      Leave application cannot cross
+      calendar year.
+      */
+
+      if (
         endDate &&
         startDate.slice(
           0,
@@ -798,11 +906,8 @@ const applyEmployeeLeave =
       }
 
       /*
-      Reason remains required for
-      Sick/Casual/Privileged.
-
-      Holiday Leave automatically
-      gets the festival name.
+      Reason required except
+      Holiday Leave.
       */
 
       if (
@@ -880,11 +985,11 @@ const applyEmployeeLeave =
       */
 
       const balances =
-  await buildLeaveBalances(
-    db,
-    employeeId,
-    leaveYear
-  );
+        await buildLeaveBalances(
+          db,
+          employeeId,
+          leaveYear
+        );
 
       const selectedBalance =
         balances[
@@ -908,7 +1013,8 @@ const applyEmployeeLeave =
         totalDays >
         Number(
           selectedBalance
-            .available || 0
+            .available ||
+            0
         )
       ) {
         return res
@@ -1093,9 +1199,7 @@ const applyEmployeeLeave =
 
           LIMIT 1
           `,
-          [
-            employeeId,
-          ]
+          [employeeId]
         );
 
       const employee =
@@ -1103,72 +1207,62 @@ const applyEmployeeLeave =
         {};
 
       /*
-      ------------------------------
-      FIND DEPARTMENT ADMIN
-      ------------------------------
+      ======================================================
+      FIND ALL ACTIVE ADMINS
+      OF EMPLOYEE'S DEPARTMENT
+      ======================================================
       */
 
-      let admin = {};
+      let departmentAdmins =
+        [];
 
       try {
-        const [adminRows] =
-          await db.query(
-            `
-            SELECT
-              a.user_id,
-              a.full_name,
-              a.email
-
-            FROM users a
-
-            INNER JOIN roles r
-              ON r.role_id =
-                a.role_id
-
-            WHERE
-              a.department_id = ?
-
-              AND LOWER(
-                COALESCE(
-                  r.role_name,
-                  ''
-                )
-              ) = 'admin'
-
-              AND a.status = 'active'
-
-              AND a.email IS NOT NULL
-
-              AND a.email != ''
-
-            ORDER BY
-              a.user_id ASC
-
-            LIMIT 1
-            `,
-            [
-              employee
-                .department_id,
-            ]
+        departmentAdmins =
+          await getDepartmentAdmins(
+            employee.department_id
           );
-
-        admin =
-          adminRows[0] ||
-          {};
       } catch (
         adminError
       ) {
         console.error(
-          "Admin email lookup skipped:",
+          "Department Admin lookup failed:",
           adminError.message
         );
 
-        admin = {};
+        departmentAdmins =
+          [];
       }
 
       /*
+      Keep first Admin for backwards
+      compatibility in API response.
+      */
+
+      const admin =
+        departmentAdmins[0] ||
+        {};
+
+      /*
       ======================================================
-      EMAIL ADMIN
+      FINAL EMAIL RECIPIENTS
+
+      ALWAYS:
+      1. Manish
+      2. Rathika
+
+      PLUS:
+      Active Admin(s) of employee's department.
+      ======================================================
+      */
+
+      const finalLeaveRecipients =
+        buildLeaveRecipients(
+          departmentAdmins
+        );
+
+      /*
+      ======================================================
+      EMAIL
       ======================================================
       */
 
@@ -1177,7 +1271,10 @@ const applyEmployeeLeave =
         skipped: true,
       };
 
-      if (admin.email) {
+      if (
+        finalLeaveRecipients.length >
+        0
+      ) {
         try {
           const leaveLabel =
             getLeaveLabel(
@@ -1186,7 +1283,7 @@ const applyEmployeeLeave =
 
           const durationLabel =
             leaveType ===
-              "festival"
+            "festival"
               ? "Full Day"
               : durationType ===
                 "half_day"
@@ -1194,20 +1291,18 @@ const applyEmployeeLeave =
                 "first_half"
                 ? "Half Day - First Half"
                 : "Half Day - Second Half"
-              : totalDays ===
-                1
+              : totalDays === 1
               ? "Full Day"
               : `${totalDays} Full Days`;
 
           const subject =
             `${leaveLabel} Application - ${
-              employee
-                .full_name ||
+              employee.full_name ||
               "Employee"
             }`;
 
           const text = `
-Dear ${admin.full_name || "Sir/Ma'am"},
+Dear Sir/Ma'am,
 
 A leave application has been submitted through Valencia RMS.
 
@@ -1236,33 +1331,40 @@ Valencia RMS
               line-height: 1.6;
               color: #111827;
             ">
-              <h2 style="color:#ff5733;">
+
+              <h2 style="
+                color:#ff5733;
+                margin-bottom:8px;
+              ">
                 Leave Application
               </h2>
 
               <p>
                 Dear
                 <strong>
-                  ${admin.full_name || "Sir/Ma'am"}
+                  Sir/Ma'am
                 </strong>,
               </p>
 
               <p>
                 A leave application has been submitted
-                through Valencia RMS.
+                through Valencia RMS and is awaiting review.
               </p>
 
               <table style="
-                border-collapse: collapse;
-                width: 100%;
-                max-width: 650px;
+                border-collapse:collapse;
+                width:100%;
+                max-width:650px;
               ">
+
                 <tr>
                   <td style="
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Employee</strong>
+                    <strong>
+                      Employee
+                    </strong>
                   </td>
 
                   <td style="
@@ -1278,7 +1380,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Employee Email</strong>
+                    <strong>
+                      Employee Email
+                    </strong>
                   </td>
 
                   <td style="
@@ -1294,7 +1398,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Department</strong>
+                    <strong>
+                      Department
+                    </strong>
                   </td>
 
                   <td style="
@@ -1310,7 +1416,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Leave Type</strong>
+                    <strong>
+                      Leave Type
+                    </strong>
                   </td>
 
                   <td style="
@@ -1326,7 +1434,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>From</strong>
+                    <strong>
+                      From
+                    </strong>
                   </td>
 
                   <td style="
@@ -1342,7 +1452,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>To</strong>
+                    <strong>
+                      To
+                    </strong>
                   </td>
 
                   <td style="
@@ -1358,7 +1470,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Duration</strong>
+                    <strong>
+                      Duration
+                    </strong>
                   </td>
 
                   <td style="
@@ -1374,7 +1488,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Leave Days</strong>
+                    <strong>
+                      Leave Days
+                    </strong>
                   </td>
 
                   <td style="
@@ -1390,7 +1506,9 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    <strong>Reason</strong>
+                    <strong>
+                      Reason
+                    </strong>
                   </td>
 
                   <td style="
@@ -1405,7 +1523,7 @@ Valencia RMS
               <p>
                 This application is currently
                 <strong>Pending</strong>
-                and requires your review.
+                and requires review.
               </p>
 
               <p>
@@ -1416,20 +1534,20 @@ Valencia RMS
           `;
 
           const mailResponse =
-  await sendMail({
-    to:
-      LEAVE_APPLICATION_RECIPIENTS,
+            await sendMail({
+              to:
+                finalLeaveRecipients,
 
-    subject,
+              subject,
 
-    text,
+              text,
 
-    html,
+              html,
 
-    replyTo:
-      employee.email ||
-      undefined,
-  });
+              replyTo:
+                employee.email ||
+                undefined,
+            });
 
           emailResult = {
             sent:
@@ -1446,6 +1564,9 @@ Valencia RMS
               mailResponse
                 ?.messageId ||
               null,
+
+            recipients:
+              finalLeaveRecipients,
           };
         } catch (
           emailError
@@ -1456,20 +1577,24 @@ Valencia RMS
           );
 
           /*
-          Email failure must
-          never cancel leave.
+          Email failure must never
+          cancel leave application.
           */
 
           emailResult = {
             sent: false,
             skipped: false,
+
             error:
               emailError.message,
+
+            recipients:
+              finalLeaveRecipients,
           };
         }
       } else {
         console.warn(
-          "Leave email skipped: department admin email not found."
+          "Leave email skipped: no recipients found."
         );
 
         emailResult = {
@@ -1477,7 +1602,7 @@ Valencia RMS
           skipped: true,
 
           error:
-            "Department admin email not found.",
+            "No leave email recipients found.",
         };
       }
 
@@ -1503,8 +1628,7 @@ Valencia RMS
               employeeId,
 
             employee_name:
-              employee
-                .full_name ||
+              employee.full_name ||
               "",
 
             employee_email:
@@ -1512,14 +1636,17 @@ Valencia RMS
               "",
 
             department_id:
-              employee
-                .department_id ||
+              employee.department_id ||
               null,
 
             department_name:
-              employee
-                .department_name ||
+              employee.department_name ||
               "",
+
+            /*
+            Existing fields retained
+            for frontend compatibility.
+            */
 
             admin_id:
               admin.user_id ||
@@ -1532,6 +1659,14 @@ Valencia RMS
             admin_email:
               admin.email ||
               "",
+
+            admin_emails:
+              departmentAdmins
+                .map(
+                  (item) =>
+                    item.email
+                )
+                .filter(Boolean),
 
             leave_type:
               leaveType,
@@ -1632,9 +1767,7 @@ const getEmployeeHolidayCalendar =
           ORDER BY
             holiday_date ASC
           `,
-          [
-            employeeId,
-          ]
+          [employeeId]
         );
 
       const selectedDates =
@@ -1659,7 +1792,9 @@ const getEmployeeHolidayCalendar =
 
       return res.json({
         success: true,
+
         year: 2026,
+
         max_optional: 4,
 
         selected_count:
@@ -1719,6 +1854,7 @@ const toggleEmployeeOptionalHoliday =
           .status(400)
           .json({
             success: false,
+
             message:
               "Invalid holiday.",
           });
@@ -1824,6 +1960,7 @@ const toggleEmployeeOptionalHoliday =
 
         return res.json({
           success: true,
+
           selected: false,
 
           message:
@@ -1844,9 +1981,7 @@ const toggleEmployeeOptionalHoliday =
 
             AND holiday_year = 2026
           `,
-          [
-            employeeId,
-          ]
+          [employeeId]
         );
 
       const selectedCount =
@@ -1891,6 +2026,7 @@ const toggleEmployeeOptionalHoliday =
 
       return res.json({
         success: true,
+
         selected: true,
 
         message:
