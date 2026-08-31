@@ -80,9 +80,9 @@ import SuperadminProjects from "./pages/superadmin/superadminProjects";
 
 /* NEW SUPERADMIN PAGES */
 
-import SuperadminCalendar from "./pages/superadmin/SuperadminCalendar";
+import SuperadminCalendar from "./pages/superadmin/superadminCalendar";
 
-import SuperadminAttendance from "./pages/superadmin/SuperadminAttendance";
+import SuperadminAttendance from "./pages/superadmin/superadminAttendance";
 
 /* ========================================================
    AUTH HELPERS
