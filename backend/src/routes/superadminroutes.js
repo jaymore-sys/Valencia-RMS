@@ -10,6 +10,10 @@ const {
   "../middleware/rolemiddleware"
 );
 
+/* =========================================================
+   MAIN SUPERADMIN CONTROLLER
+========================================================= */
+
 const {
   getSuperadminOverview,
 
@@ -34,6 +38,34 @@ const {
   deleteOwnSuperadminProject,
 } = require(
   "../controllers/superadmincontroller"
+);
+
+/* =========================================================
+   ATTENDANCE
+========================================================= */
+
+const {
+  getSuperadminAttendance,
+} = require(
+  "../controllers/superadminattendancecontroller"
+);
+
+/* =========================================================
+   CALENDAR
+========================================================= */
+
+const {
+  getSuperadminCalendar,
+
+  getSuperadminMeetingEmployees,
+
+  createSuperadminMeeting,
+
+  updateSuperadminMeeting,
+
+  cancelSuperadminMeeting,
+} = require(
+  "../controllers/superadmincalendarcontroller"
 );
 
 const router =
@@ -84,24 +116,11 @@ router.get(
    PROJECTS
 ========================================================= */
 
-/*
-Existing working project list.
-*/
-
 router.get(
   "/projects",
   ...superadminOnly,
   getSuperadminProjects
 );
-
-/* =========================================================
-   PROJECT OPTIONS
-
-   Returns:
-   - Departments
-   - Divisions
-   - Assignable users
-========================================================= */
 
 router.get(
   "/project-options",
@@ -109,27 +128,11 @@ router.get(
   getSuperadminProjectOptions
 );
 
-/* =========================================================
-   CREATE PROJECT
-========================================================= */
-
 router.post(
   "/projects/assign",
   ...superadminOnly,
   createSuperadminProject
 );
-
-/* =========================================================
-   PROJECT COMPLETE DETAILS
-
-   IMPORTANT:
-   Includes:
-   - Project
-   - Assignees
-   - Main Tasks
-   - Subtasks
-   - Delete permission
-========================================================= */
 
 router.get(
   "/projects/:projectId/context",
@@ -137,19 +140,11 @@ router.get(
   getSuperadminProjectContext
 );
 
-/* =========================================================
-   MANAGE PROJECT ASSIGNEES
-========================================================= */
-
 router.put(
   "/projects/:projectId/assignees",
   ...superadminOnly,
   updateSuperadminProjectAssignees
 );
-
-/* =========================================================
-   ASSIGN MAIN TASK
-========================================================= */
 
 router.post(
   "/projects/:projectId/tasks",
@@ -157,17 +152,54 @@ router.post(
   createSuperadminMainTask
 );
 
-/* =========================================================
-   DELETE OWN PROJECT
-
-   Controller blocks deleting
-   projects created by somebody else.
-========================================================= */
-
 router.delete(
   "/projects/:projectId",
   ...superadminOnly,
   deleteOwnSuperadminProject
+);
+
+/* =========================================================
+   ATTENDANCE — ALL ORGANIZATION DATA
+========================================================= */
+
+router.get(
+  "/attendance",
+  ...superadminOnly,
+  getSuperadminAttendance
+);
+
+/* =========================================================
+   CALENDAR — ALL ORGANIZATION DATA
+========================================================= */
+
+router.get(
+  "/calendar",
+  ...superadminOnly,
+  getSuperadminCalendar
+);
+
+router.get(
+  "/calendar/employees",
+  ...superadminOnly,
+  getSuperadminMeetingEmployees
+);
+
+router.post(
+  "/calendar/meetings",
+  ...superadminOnly,
+  createSuperadminMeeting
+);
+
+router.put(
+  "/calendar/meetings/:meetingId",
+  ...superadminOnly,
+  updateSuperadminMeeting
+);
+
+router.patch(
+  "/calendar/meetings/:meetingId/cancel",
+  ...superadminOnly,
+  cancelSuperadminMeeting
 );
 
 module.exports = router;
