@@ -8,6 +8,7 @@ import AdministratorLayout from "./layouts/Administratorlayout";
 import AdministratorOverview from "./pages/administrator/administratorOverview";
 import AdministratorProjects from "./pages/administrator/administratorProjects";
 import AdministratorTasks from "./pages/administrator/administratorTasks";
+import AdministratorCalendar from "./pages/administrator/administratorCalendar";
 import AdministratorReports from "./pages/administrator/administratorReports";
 import AdministratorProfile from "./pages/administrator/administratorProfile";
 import AdministratorUsers from "./pages/administrator/administratorUsers";
@@ -156,6 +157,11 @@ const App = () => {
         <Route
           path="tasks"
           element={<AdministratorTasks />}
+        />
+
+        <Route
+          path="calendar"
+          element={<AdministratorCalendar />}
         />
 
         <Route
