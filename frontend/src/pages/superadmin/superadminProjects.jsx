@@ -4,12 +4,14 @@ import {
   Check,
   CheckCircle2,
   CircleDot,
+  ClipboardList,
   Clock3,
   FolderKanban,
   PauseCircle,
   Plus,
   RefreshCw,
   Search,
+  Trash2,
   UserPlus,
   Users,
   X,
@@ -18,6 +20,20 @@ import {
 
 import api from "../../api/axios";
 import "./superadminProjects.css";
+
+/* =========================================================
+   PROJECT DIVISIONS
+========================================================= */
+
+const PROJECT_DIVISIONS = [
+  "POS",
+  "NutraCare",
+  "ADV",
+  "Cans",
+  "PET",
+  "Crunzo",
+  "Healthybites",
+];
 
 /* =========================================================
    PROJECT COLUMNS
@@ -56,6 +72,10 @@ const PROJECT_COLUMNS = [
   },
 ];
 
+/* =========================================================
+   EMPTY FORMS
+========================================================= */
+
 const EMPTY_PROJECT_FORM = {
   project_title: "",
   project_description: "",
@@ -67,8 +87,17 @@ const EMPTY_PROJECT_FORM = {
   assignee_ids: [],
 };
 
+const EMPTY_MAIN_TASK_FORM = {
+  task_title: "",
+  task_description: "",
+  priority: "medium",
+  start_date: "",
+  due_date: "",
+  assignee_ids: [],
+};
+
 /* =========================================================
-   STATUS HELPERS
+   HELPERS
 ========================================================= */
 
 const normalizeStatus = (status) => {
@@ -79,45 +108,61 @@ const normalizeStatus = (status) => {
     .replace(/-/g, "_");
 
   if (
-    value === "todo" ||
-    value === "to_do" ||
-    value === "pending" ||
-    value === "not_started"
+    [
+      "todo",
+      "to_do",
+      "pending",
+      "not_started",
+    ].includes(value)
   ) {
     return "not_started";
   }
 
   if (
-    value === "progress" ||
-    value === "ongoing" ||
-    value === "in_progress"
+    [
+      "ongoing",
+      "progress",
+      "in_progress",
+    ].includes(value)
   ) {
     return "in_progress";
   }
 
   if (
-    value === "review" ||
-    value === "under_review"
+    [
+      "review",
+      "under_review",
+    ].includes(value)
   ) {
     return "under_review";
   }
 
   if (
-    value === "done" ||
-    value === "complete" ||
-    value === "completed"
+    [
+      "done",
+      "complete",
+      "completed",
+    ].includes(value)
   ) {
     return "completed";
   }
 
-  if (value === "hold" || value === "on_hold") {
+  if (
+    [
+      "hold",
+      "on_hold",
+      "blocked",
+    ].includes(value)
+  ) {
     return "on_hold";
   }
 
   if (
-    value === "cancelled" ||
-    value === "canceled" ||
-    value === "rejected"
+    [
+      "cancelled",
+      "canceled",
+      "rejected",
+    ].includes(value)
   ) {
     return "rejected";
   }
@@ -126,47 +171,147 @@ const normalizeStatus = (status) => {
 };
 
 const statusLabel = (status) => {
-  const normalized = normalizeStatus(status);
+  const normalized =
+    normalizeStatus(status);
 
   return (
     PROJECT_COLUMNS.find(
-      (column) => column.key === normalized
-    )?.label || String(status || "To Do")
+      (column) =>
+        column.key === normalized
+    )?.label ||
+    String(status || "To Do")
   );
 };
 
-/* =========================================================
-   DATE
-========================================================= */
+const taskStatusLabel = (status) => {
+  const normalized =
+    normalizeStatus(status);
+
+  if (
+    normalized === "not_started"
+  ) {
+    return "To Do";
+  }
+
+  if (
+    normalized === "in_progress"
+  ) {
+    return "In Progress";
+  }
+
+  if (
+    normalized === "under_review"
+  ) {
+    return "Under Review";
+  }
+
+  if (
+    normalized === "completed"
+  ) {
+    return "Completed";
+  }
+
+  if (
+    normalized === "on_hold"
+  ) {
+    return "On Hold";
+  }
+
+  if (
+    normalized === "rejected"
+  ) {
+    return "Rejected";
+  }
+
+  return status || "-";
+};
 
 const formatDate = (value) => {
   if (!value) return "-";
 
   const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return String(value).slice(0, 10);
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return String(value).slice(
+      0,
+      10
+    );
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 };
 
-/* =========================================================
-   NUMBER
-========================================================= */
+const normalizeDateForInput = (
+  value
+) => {
+  if (!value) return "";
+
+  const stringValue =
+    String(value);
+
+  if (
+    /^\d{4}-\d{2}-\d{2}/.test(
+      stringValue
+    )
+  ) {
+    return stringValue.slice(
+      0,
+      10
+    );
+  }
+
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "";
+  }
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 
 const getNumber = (...values) => {
   for (const value of values) {
-    const number = Number(value);
+    const number =
+      Number(value);
 
-    if (!Number.isNaN(number)) {
+    if (
+      !Number.isNaN(number)
+    ) {
       return Math.max(
         0,
-        Math.min(100, number)
+        Math.min(
+          100,
+          number
+        )
       );
     }
   }
@@ -174,51 +319,32 @@ const getNumber = (...values) => {
   return 0;
 };
 
-/* =========================================================
-   ASSIGNED IDS
-========================================================= */
-
-const parseAssignedIds = (project) => {
-  const raw =
-    project?.assigned_user_ids ||
-    project?.assignee_ids ||
-    project?.assigned_ids ||
-    "";
-
-  if (Array.isArray(raw)) {
-    return [
-      ...new Set(
-        raw
-          .map((value) =>
-            String(
-              value?.user_id ??
-                value?.employee_id ??
-                value
-            )
-          )
-          .filter(Boolean)
-      ),
-    ];
-  }
-
-  return [
-    ...new Set(
-      String(raw || "")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean)
-    ),
-  ];
+const getUserId = (user) => {
+  return (
+    user?.user_id ||
+    user?.id ||
+    user?.employee_id ||
+    ""
+  );
 };
 
-/* =========================================================
-   OVERDUE
-========================================================= */
+const getUserName = (user) => {
+  return (
+    user?.full_name ||
+    user?.name ||
+    user?.employee_name ||
+    "-"
+  );
+};
 
-const isProjectOverdue = (project) => {
+const isProjectOverdue = (
+  project
+) => {
   if (
-    normalizeStatus(project.normalized_status) ===
-    "completed"
+    normalizeStatus(
+      project.normalized_status ||
+        project.status
+    ) === "completed"
   ) {
     return false;
   }
@@ -228,179 +354,253 @@ const isProjectOverdue = (project) => {
     project.end_date ||
     project.project_end_date;
 
-  if (!value) return false;
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
+  if (!value) {
     return false;
   }
 
-  date.setHours(23, 59, 59, 999);
+  const date =
+    new Date(value);
 
-  return date.getTime() < Date.now();
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return false;
+  }
+
+  date.setHours(
+    23,
+    59,
+    59,
+    999
+  );
+
+  return (
+    date.getTime() <
+    Date.now()
+  );
 };
 
 /* =========================================================
-   STATUS RESOLUTION
-========================================================= */
-
-const resolveProjectStatus = (project) => {
-  const directStatus =
-    project.status ||
-    project.project_status ||
-    project.status_group ||
-    project.normalized_status;
-
-  return normalizeStatus(directStatus);
-};
-
-/* =========================================================
-   MAIN COMPONENT
+   MAIN PAGE
 ========================================================= */
 
 const SuperadminProjects = () => {
-  const [projects, setProjects] = useState([]);
-  const [users, setUsers] = useState([]);
+  const [projects, setProjects] =
+    useState([]);
 
-  const [search, setSearch] = useState("");
-  const [department, setDepartment] =
-    useState("all");
-  const [creator, setCreator] =
-    useState("all");
+  const [users, setUsers] =
+    useState([]);
+
+  const [
+    departments,
+    setDepartments,
+  ] = useState([]);
+
+  const [
+    divisions,
+    setDivisions,
+  ] = useState(
+    PROJECT_DIVISIONS
+  );
+
+  const [search, setSearch] =
+    useState("");
+
+  const [
+    departmentFilter,
+    setDepartmentFilter,
+  ] = useState("all");
+
+  const [
+    creatorFilter,
+    setCreatorFilter,
+  ] = useState("all");
 
   const [loading, setLoading] =
     useState(true);
 
-  const [message, setMessage] =
-    useState("");
-
-  const [messageType, setMessageType] =
-    useState("error");
-
   const [
-    selectedProject,
-    setSelectedProject,
-  ] = useState(null);
-
-  /* CREATE / ASSIGN PROJECT */
-
-  const [
-    showAssignModal,
-    setShowAssignModal,
+    detailsLoading,
+    setDetailsLoading,
   ] = useState(false);
-
-  const [
-    newProject,
-    setNewProject,
-  ] = useState(EMPTY_PROJECT_FORM);
-
-  const [
-    assignSearch,
-    setAssignSearch,
-  ] = useState("");
 
   const [
     actionLoading,
     setActionLoading,
   ] = useState(false);
 
-  /* MANAGE EXISTING ASSIGNEES */
+  const [message, setMessage] =
+    useState("");
 
   const [
-    showAssigneeManager,
-    setShowAssigneeManager,
+    messageType,
+    setMessageType,
+  ] = useState("error");
+
+  const [
+    selectedProject,
+    setSelectedProject,
+  ] = useState(null);
+
+  /* ASSIGN PROJECT */
+
+  const [
+    showAssignProjectModal,
+    setShowAssignProjectModal,
   ] = useState(false);
 
   const [
-    editAssigneeIds,
-    setEditAssigneeIds,
+    newProject,
+    setNewProject,
+  ] = useState({
+    ...EMPTY_PROJECT_FORM,
+  });
+
+  const [
+    projectAssigneeSearch,
+    setProjectAssigneeSearch,
+  ] = useState("");
+
+  /* MANAGE ASSIGNEES */
+
+  const [
+    showManageAssignees,
+    setShowManageAssignees,
+  ] = useState(false);
+
+  const [
+    managedAssigneeIds,
+    setManagedAssigneeIds,
   ] = useState([]);
 
   const [
-    editAssigneeSearch,
-    setEditAssigneeSearch,
+    manageAssigneeSearch,
+    setManageAssigneeSearch,
   ] = useState("");
+
+  /* MAIN TASK */
+
+  const [
+    newMainTask,
+    setNewMainTask,
+  ] = useState({
+    ...EMPTY_MAIN_TASK_FORM,
+  });
 
   /* =========================================================
      FETCH PROJECTS
   ========================================================= */
 
-  const fetchProjects = async ({
-    clearMessage = true,
-  } = {}) => {
-    try {
-      if (clearMessage) {
-        setMessage("");
+  const fetchProjects =
+    async ({
+      clearMessage = true,
+    } = {}) => {
+      try {
+        if (clearMessage) {
+          setMessage("");
+        }
+
+        const response =
+          await api.get(
+            "/superadmin/projects"
+          );
+
+        const rows =
+          response.data
+            ?.projects || [];
+
+        setProjects(rows);
+
+        return rows;
+      } catch (error) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          error.response?.data
+            ?.sqlMessage ||
+            error.response?.data
+              ?.message ||
+            error.response?.data
+              ?.error ||
+            "Failed to load projects."
+        );
+
+        return [];
       }
-
-      const response = await api.get(
-        "/superadmin/projects"
-      );
-
-      const result =
-        response.data?.projects || [];
-
-      setProjects(result);
-
-      return result;
-    } catch (error) {
-      setMessageType("error");
-
-      setMessage(
-        error.response?.data?.sqlMessage ||
-          error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to load projects."
-      );
-
-      return [];
-    }
-  };
+    };
 
   /* =========================================================
-     FETCH USERS
+     FETCH PROJECT OPTIONS
+
+     Departments
+     Divisions
+     All assignable users
   ========================================================= */
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get(
-        "/superadmin/users"
-      );
+  const fetchProjectOptions =
+    async () => {
+      try {
+        const response =
+          await api.get(
+            "/superadmin/project-options"
+          );
 
-      setUsers(
-        response.data?.users || []
-      );
-    } catch (error) {
-      setMessageType("error");
+        setDepartments(
+          response.data
+            ?.departments || []
+        );
 
-      setMessage(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Failed to load assignable users."
-      );
-    }
-  };
+        setUsers(
+          response.data?.users ||
+            []
+        );
+
+        setDivisions(
+          response.data
+            ?.divisions?.length
+            ? response.data
+                .divisions
+            : PROJECT_DIVISIONS
+        );
+      } catch (error) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            "Failed to load project departments and employees."
+        );
+      }
+    };
 
   /* =========================================================
      FETCH ALL
   ========================================================= */
 
-  const fetchAll = async () => {
-    try {
-      setLoading(true);
-      setMessage("");
+  const fetchAll =
+    async () => {
+      try {
+        setLoading(true);
+        setMessage("");
 
-      await Promise.all([
-        fetchProjects({
-          clearMessage: false,
-        }),
-        fetchUsers(),
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        await Promise.all([
+          fetchProjects({
+            clearMessage: false,
+          }),
+          fetchProjectOptions(),
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     fetchAll();
@@ -410,638 +610,941 @@ const SuperadminProjects = () => {
      PREPARED PROJECTS
   ========================================================= */
 
-  const preparedProjects = useMemo(() => {
-    return projects.map((project) => ({
-      ...project,
-
-      normalized_status:
-        resolveProjectStatus(project),
-
-      progress: getNumber(
-        project.overall_progress,
-        project.progress,
-        project.computed_progress
-      ),
-    }));
-  }, [projects]);
-
-  /* =========================================================
-     ASSIGNABLE USERS
-
-     All active:
-     - employee
-     - admin
-     - administrator
-
-     Superadmin is intentionally excluded.
-  ========================================================= */
-
-  const assignableUsers = useMemo(() => {
-    return users
-      .filter((user) => {
-        const role = String(
-          user.role_name || ""
-        ).toLowerCase();
-
-        const status = String(
-          user.status || "active"
-        ).toLowerCase();
-
-        return (
-          status === "active" &&
-          [
-            "employee",
-            "admin",
-            "administrator",
-          ].includes(role)
-        );
-      })
-      .sort((a, b) =>
-        String(a.full_name || "").localeCompare(
-          String(b.full_name || "")
-        )
-      );
-  }, [users]);
-
-  /* =========================================================
-     AVAILABLE DEPARTMENTS FOR NEW PROJECT
-  ========================================================= */
-
-  const departmentOptions = useMemo(() => {
-    const map = new Map();
-
-    assignableUsers.forEach((user) => {
-      if (
-        !user.department_id ||
-        !user.department_name
-      ) {
-        return;
-      }
-
-      const id = String(
-        user.department_id
-      );
-
-      if (!map.has(id)) {
-        map.set(id, {
-          department_id:
-            user.department_id,
-
-          department_name:
-            user.department_name,
-        });
-      }
-    });
-
-    return Array.from(
-      map.values()
-    ).sort((a, b) =>
-      String(
-        a.department_name
-      ).localeCompare(
-        String(
-          b.department_name
-        )
-      )
-    );
-  }, [assignableUsers]);
-
-  /* =========================================================
-     FILTER DROPDOWNS
-  ========================================================= */
-
-  const departments = useMemo(() => {
-    return Array.from(
-      new Set(
-        preparedProjects
-          .map(
-            (project) =>
-              project.department_name
-          )
-          .filter(Boolean)
-      )
-    ).sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }, [preparedProjects]);
-
-  const creators = useMemo(() => {
-    return Array.from(
-      new Set(
-        preparedProjects
-          .map(
-            (project) =>
-              project.created_by_name
-          )
-          .filter(Boolean)
-      )
-    ).sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }, [preparedProjects]);
-
-  /* =========================================================
-     PROJECT FILTER
-  ========================================================= */
-
-  const filteredProjects = useMemo(() => {
-    const term =
-      search.toLowerCase().trim();
-
-    return preparedProjects.filter(
-      (project) => {
-        const matchesSearch =
-          !term ||
-          String(
-            project.project_title || ""
-          )
-            .toLowerCase()
-            .includes(term) ||
-          String(
-            project.project_description ||
-              ""
-          )
-            .toLowerCase()
-            .includes(term) ||
-          String(
-            project.description || ""
-          )
-            .toLowerCase()
-            .includes(term) ||
-          String(
-            project.department_name || ""
-          )
-            .toLowerCase()
-            .includes(term) ||
-          String(
-            project.created_by_name || ""
-          )
-            .toLowerCase()
-            .includes(term) ||
-          String(
-            project.assigned_names || ""
-          )
-            .toLowerCase()
-            .includes(term) ||
-          String(
-            project.division || ""
-          )
-            .toLowerCase()
-            .includes(term);
-
-        const matchesDepartment =
-          department === "all" ||
-          project.department_name ===
-            department;
-
-        const matchesCreator =
-          creator === "all" ||
-          project.created_by_name === creator;
-
-        return (
-          matchesSearch &&
-          matchesDepartment &&
-          matchesCreator
-        );
-      }
-    );
-  }, [
-    preparedProjects,
-    search,
-    department,
-    creator,
-  ]);
-
-  /* =========================================================
-     GROUP PROJECTS
-  ========================================================= */
-
-  const groupedProjects = useMemo(() => {
-    return PROJECT_COLUMNS.reduce(
-      (result, column) => {
-        result[column.key] =
-          filteredProjects.filter(
-            (project) =>
-              project.normalized_status ===
-              column.key
-          );
-
-        return result;
-      },
-      {}
-    );
-  }, [filteredProjects]);
-
-  /* =========================================================
-     CREATE MODAL USER SEARCH
-  ========================================================= */
-
-  const filteredAssignUsers =
+  const preparedProjects =
     useMemo(() => {
-      const term =
-        assignSearch
-          .trim()
-          .toLowerCase();
+      return projects.map(
+        (project) => ({
+          ...project,
 
-      if (!term) {
-        return assignableUsers;
-      }
-
-      return assignableUsers.filter(
-        (user) => {
-          const searchable = [
-            user.full_name,
-            user.email,
-            user.employee_code,
-            user.department_name,
-            user.designation,
-            user.role_name,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-          return searchable.includes(
-            term
-          );
-        }
-      );
-    }, [
-      assignableUsers,
-      assignSearch,
-    ]);
-
-  /* =========================================================
-     EXISTING ASSIGNEE SEARCH
-  ========================================================= */
-
-  const filteredEditUsers =
-    useMemo(() => {
-      const term =
-        editAssigneeSearch
-          .trim()
-          .toLowerCase();
-
-      if (!term) {
-        return assignableUsers;
-      }
-
-      return assignableUsers.filter(
-        (user) => {
-          const searchable = [
-            user.full_name,
-            user.email,
-            user.employee_code,
-            user.department_name,
-            user.designation,
-            user.role_name,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-          return searchable.includes(
-            term
-          );
-        }
-      );
-    }, [
-      assignableUsers,
-      editAssigneeSearch,
-    ]);
-
-  /* =========================================================
-     TOGGLE NEW ASSIGNEE
-  ========================================================= */
-
-  const toggleNewProjectAssignee = (
-    userId
-  ) => {
-    const value = String(userId);
-
-    setNewProject((previous) => {
-      const selected = new Set(
-        previous.assignee_ids.map(String)
-      );
-
-      if (selected.has(value)) {
-        selected.delete(value);
-      } else {
-        selected.add(value);
-      }
-
-      return {
-        ...previous,
-
-        assignee_ids:
-          Array.from(selected),
-      };
-    });
-  };
-
-  /* =========================================================
-     TOGGLE EXISTING ASSIGNEE
-  ========================================================= */
-
-  const toggleEditAssignee = (
-    userId
-  ) => {
-    const value = String(userId);
-
-    setEditAssigneeIds(
-      (previous) => {
-        const selected = new Set(
-          previous.map(String)
-        );
-
-        if (selected.has(value)) {
-          selected.delete(value);
-        } else {
-          selected.add(value);
-        }
-
-        return Array.from(selected);
-      }
-    );
-  };
-
-  /* =========================================================
-     OPEN ASSIGN PROJECT MODAL
-  ========================================================= */
-
-  const openAssignProjectModal = () => {
-    setNewProject({
-      ...EMPTY_PROJECT_FORM,
-      assignee_ids: [],
-    });
-
-    setAssignSearch("");
-    setShowAssignModal(true);
-  };
-
-  /* =========================================================
-     CLOSE ASSIGN PROJECT MODAL
-  ========================================================= */
-
-  const closeAssignProjectModal = () => {
-    if (actionLoading) {
-      return;
-    }
-
-    setShowAssignModal(false);
-
-    setNewProject({
-      ...EMPTY_PROJECT_FORM,
-      assignee_ids: [],
-    });
-
-    setAssignSearch("");
-  };
-
-  /* =========================================================
-     CREATE + ASSIGN NEW PROJECT
-  ========================================================= */
-
-  const createProject = async () => {
-    setMessage("");
-
-    if (
-      !newProject.project_title.trim()
-    ) {
-      setMessageType("error");
-      setMessage(
-        "Project title is required."
-      );
-      return;
-    }
-
-    if (!newProject.department_id) {
-      setMessageType("error");
-      setMessage(
-        "Please select a project department."
-      );
-      return;
-    }
-
-    if (
-      !newProject.start_date ||
-      !newProject.due_date
-    ) {
-      setMessageType("error");
-      setMessage(
-        "Start date and due date are required."
-      );
-      return;
-    }
-
-    if (
-      newProject.due_date <
-      newProject.start_date
-    ) {
-      setMessageType("error");
-      setMessage(
-        "Due date cannot be before the start date."
-      );
-      return;
-    }
-
-    if (
-      !newProject.assignee_ids.length
-    ) {
-      setMessageType("error");
-      setMessage(
-        "Select at least one person for the project."
-      );
-      return;
-    }
-
-    try {
-      setActionLoading(true);
-
-      const response = await api.post(
-        "/superadmin/projects/assign",
-        {
-          project_title:
-            newProject.project_title.trim(),
-
-          project_description:
-            newProject.project_description.trim(),
-
-          department_id: Number(
-            newProject.department_id
-          ),
-
-          division:
-            newProject.division.trim() ||
-            null,
-
-          priority:
-            newProject.priority,
-
-          start_date:
-            newProject.start_date,
-
-          due_date:
-            newProject.due_date,
-
-          assignee_ids:
-            newProject.assignee_ids.map(
-              Number
+          normalized_status:
+            normalizeStatus(
+              project.status ||
+                project.project_status ||
+                project.status_group ||
+                project.normalized_status
             ),
+
+          progress:
+            getNumber(
+              project.overall_progress,
+              project.progress,
+              project.computed_progress
+            ),
+        })
+      );
+    }, [projects]);
+
+  /* =========================================================
+     CREATORS
+  ========================================================= */
+
+  const creators =
+    useMemo(() => {
+      return Array.from(
+        new Set(
+          preparedProjects
+            .map(
+              (project) =>
+                project.created_by_name
+            )
+            .filter(Boolean)
+        )
+      ).sort((a, b) =>
+        a.localeCompare(b)
+      );
+    }, [preparedProjects]);
+
+  /* =========================================================
+     FILTER PROJECTS
+  ========================================================= */
+
+  const filteredProjects =
+    useMemo(() => {
+      const term =
+        search
+          .trim()
+          .toLowerCase();
+
+      return preparedProjects.filter(
+        (project) => {
+          const matchesSearch =
+            !term ||
+            String(
+              project.project_title ||
+                ""
+            )
+              .toLowerCase()
+              .includes(term) ||
+            String(
+              project.project_description ||
+                ""
+            )
+              .toLowerCase()
+              .includes(term) ||
+            String(
+              project.department_name ||
+                ""
+            )
+              .toLowerCase()
+              .includes(term) ||
+            String(
+              project.created_by_name ||
+                ""
+            )
+              .toLowerCase()
+              .includes(term) ||
+            String(
+              project.assigned_names ||
+                ""
+            )
+              .toLowerCase()
+              .includes(term) ||
+            String(
+              project.division ||
+                ""
+            )
+              .toLowerCase()
+              .includes(term);
+
+          const matchesDepartment =
+            departmentFilter ===
+              "all" ||
+            project.department_name ===
+              departmentFilter;
+
+          const matchesCreator =
+            creatorFilter ===
+              "all" ||
+            project.created_by_name ===
+              creatorFilter;
+
+          return (
+            matchesSearch &&
+            matchesDepartment &&
+            matchesCreator
+          );
         }
       );
-
-      setMessageType("success");
-
-      setMessage(
-        response.data?.message ||
-          "Project assigned successfully."
-      );
-
-      setShowAssignModal(false);
-
-      setNewProject({
-        ...EMPTY_PROJECT_FORM,
-        assignee_ids: [],
-      });
-
-      setAssignSearch("");
-
-      await fetchProjects({
-        clearMessage: false,
-      });
-    } catch (error) {
-      setMessageType("error");
-
-      setMessage(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          error.response?.data
-            ?.sqlMessage ||
-          "Failed to assign project."
-      );
-    } finally {
-      setActionLoading(false);
-    }
-  };
+    }, [
+      preparedProjects,
+      search,
+      departmentFilter,
+      creatorFilter,
+    ]);
 
   /* =========================================================
-     OPEN EXISTING ASSIGNEE MANAGER
+     GROUP KANBAN
   ========================================================= */
 
-  const openAssigneeManager = () => {
-    if (!selectedProject) {
-      return;
-    }
+  const groupedProjects =
+    useMemo(() => {
+      return PROJECT_COLUMNS.reduce(
+        (
+          result,
+          column
+        ) => {
+          result[column.key] =
+            filteredProjects.filter(
+              (project) =>
+                project.normalized_status ===
+                column.key
+            );
 
-    setEditAssigneeIds(
-      parseAssignedIds(
-        selectedProject
-      )
-    );
-
-    setEditAssigneeSearch("");
-
-    setShowAssigneeManager(true);
-  };
+          return result;
+        },
+        {}
+      );
+    }, [filteredProjects]);
 
   /* =========================================================
-     SAVE EXISTING PROJECT ASSIGNEES
+     USER SEARCH - NEW PROJECT
   ========================================================= */
 
-  const saveProjectAssignees =
+  const filteredProjectUsers =
+    useMemo(() => {
+      const term =
+        projectAssigneeSearch
+          .trim()
+          .toLowerCase();
+
+      if (!term) {
+        return users;
+      }
+
+      return users.filter(
+        (user) =>
+          [
+            user.full_name,
+            user.email,
+            user.employee_code,
+            user.department_name,
+            user.designation,
+            user.role_name,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(term)
+      );
+    }, [
+      users,
+      projectAssigneeSearch,
+    ]);
+
+  /* =========================================================
+     USER SEARCH - MANAGE
+  ========================================================= */
+
+  const filteredManagedUsers =
+    useMemo(() => {
+      const term =
+        manageAssigneeSearch
+          .trim()
+          .toLowerCase();
+
+      if (!term) {
+        return users;
+      }
+
+      return users.filter(
+        (user) =>
+          [
+            user.full_name,
+            user.email,
+            user.employee_code,
+            user.department_name,
+            user.designation,
+            user.role_name,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .includes(term)
+      );
+    }, [
+      users,
+      manageAssigneeSearch,
+    ]);
+
+  /* =========================================================
+     TOGGLE NEW PROJECT ASSIGNEE
+  ========================================================= */
+
+  const toggleProjectAssignee =
+    (userId) => {
+      const value =
+        String(userId);
+
+      setNewProject(
+        (previous) => {
+          const selected =
+            new Set(
+              previous.assignee_ids.map(
+                String
+              )
+            );
+
+          if (
+            selected.has(value)
+          ) {
+            selected.delete(value);
+          } else {
+            selected.add(value);
+          }
+
+          return {
+            ...previous,
+
+            assignee_ids:
+              Array.from(
+                selected
+              ),
+          };
+        }
+      );
+    };
+
+  /* =========================================================
+     CREATE PROJECT
+  ========================================================= */
+
+  const createProject =
     async () => {
       if (
-        !selectedProject?.project_id
+        !newProject.project_title.trim()
       ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Project title is required."
+        );
+
         return;
       }
 
       if (
-        !editAssigneeIds.length
+        !newProject.department_id
       ) {
-        setMessageType("error");
+        setMessageType(
+          "error"
+        );
 
         setMessage(
-          "A project must have at least one assigned person."
+          "Please select a department."
+        );
+
+        return;
+      }
+
+      if (
+        !newProject.division
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Please select a division."
+        );
+
+        return;
+      }
+
+      if (
+        !newProject.start_date ||
+        !newProject.due_date
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Start date and due date are required."
+        );
+
+        return;
+      }
+
+      if (
+        newProject.due_date <
+        newProject.start_date
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Due date cannot be before start date."
+        );
+
+        return;
+      }
+
+      if (
+        !newProject
+          .assignee_ids.length
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Select at least one project assignee."
         );
 
         return;
       }
 
       try {
-        setActionLoading(true);
-
-        const response = await api.put(
-          `/superadmin/projects/${selectedProject.project_id}/assignees`,
-          {
-            assignee_ids:
-              editAssigneeIds.map(
-                Number
-              ),
-          }
+        setActionLoading(
+          true
         );
 
-        setMessageType("success");
+        const response =
+          await api.post(
+            "/superadmin/projects/assign",
+            {
+              ...newProject,
+
+              department_id:
+                Number(
+                  newProject.department_id
+                ),
+
+              assignee_ids:
+                newProject.assignee_ids.map(
+                  Number
+                ),
+            }
+          );
+
+        setMessageType(
+          "success"
+        );
 
         setMessage(
-          response.data?.message ||
-            "Project assignees updated successfully."
+          response.data
+            ?.message ||
+            "Project created successfully."
         );
 
-        setShowAssigneeManager(
+        setShowAssignProjectModal(
           false
         );
 
-        const refreshedProjects =
-          await fetchProjects({
-            clearMessage: false,
-          });
+        setNewProject({
+          ...EMPTY_PROJECT_FORM,
+        });
 
-        const refreshedProject =
-          refreshedProjects.find(
-            (project) =>
-              String(
-                project.project_id
-              ) ===
-              String(
-                selectedProject.project_id
-              )
-          );
+        setProjectAssigneeSearch(
+          ""
+        );
 
-        if (refreshedProject) {
-          setSelectedProject({
-            ...refreshedProject,
-
-            normalized_status:
-              resolveProjectStatus(
-                refreshedProject
-              ),
-
-            progress: getNumber(
-              refreshedProject.overall_progress,
-              refreshedProject.progress,
-              refreshedProject.computed_progress
-            ),
-          });
-        }
+        await fetchProjects({
+          clearMessage: false,
+        });
       } catch (error) {
-        setMessageType("error");
+        setMessageType(
+          "error"
+        );
 
         setMessage(
-          error.response?.data?.message ||
-            error.response?.data?.error ||
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
             error.response?.data
               ?.sqlMessage ||
-            "Failed to update project assignees."
+            "Failed to create project."
         );
       } finally {
-        setActionLoading(false);
+        setActionLoading(
+          false
+        );
       }
     };
 
   /* =========================================================
-     UI
+     OPEN COMPLETE PROJECT DETAILS
+  ========================================================= */
+
+  const openProjectDetails =
+    async (project) => {
+      try {
+        setDetailsLoading(
+          true
+        );
+
+        setMessage("");
+
+        const [
+          tasksResponse,
+          contextResponse,
+        ] = await Promise.all([
+          api.get(
+            "/superadmin/tasks"
+          ),
+
+          api.get(
+            `/superadmin/projects/${project.project_id}/context`
+          ),
+        ]);
+
+        const allTasks =
+          tasksResponse.data
+            ?.tasks || [];
+
+        const projectTasks =
+          allTasks.filter(
+            (task) =>
+              String(
+                task.project_id
+              ) ===
+              String(
+                project.project_id
+              )
+          );
+
+        const context =
+          contextResponse.data ||
+          {};
+
+        const completeProject =
+          {
+            ...project,
+
+            project_tasks:
+              projectTasks,
+
+            assignees:
+              context.assignees ||
+              [],
+
+            can_delete:
+              Boolean(
+                context.can_delete
+              ),
+          };
+
+        setSelectedProject(
+          completeProject
+        );
+
+        setNewMainTask({
+          ...EMPTY_MAIN_TASK_FORM,
+
+          start_date:
+            normalizeDateForInput(
+              project.start_date
+            ),
+
+          due_date:
+            normalizeDateForInput(
+              project.due_date
+            ),
+        });
+      } catch (error) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            "Failed to load complete project details."
+        );
+      } finally {
+        setDetailsLoading(
+          false
+        );
+      }
+    };
+
+  /* =========================================================
+     REFRESH OPEN PROJECT DETAILS
+  ========================================================= */
+
+  const refreshSelectedProject =
+    async () => {
+      if (
+        !selectedProject
+          ?.project_id
+      ) {
+        return;
+      }
+
+      const refreshed =
+        await fetchProjects({
+          clearMessage: false,
+        });
+
+      const project =
+        refreshed.find(
+          (item) =>
+            String(
+              item.project_id
+            ) ===
+            String(
+              selectedProject.project_id
+            )
+        );
+
+      if (project) {
+        await openProjectDetails(
+          project
+        );
+      }
+    };
+
+  /* =========================================================
+     MANAGE ASSIGNEES
+  ========================================================= */
+
+  const openManageAssignees =
+    () => {
+      const ids =
+        (
+          selectedProject
+            ?.assignees || []
+        )
+          .map(
+            (user) =>
+              String(
+                getUserId(user)
+              )
+          )
+          .filter(Boolean);
+
+      setManagedAssigneeIds(
+        ids
+      );
+
+      setManageAssigneeSearch(
+        ""
+      );
+
+      setShowManageAssignees(
+        true
+      );
+    };
+
+  const toggleManagedAssignee =
+    (userId) => {
+      const value =
+        String(userId);
+
+      setManagedAssigneeIds(
+        (previous) => {
+          const selected =
+            new Set(
+              previous.map(
+                String
+              )
+            );
+
+          if (
+            selected.has(value)
+          ) {
+            selected.delete(value);
+          } else {
+            selected.add(value);
+          }
+
+          return Array.from(
+            selected
+          );
+        }
+      );
+    };
+
+  const saveManagedAssignees =
+    async () => {
+      if (
+        !managedAssigneeIds.length
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Project must have at least one assignee."
+        );
+
+        return;
+      }
+
+      try {
+        setActionLoading(
+          true
+        );
+
+        const response =
+          await api.put(
+            `/superadmin/projects/${selectedProject.project_id}/assignees`,
+            {
+              assignee_ids:
+                managedAssigneeIds.map(
+                  Number
+                ),
+            }
+          );
+
+        setMessageType(
+          "success"
+        );
+
+        setMessage(
+          response.data
+            ?.message ||
+            "Project assignees updated."
+        );
+
+        setShowManageAssignees(
+          false
+        );
+
+        await refreshSelectedProject();
+      } catch (error) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            "Failed to update project assignees."
+        );
+      } finally {
+        setActionLoading(
+          false
+        );
+      }
+    };
+
+  /* =========================================================
+     MAIN TASK ASSIGNEE
+  ========================================================= */
+
+  const toggleMainTaskAssignee =
+    (userId) => {
+      const value =
+        String(userId);
+
+      setNewMainTask(
+        (previous) => {
+          const selected =
+            new Set(
+              previous.assignee_ids.map(
+                String
+              )
+            );
+
+          if (
+            selected.has(value)
+          ) {
+            selected.delete(value);
+          } else {
+            selected.add(value);
+          }
+
+          return {
+            ...previous,
+
+            assignee_ids:
+              Array.from(
+                selected
+              ),
+          };
+        }
+      );
+    };
+
+  /* =========================================================
+     ADD MAIN TASK
+  ========================================================= */
+
+  const addMainTask =
+    async () => {
+      if (
+        !selectedProject
+          ?.project_id
+      ) {
+        return;
+      }
+
+      if (
+        !newMainTask.task_title.trim()
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Main Task title is required."
+        );
+
+        return;
+      }
+
+      if (
+        !newMainTask
+          .assignee_ids.length
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Select at least one Main Task assignee."
+        );
+
+        return;
+      }
+
+      if (
+        !newMainTask.start_date ||
+        !newMainTask.due_date
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Main Task start date and due date are required."
+        );
+
+        return;
+      }
+
+      if (
+        newMainTask.due_date <
+        newMainTask.start_date
+      ) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          "Main Task due date cannot be before the start date."
+        );
+
+        return;
+      }
+
+      try {
+        setActionLoading(
+          true
+        );
+
+        const response =
+          await api.post(
+            `/superadmin/projects/${selectedProject.project_id}/tasks`,
+            {
+              project_id:
+                selectedProject.project_id,
+
+              task_title:
+                newMainTask.task_title.trim(),
+
+              task_description:
+                newMainTask.task_description.trim(),
+
+              priority:
+                newMainTask.priority,
+
+              start_date:
+                newMainTask.start_date,
+
+              due_date:
+                newMainTask.due_date,
+
+              assignee_ids:
+                newMainTask.assignee_ids.map(
+                  Number
+                ),
+            }
+          );
+
+        setMessageType(
+          "success"
+        );
+
+        setMessage(
+          response.data
+            ?.message ||
+            "Main Task assigned successfully."
+        );
+
+        setNewMainTask({
+          ...EMPTY_MAIN_TASK_FORM,
+
+          start_date:
+            normalizeDateForInput(
+              selectedProject.start_date
+            ),
+
+          due_date:
+            normalizeDateForInput(
+              selectedProject.due_date
+            ),
+        });
+
+        await refreshSelectedProject();
+      } catch (error) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            "Failed to assign Main Task."
+        );
+      } finally {
+        setActionLoading(
+          false
+        );
+      }
+    };
+
+  /* =========================================================
+     DELETE OWN PROJECT
+  ========================================================= */
+
+  const deleteProject =
+    async () => {
+      if (
+        !selectedProject
+          ?.project_id
+      ) {
+        return;
+      }
+
+      const confirmed =
+        window.confirm(
+          `Delete "${selectedProject.project_title}"?\n\nThis will delete the project and its project data. This cannot be undone.`
+        );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        setActionLoading(
+          true
+        );
+
+        const response =
+          await api.delete(
+            `/superadmin/projects/${selectedProject.project_id}`
+          );
+
+        setMessageType(
+          "success"
+        );
+
+        setMessage(
+          response.data
+            ?.message ||
+            "Project deleted successfully."
+        );
+
+        setSelectedProject(
+          null
+        );
+
+        await fetchProjects({
+          clearMessage: false,
+        });
+      } catch (error) {
+        setMessageType(
+          "error"
+        );
+
+        setMessage(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            "Failed to delete project."
+        );
+      } finally {
+        setActionLoading(
+          false
+        );
+      }
+    };
+
+  /* =========================================================
+     RENDER
   ========================================================= */
 
   return (
@@ -1050,13 +1553,17 @@ const SuperadminProjects = () => {
 
       <header className="sa-projects-header">
         <div>
-          <h1>All Projects</h1>
+          <h1>
+            All Projects
+          </h1>
 
           <p>
-            View projects across every
-            department and assign new
-            projects to anyone in the
-            organization.
+            View every project,
+            complete project details,
+            tasks, subtasks and
+            assignees. Superadmin can
+            also create projects and
+            assign Main Tasks.
           </p>
         </div>
 
@@ -1064,9 +1571,19 @@ const SuperadminProjects = () => {
           <button
             type="button"
             className="sa-projects-assign-btn"
-            onClick={
-              openAssignProjectModal
-            }
+            onClick={() => {
+              setNewProject({
+                ...EMPTY_PROJECT_FORM,
+              });
+
+              setProjectAssigneeSearch(
+                ""
+              );
+
+              setShowAssignProjectModal(
+                true
+              );
+            }}
           >
             <Plus size={18} />
             Assign Project
@@ -1088,7 +1605,8 @@ const SuperadminProjects = () => {
       {message && (
         <div
           className={`sa-projects-message ${
-            messageType === "success"
+            messageType ===
+            "success"
               ? "success"
               : "error"
           }`}
@@ -1097,7 +1615,7 @@ const SuperadminProjects = () => {
         </div>
       )}
 
-      {/* FILTER TOOLBAR */}
+      {/* FILTERS */}
 
       <section className="sa-projects-toolbar">
         <label className="sa-projects-search">
@@ -1111,54 +1629,64 @@ const SuperadminProjects = () => {
                 event.target.value
               )
             }
-            placeholder="Search project, creator, assignee, department..."
+            placeholder="Search project, creator, assignee, department, division..."
           />
         </label>
 
         <select
-          value={department}
+          value={
+            departmentFilter
+          }
           onChange={(event) =>
-            setDepartment(
+            setDepartmentFilter(
               event.target.value
             )
           }
-          aria-label="Filter projects by department"
         >
           <option value="all">
             All Departments
           </option>
 
-          {departments.map((item) => (
-            <option
-              key={item}
-              value={item}
-            >
-              {item}
-            </option>
-          ))}
+          {departments.map(
+            (item) => (
+              <option
+                key={
+                  item.department_id
+                }
+                value={
+                  item.department_name
+                }
+              >
+                {
+                  item.department_name
+                }
+              </option>
+            )
+          )}
         </select>
 
         <select
-          value={creator}
+          value={creatorFilter}
           onChange={(event) =>
-            setCreator(
+            setCreatorFilter(
               event.target.value
             )
           }
-          aria-label="Filter projects by creator"
         >
           <option value="all">
             All Creators
           </option>
 
-          {creators.map((item) => (
-            <option
-              key={item}
-              value={item}
-            >
-              {item}
-            </option>
-          ))}
+          {creators.map(
+            (item) => (
+              <option
+                key={item}
+                value={item}
+              >
+                {item}
+              </option>
+            )
+          )}
         </select>
       </section>
 
@@ -1169,16 +1697,13 @@ const SuperadminProjects = () => {
           Loading projects...
         </div>
       ) : (
-        <section
-          className="sa-projects-board"
-          aria-label="Project Kanban Board"
-        >
+        <section className="sa-projects-board">
           {PROJECT_COLUMNS.map(
             (column) => {
               const ColumnIcon =
                 column.icon;
 
-              const columnProjects =
+              const rows =
                 groupedProjects[
                   column.key
                 ] || [];
@@ -1202,14 +1727,12 @@ const SuperadminProjects = () => {
                     </div>
 
                     <span className="sa-projects-column-count">
-                      {
-                        columnProjects.length
-                      }
+                      {rows.length}
                     </span>
                   </div>
 
                   <div className="sa-projects-column-list">
-                    {columnProjects.map(
+                    {rows.map(
                       (project) => (
                         <ProjectCard
                           key={
@@ -1219,7 +1742,7 @@ const SuperadminProjects = () => {
                             project
                           }
                           onClick={() =>
-                            setSelectedProject(
+                            openProjectDetails(
                               project
                             )
                           }
@@ -1227,7 +1750,7 @@ const SuperadminProjects = () => {
                       )
                     )}
 
-                    {!columnProjects.length && (
+                    {!rows.length && (
                       <div className="sa-projects-column-empty">
                         No{" "}
                         {column.label.toLowerCase()}{" "}
@@ -1242,74 +1765,130 @@ const SuperadminProjects = () => {
         </section>
       )}
 
+      {/* DETAILS LOADING */}
+
+      {detailsLoading && (
+        <div className="sa-project-modal-backdrop">
+          <div className="sa-project-loading-box">
+            Loading complete project
+            details...
+          </div>
+        </div>
+      )}
+
       {/* PROJECT DETAILS */}
 
-      {selectedProject && (
-        <ProjectDetailsModal
-          project={selectedProject}
-          onClose={() =>
-            setSelectedProject(null)
-          }
-          onManageAssignees={
-            openAssigneeManager
-          }
-        />
-      )}
+      {selectedProject &&
+        !detailsLoading && (
+          <ProjectDetailsModal
+            project={
+              selectedProject
+            }
+            newMainTask={
+              newMainTask
+            }
+            setNewMainTask={
+              setNewMainTask
+            }
+            onToggleMainTaskAssignee={
+              toggleMainTaskAssignee
+            }
+            onAddMainTask={
+              addMainTask
+            }
+            onManageAssignees={
+              openManageAssignees
+            }
+            onDelete={
+              deleteProject
+            }
+            onClose={() =>
+              setSelectedProject(
+                null
+              )
+            }
+            loading={
+              actionLoading
+            }
+          />
+        )}
 
-      {/* ASSIGN NEW PROJECT */}
+      {/* NEW PROJECT */}
 
-      {showAssignModal && (
+      {showAssignProjectModal && (
         <AssignProjectModal
           project={newProject}
-          setProject={setNewProject}
-          users={filteredAssignUsers}
-          assignSearch={assignSearch}
-          setAssignSearch={
-            setAssignSearch
+          setProject={
+            setNewProject
           }
-          departmentOptions={
-            departmentOptions
+          departments={
+            departments
           }
-          onToggleAssignee={
-            toggleNewProjectAssignee
-          }
-          onClose={
-            closeAssignProjectModal
-          }
-          onSave={createProject}
-          loading={actionLoading}
-        />
-      )}
-
-      {/* MANAGE EXISTING ASSIGNEES */}
-
-      {showAssigneeManager && (
-        <ManageAssigneesModal
-          project={selectedProject}
-          users={filteredEditUsers}
-          selectedIds={
-            editAssigneeIds
+          divisions={divisions}
+          users={
+            filteredProjectUsers
           }
           search={
-            editAssigneeSearch
+            projectAssigneeSearch
           }
           setSearch={
-            setEditAssigneeSearch
+            setProjectAssigneeSearch
           }
-          onToggle={
-            toggleEditAssignee
+          onToggleAssignee={
+            toggleProjectAssignee
+          }
+          onSave={
+            createProject
           }
           onClose={() => {
-            if (!actionLoading) {
-              setShowAssigneeManager(
+            if (
+              !actionLoading
+            ) {
+              setShowAssignProjectModal(
                 false
               );
             }
           }}
-          onSave={
-            saveProjectAssignees
+          loading={
+            actionLoading
           }
-          loading={actionLoading}
+        />
+      )}
+
+      {/* MANAGE PROJECT ASSIGNEES */}
+
+      {showManageAssignees && (
+        <ManageAssigneesModal
+          users={
+            filteredManagedUsers
+          }
+          selectedIds={
+            managedAssigneeIds
+          }
+          search={
+            manageAssigneeSearch
+          }
+          setSearch={
+            setManageAssigneeSearch
+          }
+          onToggle={
+            toggleManagedAssignee
+          }
+          onSave={
+            saveManagedAssignees
+          }
+          onClose={() => {
+            if (
+              !actionLoading
+            ) {
+              setShowManageAssignees(
+                false
+              );
+            }
+          }}
+          loading={
+            actionLoading
+          }
         />
       )}
     </div>
@@ -1348,7 +1927,7 @@ const ProjectCard = ({
         {overdue && (
           <span className="sa-project-overdue">
             <AlertTriangle
-              size={12}
+              size={11}
             />
             Overdue
           </span>
@@ -1356,7 +1935,9 @@ const ProjectCard = ({
       </div>
 
       <div className="sa-project-info-box">
-        <span>Department</span>
+        <span>
+          Department
+        </span>
 
         <strong>
           {project.department_name ||
@@ -1365,7 +1946,19 @@ const ProjectCard = ({
       </div>
 
       <div className="sa-project-info-box">
-        <span>Created By</span>
+        <span>
+          Division
+        </span>
+
+        <strong>
+          {project.division || "-"}
+        </strong>
+      </div>
+
+      <div className="sa-project-info-box">
+        <span>
+          Created By
+        </span>
 
         <strong>
           {project.created_by_name ||
@@ -1374,7 +1967,9 @@ const ProjectCard = ({
       </div>
 
       <div className="sa-project-info-box">
-        <span>Assigned To</span>
+        <span>
+          Assigned To
+        </span>
 
         <strong>
           {project.assigned_names ||
@@ -1384,25 +1979,25 @@ const ProjectCard = ({
 
       <div className="sa-project-date-grid">
         <div>
-          <span>Start Date</span>
+          <span>
+            Start Date
+          </span>
 
           <strong>
             {formatDate(
-              project.start_date ||
-                project.project_start_date ||
-                project.created_at
+              project.start_date
             )}
           </strong>
         </div>
 
         <div>
-          <span>Due Date</span>
+          <span>
+            Due Date
+          </span>
 
           <strong>
             {formatDate(
-              project.due_date ||
-                project.end_date ||
-                project.project_end_date
+              project.due_date
             )}
           </strong>
         </div>
@@ -1410,7 +2005,9 @@ const ProjectCard = ({
 
       <div className="sa-project-progress">
         <div>
-          <span>Progress</span>
+          <span>
+            Progress
+          </span>
 
           <strong>
             {project.progress}%
@@ -1420,9 +2017,7 @@ const ProjectCard = ({
         <progress
           value={project.progress}
           max="100"
-        >
-          {project.progress}%
-        </progress>
+        />
       </div>
 
       <div className="sa-project-card-footer">
@@ -1443,16 +2038,29 @@ const ProjectCard = ({
 };
 
 /* =========================================================
-   PROJECT DETAILS
+   PROJECT DETAILS MODAL
 ========================================================= */
 
 const ProjectDetailsModal = ({
   project,
-  onClose,
+  newMainTask,
+  setNewMainTask,
+  onToggleMainTaskAssignee,
+  onAddMainTask,
   onManageAssignees,
+  onDelete,
+  onClose,
+  loading,
 }) => {
   const overdue =
     isProjectOverdue(project);
+
+  const tasks =
+    project.project_tasks ||
+    [];
+
+  const assignees =
+    project.assignees || [];
 
   return (
     <div
@@ -1467,6 +2075,8 @@ const ProjectDetailsModal = ({
       }}
     >
       <div className="sa-project-modal">
+        {/* HEADER */}
+
         <div className="sa-project-modal-header">
           <div>
             <div className="sa-project-modal-title-row">
@@ -1487,22 +2097,35 @@ const ProjectDetailsModal = ({
 
             <p>
               {statusLabel(
-                project.normalized_status
+                project.normalized_status ||
+                  project.status
               )}
             </p>
           </div>
 
-          <div className="sa-project-modal-header-actions">
+          <div className="sa-project-modal-actions">
             <button
               type="button"
-              className="sa-project-manage-users-btn"
+              className="sa-project-manage-btn"
               onClick={
                 onManageAssignees
               }
             >
-              <UserPlus size={17} />
+              <Users size={17} />
               Manage Assignees
             </button>
+
+            {project.can_delete && (
+              <button
+                type="button"
+                className="sa-project-delete-btn"
+                onClick={onDelete}
+                disabled={loading}
+              >
+                <Trash2 size={17} />
+                Delete
+              </button>
+            )}
 
             <button
               type="button"
@@ -1515,11 +2138,14 @@ const ProjectDetailsModal = ({
           </div>
         </div>
 
+        {/* PROJECT DETAILS */}
+
         <div className="sa-project-detail-grid">
           <DetailBox
             label="Status"
             value={statusLabel(
-              project.normalized_status
+              project.status ||
+                project.normalized_status
             )}
           />
 
@@ -1538,7 +2164,14 @@ const ProjectDetailsModal = ({
           <DetailBox
             label="Division"
             value={
-              project.division || "-"
+              project.division
+            }
+          />
+
+          <DetailBox
+            label="Priority"
+            value={
+              project.priority
             }
           />
 
@@ -1557,41 +2190,24 @@ const ProjectDetailsModal = ({
           />
 
           <DetailBox
-            label="Assigned To"
-            value={
-              project.assigned_names
-            }
-          />
-
-          <DetailBox
-            label="Assigned Emails"
-            value={
-              project.assigned_emails
-            }
-          />
-
-          <DetailBox
             label="Start Date"
             value={formatDate(
-              project.start_date ||
-                project.project_start_date ||
-                project.created_at
+              project.start_date
             )}
           />
 
           <DetailBox
             label="Due Date"
             value={formatDate(
-              project.due_date ||
-                project.end_date ||
-                project.project_end_date
+              project.due_date
             )}
           />
 
           <DetailBox
             label="Total Tasks"
             value={
-              project.total_tasks || 0
+              project.total_tasks ||
+              tasks.length
             }
           />
 
@@ -1606,11 +2222,11 @@ const ProjectDetailsModal = ({
 
         <div className="sa-project-modal-progress">
           <progress
-            value={project.progress}
+            value={
+              project.progress
+            }
             max="100"
-          >
-            {project.progress}%
-          </progress>
+          />
 
           <span>
             Project Progress:{" "}
@@ -1618,9 +2234,11 @@ const ProjectDetailsModal = ({
           </span>
         </div>
 
+        {/* DESCRIPTION */}
+
         <section className="sa-project-modal-section">
           <h3>
-            Description
+            Project Description
           </h3>
 
           <p>
@@ -1630,46 +2248,495 @@ const ProjectDetailsModal = ({
           </p>
         </section>
 
-        {project.normalized_status ===
-          "on_hold" && (
-          <div className="sa-project-status-notice hold">
-            <PauseCircle
-              size={18}
+        {/* ASSIGNEES */}
+
+        <section className="sa-project-modal-section">
+          <h3 className="sa-project-section-heading">
+            <Users size={20} />
+            Project Assignees
+          </h3>
+
+          {assignees.length ? (
+            <div className="sa-project-detail-assignees">
+              {assignees.map(
+                (user) => (
+                  <div
+                    key={getUserId(
+                      user
+                    )}
+                    className="sa-project-detail-assignee"
+                  >
+                    <div className="sa-project-detail-assignee-icon">
+                      <Users
+                        size={17}
+                      />
+                    </div>
+
+                    <div>
+                      <strong>
+                        {getUserName(
+                          user
+                        )}
+                      </strong>
+
+                      <span>
+                        {user.email ||
+                          "-"}
+                      </span>
+
+                      <small>
+                        {user.department_name ||
+                          "No Department"}{" "}
+                        ·{" "}
+                        {user.designation ||
+                          user.role_name ||
+                          "-"}
+                      </small>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="sa-projects-empty">
+              No project assignees.
+            </div>
+          )}
+        </section>
+
+        {/* ADD MAIN TASK */}
+
+        <section className="sa-project-modal-section">
+          <h3 className="sa-project-section-heading">
+            <Plus size={20} />
+            Assign Main Task
+          </h3>
+
+          <p className="sa-project-section-help">
+            Main Tasks can only be
+            assigned to people already
+            assigned to this project.
+          </p>
+
+          <div className="sa-main-task-form-grid">
+            <label className="sa-project-field sa-main-task-title">
+              <span>
+                Main Task Title
+              </span>
+
+              <input
+                type="text"
+                value={
+                  newMainTask.task_title
+                }
+                onChange={(event) =>
+                  setNewMainTask(
+                    (previous) => ({
+                      ...previous,
+
+                      task_title:
+                        event.target
+                          .value,
+                    })
+                  )
+                }
+                placeholder="Enter Main Task title"
+              />
+            </label>
+
+            <label className="sa-project-field">
+              <span>
+                Priority
+              </span>
+
+              <select
+                value={
+                  newMainTask.priority
+                }
+                onChange={(event) =>
+                  setNewMainTask(
+                    (previous) => ({
+                      ...previous,
+
+                      priority:
+                        event.target
+                          .value,
+                    })
+                  )
+                }
+              >
+                <option value="low">
+                  Low
+                </option>
+
+                <option value="medium">
+                  Medium
+                </option>
+
+                <option value="high">
+                  High
+                </option>
+              </select>
+            </label>
+
+            <label className="sa-project-field">
+              <span>
+                Start Date
+              </span>
+
+              <input
+                type="date"
+                min={normalizeDateForInput(
+                  project.start_date
+                )}
+                max={normalizeDateForInput(
+                  project.due_date
+                )}
+                value={
+                  newMainTask.start_date
+                }
+                onChange={(event) =>
+                  setNewMainTask(
+                    (previous) => ({
+                      ...previous,
+
+                      start_date:
+                        event.target
+                          .value,
+                    })
+                  )
+                }
+              />
+            </label>
+
+            <label className="sa-project-field">
+              <span>
+                Due Date
+              </span>
+
+              <input
+                type="date"
+                min={
+                  newMainTask.start_date ||
+                  normalizeDateForInput(
+                    project.start_date
+                  )
+                }
+                max={normalizeDateForInput(
+                  project.due_date
+                )}
+                value={
+                  newMainTask.due_date
+                }
+                onChange={(event) =>
+                  setNewMainTask(
+                    (previous) => ({
+                      ...previous,
+
+                      due_date:
+                        event.target
+                          .value,
+                    })
+                  )
+                }
+              />
+            </label>
+
+            <label className="sa-project-field sa-project-field-full">
+              <span>
+                Main Task Description
+              </span>
+
+              <textarea
+                value={
+                  newMainTask.task_description
+                }
+                onChange={(event) =>
+                  setNewMainTask(
+                    (previous) => ({
+                      ...previous,
+
+                      task_description:
+                        event.target
+                          .value,
+                    })
+                  )
+                }
+                placeholder="Enter Main Task details..."
+              />
+            </label>
+          </div>
+
+          <div className="sa-main-task-assignee-title">
+            Select Task Assignees
+          </div>
+
+          <div className="sa-main-task-assignees">
+            {assignees.map(
+              (user) => {
+                const id =
+                  String(
+                    getUserId(
+                      user
+                    )
+                  );
+
+                const selected =
+                  newMainTask.assignee_ids
+                    .map(String)
+                    .includes(id);
+
+                return (
+                  <button
+                    type="button"
+                    key={id}
+                    className={`sa-main-task-assignee ${
+                      selected
+                        ? "selected"
+                        : ""
+                    }`}
+                    onClick={() =>
+                      onToggleMainTaskAssignee(
+                        id
+                      )
+                    }
+                  >
+                    <span className="sa-project-checkbox">
+                      {selected && (
+                        <Check
+                          size={14}
+                        />
+                      )}
+                    </span>
+
+                    <div>
+                      <strong>
+                        {getUserName(
+                          user
+                        )}
+                      </strong>
+
+                      <small>
+                        {user.department_name ||
+                          "-"}
+                      </small>
+                    </div>
+                  </button>
+                );
+              }
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="sa-main-task-add-btn"
+            onClick={
+              onAddMainTask
+            }
+            disabled={loading}
+          >
+            <Plus size={18} />
+
+            {loading
+              ? "Assigning..."
+              : "Assign Main Task"}
+          </button>
+        </section>
+
+        {/* TASKS + SUBTASKS */}
+
+        <section className="sa-project-modal-section">
+          <h3 className="sa-project-section-heading">
+            <ClipboardList
+              size={20}
             />
+            Project Tasks
+          </h3>
 
-            This project is currently
-            on hold.
-          </div>
-        )}
-
-        {project.normalized_status ===
-          "rejected" && (
-          <div className="sa-project-status-notice rejected">
-            <XCircle size={18} />
-
-            This project has been
-            rejected.
-          </div>
-        )}
+          {tasks.length ? (
+            <div className="sa-project-task-list">
+              {tasks.map(
+                (task) => (
+                  <ProjectTaskCard
+                    key={
+                      task.task_id
+                    }
+                    task={task}
+                  />
+                )
+              )}
+            </div>
+          ) : (
+            <div className="sa-projects-empty">
+              No tasks added to this
+              project.
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
 };
 
 /* =========================================================
-   ASSIGN NEW PROJECT MODAL
+   PROJECT TASK + SUBTASKS
+========================================================= */
+
+const ProjectTaskCard = ({
+  task,
+}) => {
+  const subtasks =
+    task.subtasks || [];
+
+  const progress =
+    getNumber(task.progress);
+
+  return (
+    <article className="sa-project-task-detail-card">
+      <div className="sa-project-task-detail-top">
+        <div>
+          <h4>
+            {task.task_title ||
+              "Untitled Task"}
+          </h4>
+
+          <p>
+            {task.task_description ||
+              "No description."}
+          </p>
+        </div>
+
+        <span className="sa-project-task-status">
+          {taskStatusLabel(
+            task.status_group ||
+              task.status
+          )}
+        </span>
+      </div>
+
+      <div className="sa-project-task-meta-grid">
+        <TaskMetaBox
+          label="Assignee"
+          value={
+            task.assignee_name
+          }
+        />
+
+        <TaskMetaBox
+          label="Assigned By"
+          value={
+            task.assigned_by_name
+          }
+        />
+
+        <TaskMetaBox
+          label="Start Date"
+          value={formatDate(
+            task.start_date
+          )}
+        />
+
+        <TaskMetaBox
+          label="Due Date"
+          value={formatDate(
+            task.due_date
+          )}
+        />
+
+        <TaskMetaBox
+          label="Progress"
+          value={`${progress}%`}
+        />
+
+        <TaskMetaBox
+          label="Subtasks"
+          value={`${
+            task.completed_subtasks ||
+            0
+          }/${
+            task.total_subtasks ||
+            subtasks.length ||
+            0
+          }`}
+        />
+      </div>
+
+      <progress
+        className="sa-project-task-progress"
+        value={progress}
+        max="100"
+      />
+
+      <div className="sa-project-subtask-heading">
+        Subtasks
+      </div>
+
+      {subtasks.length ? (
+        <div className="sa-project-subtask-list">
+          {subtasks.map(
+            (subtask) => (
+              <div
+                key={
+                  subtask.task_id
+                }
+                className="sa-project-subtask-row"
+              >
+                <div>
+                  <strong>
+                    {subtask.task_title ||
+                      "-"}
+                  </strong>
+
+                  <span>
+                    {formatDate(
+                      subtask.start_date
+                    )}{" "}
+                    →{" "}
+                    {formatDate(
+                      subtask.due_date
+                    )}
+                  </span>
+                </div>
+
+                <span
+                  className={`sa-project-subtask-status ${
+                    subtask.is_checked
+                      ? "done"
+                      : ""
+                  }`}
+                >
+                  {subtask.is_checked
+                    ? "Completed"
+                    : "Pending"}
+                </span>
+              </div>
+            )
+          )}
+        </div>
+      ) : (
+        <div className="sa-project-no-subtasks">
+          No subtasks.
+        </div>
+      )}
+    </article>
+  );
+};
+
+/* =========================================================
+   ASSIGN PROJECT MODAL
 ========================================================= */
 
 const AssignProjectModal = ({
   project,
   setProject,
+  departments,
+  divisions,
   users,
-  assignSearch,
-  setAssignSearch,
-  departmentOptions,
+  search,
+  setSearch,
   onToggleAssignee,
-  onClose,
   onSave,
+  onClose,
   loading,
 }) => {
   return (
@@ -1693,17 +2760,16 @@ const AssignProjectModal = ({
             </h2>
 
             <p>
-              Superadmin can assign a
-              project to users from any
-              department.
+              Create the project and
+              assign it to users from
+              any department.
             </p>
           </div>
 
           <button
             type="button"
-            className="sa-project-assignment-close"
             onClick={onClose}
-            disabled={loading}
+            className="sa-project-assignment-close"
           >
             <X size={19} />
           </button>
@@ -1716,7 +2782,6 @@ const AssignProjectModal = ({
             </span>
 
             <input
-              type="text"
               value={
                 project.project_title
               }
@@ -1734,6 +2799,8 @@ const AssignProjectModal = ({
               placeholder="Enter project title"
             />
           </label>
+
+          {/* DEPARTMENT */}
 
           <label className="sa-project-field">
             <span>
@@ -1760,7 +2827,7 @@ const AssignProjectModal = ({
                 Select Department
               </option>
 
-              {departmentOptions.map(
+              {departments.map(
                 (item) => (
                   <option
                     key={
@@ -1779,13 +2846,14 @@ const AssignProjectModal = ({
             </select>
           </label>
 
+          {/* DIVISION */}
+
           <label className="sa-project-field">
             <span>
               Division
             </span>
 
-            <input
-              type="text"
+            <select
               value={
                 project.division
               }
@@ -1800,8 +2868,22 @@ const AssignProjectModal = ({
                   })
                 )
               }
-              placeholder="POS, NutraCare, ADV..."
-            />
+            >
+              <option value="">
+                Select Division
+              </option>
+
+              {divisions.map(
+                (division) => (
+                  <option
+                    key={division}
+                    value={division}
+                  >
+                    {division}
+                  </option>
+                )
+              )}
+            </select>
           </label>
 
           <label className="sa-project-field">
@@ -1857,14 +2939,6 @@ const AssignProjectModal = ({
                     start_date:
                       event.target
                         .value,
-
-                    due_date:
-                      previous.due_date &&
-                      previous.due_date <
-                        event.target
-                          .value
-                        ? ""
-                        : previous.due_date,
                   })
                 )
               }
@@ -1924,6 +2998,8 @@ const AssignProjectModal = ({
           </label>
         </div>
 
+        {/* ASSIGNEES */}
+
         <div className="sa-project-assignee-panel">
           <div className="sa-project-assignee-panel-header">
             <div>
@@ -1934,8 +3010,7 @@ const AssignProjectModal = ({
               <p>
                 Selected:{" "}
                 {
-                  project
-                    .assignee_ids
+                  project.assignee_ids
                     .length
                 }
               </p>
@@ -1945,14 +3020,14 @@ const AssignProjectModal = ({
               <Search size={17} />
 
               <input
-                value={assignSearch}
+                value={search}
                 onChange={(event) =>
-                  setAssignSearch(
+                  setSearch(
                     event.target
                       .value
                   )
                 }
-                placeholder="Search people..."
+                placeholder="Search employees..."
               />
             </label>
           </div>
@@ -1960,21 +3035,24 @@ const AssignProjectModal = ({
           <div className="sa-project-assignee-list">
             {users.length ? (
               users.map((user) => {
+                const userId =
+                  String(
+                    getUserId(
+                      user
+                    )
+                  );
+
                 const selected =
                   project.assignee_ids
                     .map(String)
                     .includes(
-                      String(
-                        user.user_id
-                      )
+                      userId
                     );
 
                 return (
                   <button
                     type="button"
-                    key={
-                      user.user_id
-                    }
+                    key={userId}
                     className={`sa-project-assignee-card ${
                       selected
                         ? "selected"
@@ -1982,22 +3060,23 @@ const AssignProjectModal = ({
                     }`}
                     onClick={() =>
                       onToggleAssignee(
-                        user.user_id
+                        userId
                       )
                     }
                   >
-                    <span className="sa-project-assignee-checkbox">
+                    <span className="sa-project-checkbox">
                       {selected && (
                         <Check
-                          size={15}
+                          size={14}
                         />
                       )}
                     </span>
 
-                    <div className="sa-project-assignee-copy">
+                    <div>
                       <strong>
-                        {user.full_name ||
-                          "-"}
+                        {getUserName(
+                          user
+                        )}
                       </strong>
 
                       <span>
@@ -2017,7 +3096,7 @@ const AssignProjectModal = ({
                 );
               })
             ) : (
-              <div className="sa-project-assignee-empty">
+              <div className="sa-projects-empty">
                 No matching users.
               </div>
             )}
@@ -2029,7 +3108,6 @@ const AssignProjectModal = ({
             type="button"
             className="sa-project-assignment-cancel"
             onClick={onClose}
-            disabled={loading}
           >
             Cancel
           </button>
@@ -2053,43 +3131,32 @@ const AssignProjectModal = ({
 };
 
 /* =========================================================
-   MANAGE EXISTING ASSIGNEES
+   MANAGE ASSIGNEES
 ========================================================= */
 
 const ManageAssigneesModal = ({
-  project,
   users,
   selectedIds,
   search,
   setSearch,
   onToggle,
-  onClose,
   onSave,
+  onClose,
   loading,
 }) => {
   return (
-    <div
-      className="sa-project-assignee-manager-backdrop"
-      onMouseDown={(event) => {
-        if (
-          event.target ===
-            event.currentTarget &&
-          !loading
-        ) {
-          onClose();
-        }
-      }}
-    >
+    <div className="sa-project-assignee-manager-backdrop">
       <div className="sa-project-assignee-manager-modal">
         <div className="sa-project-assignment-header">
           <div>
             <h2>
-              Manage Assignees
+              Manage Project
+              Assignees
             </h2>
 
             <p>
-              {project?.project_title ||
-                "Project"}
+              Add or remove project
+              assignees.
             </p>
           </div>
 
@@ -2097,25 +3164,12 @@ const ManageAssigneesModal = ({
             type="button"
             className="sa-project-assignment-close"
             onClick={onClose}
-            disabled={loading}
           >
             <X size={19} />
           </button>
         </div>
 
-        <div className="sa-project-assignee-manager-summary">
-          <Users size={18} />
-
-          <span>
-            {selectedIds.length}{" "}
-            {selectedIds.length === 1
-              ? "person"
-              : "people"}{" "}
-            selected
-          </span>
-        </div>
-
-        <label className="sa-project-assignee-search sa-project-assignee-manager-search">
+        <label className="sa-project-assignee-search sa-project-manager-search">
           <Search size={17} />
 
           <input
@@ -2125,70 +3179,63 @@ const ManageAssigneesModal = ({
                 event.target.value
               )
             }
-            placeholder="Search all users..."
+            placeholder="Search users..."
           />
         </label>
 
-        <div className="sa-project-assignee-list sa-project-assignee-manager-list">
-          {users.length ? (
-            users.map((user) => {
-              const selected =
-                selectedIds
-                  .map(String)
-                  .includes(
-                    String(
-                      user.user_id
-                    )
-                  );
+        <div className="sa-project-manager-list">
+          {users.map((user) => {
+            const id =
+              String(
+                getUserId(user)
+              );
 
-              return (
-                <button
-                  type="button"
-                  key={user.user_id}
-                  className={`sa-project-assignee-card ${
-                    selected
-                      ? "selected"
-                      : ""
-                  }`}
-                  onClick={() =>
-                    onToggle(
-                      user.user_id
-                    )
-                  }
-                >
-                  <span className="sa-project-assignee-checkbox">
-                    {selected && (
-                      <Check size={15} />
+            const selected =
+              selectedIds
+                .map(String)
+                .includes(id);
+
+            return (
+              <button
+                type="button"
+                key={id}
+                className={`sa-project-assignee-card ${
+                  selected
+                    ? "selected"
+                    : ""
+                }`}
+                onClick={() =>
+                  onToggle(id)
+                }
+              >
+                <span className="sa-project-checkbox">
+                  {selected && (
+                    <Check
+                      size={14}
+                    />
+                  )}
+                </span>
+
+                <div>
+                  <strong>
+                    {getUserName(
+                      user
                     )}
+                  </strong>
+
+                  <span>
+                    {user.email ||
+                      "-"}
                   </span>
 
-                  <div className="sa-project-assignee-copy">
-                    <strong>
-                      {user.full_name ||
-                        "-"}
-                    </strong>
-
-                    <span>
-                      {user.email ||
-                        "-"}
-                    </span>
-
-                    <small>
-                      {user.department_name ||
-                        "No Department"}{" "}
-                      ·{" "}
-                      {user.role_name ||
-                        "-"}
-                    </small>
-                  </div>
-                </button>
-              );
-            })
-          ) : (
-            <div className="sa-project-assignee-empty">
-              No matching users.
-            </div>
-          )}
+                  <small>
+                    {user.department_name ||
+                      "-"}
+                  </small>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="sa-project-assignment-footer">
@@ -2196,7 +3243,6 @@ const ManageAssigneesModal = ({
             type="button"
             className="sa-project-assignment-cancel"
             onClick={onClose}
-            disabled={loading}
           >
             Cancel
           </button>
@@ -2220,7 +3266,7 @@ const ManageAssigneesModal = ({
 };
 
 /* =========================================================
-   DETAIL BOX
+   DETAIL COMPONENTS
 ========================================================= */
 
 const DetailBox = ({
@@ -2228,6 +3274,19 @@ const DetailBox = ({
   value,
 }) => (
   <div className="sa-project-detail-box">
+    <span>{label}</span>
+
+    <strong>
+      {value ?? "-"}
+    </strong>
+  </div>
+);
+
+const TaskMetaBox = ({
+  label,
+  value,
+}) => (
+  <div className="sa-project-task-meta-box">
     <span>{label}</span>
 
     <strong>

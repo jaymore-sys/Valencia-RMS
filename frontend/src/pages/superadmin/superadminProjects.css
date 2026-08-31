@@ -9,7 +9,6 @@
 .sa-projects-page {
   width: 100%;
   min-width: 0;
-
   padding-bottom: 34px;
 }
 
@@ -19,7 +18,6 @@
 
 .sa-projects-header {
   display: flex;
-
   justify-content: space-between;
   align-items: flex-start;
 
@@ -40,7 +38,7 @@
 }
 
 .sa-projects-header p {
-  max-width: 760px;
+  max-width: 780px;
 
   margin: 9px 0 0;
 
@@ -52,7 +50,6 @@
 
 .sa-projects-header-actions {
   display: flex;
-
   align-items: center;
 
   gap: 10px;
@@ -60,25 +57,15 @@
   flex-shrink: 0;
 }
 
-/* =========================================================
-   ASSIGN PROJECT BUTTON
-========================================================= */
-
-.sa-projects-assign-btn {
+.sa-projects-assign-btn,
+.sa-projects-refresh {
   min-height: 46px;
 
-  border: 0;
-
   border-radius: 15px;
-
-  background: #ff5733;
-
-  color: #ffffff;
 
   padding: 0 18px;
 
   display: inline-flex;
-
   align-items: center;
   justify-content: center;
 
@@ -90,62 +77,26 @@
   font-weight: 900;
 
   white-space: nowrap;
+}
+
+.sa-projects-assign-btn {
+  border: 0;
+
+  background: #ff5733;
+
+  color: #ffffff;
 
   box-shadow:
     0 12px 26px
-    rgba(255, 87, 51, 0.22);
-
-  transition:
-    transform 0.15s ease,
-    background 0.15s ease;
+    rgba(255, 87, 51, 0.2);
 }
-
-.sa-projects-assign-btn:hover {
-  background: #f04424;
-
-  transform: translateY(-1px);
-}
-
-/* =========================================================
-   REFRESH
-========================================================= */
 
 .sa-projects-refresh {
-  min-height: 46px;
-
-  border: 1px solid #d8dee8;
-
-  border-radius: 15px;
+  border: 1px solid #d7dce5;
 
   background: #ffffff;
 
   color: #344054;
-
-  padding: 0 17px;
-
-  display: inline-flex;
-
-  align-items: center;
-
-  gap: 8px;
-
-  cursor: pointer;
-
-  font-size: 14px;
-  font-weight: 900;
-
-  transition:
-    border-color 0.15s ease,
-    color 0.15s ease,
-    transform 0.15s ease;
-}
-
-.sa-projects-refresh:hover {
-  color: #ff5733;
-
-  border-color: #ff5733;
-
-  transform: translateY(-1px);
 }
 
 /* =========================================================
@@ -179,7 +130,7 @@
 }
 
 /* =========================================================
-   TOOLBAR
+   FILTER TOOLBAR
 ========================================================= */
 
 .sa-projects-toolbar {
@@ -222,7 +173,6 @@
 
 .sa-projects-search {
   display: flex;
-
   align-items: center;
 
   gap: 11px;
@@ -238,11 +188,9 @@
 
 .sa-projects-search input {
   width: 100%;
-
   min-width: 0;
 
   border: 0;
-
   outline: 0;
 
   background: transparent;
@@ -250,12 +198,7 @@
   color: #111827;
 
   font-size: 14px;
-
   font-weight: 800;
-}
-
-.sa-projects-search input::placeholder {
-  color: #7b8496;
 }
 
 .sa-projects-toolbar select {
@@ -263,60 +206,36 @@
 
   padding: 0 14px;
 
-  font-size: 14px;
-
-  font-weight: 800;
-
   cursor: pointer;
-}
 
-.sa-projects-search:focus-within,
-.sa-projects-toolbar select:focus {
-  border-color: #ff5733;
-
-  box-shadow:
-    0 0 0 4px
-    rgba(255, 87, 51, 0.08);
+  font-size: 14px;
+  font-weight: 800;
 }
 
 /* =========================================================
-   KANBAN BOARD
-
-   IMPORTANT:
-   3 FULL COLUMNS + PART OF 4TH COLUMN
+   KANBAN
+   3 COMPLETE + PART OF 4TH
 ========================================================= */
 
 .sa-projects-board {
   --sa-project-gap: 16px;
 
-  /*
-    Amount of the 4th column visible.
-  */
-  --sa-project-fourth-visible: 100px;
+  --sa-project-fourth-visible: 110px;
 
   width: 100%;
-
   min-width: 0;
 
   display: grid;
 
   grid-auto-flow: column;
 
-  /*
-    Visible width calculation:
-
-    3 complete columns
-    + 3 gaps
-    + 100px preview of column 4
-  */
   grid-auto-columns:
     calc(
       (
-          100% -
-          (var(--sa-project-gap) * 3) -
-          var(--sa-project-fourth-visible)
-        ) /
-        3
+        100% -
+        (var(--sa-project-gap) * 3) -
+        var(--sa-project-fourth-visible)
+      ) / 3
     );
 
   gap: var(--sa-project-gap);
@@ -324,24 +243,44 @@
   overflow-x: auto;
   overflow-y: hidden;
 
-  padding: 2px 2px 12px;
+  padding:
+    2px
+    2px
+    16px;
 
   scroll-snap-type: x proximity;
 
   /*
-    Keep scrollbar hidden,
-    scrolling still works.
+     VISIBLE HORIZONTAL SCROLLBAR
   */
-  scrollbar-width: none;
+  scrollbar-width: thin;
 
-  -ms-overflow-style: none;
+  scrollbar-color:
+    #aab4c2
+    #edf1f5;
 }
 
 .sa-projects-board::-webkit-scrollbar {
-  display: none;
+  height: 11px;
+}
 
-  width: 0;
-  height: 0;
+.sa-projects-board::-webkit-scrollbar-track {
+  background: #edf1f5;
+
+  border-radius: 999px;
+}
+
+.sa-projects-board::-webkit-scrollbar-thumb {
+  background: #aab4c2;
+
+  border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
+}
+
+.sa-projects-board::-webkit-scrollbar-thumb:hover {
+  background: #8793a4;
 }
 
 /* =========================================================
@@ -352,10 +291,9 @@
   position: relative;
 
   width: 100%;
-
   min-width: 0;
 
-  height: 890px;
+  height: 860px;
 
   overflow: hidden;
 
@@ -366,7 +304,6 @@
   background: #f7f8fb;
 
   display: flex;
-
   flex-direction: column;
 
   scroll-snap-align: start;
@@ -376,20 +313,20 @@
     rgba(15, 23, 42, 0.045);
 }
 
-/* TOP STATUS LINE */
-
 .sa-projects-column::before {
   content: "";
 
   position: absolute;
 
-  inset: 0 0 auto;
+  top: 0;
+  left: 0;
+  right: 0;
 
   height: 4px;
 
   background: #ff5733;
 
-  z-index: 2;
+  z-index: 3;
 }
 
 .sa-projects-column-in_progress::before {
@@ -427,9 +364,7 @@
   background: #ffffff;
 
   display: flex;
-
   align-items: center;
-
   justify-content: space-between;
 
   gap: 10px;
@@ -438,13 +373,12 @@
 }
 
 .sa-projects-column-header > div {
-  display: flex;
+  min-width: 0;
 
+  display: flex;
   align-items: center;
 
   gap: 9px;
-
-  min-width: 0;
 }
 
 .sa-projects-column-header h2 {
@@ -453,7 +387,6 @@
   color: #111827;
 
   font-size: 15px;
-
   font-weight: 900;
 
   white-space: nowrap;
@@ -464,16 +397,14 @@
 }
 
 .sa-projects-column-icon {
-  width: 35px;
+  width: 36px;
+  height: 36px;
 
-  height: 35px;
+  min-width: 36px;
 
-  min-width: 35px;
-
-  border-radius: 11px;
+  border-radius: 12px;
 
   display: grid;
-
   place-items: center;
 
   background: #fff0eb;
@@ -484,42 +415,38 @@
 .sa-projects-column-in_progress
   .sa-projects-column-icon {
   background: #fff7df;
-
   color: #d97706;
 }
 
 .sa-projects-column-under_review
   .sa-projects-column-icon {
   background: #f3efff;
-
   color: #7c3aed;
 }
 
 .sa-projects-column-completed
   .sa-projects-column-icon {
   background: #eaf8ee;
-
   color: #15803d;
 }
 
 .sa-projects-column-rejected
   .sa-projects-column-icon {
   background: #fff0f0;
-
   color: #dc2626;
 }
 
 .sa-projects-column-on_hold
   .sa-projects-column-icon {
   background: #eef2f6;
-
   color: #475569;
 }
 
 .sa-projects-column-count {
-  min-width: 30px;
+  min-width: 31px;
+  height: 31px;
 
-  height: 30px;
+  padding: 0 9px;
 
   border-radius: 999px;
 
@@ -528,20 +455,17 @@
   color: #344054;
 
   display: inline-grid;
-
   place-items: center;
 
-  padding: 0 8px;
-
-  font-size: 11px;
-
+  font-size: 12px;
   font-weight: 900;
 
   flex-shrink: 0;
 }
 
 /* =========================================================
-   COLUMN LIST
+   COLUMN VERTICAL SCROLL
+   VISIBLE
 ========================================================= */
 
 .sa-projects-column-list {
@@ -550,29 +474,46 @@
   min-height: 0;
 
   overflow-y: auto;
-
   overflow-x: hidden;
 
-  padding: 12px;
+  padding:
+    12px
+    7px
+    12px
+    12px;
 
   display: grid;
 
-  grid-auto-rows: 380px;
+  grid-auto-rows: 405px;
 
   align-content: start;
 
   gap: 12px;
 
-  scrollbar-width: none;
+  scrollbar-width: thin;
 
-  -ms-overflow-style: none;
+  scrollbar-color:
+    #aab4c2
+    #edf1f5;
 }
 
 .sa-projects-column-list::-webkit-scrollbar {
-  display: none;
+  width: 9px;
+}
 
-  width: 0;
-  height: 0;
+.sa-projects-column-list::-webkit-scrollbar-track {
+  background: #edf1f5;
+
+  border-radius: 999px;
+}
+
+.sa-projects-column-list::-webkit-scrollbar-thumb {
+  background: #aab4c2;
+
+  border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
 }
 
 /* =========================================================
@@ -582,11 +523,9 @@
 .sa-project-card {
   width: 100%;
 
-  height: 380px;
-
-  min-height: 380px;
-
-  max-height: 380px;
+  height: 405px;
+  min-height: 405px;
+  max-height: 405px;
 
   overflow: hidden;
 
@@ -607,29 +546,25 @@
     rgba(15, 23, 42, 0.045);
 
   display: flex;
-
   flex-direction: column;
 
   transition:
     transform 0.16s ease,
-    box-shadow 0.16s ease,
-    border-color 0.16s ease;
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .sa-project-card:hover {
-  transform: translateY(-2px);
+  transform:
+    translateY(-2px);
 
   border-color:
-    rgba(255, 87, 51, 0.4);
+    rgba(255, 87, 51, 0.36);
 
   box-shadow:
     0 14px 28px
-    rgba(255, 87, 51, 0.11);
+    rgba(255, 87, 51, 0.1);
 }
-
-/* =========================================================
-   CARD TITLE
-========================================================= */
 
 .sa-project-card-title {
   display: grid;
@@ -648,7 +583,6 @@
 
 .sa-project-card-icon {
   width: 38px;
-
   height: 38px;
 
   border-radius: 12px;
@@ -658,7 +592,6 @@
   color: #ff5733;
 
   display: grid;
-
   place-items: center;
 }
 
@@ -668,7 +601,6 @@
   color: #111827;
 
   font-size: 13px;
-
   font-weight: 900;
 
   line-height: 1.25;
@@ -676,15 +608,10 @@
   display: -webkit-box;
 
   -webkit-line-clamp: 2;
-
   -webkit-box-orient: vertical;
 
   overflow: hidden;
 }
-
-/* =========================================================
-   OVERDUE
-========================================================= */
 
 .sa-project-overdue {
   border-radius: 999px;
@@ -696,30 +623,28 @@
   padding: 5px 7px;
 
   display: inline-flex;
-
   align-items: center;
 
   gap: 4px;
 
   font-size: 8px;
-
   font-weight: 900;
 
   white-space: nowrap;
 }
 
 /* =========================================================
-   INFO BOX
+   CARD INFO
 ========================================================= */
 
 .sa-project-info-box {
-  margin-top: 8px;
+  margin-top: 7px;
 
-  padding: 9px 11px;
+  padding: 8px 10px;
 
   border: 1px solid #eef1f5;
 
-  border-radius: 13px;
+  border-radius: 12px;
 
   background: #f7f8fb;
 
@@ -730,12 +655,11 @@
 .sa-project-date-grid span {
   display: block;
 
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 
   color: #7b8799;
 
   font-size: 9px;
-
   font-weight: 900;
 }
 
@@ -746,7 +670,6 @@
   color: #111827;
 
   font-size: 11px;
-
   font-weight: 900;
 
   line-height: 1.25;
@@ -795,7 +718,7 @@
 .sa-project-progress {
   margin-top: auto;
 
-  padding-top: 9px;
+  padding-top: 8px;
 
   flex-shrink: 0;
 }
@@ -804,18 +727,17 @@
   margin-bottom: 6px;
 
   display: flex;
-
   justify-content: space-between;
 
   color: #667085;
 
   font-size: 9px;
-
   font-weight: 900;
 }
 
 .sa-project-progress progress,
-.sa-project-modal-progress progress {
+.sa-project-modal-progress progress,
+.sa-project-task-progress {
   display: block;
 
   width: 100%;
@@ -833,47 +755,32 @@
   background: #ffd6cc;
 }
 
-.sa-project-progress
-  progress::-webkit-progress-bar,
-.sa-project-modal-progress
-  progress::-webkit-progress-bar {
+.sa-project-progress progress::-webkit-progress-bar,
+.sa-project-modal-progress progress::-webkit-progress-bar,
+.sa-project-task-progress::-webkit-progress-bar {
   background: #ffd6cc;
-
-  border-radius: 999px;
 }
 
-.sa-project-progress
-  progress::-webkit-progress-value,
-.sa-project-modal-progress
-  progress::-webkit-progress-value {
+.sa-project-progress progress::-webkit-progress-value,
+.sa-project-modal-progress progress::-webkit-progress-value,
+.sa-project-task-progress::-webkit-progress-value {
   background: #ff5733;
-
-  border-radius: 999px;
 }
 
-.sa-project-progress
-  progress::-moz-progress-bar,
-.sa-project-modal-progress
-  progress::-moz-progress-bar {
+.sa-project-progress progress::-moz-progress-bar,
+.sa-project-modal-progress progress::-moz-progress-bar,
+.sa-project-task-progress::-moz-progress-bar {
   background: #ff5733;
-
-  border-radius: 999px;
 }
-
-/* =========================================================
-   CARD FOOTER
-========================================================= */
 
 .sa-project-card-footer {
   margin-top: 9px;
 
   padding-top: 8px;
 
-  border-top:
-    1px solid #edf0f3;
+  border-top: 1px solid #edf0f3;
 
   display: flex;
-
   justify-content: space-between;
 
   gap: 8px;
@@ -885,7 +792,6 @@
   color: #667085;
 
   font-size: 9px;
-
   font-weight: 900;
 }
 
@@ -897,19 +803,14 @@
    EMPTY
 ========================================================= */
 
-.sa-projects-column-empty,
-.sa-projects-empty {
+.sa-projects-empty,
+.sa-projects-column-empty {
   border: 1px dashed #ccd3dd;
 
   border-radius: 15px;
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.55
-    );
+    rgba(255, 255, 255, 0.75);
 
   padding: 20px 14px;
 
@@ -918,7 +819,6 @@
   text-align: center;
 
   font-size: 11px;
-
   font-weight: 800;
 }
 
@@ -926,7 +826,9 @@
    PROJECT DETAILS MODAL
 ========================================================= */
 
-.sa-project-modal-backdrop {
+.sa-project-modal-backdrop,
+.sa-project-assignment-backdrop,
+.sa-project-assignee-manager-backdrop {
   position: fixed;
 
   inset: 0;
@@ -936,7 +838,6 @@
   padding: 24px;
 
   display: grid;
-
   place-items: center;
 
   background:
@@ -945,16 +846,21 @@
   backdrop-filter: blur(3px);
 }
 
+.sa-project-assignee-manager-backdrop {
+  z-index: 10020;
+}
+
 .sa-project-modal {
   width:
     min(
-      1040px,
+      1160px,
       96vw
     );
 
   max-height: 90vh;
 
   overflow-y: auto;
+  overflow-x: hidden;
 
   border-radius: 28px;
 
@@ -966,21 +872,67 @@
     0 28px 90px
     rgba(15, 23, 42, 0.28);
 
-  scrollbar-width: none;
+  /*
+     VISIBLE MODAL SCROLLBAR
+  */
+  scrollbar-width: thin;
 
-  -ms-overflow-style: none;
+  scrollbar-color:
+    #aab4c2
+    #edf1f5;
 }
 
-.sa-project-modal::-webkit-scrollbar {
-  display: none;
+.sa-project-modal::-webkit-scrollbar,
+.sa-project-assignment-modal::-webkit-scrollbar,
+.sa-project-assignee-manager-modal::-webkit-scrollbar {
+  width: 10px;
 }
+
+.sa-project-modal::-webkit-scrollbar-track,
+.sa-project-assignment-modal::-webkit-scrollbar-track,
+.sa-project-assignee-manager-modal::-webkit-scrollbar-track {
+  background: #edf1f5;
+
+  border-radius: 999px;
+}
+
+.sa-project-modal::-webkit-scrollbar-thumb,
+.sa-project-assignment-modal::-webkit-scrollbar-thumb,
+.sa-project-assignee-manager-modal::-webkit-scrollbar-thumb {
+  background: #aab4c2;
+
+  border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
+}
+
+.sa-project-loading-box {
+  border-radius: 22px;
+
+  background: #ffffff;
+
+  padding: 30px 40px;
+
+  color: #111827;
+
+  font-weight: 900;
+
+  box-shadow:
+    0 24px 70px
+    rgba(15, 23, 42, 0.25);
+}
+
+/* =========================================================
+   PROJECT DETAIL HEADER
+========================================================= */
 
 .sa-project-modal-header {
   position: sticky;
 
   top: -30px;
 
-  z-index: 20;
+  z-index: 30;
 
   margin:
     -30px
@@ -988,27 +940,19 @@
     24px;
 
   padding:
-    26px
+    25px
     30px
     20px;
 
-  border-bottom:
-    1px solid #edf0f3;
+  border-bottom: 1px solid #edf0f3;
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.97
-    );
+    rgba(255, 255, 255, 0.97);
 
   backdrop-filter: blur(8px);
 
   display: flex;
-
   align-items: flex-start;
-
   justify-content: space-between;
 
   gap: 20px;
@@ -1016,7 +960,6 @@
 
 .sa-project-modal-title-row {
   display: flex;
-
   align-items: center;
 
   gap: 12px;
@@ -1030,7 +973,6 @@
   color: #111827;
 
   font-size: 28px;
-
   font-weight: 900;
 
   letter-spacing: -0.03em;
@@ -1041,73 +983,67 @@
 
   color: #667085;
 
-  font-size: 14px;
+  font-size: 13px;
 }
 
-.sa-project-modal-header-actions {
+.sa-project-modal-actions {
   display: flex;
-
   align-items: center;
 
-  gap: 10px;
+  gap: 9px;
 
-  flex-shrink: 0;
+  flex-wrap: wrap;
+
+  justify-content: flex-end;
+}
+
+.sa-project-modal-close,
+.sa-project-manage-btn,
+.sa-project-delete-btn {
+  min-height: 42px;
+
+  border-radius: 13px;
+
+  padding: 0 14px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 7px;
+
+  cursor: pointer;
+
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .sa-project-modal-close {
   border: 0;
 
-  border-radius: 14px;
-
   background: #111827;
 
   color: #ffffff;
-
-  padding: 11px 15px;
-
-  display: inline-flex;
-
-  align-items: center;
-
-  gap: 8px;
-
-  cursor: pointer;
-
-  font-weight: 900;
 }
 
-/* =========================================================
-   MANAGE USERS BUTTON
-========================================================= */
-
-.sa-project-manage-users-btn {
+.sa-project-manage-btn {
   border: 1px solid #ff5733;
-
-  border-radius: 14px;
 
   background: #ffffff;
 
   color: #ff5733;
-
-  padding: 10px 14px;
-
-  display: inline-flex;
-
-  align-items: center;
-
-  gap: 7px;
-
-  font-weight: 900;
-
-  cursor: pointer;
 }
 
-.sa-project-manage-users-btn:hover {
-  background: #fff3ef;
+.sa-project-delete-btn {
+  border: 1px solid #ef4444;
+
+  background: #fff1f2;
+
+  color: #b42318;
 }
 
 /* =========================================================
-   DETAIL GRID
+   PROJECT DETAIL GRID
 ========================================================= */
 
 .sa-project-detail-grid {
@@ -1141,8 +1077,7 @@
 
   color: #64748b;
 
-  font-size: 11px;
-
+  font-size: 10px;
   font-weight: 900;
 
   text-transform: uppercase;
@@ -1154,15 +1089,10 @@
   color: #111827;
 
   font-size: 13px;
-
   font-weight: 900;
 
   overflow-wrap: anywhere;
 }
-
-/* =========================================================
-   DETAILS PROGRESS
-========================================================= */
 
 .sa-project-modal-progress {
   margin-top: 20px;
@@ -1171,17 +1101,16 @@
 .sa-project-modal-progress span {
   display: block;
 
-  margin-top: 8px;
+  margin-top: 7px;
 
   color: #667085;
 
   font-size: 12px;
-
   font-weight: 800;
 }
 
 /* =========================================================
-   DETAILS SECTION
+   MODAL SECTION
 ========================================================= */
 
 .sa-project-modal-section {
@@ -1192,19 +1121,23 @@
   border-radius: 20px;
 
   padding: 20px;
+
+  background: #ffffff;
 }
 
-.sa-project-modal-section h3 {
-  margin: 0 0 14px;
+.sa-project-modal-section > h3 {
+  margin:
+    0
+    0
+    14px;
 
   color: #111827;
 
   font-size: 18px;
-
   font-weight: 900;
 }
 
-.sa-project-modal-section p {
+.sa-project-modal-section > p {
   margin: 0;
 
   color: #667085;
@@ -1212,79 +1145,445 @@
   line-height: 1.6;
 }
 
-/* =========================================================
-   STATUS NOTICE
-========================================================= */
-
-.sa-project-status-notice {
-  margin-top: 18px;
-
-  border-radius: 16px;
-
-  padding: 13px 15px;
-
+.sa-project-section-heading {
   display: flex;
 
   align-items: center;
 
-  gap: 9px;
+  gap: 8px;
+}
 
+.sa-project-section-heading svg {
+  color: #ff5733;
+}
+
+.sa-project-section-help {
+  margin-bottom: 18px !important;
+
+  font-size: 12px;
+}
+
+/* =========================================================
+   PROJECT DETAIL ASSIGNEES
+========================================================= */
+
+.sa-project-detail-assignees {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 10px;
+}
+
+.sa-project-detail-assignee {
+  min-width: 0;
+
+  border: 1px solid #e6eaf0;
+
+  border-radius: 15px;
+
+  background: #f8fafc;
+
+  padding: 12px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+}
+
+.sa-project-detail-assignee-icon {
+  width: 37px;
+  height: 37px;
+
+  min-width: 37px;
+
+  border-radius: 12px;
+
+  background: #fff0eb;
+
+  color: #ff5733;
+
+  display: grid;
+  place-items: center;
+}
+
+.sa-project-detail-assignee > div:last-child {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 3px;
+}
+
+.sa-project-detail-assignee strong,
+.sa-project-detail-assignee span,
+.sa-project-detail-assignee small {
+  min-width: 0;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-project-detail-assignee strong {
+  color: #111827;
+
+  font-size: 12px;
+}
+
+.sa-project-detail-assignee span {
+  color: #667085;
+
+  font-size: 10px;
+}
+
+.sa-project-detail-assignee small {
+  color: #98a2b3;
+
+  font-size: 9px;
+}
+
+/* =========================================================
+   MAIN TASK FORM
+========================================================= */
+
+.sa-main-task-form-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 13px;
+}
+
+.sa-main-task-title {
+  grid-column: span 2;
+}
+
+.sa-main-task-assignee-title {
+  margin:
+    18px
+    0
+    9px;
+
+  color: #344054;
+
+  font-size: 12px;
   font-weight: 900;
 }
 
-.sa-project-status-notice.hold {
-  border: 1px solid #fde68a;
+.sa-main-task-assignees {
+  display: grid;
 
-  background: #fffbeb;
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
 
-  color: #92400e;
+  gap: 9px;
 }
 
-.sa-project-status-notice.rejected {
-  border: 1px solid #fecdd3;
+.sa-main-task-assignee {
+  min-width: 0;
 
-  background: #fff1f2;
+  border: 1px solid #e5e7eb;
 
-  color: #991b1b;
+  border-radius: 13px;
+
+  background: #ffffff;
+
+  padding: 10px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 9px;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.sa-main-task-assignee.selected {
+  border-color: #ff5733;
+
+  background: #fff6f2;
+}
+
+.sa-main-task-assignee > div {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 2px;
+}
+
+.sa-main-task-assignee strong {
+  color: #111827;
+
+  font-size: 11px;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-main-task-assignee small {
+  color: #667085;
+
+  font-size: 9px;
+}
+
+.sa-main-task-add-btn {
+  margin-top: 16px;
+
+  min-height: 44px;
+
+  border: 0;
+
+  border-radius: 13px;
+
+  background: #ff5733;
+
+  color: #ffffff;
+
+  padding: 0 17px;
+
+  display: inline-flex;
+  align-items: center;
+
+  gap: 7px;
+
+  font-size: 12px;
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+/* =========================================================
+   TASK DETAILS
+========================================================= */
+
+.sa-project-task-list {
+  display: grid;
+
+  gap: 14px;
+}
+
+.sa-project-task-detail-card {
+  border: 1px solid #e5e7eb;
+
+  border-radius: 18px;
+
+  background: #f8fafc;
+
+  padding: 17px;
+}
+
+.sa-project-task-detail-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  margin-bottom: 14px;
+}
+
+.sa-project-task-detail-top h4 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.sa-project-task-detail-top p {
+  margin: 6px 0 0;
+
+  color: #667085;
+
+  font-size: 11px;
+
+  line-height: 1.45;
+}
+
+.sa-project-task-status {
+  border-radius: 999px;
+
+  background: #eef2ff;
+
+  color: #344054;
+
+  padding: 6px 10px;
+
+  font-size: 10px;
+  font-weight: 900;
+
+  white-space: nowrap;
+}
+
+.sa-project-task-meta-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 9px;
+}
+
+.sa-project-task-meta-box {
+  min-width: 0;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 13px;
+
+  background: #ffffff;
+
+  padding: 10px 11px;
+}
+
+.sa-project-task-meta-box span {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #64748b;
+
+  font-size: 9px;
+  font-weight: 900;
+
+  text-transform: uppercase;
+}
+
+.sa-project-task-meta-box strong {
+  display: block;
+
+  color: #111827;
+
+  font-size: 11px;
+  font-weight: 900;
+
+  overflow-wrap: anywhere;
+}
+
+.sa-project-task-progress {
+  margin-top: 13px;
+}
+
+.sa-project-subtask-heading {
+  margin:
+    16px
+    0
+    8px;
+
+  color: #111827;
+
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.sa-project-subtask-list {
+  display: grid;
+
+  gap: 7px;
+}
+
+.sa-project-subtask-row {
+  border: 1px solid #e5e7eb;
+
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  padding: 10px 11px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 10px;
+}
+
+.sa-project-subtask-row > div {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 3px;
+}
+
+.sa-project-subtask-row strong {
+  color: #111827;
+
+  font-size: 11px;
+}
+
+.sa-project-subtask-row > div span {
+  color: #667085;
+
+  font-size: 9px;
+}
+
+.sa-project-subtask-status {
+  border-radius: 999px;
+
+  background: #eef2ff;
+
+  color: #344054;
+
+  padding: 5px 8px;
+
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.sa-project-subtask-status.done {
+  background: #dcfce7;
+
+  color: #166534;
+}
+
+.sa-project-no-subtasks {
+  border: 1px dashed #cbd5e1;
+
+  border-radius: 12px;
+
+  padding: 10px;
+
+  color: #667085;
+
+  font-size: 10px;
+
+  text-align: center;
 }
 
 /* =========================================================
    ASSIGN PROJECT MODAL
 ========================================================= */
 
-.sa-project-assignment-backdrop,
-.sa-project-assignee-manager-backdrop {
-  position: fixed;
-
-  inset: 0;
-
-  z-index: 10010;
-
-  padding: 24px;
-
-  display: grid;
-
-  place-items: center;
-
-  background:
-    rgba(
-      15,
-      23,
-      42,
-      0.58
-    );
-
-  backdrop-filter: blur(4px);
-}
-
-.sa-project-assignee-manager-backdrop {
-  z-index: 10020;
-}
-
 .sa-project-assignment-modal {
   width:
     min(
-      1050px,
+      1060px,
       96vw
     );
 
@@ -1292,9 +1591,7 @@
 
   overflow-y: auto;
 
-  overflow-x: hidden;
-
-  border-radius: 28px;
+  border-radius: 27px;
 
   background: #ffffff;
 
@@ -1302,18 +1599,12 @@
     0 28px 90px
     rgba(15, 23, 42, 0.3);
 
-  scrollbar-width: none;
+  scrollbar-width: thin;
 
-  -ms-overflow-style: none;
+  scrollbar-color:
+    #aab4c2
+    #edf1f5;
 }
-
-.sa-project-assignment-modal::-webkit-scrollbar {
-  display: none;
-}
-
-/* =========================================================
-   ASSIGNMENT HEADER
-========================================================= */
 
 .sa-project-assignment-header {
   position: sticky;
@@ -1322,26 +1613,19 @@
 
   z-index: 20;
 
-  padding: 24px 26px 20px;
+  padding:
+    23px
+    25px
+    19px;
 
-  border-bottom:
-    1px solid #edf0f3;
+  border-bottom: 1px solid #edf0f3;
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.98
-    );
-
-  backdrop-filter: blur(8px);
+    rgba(255, 255, 255, 0.98);
 
   display: flex;
-
-  align-items: flex-start;
-
   justify-content: space-between;
+  align-items: flex-start;
 
   gap: 20px;
 }
@@ -1352,26 +1636,20 @@
   color: #111827;
 
   font-size: 26px;
-
   font-weight: 900;
-
-  letter-spacing: -0.03em;
 }
 
 .sa-project-assignment-header p {
-  margin: 7px 0 0;
+  margin: 6px 0 0;
 
   color: #667085;
 
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .sa-project-assignment-close {
   width: 40px;
-
   height: 40px;
-
-  min-width: 40px;
 
   border: 0;
 
@@ -1382,18 +1660,18 @@
   color: #ffffff;
 
   display: grid;
-
   place-items: center;
 
   cursor: pointer;
+
+  flex-shrink: 0;
 }
 
-/* =========================================================
-   FORM
-========================================================= */
-
 .sa-project-assignment-form-grid {
-  padding: 24px 26px 0;
+  padding:
+    23px
+    25px
+    0;
 
   display: grid;
 
@@ -1411,14 +1689,13 @@
 
   display: grid;
 
-  gap: 8px;
+  gap: 7px;
 }
 
 .sa-project-field span {
   color: #344054;
 
-  font-size: 12px;
-
+  font-size: 11px;
   font-weight: 900;
 }
 
@@ -1429,7 +1706,7 @@
 
   border: 1px solid #d8dee8;
 
-  border-radius: 14px;
+  border-radius: 13px;
 
   background: #ffffff;
 
@@ -1437,26 +1714,25 @@
 
   font-family: inherit;
 
-  font-size: 13px;
-
+  font-size: 12px;
   font-weight: 700;
 
-  outline: none;
+  outline: 0;
 }
 
 .sa-project-field input,
 .sa-project-field select {
-  min-height: 47px;
+  min-height: 46px;
 
-  padding: 0 13px;
+  padding: 0 12px;
 }
 
 .sa-project-field textarea {
-  min-height: 105px;
+  min-height: 100px;
+
+  padding: 12px;
 
   resize: vertical;
-
-  padding: 13px;
 }
 
 .sa-project-field input:focus,
@@ -1482,27 +1758,28 @@
 ========================================================= */
 
 .sa-project-assignee-panel {
-  margin: 22px 26px 0;
+  margin:
+    22px
+    25px
+    0;
 
-  padding: 18px;
+  padding: 17px;
 
   border: 1px solid #e7eaf0;
 
-  border-radius: 20px;
+  border-radius: 19px;
 
   background: #f8fafc;
 }
 
 .sa-project-assignee-panel-header {
   display: flex;
-
+  justify-content: space-between;
   align-items: center;
 
-  justify-content: space-between;
+  gap: 15px;
 
-  gap: 16px;
-
-  margin-bottom: 14px;
+  margin-bottom: 13px;
 }
 
 .sa-project-assignee-panel-header h3 {
@@ -1510,29 +1787,22 @@
 
   color: #111827;
 
-  font-size: 17px;
-
+  font-size: 16px;
   font-weight: 900;
 }
 
 .sa-project-assignee-panel-header p {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
 
   color: #667085;
 
-  font-size: 11px;
-
-  font-weight: 700;
+  font-size: 10px;
 }
 
-/* =========================================================
-   ASSIGNEE SEARCH
-========================================================= */
-
 .sa-project-assignee-search {
-  width: 300px;
+  min-height: 42px;
 
-  min-height: 43px;
+  width: 310px;
 
   border: 1px solid #d8dee8;
 
@@ -1543,42 +1813,40 @@
   padding: 0 12px;
 
   display: flex;
-
   align-items: center;
 
-  gap: 9px;
+  gap: 8px;
 
   color: #667085;
 }
 
 .sa-project-assignee-search input {
   width: 100%;
-
   min-width: 0;
 
   border: 0;
-
   outline: 0;
 
   background: transparent;
 
   color: #111827;
 
-  font-size: 12px;
-
+  font-size: 11px;
   font-weight: 700;
 }
 
 /* =========================================================
    ASSIGNEE LIST
+   VISIBLE SCROLLBAR
 ========================================================= */
 
-.sa-project-assignee-list {
-  max-height: 330px;
+.sa-project-assignee-list,
+.sa-project-manager-list {
+  max-height: 340px;
 
   overflow-y: auto;
 
-  overflow-x: hidden;
+  padding-right: 7px;
 
   display: grid;
 
@@ -1588,100 +1856,85 @@
       minmax(0, 1fr)
     );
 
-  gap: 10px;
+  gap: 9px;
 
-  padding-right: 4px;
+  scrollbar-width: thin;
 
-  scrollbar-width: none;
-
-  -ms-overflow-style: none;
+  scrollbar-color:
+    #aab4c2
+    #edf1f5;
 }
 
-.sa-project-assignee-list::-webkit-scrollbar {
-  display: none;
+.sa-project-assignee-list::-webkit-scrollbar,
+.sa-project-manager-list::-webkit-scrollbar {
+  width: 9px;
+}
+
+.sa-project-assignee-list::-webkit-scrollbar-track,
+.sa-project-manager-list::-webkit-scrollbar-track {
+  background: #edf1f5;
+
+  border-radius: 999px;
+}
+
+.sa-project-assignee-list::-webkit-scrollbar-thumb,
+.sa-project-manager-list::-webkit-scrollbar-thumb {
+  background: #aab4c2;
+
+  border-radius: 999px;
 }
 
 .sa-project-assignee-card {
-  width: 100%;
-
   min-width: 0;
 
-  min-height: 78px;
+  border: 1px solid #e5e7eb;
 
-  border: 1px solid #e4e8ee;
-
-  border-radius: 15px;
+  border-radius: 14px;
 
   background: #ffffff;
 
-  padding: 12px;
+  padding: 11px;
 
   display: flex;
-
   align-items: flex-start;
 
-  gap: 11px;
+  gap: 10px;
 
   text-align: left;
 
   cursor: pointer;
-
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.sa-project-assignee-card:hover {
-  border-color:
-    rgba(
-      255,
-      87,
-      51,
-      0.4
-    );
 }
 
 .sa-project-assignee-card.selected {
   border-color: #ff5733;
 
-  background: #fff7f4;
-
-  box-shadow:
-    inset 0 0 0 1px
-    rgba(255, 87, 51, 0.13);
+  background: #fff6f2;
 }
 
-.sa-project-assignee-checkbox {
-  width: 22px;
+.sa-project-checkbox {
+  width: 21px;
+  height: 21px;
 
-  height: 22px;
-
-  min-width: 22px;
+  min-width: 21px;
 
   border: 2px solid #cbd5e1;
 
-  border-radius: 7px;
-
-  background: #ffffff;
+  border-radius: 6px;
 
   display: grid;
-
   place-items: center;
 
   color: #ffffff;
-
-  margin-top: 2px;
 }
 
-.sa-project-assignee-card.selected
-  .sa-project-assignee-checkbox {
+.selected
+  .sa-project-checkbox {
   background: #ff5733;
 
   border-color: #ff5733;
 }
 
-.sa-project-assignee-copy {
+.sa-project-assignee-card > div {
   min-width: 0;
 
   display: grid;
@@ -1689,62 +1942,32 @@
   gap: 3px;
 }
 
-.sa-project-assignee-copy strong {
+.sa-project-assignee-card strong,
+.sa-project-assignee-card span,
+.sa-project-assignee-card small {
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-project-assignee-card strong {
   color: #111827;
 
-  font-size: 13px;
-
-  font-weight: 900;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
+  font-size: 11px;
 }
 
-.sa-project-assignee-copy span {
+.sa-project-assignee-card span {
   color: #667085;
 
-  font-size: 11px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
+  font-size: 9px;
 }
 
-.sa-project-assignee-copy small {
+.sa-project-assignee-card small {
   color: #98a2b3;
 
-  font-size: 10px;
-
-  font-weight: 700;
-
-  white-space: nowrap;
-
-  overflow: hidden;
-
-  text-overflow: ellipsis;
-}
-
-.sa-project-assignee-empty {
-  grid-column: 1 / -1;
-
-  border: 1px dashed #ccd3dd;
-
-  border-radius: 14px;
-
-  padding: 20px;
-
-  color: #667085;
-
-  text-align: center;
-
-  font-weight: 800;
+  font-size: 9px;
 }
 
 /* =========================================================
@@ -1758,25 +1981,19 @@
 
   z-index: 20;
 
-  margin-top: 22px;
+  margin-top: 20px;
 
-  padding: 18px 26px 22px;
+  padding:
+    17px
+    25px
+    21px;
 
-  border-top:
-    1px solid #edf0f3;
+  border-top: 1px solid #edf0f3;
 
   background:
-    rgba(
-      255,
-      255,
-      255,
-      0.98
-    );
-
-  backdrop-filter: blur(8px);
+    rgba(255, 255, 255, 0.98);
 
   display: flex;
-
   justify-content: flex-end;
 
   gap: 10px;
@@ -1784,25 +2001,21 @@
 
 .sa-project-assignment-cancel,
 .sa-project-assignment-save {
-  min-height: 44px;
+  min-height: 43px;
 
   border-radius: 13px;
 
   padding: 0 16px;
 
   display: inline-flex;
-
   align-items: center;
-
-  justify-content: center;
 
   gap: 7px;
 
-  font-size: 13px;
-
-  font-weight: 900;
-
   cursor: pointer;
+
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .sa-project-assignment-cancel {
@@ -1821,26 +2034,14 @@
   color: #ffffff;
 }
 
-.sa-project-assignment-save:hover {
-  background: #f04424;
-}
-
-.sa-project-assignment-cancel:disabled,
-.sa-project-assignment-save:disabled,
-.sa-project-assignment-close:disabled {
-  opacity: 0.6;
-
-  cursor: not-allowed;
-}
-
 /* =========================================================
-   MANAGE ASSIGNEES MODAL
+   MANAGE ASSIGNEES
 ========================================================= */
 
 .sa-project-assignee-manager-modal {
   width:
     min(
-      760px,
+      780px,
       95vw
     );
 
@@ -1848,7 +2049,7 @@
 
   overflow-y: auto;
 
-  border-radius: 26px;
+  border-radius: 25px;
 
   background: #ffffff;
 
@@ -1856,51 +2057,27 @@
     0 28px 90px
     rgba(15, 23, 42, 0.3);
 
-  scrollbar-width: none;
+  scrollbar-width: thin;
 
-  -ms-overflow-style: none;
+  scrollbar-color:
+    #aab4c2
+    #edf1f5;
 }
 
-.sa-project-assignee-manager-modal::-webkit-scrollbar {
-  display: none;
-}
-
-.sa-project-assignee-manager-summary {
-  margin: 20px 24px 0;
-
-  border: 1px solid #e5e7eb;
-
-  border-radius: 14px;
-
-  background: #f8fafc;
-
-  padding: 12px 14px;
-
-  display: flex;
-
-  align-items: center;
-
-  gap: 9px;
-
-  color: #344054;
-
-  font-size: 12px;
-
-  font-weight: 900;
-}
-
-.sa-project-assignee-manager-summary svg {
-  color: #ff5733;
-}
-
-.sa-project-assignee-manager-search {
+.sa-project-manager-search {
   width: auto;
 
-  margin: 14px 24px 0;
+  margin:
+    18px
+    23px
+    0;
 }
 
-.sa-project-assignee-manager-list {
-  margin: 14px 24px 0;
+.sa-project-manager-list {
+  margin:
+    13px
+    23px
+    0;
 }
 
 /* =========================================================
@@ -1909,20 +2086,15 @@
 
 @media (max-width: 1200px) {
   .sa-projects-board {
-    /*
-      On smaller laptop:
-      2 complete columns + next preview.
-    */
-    --sa-project-fourth-visible: 80px;
+    --sa-project-fourth-visible: 75px;
 
     grid-auto-columns:
       calc(
         (
-            100% -
-            (var(--sa-project-gap) * 2) -
-            var(--sa-project-fourth-visible)
-          ) /
-          2
+          100% -
+          (var(--sa-project-gap) * 2) -
+          var(--sa-project-fourth-visible)
+        ) / 2
       );
   }
 
@@ -1946,7 +2118,8 @@
 }
 
 @media (max-width: 900px) {
-  .sa-project-assignment-form-grid {
+  .sa-project-assignment-form-grid,
+  .sa-main-task-form-grid {
     grid-template-columns:
       repeat(
         2,
@@ -1954,23 +2127,19 @@
       );
   }
 
-  .sa-project-field-wide {
-    grid-column: span 2;
+  .sa-main-task-assignees,
+  .sa-project-task-meta-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 720px) {
   .sa-projects-header {
     flex-direction: column;
-  }
-
-  .sa-projects-header-actions {
-    width: 100%;
-  }
-
-  .sa-projects-assign-btn,
-  .sa-projects-refresh {
-    flex: 1;
   }
 
   .sa-projects-toolbar {
@@ -1986,31 +2155,23 @@
       calc(100% - 45px);
   }
 
-  .sa-project-detail-grid {
-    grid-template-columns: 1fr;
-  }
-
   .sa-project-modal-header {
     flex-direction: column;
   }
 
-  .sa-project-modal-header-actions {
-    width: 100%;
-  }
-
-  .sa-project-manage-users-btn,
-  .sa-project-modal-close {
-    flex: 1;
-
-    justify-content: center;
-  }
-
-  .sa-project-assignment-form-grid {
+  .sa-project-detail-grid,
+  .sa-project-detail-assignees,
+  .sa-project-assignment-form-grid,
+  .sa-main-task-form-grid,
+  .sa-main-task-assignees,
+  .sa-project-task-meta-grid,
+  .sa-project-assignee-list,
+  .sa-project-manager-list {
     grid-template-columns: 1fr;
   }
 
   .sa-project-field-wide,
-  .sa-project-field-full {
+  .sa-main-task-title {
     grid-column: auto;
   }
 
@@ -2022,9 +2183,5 @@
 
   .sa-project-assignee-search {
     width: 100%;
-  }
-
-  .sa-project-assignee-list {
-    grid-template-columns: 1fr;
   }
 }
