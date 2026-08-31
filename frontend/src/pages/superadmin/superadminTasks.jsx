@@ -1,21 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
+
 import {
   AlertTriangle,
-  CalendarDays,
   CheckCircle2,
   CircleDot,
   ClipboardList,
   Clock3,
-  FolderKanban,
   PauseCircle,
   RefreshCw,
   Search,
-  UserRound,
+  Users,
   X,
   XCircle,
 } from "lucide-react";
+
 import api from "../../api/axios";
+
 import "./superadminTasks.css";
+
+/* =========================================================
+   KANBAN COLUMNS
+========================================================= */
 
 const STATUS_COLUMNS = [
   {
@@ -50,438 +55,1293 @@ const STATUS_COLUMNS = [
   },
 ];
 
+/* =========================================================
+   STATUS NORMALIZATION
+========================================================= */
+
 const normalizeStatus = (status) => {
   const value = String(status || "")
     .toLowerCase()
     .trim()
-    .replace(/\s+/g, "_");
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_");
 
   if (
-    value === "todo" ||
-    value === "to_do" ||
-    value === "pending" ||
-    value === "not-started"
+    [
+      "todo",
+      "to_do",
+      "pending",
+      "not_started",
+      "not-started",
+    ].includes(value)
   ) {
     return "not_started";
   }
 
-  if (value === "ongoing" || value === "progress") {
+  if (
+    [
+      "ongoing",
+      "progress",
+      "in_progress",
+    ].includes(value)
+  ) {
     return "in_progress";
   }
 
-  if (value === "review") {
+  if (
+    [
+      "review",
+      "under_review",
+      "pending_review",
+    ].includes(value)
+  ) {
     return "under_review";
   }
 
-  if (value === "done" || value === "complete") {
+  if (
+    [
+      "done",
+      "complete",
+      "completed",
+    ].includes(value)
+  ) {
     return "completed";
   }
 
-  if (value === "on_hold" || value === "hold") {
+  if (
+    [
+      "on_hold",
+      "hold",
+      "blocked",
+    ].includes(value)
+  ) {
     return "blocked";
+  }
+
+  if (
+    [
+      "reject",
+      "rejected",
+    ].includes(value)
+  ) {
+    return "rejected";
   }
 
   return value || "not_started";
 };
 
 const statusLabel = (status) => {
-  const normalized = normalizeStatus(status);
+  const normalized =
+    normalizeStatus(status);
 
   return (
-    STATUS_COLUMNS.find((column) => column.key === normalized)?.label ||
+    STATUS_COLUMNS.find(
+      (column) =>
+        column.key === normalized
+    )?.label ||
     String(status || "To Do")
   );
 };
 
+/* =========================================================
+   DATE
+========================================================= */
+
 const formatDate = (value) => {
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return String(value).slice(0, 10);
+  if (!value) {
+    return "-";
   }
 
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  const date =
+    new Date(value);
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return String(value).slice(
+      0,
+      10
+    );
+  }
+
+  return date.toLocaleDateString(
+    "en-GB",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 };
 
-const getSafeProgress = (value) => {
-  const progress = Number(value || 0);
+/* =========================================================
+   PROGRESS
+========================================================= */
 
-  if (Number.isNaN(progress)) return 0;
-  return Math.max(0, Math.min(100, progress));
+const getSafeProgress = (
+  value
+) => {
+  const progress =
+    Number(value || 0);
+
+  if (
+    Number.isNaN(progress)
+  ) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      progress
+    )
+  );
 };
 
-const isTaskOverdue = (task) => {
-  const normalizedStatus = normalizeStatus(task.status_group || task.status);
+/* =========================================================
+   ASSIGNEES
+========================================================= */
 
-  if (normalizedStatus === "completed") return false;
-  if (!task.due_date) return false;
+const getTaskAssignees = (
+  task
+) => {
+  if (
+    Array.isArray(
+      task.assignees
+    ) &&
+    task.assignees.length
+  ) {
+    return task.assignees;
+  }
 
-  const dueDate = new Date(task.due_date);
+  const ids =
+    String(
+      task.assigned_user_ids ||
+        task.assigned_to_user_id ||
+        ""
+    )
+      .split(",")
+      .map((value) =>
+        value.trim()
+      )
+      .filter(Boolean);
 
-  if (Number.isNaN(dueDate.getTime())) return false;
+  const names =
+    String(
+      task.assigned_names ||
+        task.assignee_name ||
+        ""
+    )
+      .split(",")
+      .map((value) =>
+        value.trim()
+      )
+      .filter(Boolean);
 
-  dueDate.setHours(23, 59, 59, 999);
-  return dueDate.getTime() < Date.now();
+  const emails =
+    String(
+      task.assigned_emails ||
+        task.assignee_email ||
+        ""
+    )
+      .split(",")
+      .map((value) =>
+        value.trim()
+      )
+      .filter(Boolean);
+
+  return names.map(
+    (name, index) => ({
+      user_id:
+        ids[index] ||
+        `${name}-${index}`,
+
+      full_name: name,
+
+      email:
+        emails[index] || "",
+    })
+  );
 };
+
+const getAssignedNames = (
+  task
+) => {
+  if (
+    task.assigned_names
+  ) {
+    return task.assigned_names;
+  }
+
+  if (
+    task.assignee_name
+  ) {
+    return task.assignee_name;
+  }
+
+  const assignees =
+    getTaskAssignees(task);
+
+  return (
+    assignees
+      .map(
+        (user) =>
+          user.full_name
+      )
+      .filter(Boolean)
+      .join(", ") || "-"
+  );
+};
+
+/* =========================================================
+   OVERDUE
+========================================================= */
+
+const isTaskOverdue = (
+  task
+) => {
+  const normalizedStatus =
+    normalizeStatus(
+      task.status_group ||
+        task.status
+    );
+
+  if (
+    normalizedStatus ===
+    "completed"
+  ) {
+    return false;
+  }
+
+  if (!task.due_date) {
+    return false;
+  }
+
+  const dueDate =
+    new Date(
+      task.due_date
+    );
+
+  if (
+    Number.isNaN(
+      dueDate.getTime()
+    )
+  ) {
+    return false;
+  }
+
+  dueDate.setHours(
+    23,
+    59,
+    59,
+    999
+  );
+
+  return (
+    dueDate.getTime() <
+    Date.now()
+  );
+};
+
+/* =========================================================
+   MAIN COMPONENT
+========================================================= */
 
 const SuperadminTasks = () => {
-  const [tasks, setTasks] = useState([]);
-  const [search, setSearch] = useState("");
-  const [department, setDepartment] = useState("all");
-  const [assignee, setAssignee] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [message, setMessage] = useState("");
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [
+    tasks,
+    setTasks,
+  ] = useState([]);
 
-  const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setMessage("");
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-      const response = await api.get("/superadmin/tasks");
-      setTasks(response.data?.tasks || []);
-    } catch (error) {
-      setMessage(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Failed to load tasks."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [
+    department,
+    setDepartment,
+  ] = useState("all");
+
+  const [
+    assignee,
+    setAssignee,
+  ] = useState("all");
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    message,
+    setMessage,
+  ] = useState("");
+
+  const [
+    selectedTask,
+    setSelectedTask,
+  ] = useState(null);
+
+  /* =========================================================
+     FETCH TASKS
+  ========================================================= */
+
+  const fetchTasks =
+    async () => {
+      try {
+        setLoading(true);
+
+        setMessage("");
+
+        const response =
+          await api.get(
+            "/superadmin/tasks"
+          );
+
+        const rows =
+          response.data
+            ?.tasks || [];
+
+        setTasks(rows);
+      } catch (error) {
+        console.error(
+          "Superadmin tasks fetch error:",
+          error
+        );
+
+        setMessage(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            error.response?.data
+              ?.sqlMessage ||
+            "Failed to load tasks."
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  const departments = useMemo(() => {
-    return Array.from(
-      new Set(
-        tasks
-          .map((task) => task.department_name)
-          .filter(Boolean)
-          .sort((a, b) => a.localeCompare(b))
-      )
-    );
-  }, [tasks]);
+  /* =========================================================
+     DEPARTMENT FILTER VALUES
+  ========================================================= */
 
-  const assignees = useMemo(() => {
-    const map = new Map();
+  const departments =
+    useMemo(() => {
+      return Array.from(
+        new Set(
+          tasks
+            .map(
+              (task) =>
+                task.department_name
+            )
+            .filter(Boolean)
+        )
+      ).sort((a, b) =>
+        String(a).localeCompare(
+          String(b)
+        )
+      );
+    }, [tasks]);
 
-    tasks.forEach((task) => {
-      if (task.assignee_name) {
-        map.set(task.assignee_name, task.assignee_name);
-      }
-    });
+  /* =========================================================
+     ASSIGNEE FILTER VALUES
 
-    return Array.from(map.values()).sort((a, b) => a.localeCompare(b));
-  }, [tasks]);
+     Uses actual employee IDs,
+     therefore multiple-assignee tasks
+     work correctly.
+  ========================================================= */
 
-  const filteredTasks = useMemo(() => {
-    const term = search.toLowerCase().trim();
+  const assignees =
+    useMemo(() => {
+      const map =
+        new Map();
 
-    return tasks.filter((task) => {
-      const matchesSearch =
-        !term ||
-        String(task.task_title || "").toLowerCase().includes(term) ||
-        String(task.task_description || "").toLowerCase().includes(term) ||
-        String(task.project_title || "").toLowerCase().includes(term) ||
-        String(task.assignee_name || "").toLowerCase().includes(term) ||
-        String(task.assigned_by_name || "").toLowerCase().includes(term) ||
-        String(task.department_name || "").toLowerCase().includes(term);
+      tasks.forEach(
+        (task) => {
+          getTaskAssignees(
+            task
+          ).forEach(
+            (user) => {
+              const id =
+                String(
+                  user.user_id ||
+                    ""
+                );
 
-      const matchesDepartment =
-        department === "all" || task.department_name === department;
+              if (
+                !id ||
+                !user.full_name
+              ) {
+                return;
+              }
 
-      const matchesAssignee =
-        assignee === "all" || task.assignee_name === assignee;
+              if (
+                !map.has(id)
+              ) {
+                map.set(
+                  id,
+                  {
+                    user_id: id,
 
-      return matchesSearch && matchesDepartment && matchesAssignee;
-    });
-  }, [tasks, search, department, assignee]);
-
-  const groupedTasks = useMemo(() => {
-    return STATUS_COLUMNS.reduce((acc, column) => {
-      acc[column.key] = filteredTasks.filter(
-        (task) =>
-          normalizeStatus(task.status_group || task.status) === column.key
+                    full_name:
+                      user.full_name,
+                  }
+                );
+              }
+            }
+          );
+        }
       );
 
-      return acc;
-    }, {});
-  }, [filteredTasks]);
+      return Array.from(
+        map.values()
+      ).sort((a, b) =>
+        String(
+          a.full_name
+        ).localeCompare(
+          String(
+            b.full_name
+          )
+        )
+      );
+    }, [tasks]);
+
+  /* =========================================================
+     FILTER TASKS
+  ========================================================= */
+
+  const filteredTasks =
+    useMemo(() => {
+      const term =
+        search
+          .trim()
+          .toLowerCase();
+
+      return tasks.filter(
+        (task) => {
+          const assignedNames =
+            getAssignedNames(
+              task
+            );
+
+          const searchable =
+            [
+              task.task_title,
+              task.task_description,
+              task.project_title,
+              assignedNames,
+              task.assignee_email,
+              task.assigned_emails,
+              task.assigned_by_name,
+              task.assigned_by_email,
+              task.department_name,
+              task.project_division,
+              task.task_type,
+              task.priority,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+
+          const matchesSearch =
+            !term ||
+            searchable.includes(
+              term
+            );
+
+          const matchesDepartment =
+            department ===
+              "all" ||
+            task.department_name ===
+              department;
+
+          let matchesAssignee =
+            true;
+
+          if (
+            assignee !== "all"
+          ) {
+            const taskAssigneeIds =
+              getTaskAssignees(
+                task
+              ).map((user) =>
+                String(
+                  user.user_id
+                )
+              );
+
+            matchesAssignee =
+              taskAssigneeIds.includes(
+                String(
+                  assignee
+                )
+              );
+          }
+
+          return (
+            matchesSearch &&
+            matchesDepartment &&
+            matchesAssignee
+          );
+        }
+      );
+    }, [
+      tasks,
+      search,
+      department,
+      assignee,
+    ]);
+
+  /* =========================================================
+     GROUP TASKS
+  ========================================================= */
+
+  const groupedTasks =
+    useMemo(() => {
+      return STATUS_COLUMNS.reduce(
+        (
+          result,
+          column
+        ) => {
+          result[column.key] =
+            filteredTasks.filter(
+              (task) =>
+                normalizeStatus(
+                  task.status_group ||
+                    task.status
+                ) ===
+                column.key
+            );
+
+          return result;
+        },
+        {}
+      );
+    }, [filteredTasks]);
+
+  /* =========================================================
+     PAGE
+  ========================================================= */
 
   return (
     <div className="sa-tasks-page">
-      <div className="sa-tasks-header">
+      {/* HEADER */}
+
+      <header className="sa-tasks-header">
         <div>
-          <h1>All Tasks</h1>
+          <h1>
+            All Tasks
+          </h1>
+
           <p>
-            Read-only Kanban view of every task across projects, departments and
-            employees.
+            View every Main Task
+            across projects,
+            departments and employees.
+            Click a task to view its
+            complete details and
+            subtasks.
           </p>
         </div>
 
         <button
           type="button"
           className="sa-tasks-refresh-btn"
-          onClick={fetchTasks}
+          onClick={
+            fetchTasks
+          }
         >
-          <RefreshCw size={18} />
+          <RefreshCw
+            size={18}
+          />
+
           Refresh
         </button>
-      </div>
+      </header>
 
-      {message && <div className="sa-tasks-message">{message}</div>}
+      {/* ERROR */}
+
+      {message && (
+        <div className="sa-tasks-message">
+          {message}
+        </div>
+      )}
+
+      {/* FILTER BAR */}
 
       <section className="sa-tasks-toolbar">
         <label className="sa-tasks-search">
-          <Search size={18} />
+          <Search
+            size={18}
+          />
+
           <input
             type="search"
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search task, project, assignee, assigned by..."
+            onChange={(
+              event
+            ) =>
+              setSearch(
+                event.target
+                  .value
+              )
+            }
+            placeholder="Search task, project, employee, assigned by..."
           />
         </label>
 
         <select
           value={department}
-          onChange={(event) => setDepartment(event.target.value)}
-          aria-label="Filter by department"
+          onChange={(
+            event
+          ) =>
+            setDepartment(
+              event.target
+                .value
+            )
+          }
         >
-          <option value="all">All Departments</option>
-          {departments.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
+          <option value="all">
+            All Departments
+          </option>
+
+          {departments.map(
+            (item) => (
+              <option
+                key={item}
+                value={item}
+              >
+                {item}
+              </option>
+            )
+          )}
         </select>
 
         <select
           value={assignee}
-          onChange={(event) => setAssignee(event.target.value)}
-          aria-label="Filter by assignee"
+          onChange={(
+            event
+          ) =>
+            setAssignee(
+              event.target
+                .value
+            )
+          }
         >
-          <option value="all">All Assignees</option>
-          {assignees.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
+          <option value="all">
+            All Assignees
+          </option>
+
+          {assignees.map(
+            (user) => (
+              <option
+                key={
+                  user.user_id
+                }
+                value={
+                  user.user_id
+                }
+              >
+                {
+                  user.full_name
+                }
+              </option>
+            )
+          )}
         </select>
       </section>
 
-      {loading ? (
-        <div className="sa-tasks-empty">Loading tasks...</div>
-      ) : (
-        <section className="sa-tasks-board" aria-label="Task Kanban Board">
-          {STATUS_COLUMNS.map((column) => {
-            const ColumnIcon = column.icon;
-            const columnTasks = groupedTasks[column.key] || [];
+      {/* KANBAN */}
 
-            return (
-              <article
-                className={`sa-tasks-column sa-tasks-column-${column.key}`}
-                key={column.key}
-              >
-                <div className="sa-tasks-column-header">
-                  <div>
-                    <span className="sa-tasks-column-icon">
-                      <ColumnIcon size={18} />
+      {loading ? (
+        <div className="sa-tasks-empty">
+          Loading tasks...
+        </div>
+      ) : (
+        <section
+          className="sa-tasks-board"
+          aria-label="Superadmin Task Kanban Board"
+        >
+          {STATUS_COLUMNS.map(
+            (column) => {
+              const ColumnIcon =
+                column.icon;
+
+              const columnTasks =
+                groupedTasks[
+                  column.key
+                ] || [];
+
+              return (
+                <article
+                  key={
+                    column.key
+                  }
+                  className={`sa-tasks-column sa-tasks-column-${column.key}`}
+                >
+                  {/* COLUMN HEADER */}
+
+                  <div className="sa-tasks-column-header">
+                    <div>
+                      <span className="sa-tasks-column-icon">
+                        <ColumnIcon
+                          size={
+                            18
+                          }
+                        />
+                      </span>
+
+                      <h2>
+                        {
+                          column.label
+                        }
+                      </h2>
+                    </div>
+
+                    <span className="sa-tasks-column-count">
+                      {
+                        columnTasks.length
+                      }
                     </span>
-                    <h2>{column.label}</h2>
                   </div>
 
-                  <span className="sa-tasks-column-count">
-                    {columnTasks.length}
-                  </span>
-                </div>
+                  {/* TASKS */}
 
-                <div className="sa-tasks-column-list">
-                  {columnTasks.map((task) => (
-                    <TaskCard
-                      key={task.task_id}
-                      task={task}
-                      onClick={() => setSelectedTask(task)}
-                    />
-                  ))}
+                  <div className="sa-tasks-column-list">
+                    {columnTasks.map(
+                      (task) => (
+                        <TaskCard
+                          key={
+                            task.task_id
+                          }
+                          task={
+                            task
+                          }
+                          onClick={() =>
+                            setSelectedTask(
+                              task
+                            )
+                          }
+                        />
+                      )
+                    )}
 
-                  {!columnTasks.length && (
-                    <div className="sa-tasks-column-empty">
-                      No {column.label.toLowerCase()} tasks.
-                    </div>
-                  )}
-                </div>
-              </article>
-            );
-          })}
+                    {!columnTasks.length && (
+                      <div className="sa-tasks-column-empty">
+                        No{" "}
+                        {column.label.toLowerCase()}{" "}
+                        tasks.
+                      </div>
+                    )}
+                  </div>
+                </article>
+              );
+            }
+          )}
         </section>
       )}
 
+      {/* TASK DETAILS */}
+
       {selectedTask && (
         <TaskDetailsModal
-          task={selectedTask}
-          onClose={() => setSelectedTask(null)}
+          task={
+            selectedTask
+          }
+          onClose={() =>
+            setSelectedTask(
+              null
+            )
+          }
         />
       )}
     </div>
   );
 };
 
-const TaskCard = ({ task, onClick }) => {
-  const progress = getSafeProgress(task.progress);
-  const overdue = isTaskOverdue(task);
+/* =========================================================
+   TASK CARD
+========================================================= */
+
+const TaskCard = ({
+  task,
+  onClick,
+}) => {
+  const progress =
+    getSafeProgress(
+      task.progress
+    );
+
+  const overdue =
+    isTaskOverdue(task);
+
+  const assignedNames =
+    getAssignedNames(task);
 
   return (
-    <button type="button" className="sa-task-kanban-card" onClick={onClick}>
+    <button
+      type="button"
+      className="sa-task-kanban-card"
+      onClick={onClick}
+    >
+      {/* TITLE */}
+
       <div className="sa-task-card-title-row">
         <span className="sa-task-card-title-icon">
-          <ClipboardList size={18} />
+          <ClipboardList
+            size={18}
+          />
         </span>
 
-        <h3>{task.task_title || "Untitled Task"}</h3>
+        <h3>
+          {task.task_title ||
+            "Untitled Task"}
+        </h3>
 
         {overdue && (
           <span className="sa-task-overdue-badge">
-            <AlertTriangle size={13} />
+            <AlertTriangle
+              size={12}
+            />
+
             Overdue
           </span>
         )}
       </div>
 
-      <div className="sa-task-card-info-box">
-        <span>Project Name</span>
-        <strong>{task.project_title || "No project"}</strong>
-      </div>
-
-      <div className="sa-task-card-info-box sa-task-card-department-box">
-        <span>Department</span>
-        <strong>{task.department_name || "-"}</strong>
-      </div>
+      {/* PROJECT */}
 
       <div className="sa-task-card-info-box">
-        <span>Assigned Employee</span>
-        <strong>{task.assignee_name || "-"}</strong>
+        <span>
+          Project
+        </span>
+
+        <strong>
+          {task.project_title ||
+            "No Project"}
+        </strong>
       </div>
+
+      {/* DEPARTMENT */}
+
+      <div className="sa-task-card-info-box">
+        <span>
+          Department
+        </span>
+
+        <strong>
+          {task.department_name ||
+            "-"}
+        </strong>
+      </div>
+
+      {/* ASSIGNEES */}
+
+      <div className="sa-task-card-info-box">
+        <span>
+          Assigned Employee
+          {getTaskAssignees(
+            task
+          ).length > 1
+            ? "s"
+            : ""}
+        </span>
+
+        <strong>
+          {assignedNames}
+        </strong>
+      </div>
+
+      {/* DATES */}
 
       <div className="sa-task-card-date-grid">
         <div>
-          <span>Start Date</span>
-          <strong>{formatDate(task.start_date)}</strong>
+          <span>
+            Start Date
+          </span>
+
+          <strong>
+            {formatDate(
+              task.start_date
+            )}
+          </strong>
         </div>
 
         <div>
-          <span>Due Date</span>
-          <strong>{formatDate(task.due_date)}</strong>
+          <span>
+            Due Date
+          </span>
+
+          <strong>
+            {formatDate(
+              task.due_date
+            )}
+          </strong>
         </div>
+      </div>
+
+      {/* PROGRESS */}
+
+      <div className="sa-task-card-progress">
+        <div>
+          <span>
+            Progress
+          </span>
+
+          <strong>
+            {progress}%
+          </strong>
+        </div>
+
+        <progress
+          value={progress}
+          max="100"
+        />
+      </div>
+
+      <div className="sa-task-card-bottom-row">
+        <span>
+          Subtasks{" "}
+          {task.completed_subtasks ||
+            0}
+          /
+          {task.total_subtasks ||
+            0}
+        </span>
+
+        <span>
+          View Details
+        </span>
       </div>
     </button>
   );
 };
 
-const TaskDetailsModal = ({ task, onClose }) => {
-  const progress = getSafeProgress(task.progress);
-  const overdue = isTaskOverdue(task);
+/* =========================================================
+   TASK DETAILS MODAL
+========================================================= */
+
+const TaskDetailsModal = ({
+  task,
+  onClose,
+}) => {
+  const progress =
+    getSafeProgress(
+      task.progress
+    );
+
+  const overdue =
+    isTaskOverdue(task);
+
+  const assignees =
+    getTaskAssignees(task);
 
   return (
     <div
       className="sa-task-modal-backdrop"
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
+      onMouseDown={(
+        event
+      ) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
           onClose();
         }
       }}
     >
       <div className="sa-task-modal">
+        {/* HEADER */}
+
         <div className="sa-task-modal-header">
           <div>
             <div className="sa-task-modal-title-row">
-              <h2>{task.task_title || "Task Details"}</h2>
+              <h2>
+                {task.task_title ||
+                  "Task Details"}
+              </h2>
 
               {overdue && (
                 <span className="sa-task-overdue-badge">
-                  <AlertTriangle size={13} />
+                  <AlertTriangle
+                    size={12}
+                  />
+
                   Overdue
                 </span>
               )}
             </div>
 
-            <p>{task.project_title || "No project"}</p>
+            <p>
+              {task.project_title ||
+                "No Project"}
+            </p>
           </div>
 
-          <button type="button" className="sa-task-modal-close" onClick={onClose}>
+          <button
+            type="button"
+            className="sa-task-modal-close"
+            onClick={onClose}
+          >
             <X size={18} />
+
             Close
           </button>
         </div>
 
+        {/* DETAILS */}
+
         <div className="sa-task-modal-grid">
-          <DetailBox label="Status" value={statusLabel(task.status_group)} />
-          <DetailBox label="Progress" value={`${progress}%`} />
-          <DetailBox label="Department" value={task.department_name} />
-          <DetailBox label="Assignee" value={task.assignee_name} />
-          <DetailBox label="Assignee Email" value={task.assignee_email} />
-          <DetailBox label="Assigned By" value={task.assigned_by_name} />
-          <DetailBox label="Assigned By Email" value={task.assigned_by_email} />
-          <DetailBox label="Start Date" value={formatDate(task.start_date)} />
-          <DetailBox label="Due Date" value={formatDate(task.due_date)} />
+          <DetailBox
+            label="Status"
+            value={statusLabel(
+              task.status_group ||
+                task.status
+            )}
+          />
+
+          <DetailBox
+            label="Progress"
+            value={`${progress}%`}
+          />
+
+          <DetailBox
+            label="Department"
+            value={
+              task.department_name
+            }
+          />
+
+          <DetailBox
+            label="Division"
+            value={
+              task.project_division
+            }
+          />
+
+          <DetailBox
+            label="Priority"
+            value={
+              task.priority
+            }
+          />
+
+          <DetailBox
+            label="Assigned By"
+            value={
+              task.assigned_by_name
+            }
+          />
+
+          <DetailBox
+            label="Assigned By Email"
+            value={
+              task.assigned_by_email
+            }
+          />
+
+          <DetailBox
+            label="Start Date"
+            value={formatDate(
+              task.start_date
+            )}
+          />
+
+          <DetailBox
+            label="Due Date"
+            value={formatDate(
+              task.due_date
+            )}
+          />
+
           <DetailBox
             label="Subtasks"
-            value={`${task.completed_subtasks || 0}/${
-              task.total_subtasks || 0
+            value={`${
+              task.completed_subtasks ||
+              0
+            }/${
+              task.total_subtasks ||
+              0
             }`}
           />
         </div>
 
+        {/* PROGRESS */}
+
         <div className="sa-task-modal-progress">
-          <progress value={progress} max="100">
+          <progress
+            value={progress}
+            max="100"
+          />
+
+          <span>
+            Task Progress:{" "}
             {progress}%
-          </progress>
-          <span>Task Progress: {progress}%</span>
+          </span>
         </div>
 
-        <section className="sa-task-modal-section">
-          <h3>Description</h3>
-          <p>{task.task_description || "No description added."}</p>
-        </section>
+        {/* ASSIGNEES */}
 
         <section className="sa-task-modal-section">
-          <h3>Subtasks</h3>
+          <h3 className="sa-task-modal-section-title">
+            <Users
+              size={19}
+            />
 
-          {task.subtasks?.length ? (
-            <div className="sa-task-modal-subtasks">
-              {task.subtasks.map((subtask) => (
-                <div className="sa-task-modal-subtask" key={subtask.task_id}>
-                  <span
-                    className={`sa-task-modal-subtask-dot ${
-                      subtask.is_checked ? "done" : ""
-                    }`}
-                  />
+            Assigned Employees
+          </h3>
 
-                  <div>
-                    <strong>{subtask.task_title || "-"}</strong>
-                    <p>
-                      {formatDate(subtask.start_date)} to{" "}
-                      {formatDate(subtask.due_date)}
-                    </p>
+          {assignees.length ? (
+            <div className="sa-task-assignee-grid">
+              {assignees.map(
+                (
+                  user,
+                  index
+                ) => (
+                  <div
+                    className="sa-task-assignee-card"
+                    key={
+                      user.user_id ||
+                      `${user.full_name}-${index}`
+                    }
+                  >
+                    <div className="sa-task-assignee-icon">
+                      <Users
+                        size={17}
+                      />
+                    </div>
+
+                    <div>
+                      <strong>
+                        {user.full_name ||
+                          "-"}
+                      </strong>
+
+                      <span>
+                        {user.email ||
+                          "-"}
+                      </span>
+
+                      {user.department_name && (
+                        <small>
+                          {
+                            user.department_name
+                          }
+                        </small>
+                      )}
+                    </div>
                   </div>
-
-                  <span className="sa-task-modal-subtask-status">
-                    {subtask.is_checked ? "Completed" : "Pending"}
-                  </span>
-                </div>
-              ))}
+                )
+              )}
             </div>
           ) : (
-            <div className="sa-task-modal-empty">No subtasks found.</div>
+            <div className="sa-task-modal-empty">
+              No assignees
+              found.
+            </div>
+          )}
+        </section>
+
+        {/* DESCRIPTION */}
+
+        <section className="sa-task-modal-section">
+          <h3>
+            Description
+          </h3>
+
+          <p>
+            {task.task_description ||
+              "No description added."}
+          </p>
+        </section>
+
+        {/* SUBTASKS */}
+
+        <section className="sa-task-modal-section">
+          <h3>
+            Subtasks
+          </h3>
+
+          {task.subtasks
+            ?.length ? (
+            <div className="sa-task-modal-subtasks">
+              {task.subtasks.map(
+                (subtask) => {
+                  const completed =
+                    Number(
+                      subtask.is_checked ||
+                        0
+                    ) === 1 ||
+                    normalizeStatus(
+                      subtask.status
+                    ) ===
+                      "completed" ||
+                    Number(
+                      subtask.progress ||
+                        0
+                    ) >= 100;
+
+                  return (
+                    <div
+                      className="sa-task-modal-subtask"
+                      key={
+                        subtask.task_id
+                      }
+                    >
+                      <span
+                        className={`sa-task-modal-subtask-dot ${
+                          completed
+                            ? "done"
+                            : ""
+                        }`}
+                      />
+
+                      <div>
+                        <strong>
+                          {subtask.task_title ||
+                            "-"}
+                        </strong>
+
+                        <p>
+                          {formatDate(
+                            subtask.start_date
+                          )}{" "}
+                          to{" "}
+                          {formatDate(
+                            subtask.due_date
+                          )}
+                        </p>
+                      </div>
+
+                      <span
+                        className={`sa-task-modal-subtask-status ${
+                          completed
+                            ? "completed"
+                            : ""
+                        }`}
+                      >
+                        {completed
+                          ? "Completed"
+                          : "Pending"}
+                      </span>
+                    </div>
+                  );
+                }
+              )}
+            </div>
+          ) : (
+            <div className="sa-task-modal-empty">
+              No subtasks found.
+            </div>
           )}
         </section>
       </div>
@@ -489,11 +1349,25 @@ const TaskDetailsModal = ({ task, onClose }) => {
   );
 };
 
-const DetailBox = ({ label, value }) => (
-  <div className="sa-task-detail-box">
-    <span>{label}</span>
-    <strong>{value || "-"}</strong>
-  </div>
-);
+/* =========================================================
+   DETAIL BOX
+========================================================= */
+
+const DetailBox = ({
+  label,
+  value,
+}) => {
+  return (
+    <div className="sa-task-detail-box">
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value || "-"}
+      </strong>
+    </div>
+  );
+};
 
 export default SuperadminTasks;
