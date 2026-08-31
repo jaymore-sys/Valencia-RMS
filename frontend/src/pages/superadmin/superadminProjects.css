@@ -2,158 +2,393 @@
   box-sizing: border-box;
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 .sa-projects-page {
   width: 100%;
   min-width: 0;
+
   padding-bottom: 34px;
 }
 
+/* =========================================================
+   HEADER
+========================================================= */
+
 .sa-projects-header {
   display: flex;
+
   justify-content: space-between;
   align-items: flex-start;
+
   gap: 24px;
+
   margin-bottom: 20px;
 }
 
 .sa-projects-header h1 {
   margin: 0;
+
   color: #111827;
+
   font-size: 40px;
   font-weight: 900;
+
   letter-spacing: -0.04em;
 }
 
 .sa-projects-header p {
   max-width: 760px;
+
   margin: 9px 0 0;
+
   color: #667085;
+
   font-size: 15px;
   line-height: 1.5;
 }
 
-.sa-projects-refresh {
-  min-height: 46px;
-  border: 0;
-  border-radius: 15px;
-  background: #ff5733;
-  color: #ffffff;
-  padding: 0 18px;
-  display: inline-flex;
+.sa-projects-header-actions {
+  display: flex;
+
   align-items: center;
-  gap: 9px;
+
+  gap: 10px;
+
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   ASSIGN PROJECT BUTTON
+========================================================= */
+
+.sa-projects-assign-btn {
+  min-height: 46px;
+
+  border: 0;
+
+  border-radius: 15px;
+
+  background: #ff5733;
+
+  color: #ffffff;
+
+  padding: 0 18px;
+
+  display: inline-flex;
+
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
   cursor: pointer;
+
   font-size: 14px;
   font-weight: 900;
-  box-shadow: 0 12px 26px rgba(255, 87, 51, 0.22);
+
+  white-space: nowrap;
+
+  box-shadow:
+    0 12px 26px
+    rgba(255, 87, 51, 0.22);
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease;
 }
+
+.sa-projects-assign-btn:hover {
+  background: #f04424;
+
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   REFRESH
+========================================================= */
+
+.sa-projects-refresh {
+  min-height: 46px;
+
+  border: 1px solid #d8dee8;
+
+  border-radius: 15px;
+
+  background: #ffffff;
+
+  color: #344054;
+
+  padding: 0 17px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  cursor: pointer;
+
+  font-size: 14px;
+  font-weight: 900;
+
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.sa-projects-refresh:hover {
+  color: #ff5733;
+
+  border-color: #ff5733;
+
+  transform: translateY(-1px);
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
 
 .sa-projects-message {
   margin-bottom: 18px;
-  border: 1px solid #fecdd3;
+
   border-radius: 16px;
-  background: #fff1f2;
-  color: #b42318;
+
   padding: 14px 16px;
+
   font-weight: 800;
 }
 
+.sa-projects-message.error {
+  border: 1px solid #fecdd3;
+
+  background: #fff1f2;
+
+  color: #b42318;
+}
+
+.sa-projects-message.success {
+  border: 1px solid #bbf7d0;
+
+  background: #f0fdf4;
+
+  color: #166534;
+}
+
+/* =========================================================
+   TOOLBAR
+========================================================= */
+
 .sa-projects-toolbar {
   display: grid;
-  grid-template-columns: minmax(360px, 1fr) 220px 220px;
+
+  grid-template-columns:
+    minmax(360px, 1fr)
+    220px
+    220px;
+
   gap: 14px;
+
   margin-bottom: 20px;
+
   padding: 16px;
+
   border: 1px solid #e8ebf0;
+
   border-radius: 22px;
+
   background: #ffffff;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+
+  box-shadow:
+    0 8px 24px
+    rgba(15, 23, 42, 0.04);
 }
 
 .sa-projects-search,
 .sa-projects-toolbar select {
   min-height: 50px;
+
   border: 1px solid #d7dce5;
+
   border-radius: 15px;
+
   background: #ffffff;
+
   color: #111827;
 }
 
 .sa-projects-search {
   display: flex;
+
   align-items: center;
+
   gap: 11px;
+
   padding: 0 15px;
+}
+
+.sa-projects-search svg {
+  flex-shrink: 0;
+
+  color: #667085;
 }
 
 .sa-projects-search input {
   width: 100%;
+
   min-width: 0;
+
   border: 0;
+
   outline: 0;
+
   background: transparent;
+
   color: #111827;
+
   font-size: 14px;
+
   font-weight: 800;
+}
+
+.sa-projects-search input::placeholder {
+  color: #7b8496;
 }
 
 .sa-projects-toolbar select {
   outline: 0;
+
   padding: 0 14px;
+
   font-size: 14px;
+
   font-weight: 800;
+
   cursor: pointer;
 }
 
+.sa-projects-search:focus-within,
+.sa-projects-toolbar select:focus {
+  border-color: #ff5733;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(255, 87, 51, 0.08);
+}
+
+/* =========================================================
+   KANBAN BOARD
+
+   IMPORTANT:
+   3 FULL COLUMNS + PART OF 4TH COLUMN
+========================================================= */
+
 .sa-projects-board {
   --sa-project-gap: 16px;
-  --sa-project-third-visible: 120px;
+
+  /*
+    Amount of the 4th column visible.
+  */
+  --sa-project-fourth-visible: 100px;
 
   width: 100%;
+
   min-width: 0;
+
   display: grid;
+
   grid-auto-flow: column;
-  grid-auto-columns: calc(
-    (100% - var(--sa-project-gap) - var(--sa-project-third-visible)) / 2
-  );
+
+  /*
+    Visible width calculation:
+
+    3 complete columns
+    + 3 gaps
+    + 100px preview of column 4
+  */
+  grid-auto-columns:
+    calc(
+      (
+          100% -
+          (var(--sa-project-gap) * 3) -
+          var(--sa-project-fourth-visible)
+        ) /
+        3
+    );
+
   gap: var(--sa-project-gap);
+
   overflow-x: auto;
   overflow-y: hidden;
+
   padding: 2px 2px 12px;
+
   scroll-snap-type: x proximity;
+
+  /*
+    Keep scrollbar hidden,
+    scrolling still works.
+  */
   scrollbar-width: none;
+
   -ms-overflow-style: none;
 }
 
-.sa-projects-board::-webkit-scrollbar,
-.sa-projects-column-list::-webkit-scrollbar,
-.sa-project-modal::-webkit-scrollbar {
+.sa-projects-board::-webkit-scrollbar {
   display: none;
+
   width: 0;
   height: 0;
 }
 
+/* =========================================================
+   COLUMN
+========================================================= */
+
 .sa-projects-column {
   position: relative;
+
   width: 100%;
+
   min-width: 0;
-  height: 820px;
+
+  height: 890px;
+
   overflow: hidden;
+
   border: 1px solid #e5e7eb;
+
   border-radius: 22px;
+
   background: #f7f8fb;
+
   display: flex;
+
   flex-direction: column;
+
   scroll-snap-align: start;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.045);
+
+  box-shadow:
+    0 10px 28px
+    rgba(15, 23, 42, 0.045);
 }
+
+/* TOP STATUS LINE */
 
 .sa-projects-column::before {
   content: "";
+
   position: absolute;
+
   inset: 0 0 auto;
+
   height: 4px;
+
   background: #ff5733;
+
   z-index: 2;
 }
 
@@ -177,264 +412,480 @@
   background: #64748b;
 }
 
+/* =========================================================
+   COLUMN HEADER
+========================================================= */
+
 .sa-projects-column-header {
   min-height: 68px;
+
   padding: 16px;
-  border-bottom: 1px solid #e7eaf0;
+
+  border-bottom:
+    1px solid #e7eaf0;
+
   background: #ffffff;
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
-  gap: 12px;
+
+  gap: 10px;
+
+  flex-shrink: 0;
 }
 
 .sa-projects-column-header > div {
   display: flex;
+
   align-items: center;
-  gap: 10px;
+
+  gap: 9px;
+
   min-width: 0;
 }
 
 .sa-projects-column-header h2 {
   margin: 0;
+
   color: #111827;
-  font-size: 16px;
+
+  font-size: 15px;
+
   font-weight: 900;
+
   white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
 }
 
 .sa-projects-column-icon {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  border-radius: 12px;
+  width: 35px;
+
+  height: 35px;
+
+  min-width: 35px;
+
+  border-radius: 11px;
+
   display: grid;
+
   place-items: center;
+
   background: #fff0eb;
+
   color: #ff5733;
 }
 
-.sa-projects-column-in_progress .sa-projects-column-icon {
+.sa-projects-column-in_progress
+  .sa-projects-column-icon {
   background: #fff7df;
+
   color: #d97706;
 }
 
-.sa-projects-column-under_review .sa-projects-column-icon {
+.sa-projects-column-under_review
+  .sa-projects-column-icon {
   background: #f3efff;
+
   color: #7c3aed;
 }
 
-.sa-projects-column-completed .sa-projects-column-icon {
+.sa-projects-column-completed
+  .sa-projects-column-icon {
   background: #eaf8ee;
+
   color: #15803d;
 }
 
-.sa-projects-column-rejected .sa-projects-column-icon {
+.sa-projects-column-rejected
+  .sa-projects-column-icon {
   background: #fff0f0;
+
   color: #dc2626;
 }
 
-.sa-projects-column-on_hold .sa-projects-column-icon {
+.sa-projects-column-on_hold
+  .sa-projects-column-icon {
   background: #eef2f6;
+
   color: #475569;
 }
 
 .sa-projects-column-count {
-  min-width: 31px;
-  height: 31px;
+  min-width: 30px;
+
+  height: 30px;
+
   border-radius: 999px;
+
   background: #eef2ff;
+
   color: #344054;
+
   display: inline-grid;
+
   place-items: center;
-  padding: 0 9px;
-  font-size: 12px;
+
+  padding: 0 8px;
+
+  font-size: 11px;
+
   font-weight: 900;
+
+  flex-shrink: 0;
 }
+
+/* =========================================================
+   COLUMN LIST
+========================================================= */
 
 .sa-projects-column-list {
   flex: 1;
+
   min-height: 0;
+
   overflow-y: auto;
+
   overflow-x: hidden;
+
   padding: 12px;
+
   display: grid;
-  grid-auto-rows: 345px;
+
+  grid-auto-rows: 380px;
+
   align-content: start;
+
   gap: 12px;
+
   scrollbar-width: none;
+
   -ms-overflow-style: none;
 }
 
+.sa-projects-column-list::-webkit-scrollbar {
+  display: none;
+
+  width: 0;
+  height: 0;
+}
+
+/* =========================================================
+   PROJECT CARD
+========================================================= */
+
 .sa-project-card {
   width: 100%;
-  height: 345px;
-  min-height: 345px;
-  max-height: 345px;
+
+  height: 380px;
+
+  min-height: 380px;
+
+  max-height: 380px;
+
   overflow: hidden;
+
   border: 1px solid #e4e8ee;
-  border-radius: 20px;
+
+  border-radius: 19px;
+
   background: #ffffff;
+
   padding: 14px;
+
   text-align: left;
+
   cursor: pointer;
-  box-shadow: 0 7px 18px rgba(15, 23, 42, 0.045);
+
+  box-shadow:
+    0 7px 18px
+    rgba(15, 23, 42, 0.045);
+
   display: flex;
+
   flex-direction: column;
-  transition: transform 0.16s ease, box-shadow 0.16s ease,
+
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease,
     border-color 0.16s ease;
 }
 
 .sa-project-card:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 87, 51, 0.4);
-  box-shadow: 0 14px 28px rgba(255, 87, 51, 0.11);
+
+  border-color:
+    rgba(255, 87, 51, 0.4);
+
+  box-shadow:
+    0 14px 28px
+    rgba(255, 87, 51, 0.11);
 }
+
+/* =========================================================
+   CARD TITLE
+========================================================= */
 
 .sa-project-card-title {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr) auto;
-  gap: 10px;
+
+  grid-template-columns:
+    38px
+    minmax(0, 1fr)
+    auto;
+
+  gap: 9px;
+
   align-items: center;
-  margin-bottom: 10px;
+
+  margin-bottom: 8px;
 }
 
 .sa-project-card-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 13px;
+  width: 38px;
+
+  height: 38px;
+
+  border-radius: 12px;
+
   background: #fff0eb;
+
   color: #ff5733;
+
   display: grid;
+
   place-items: center;
 }
 
 .sa-project-card-title h3 {
   margin: 0;
+
   color: #111827;
-  font-size: 14px;
+
+  font-size: 13px;
+
   font-weight: 900;
+
   line-height: 1.25;
+
   display: -webkit-box;
+
   -webkit-line-clamp: 2;
+
   -webkit-box-orient: vertical;
+
   overflow: hidden;
 }
 
+/* =========================================================
+   OVERDUE
+========================================================= */
+
 .sa-project-overdue {
   border-radius: 999px;
+
   background: #fee2e2;
+
   color: #b42318;
-  padding: 5px 8px;
+
+  padding: 5px 7px;
+
   display: inline-flex;
+
   align-items: center;
+
   gap: 4px;
-  font-size: 9px;
+
+  font-size: 8px;
+
   font-weight: 900;
+
   white-space: nowrap;
 }
 
+/* =========================================================
+   INFO BOX
+========================================================= */
+
 .sa-project-info-box {
   margin-top: 8px;
-  padding: 10px 12px;
+
+  padding: 9px 11px;
+
   border: 1px solid #eef1f5;
-  border-radius: 14px;
+
+  border-radius: 13px;
+
   background: #f7f8fb;
+
   min-width: 0;
 }
 
 .sa-project-info-box span,
 .sa-project-date-grid span {
   display: block;
+
   margin-bottom: 4px;
+
   color: #7b8799;
-  font-size: 10px;
+
+  font-size: 9px;
+
   font-weight: 900;
 }
 
 .sa-project-info-box strong,
 .sa-project-date-grid strong {
   display: block;
+
   color: #111827;
-  font-size: 12px;
+
+  font-size: 11px;
+
   font-weight: 900;
+
   line-height: 1.25;
+
   white-space: nowrap;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
 }
 
+/* =========================================================
+   DATES
+========================================================= */
+
 .sa-project-date-grid {
-  margin-top: 9px;
+  margin-top: 8px;
+
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 8px;
 }
 
 .sa-project-date-grid > div {
   min-width: 0;
-  padding: 10px 11px;
+
+  padding: 9px 10px;
+
   border: 1px solid #eef1f5;
-  border-radius: 13px;
+
+  border-radius: 12px;
+
   background: #f7f8fb;
 }
 
+/* =========================================================
+   PROGRESS
+========================================================= */
+
 .sa-project-progress {
   margin-top: auto;
-  padding-top: 10px;
+
+  padding-top: 9px;
+
+  flex-shrink: 0;
 }
 
 .sa-project-progress > div {
   margin-bottom: 6px;
+
   display: flex;
+
   justify-content: space-between;
+
   color: #667085;
-  font-size: 10px;
+
+  font-size: 9px;
+
   font-weight: 900;
 }
 
 .sa-project-progress progress,
 .sa-project-modal-progress progress {
   display: block;
+
   width: 100%;
+
   height: 7px;
+
   border: 0;
+
   border-radius: 999px;
+
   overflow: hidden;
+
   appearance: none;
+
   background: #ffd6cc;
 }
 
-.sa-project-progress progress::-webkit-progress-bar,
-.sa-project-modal-progress progress::-webkit-progress-bar {
+.sa-project-progress
+  progress::-webkit-progress-bar,
+.sa-project-modal-progress
+  progress::-webkit-progress-bar {
   background: #ffd6cc;
+
   border-radius: 999px;
 }
 
-.sa-project-progress progress::-webkit-progress-value,
-.sa-project-modal-progress progress::-webkit-progress-value {
+.sa-project-progress
+  progress::-webkit-progress-value,
+.sa-project-modal-progress
+  progress::-webkit-progress-value {
   background: #ff5733;
+
   border-radius: 999px;
 }
 
-.sa-project-progress progress::-moz-progress-bar,
-.sa-project-modal-progress progress::-moz-progress-bar {
+.sa-project-progress
+  progress::-moz-progress-bar,
+.sa-project-modal-progress
+  progress::-moz-progress-bar {
   background: #ff5733;
+
   border-radius: 999px;
 }
+
+/* =========================================================
+   CARD FOOTER
+========================================================= */
 
 .sa-project-card-footer {
-  margin-top: 10px;
-  padding-top: 9px;
-  border-top: 1px solid #edf0f3;
+  margin-top: 9px;
+
+  padding-top: 8px;
+
+  border-top:
+    1px solid #edf0f3;
+
   display: flex;
+
   justify-content: space-between;
+
   gap: 8px;
+
+  flex-shrink: 0;
 }
 
 .sa-project-card-footer span {
   color: #667085;
-  font-size: 9.5px;
+
+  font-size: 9px;
+
   font-weight: 900;
 }
 
@@ -442,120 +893,276 @@
   color: #ff5733;
 }
 
+/* =========================================================
+   EMPTY
+========================================================= */
+
 .sa-projects-column-empty,
 .sa-projects-empty {
   border: 1px dashed #ccd3dd;
+
   border-radius: 15px;
-  background: rgba(255, 255, 255, 0.55);
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.55
+    );
+
   padding: 20px 14px;
+
   color: #667085;
+
   text-align: center;
+
   font-size: 11px;
+
   font-weight: 800;
 }
 
+/* =========================================================
+   PROJECT DETAILS MODAL
+========================================================= */
+
 .sa-project-modal-backdrop {
   position: fixed;
+
   inset: 0;
+
   z-index: 9999;
+
   padding: 24px;
+
   display: grid;
+
   place-items: center;
-  background: rgba(15, 23, 42, 0.55);
+
+  background:
+    rgba(15, 23, 42, 0.55);
+
   backdrop-filter: blur(3px);
 }
 
 .sa-project-modal {
-  width: min(1040px, 96vw);
+  width:
+    min(
+      1040px,
+      96vw
+    );
+
   max-height: 90vh;
+
   overflow-y: auto;
+
   border-radius: 28px;
+
   background: #ffffff;
+
   padding: 30px;
-  box-shadow: 0 28px 90px rgba(15, 23, 42, 0.28);
+
+  box-shadow:
+    0 28px 90px
+    rgba(15, 23, 42, 0.28);
+
   scrollbar-width: none;
+
   -ms-overflow-style: none;
+}
+
+.sa-project-modal::-webkit-scrollbar {
+  display: none;
 }
 
 .sa-project-modal-header {
   position: sticky;
+
   top: -30px;
+
   z-index: 20;
-  margin: -30px -30px 24px;
-  padding: 26px 30px 20px;
-  border-bottom: 1px solid #edf0f3;
-  background: rgba(255, 255, 255, 0.97);
+
+  margin:
+    -30px
+    -30px
+    24px;
+
+  padding:
+    26px
+    30px
+    20px;
+
+  border-bottom:
+    1px solid #edf0f3;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.97
+    );
+
   backdrop-filter: blur(8px);
+
   display: flex;
+
   align-items: flex-start;
+
   justify-content: space-between;
+
   gap: 20px;
 }
 
 .sa-project-modal-title-row {
   display: flex;
+
   align-items: center;
+
   gap: 12px;
+
   flex-wrap: wrap;
 }
 
 .sa-project-modal-header h2 {
   margin: 0;
+
   color: #111827;
+
   font-size: 28px;
+
   font-weight: 900;
+
   letter-spacing: -0.03em;
 }
 
 .sa-project-modal-header p {
   margin: 7px 0 0;
+
   color: #667085;
+
   font-size: 14px;
+}
+
+.sa-project-modal-header-actions {
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  flex-shrink: 0;
 }
 
 .sa-project-modal-close {
   border: 0;
+
   border-radius: 14px;
+
   background: #111827;
+
   color: #ffffff;
+
   padding: 11px 15px;
+
   display: inline-flex;
+
   align-items: center;
+
   gap: 8px;
+
   cursor: pointer;
+
   font-weight: 900;
 }
 
+/* =========================================================
+   MANAGE USERS BUTTON
+========================================================= */
+
+.sa-project-manage-users-btn {
+  border: 1px solid #ff5733;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+
+  color: #ff5733;
+
+  padding: 10px 14px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+.sa-project-manage-users-btn:hover {
+  background: #fff3ef;
+}
+
+/* =========================================================
+   DETAIL GRID
+========================================================= */
+
 .sa-project-detail-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
   gap: 14px;
 }
 
 .sa-project-detail-box {
   min-width: 0;
+
   border: 1px solid #e5e7eb;
+
   border-radius: 16px;
+
   background: #f8fafc;
+
   padding: 15px;
 }
 
 .sa-project-detail-box span {
   display: block;
+
   margin-bottom: 7px;
+
   color: #64748b;
+
   font-size: 11px;
+
   font-weight: 900;
+
   text-transform: uppercase;
 }
 
 .sa-project-detail-box strong {
   display: block;
+
   color: #111827;
+
   font-size: 13px;
+
   font-weight: 900;
+
   overflow-wrap: anywhere;
 }
+
+/* =========================================================
+   DETAILS PROGRESS
+========================================================= */
 
 .sa-project-modal-progress {
   margin-top: 20px;
@@ -563,57 +1170,766 @@
 
 .sa-project-modal-progress span {
   display: block;
+
   margin-top: 8px;
+
   color: #667085;
+
   font-size: 12px;
+
   font-weight: 800;
 }
 
+/* =========================================================
+   DETAILS SECTION
+========================================================= */
+
 .sa-project-modal-section {
   margin-top: 22px;
+
   border: 1px solid #e8ebf0;
+
   border-radius: 20px;
+
   padding: 20px;
 }
 
 .sa-project-modal-section h3 {
   margin: 0 0 14px;
+
   color: #111827;
+
   font-size: 18px;
+
   font-weight: 900;
 }
 
 .sa-project-modal-section p {
   margin: 0;
+
   color: #667085;
+
   line-height: 1.6;
 }
 
+/* =========================================================
+   STATUS NOTICE
+========================================================= */
+
 .sa-project-status-notice {
   margin-top: 18px;
+
   border-radius: 16px;
+
   padding: 13px 15px;
+
   display: flex;
+
   align-items: center;
+
   gap: 9px;
+
   font-weight: 900;
 }
 
 .sa-project-status-notice.hold {
   border: 1px solid #fde68a;
+
   background: #fffbeb;
+
   color: #92400e;
 }
 
 .sa-project-status-notice.rejected {
   border: 1px solid #fecdd3;
+
   background: #fff1f2;
+
   color: #991b1b;
 }
 
-@media (max-width: 1150px) {
+/* =========================================================
+   ASSIGN PROJECT MODAL
+========================================================= */
+
+.sa-project-assignment-backdrop,
+.sa-project-assignee-manager-backdrop {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 10010;
+
+  padding: 24px;
+
+  display: grid;
+
+  place-items: center;
+
+  background:
+    rgba(
+      15,
+      23,
+      42,
+      0.58
+    );
+
+  backdrop-filter: blur(4px);
+}
+
+.sa-project-assignee-manager-backdrop {
+  z-index: 10020;
+}
+
+.sa-project-assignment-modal {
+  width:
+    min(
+      1050px,
+      96vw
+    );
+
+  max-height: 92vh;
+
+  overflow-y: auto;
+
+  overflow-x: hidden;
+
+  border-radius: 28px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 28px 90px
+    rgba(15, 23, 42, 0.3);
+
+  scrollbar-width: none;
+
+  -ms-overflow-style: none;
+}
+
+.sa-project-assignment-modal::-webkit-scrollbar {
+  display: none;
+}
+
+/* =========================================================
+   ASSIGNMENT HEADER
+========================================================= */
+
+.sa-project-assignment-header {
+  position: sticky;
+
+  top: 0;
+
+  z-index: 20;
+
+  padding: 24px 26px 20px;
+
+  border-bottom:
+    1px solid #edf0f3;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.98
+    );
+
+  backdrop-filter: blur(8px);
+
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+.sa-project-assignment-header h2 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 26px;
+
+  font-weight: 900;
+
+  letter-spacing: -0.03em;
+}
+
+.sa-project-assignment-header p {
+  margin: 7px 0 0;
+
+  color: #667085;
+
+  font-size: 13px;
+}
+
+.sa-project-assignment-close {
+  width: 40px;
+
+  height: 40px;
+
+  min-width: 40px;
+
+  border: 0;
+
+  border-radius: 13px;
+
+  background: #111827;
+
+  color: #ffffff;
+
+  display: grid;
+
+  place-items: center;
+
+  cursor: pointer;
+}
+
+/* =========================================================
+   FORM
+========================================================= */
+
+.sa-project-assignment-form-grid {
+  padding: 24px 26px 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
+
+  gap: 14px;
+}
+
+.sa-project-field {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 8px;
+}
+
+.sa-project-field span {
+  color: #344054;
+
+  font-size: 12px;
+
+  font-weight: 900;
+}
+
+.sa-project-field input,
+.sa-project-field select,
+.sa-project-field textarea {
+  width: 100%;
+
+  border: 1px solid #d8dee8;
+
+  border-radius: 14px;
+
+  background: #ffffff;
+
+  color: #111827;
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  font-weight: 700;
+
+  outline: none;
+}
+
+.sa-project-field input,
+.sa-project-field select {
+  min-height: 47px;
+
+  padding: 0 13px;
+}
+
+.sa-project-field textarea {
+  min-height: 105px;
+
+  resize: vertical;
+
+  padding: 13px;
+}
+
+.sa-project-field input:focus,
+.sa-project-field select:focus,
+.sa-project-field textarea:focus {
+  border-color: #ff5733;
+
+  box-shadow:
+    0 0 0 4px
+    rgba(255, 87, 51, 0.08);
+}
+
+.sa-project-field-wide {
+  grid-column: span 2;
+}
+
+.sa-project-field-full {
+  grid-column: 1 / -1;
+}
+
+/* =========================================================
+   ASSIGNEE PANEL
+========================================================= */
+
+.sa-project-assignee-panel {
+  margin: 22px 26px 0;
+
+  padding: 18px;
+
+  border: 1px solid #e7eaf0;
+
+  border-radius: 20px;
+
+  background: #f8fafc;
+}
+
+.sa-project-assignee-panel-header {
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 16px;
+
+  margin-bottom: 14px;
+}
+
+.sa-project-assignee-panel-header h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 17px;
+
+  font-weight: 900;
+}
+
+.sa-project-assignee-panel-header p {
+  margin: 5px 0 0;
+
+  color: #667085;
+
+  font-size: 11px;
+
+  font-weight: 700;
+}
+
+/* =========================================================
+   ASSIGNEE SEARCH
+========================================================= */
+
+.sa-project-assignee-search {
+  width: 300px;
+
+  min-height: 43px;
+
+  border: 1px solid #d8dee8;
+
+  border-radius: 13px;
+
+  background: #ffffff;
+
+  padding: 0 12px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  color: #667085;
+}
+
+.sa-project-assignee-search input {
+  width: 100%;
+
+  min-width: 0;
+
+  border: 0;
+
+  outline: 0;
+
+  background: transparent;
+
+  color: #111827;
+
+  font-size: 12px;
+
+  font-weight: 700;
+}
+
+/* =========================================================
+   ASSIGNEE LIST
+========================================================= */
+
+.sa-project-assignee-list {
+  max-height: 330px;
+
+  overflow-y: auto;
+
+  overflow-x: hidden;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 10px;
+
+  padding-right: 4px;
+
+  scrollbar-width: none;
+
+  -ms-overflow-style: none;
+}
+
+.sa-project-assignee-list::-webkit-scrollbar {
+  display: none;
+}
+
+.sa-project-assignee-card {
+  width: 100%;
+
+  min-width: 0;
+
+  min-height: 78px;
+
+  border: 1px solid #e4e8ee;
+
+  border-radius: 15px;
+
+  background: #ffffff;
+
+  padding: 12px;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 11px;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.sa-project-assignee-card:hover {
+  border-color:
+    rgba(
+      255,
+      87,
+      51,
+      0.4
+    );
+}
+
+.sa-project-assignee-card.selected {
+  border-color: #ff5733;
+
+  background: #fff7f4;
+
+  box-shadow:
+    inset 0 0 0 1px
+    rgba(255, 87, 51, 0.13);
+}
+
+.sa-project-assignee-checkbox {
+  width: 22px;
+
+  height: 22px;
+
+  min-width: 22px;
+
+  border: 2px solid #cbd5e1;
+
+  border-radius: 7px;
+
+  background: #ffffff;
+
+  display: grid;
+
+  place-items: center;
+
+  color: #ffffff;
+
+  margin-top: 2px;
+}
+
+.sa-project-assignee-card.selected
+  .sa-project-assignee-checkbox {
+  background: #ff5733;
+
+  border-color: #ff5733;
+}
+
+.sa-project-assignee-copy {
+  min-width: 0;
+
+  display: grid;
+
+  gap: 3px;
+}
+
+.sa-project-assignee-copy strong {
+  color: #111827;
+
+  font-size: 13px;
+
+  font-weight: 900;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-project-assignee-copy span {
+  color: #667085;
+
+  font-size: 11px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-project-assignee-copy small {
+  color: #98a2b3;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-project-assignee-empty {
+  grid-column: 1 / -1;
+
+  border: 1px dashed #ccd3dd;
+
+  border-radius: 14px;
+
+  padding: 20px;
+
+  color: #667085;
+
+  text-align: center;
+
+  font-weight: 800;
+}
+
+/* =========================================================
+   ASSIGNMENT FOOTER
+========================================================= */
+
+.sa-project-assignment-footer {
+  position: sticky;
+
+  bottom: 0;
+
+  z-index: 20;
+
+  margin-top: 22px;
+
+  padding: 18px 26px 22px;
+
+  border-top:
+    1px solid #edf0f3;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.98
+    );
+
+  backdrop-filter: blur(8px);
+
+  display: flex;
+
+  justify-content: flex-end;
+
+  gap: 10px;
+}
+
+.sa-project-assignment-cancel,
+.sa-project-assignment-save {
+  min-height: 44px;
+
+  border-radius: 13px;
+
+  padding: 0 16px;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  gap: 7px;
+
+  font-size: 13px;
+
+  font-weight: 900;
+
+  cursor: pointer;
+}
+
+.sa-project-assignment-cancel {
+  border: 1px solid #d8dee8;
+
+  background: #ffffff;
+
+  color: #344054;
+}
+
+.sa-project-assignment-save {
+  border: 0;
+
+  background: #ff5733;
+
+  color: #ffffff;
+}
+
+.sa-project-assignment-save:hover {
+  background: #f04424;
+}
+
+.sa-project-assignment-cancel:disabled,
+.sa-project-assignment-save:disabled,
+.sa-project-assignment-close:disabled {
+  opacity: 0.6;
+
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   MANAGE ASSIGNEES MODAL
+========================================================= */
+
+.sa-project-assignee-manager-modal {
+  width:
+    min(
+      760px,
+      95vw
+    );
+
+  max-height: 88vh;
+
+  overflow-y: auto;
+
+  border-radius: 26px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 28px 90px
+    rgba(15, 23, 42, 0.3);
+
+  scrollbar-width: none;
+
+  -ms-overflow-style: none;
+}
+
+.sa-project-assignee-manager-modal::-webkit-scrollbar {
+  display: none;
+}
+
+.sa-project-assignee-manager-summary {
+  margin: 20px 24px 0;
+
+  border: 1px solid #e5e7eb;
+
+  border-radius: 14px;
+
+  background: #f8fafc;
+
+  padding: 12px 14px;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 9px;
+
+  color: #344054;
+
+  font-size: 12px;
+
+  font-weight: 900;
+}
+
+.sa-project-assignee-manager-summary svg {
+  color: #ff5733;
+}
+
+.sa-project-assignee-manager-search {
+  width: auto;
+
+  margin: 14px 24px 0;
+}
+
+.sa-project-assignee-manager-list {
+  margin: 14px 24px 0;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1200px) {
+  .sa-projects-board {
+    /*
+      On smaller laptop:
+      2 complete columns + next preview.
+    */
+    --sa-project-fourth-visible: 80px;
+
+    grid-auto-columns:
+      calc(
+        (
+            100% -
+            (var(--sa-project-gap) * 2) -
+            var(--sa-project-fourth-visible)
+          ) /
+          2
+      );
+  }
+
   .sa-projects-toolbar {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+      1fr
+      1fr;
   }
 
   .sa-projects-search {
@@ -621,19 +1937,40 @@
   }
 
   .sa-project-detail-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
   }
 }
 
-@media (max-width: 800px) {
-  .sa-projects-board {
-    grid-auto-columns: calc(100% - 45px);
+@media (max-width: 900px) {
+  .sa-project-assignment-form-grid {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .sa-project-field-wide {
+    grid-column: span 2;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .sa-projects-header {
     flex-direction: column;
+  }
+
+  .sa-projects-header-actions {
+    width: 100%;
+  }
+
+  .sa-projects-assign-btn,
+  .sa-projects-refresh {
+    flex: 1;
   }
 
   .sa-projects-toolbar {
@@ -644,6 +1981,11 @@
     grid-column: auto;
   }
 
+  .sa-projects-board {
+    grid-auto-columns:
+      calc(100% - 45px);
+  }
+
   .sa-project-detail-grid {
     grid-template-columns: 1fr;
   }
@@ -651,47 +1993,38 @@
   .sa-project-modal-header {
     flex-direction: column;
   }
-}
 
+  .sa-project-modal-header-actions {
+    width: 100%;
+  }
 
-/* =========================================================
-   FINAL PROJECT PROGRESS VISIBILITY FIX
-========================================================= */
+  .sa-project-manage-users-btn,
+  .sa-project-modal-close {
+    flex: 1;
 
-.sa-projects-column {
-  height: 890px !important;
-  min-height: 890px !important;
-  max-height: 890px !important;
-}
+    justify-content: center;
+  }
 
-.sa-projects-column-list {
-  grid-auto-rows: 380px !important;
-}
+  .sa-project-assignment-form-grid {
+    grid-template-columns: 1fr;
+  }
 
-.sa-project-card {
-  height: 380px !important;
-  min-height: 380px !important;
-  max-height: 380px !important;
-  padding-bottom: 16px !important;
-}
+  .sa-project-field-wide,
+  .sa-project-field-full {
+    grid-column: auto;
+  }
 
-.sa-project-progress {
-  margin-top: 12px !important;
-  padding-top: 10px !important;
-  flex-shrink: 0 !important;
-}
+  .sa-project-assignee-panel-header {
+    flex-direction: column;
 
-.sa-project-progress > div {
-  margin-bottom: 7px !important;
-}
+    align-items: stretch;
+  }
 
-.sa-project-progress progress {
-  height: 8px !important;
-  flex-shrink: 0 !important;
-}
+  .sa-project-assignee-search {
+    width: 100%;
+  }
 
-.sa-project-card-footer {
-  margin-top: 10px !important;
-  padding-top: 9px !important;
-  flex-shrink: 0 !important;
+  .sa-project-assignee-list {
+    grid-template-columns: 1fr;
+  }
 }
