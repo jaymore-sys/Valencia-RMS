@@ -1,16 +1,24 @@
 /* =========================================================
-   SUPERADMIN OVERVIEW
+   SUPERADMIN OVERVIEW - COMPLETE CSS
 ========================================================= */
 
 * {
   box-sizing: border-box;
 }
 
+/* =========================================================
+   PAGE
+========================================================= */
+
 .sa-ov-page {
   width: 100%;
   max-width: 100%;
+  min-width: 0;
+
   margin: 0 auto;
+
   padding-bottom: 40px;
+
   overflow-x: hidden;
 }
 
@@ -20,82 +28,150 @@
 
 .sa-ov-title-row {
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
+
   gap: 18px;
+
   margin-bottom: 34px;
 }
 
 .sa-ov-h1 {
   margin: 0;
+
   color: #111827;
+
   font-size: 40px;
+
   font-weight: 900;
+
   letter-spacing: -0.04em;
 }
 
 .sa-ov-subtitle {
   margin: 12px 0 0;
+
   color: #667085;
+
   font-size: 16px;
+
   line-height: 1.5;
 }
 
 .sa-ov-primary-btn {
   border: 0;
+
   border-radius: 14px;
+
   background: #ff5733;
+
   color: #ffffff;
+
   padding: 13px 18px;
+
   font-size: 15px;
+
   font-weight: 900;
+
   display: inline-flex;
+
   align-items: center;
+
   gap: 8px;
+
   cursor: pointer;
+
   white-space: nowrap;
+
+  box-shadow:
+    0 10px 24px
+    rgba(255, 87, 51, 0.18);
 }
+
+.sa-ov-primary-btn:hover {
+  background: #f04424;
+}
+
+/* =========================================================
+   MESSAGE
+========================================================= */
 
 .sa-ov-message {
   background: #fff1f0;
+
   border: 1px solid #ffd5d0;
+
   color: #b42318;
+
   border-radius: 16px;
+
   padding: 16px;
+
   margin-bottom: 24px;
+
   font-weight: 900;
 }
 
 /* =========================================================
-   TOP STAT CARDS
+   TOP STATS
 ========================================================= */
 
 .sa-ov-stat-grid {
   width: 100%;
+
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+
+  grid-template-columns:
+    repeat(
+      5,
+      minmax(0, 1fr)
+    );
+
   gap: 10px;
+
   margin-bottom: 30px;
+
   align-items: stretch;
 }
 
 .sa-ov-overview-stat-card {
   width: 100%;
+
   min-width: 0;
+
   min-height: 122px;
-  border: 1px solid #eef2f7;
+
+  border:
+    1px solid #eef2f7;
+
   border-radius: 20px;
+
   background: #ffffff;
+
   padding: 18px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+
+  box-shadow:
+    0 12px 30px
+    rgba(15, 23, 42, 0.06);
+
   cursor: pointer;
+
   text-align: left;
+
   overflow: hidden;
+
   outline: none;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: flex-start;
+
   justify-content: space-between;
+
   gap: 14px;
 }
 
@@ -103,19 +179,89 @@
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease,
-    border-color 0.18s ease,
-    background 0.18s ease;
+    border-color 0.18s ease;
 }
 
 .sa-overview-inline-stat-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(255, 87, 51, 0.38);
-  box-shadow: 0 24px 50px rgba(255, 87, 51, 0.16);
+  transform:
+    translateY(-4px);
+
+  border-color:
+    rgba(
+      255,
+      87,
+      51,
+      0.38
+    );
+
+  box-shadow:
+    0 24px 50px
+    rgba(
+      255,
+      87,
+      51,
+      0.16
+    );
+}
+
+.sa-ov-overview-stat-value {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 40px;
+
+  font-weight: 900;
+
+  line-height: 1;
+
+  letter-spacing: -0.04em;
+
+  white-space: nowrap;
+}
+
+.sa-ov-overview-stat-footer {
+  width: 100%;
+
+  min-width: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: flex-start;
+
+  gap: 10px;
+}
+
+.sa-ov-overview-stat-icon {
+  width: 36px;
+
+  height: 36px;
+
+  min-width: 36px;
+
+  min-height: 36px;
+
+  border-radius: 12px;
+
+  background: #fff1ed;
+
+  color: #ff5733;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  flex-shrink: 0;
 }
 
 .sa-overview-inline-stat-card:hover
   .sa-overview-inline-stat-icon {
   background: #ff5733;
+
   color: #ffffff;
 }
 
@@ -123,52 +269,28 @@
   .sa-overview-inline-stat-icon
   svg {
   color: #ffffff;
+
   stroke: #ffffff;
 }
 
-.sa-ov-overview-stat-footer {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
-  min-width: 0;
-}
-
-.sa-ov-overview-stat-icon {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  min-height: 36px;
-  border-radius: 12px;
-  background: #fff1ed;
-  color: #ff5733;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
 .sa-ov-overview-stat-label {
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 900;
-  line-height: 1.1;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   min-width: 0;
-}
 
-.sa-ov-overview-stat-value {
-  color: #111827;
-  font-size: 40px;
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.04em;
   margin: 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+
+  font-weight: 900;
+
+  line-height: 1.1;
+
   white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
 }
 
 /* =========================================================
@@ -176,44 +298,75 @@
 ========================================================= */
 
 .sa-ov-card {
-  background: #ffffff;
-  border: 1px solid #eeeeee;
-  border-radius: 24px;
-  padding: 28px;
-  margin-bottom: 34px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.045);
+  width: 100%;
+
   min-width: 0;
+
+  background: #ffffff;
+
+  border: 1px solid #eeeeee;
+
+  border-radius: 24px;
+
+  padding: 28px;
+
+  margin-bottom: 34px;
+
+  box-shadow:
+    0 8px 24px
+    rgba(0, 0, 0, 0.045);
+
   overflow: hidden;
 }
 
+/* =========================================================
+   SECTION HEADINGS
+========================================================= */
+
 .sa-ov-section-title {
   margin: 0;
+
   color: #111827;
+
   font-size: 25px;
+
   font-weight: 900;
+
   display: flex;
+
   align-items: center;
+
   gap: 10px;
 }
 
 .sa-ov-section-sub {
   margin: 10px 0 24px;
+
   color: #667085;
+
   font-size: 14px;
+
   line-height: 1.5;
 }
 
 .sa-ov-section-icon {
   color: #ff5733;
+
   stroke: #ff5733;
+
+  flex-shrink: 0;
 }
+
+/* =========================================================
+   GENERAL
+========================================================= */
 
 .sa-ov-min-width-0 {
   min-width: 0;
 }
 
 /* =========================================================
-   QUICK SEARCH
+   QUICK USER SEARCH
 ========================================================= */
 
 .sa-ov-quick-search-header {
@@ -222,52 +375,86 @@
 
 .sa-ov-big-search-bar {
   width: 100%;
-  border: 1px dashed #d0d5dd;
+
+  border:
+    1px dashed #d0d5dd;
+
   border-radius: 18px;
+
   padding: 16px 18px;
+
   background: #ffffff;
+
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    auto;
+
   align-items: center;
+
   gap: 18px;
+
   margin-bottom: 22px;
 }
 
 .sa-ov-big-search-input-wrap {
   width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+
   min-width: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 12px;
 }
 
 .sa-ov-big-search-input {
   width: 100%;
-  border: 0;
-  outline: none;
-  background: transparent;
-  color: #111827;
-  font-size: 16px;
-  font-weight: 800;
+
   min-width: 0;
+
+  border: 0;
+
+  outline: none;
+
+  background: transparent;
+
+  color: #111827;
+
+  font-size: 16px;
+
+  font-weight: 800;
 }
 
 .sa-ov-search-icon {
   color: #667085;
+
   stroke: #667085;
+
   flex-shrink: 0;
 }
 
 .sa-ov-open-users-btn {
   border: 0;
+
   background: transparent;
+
   color: #667085;
+
   font-size: 15px;
+
   font-weight: 900;
+
   display: inline-flex;
+
   align-items: center;
+
   gap: 8px;
+
   cursor: pointer;
+
   white-space: nowrap;
 }
 
@@ -276,53 +463,87 @@
 ========================================================= */
 
 .sa-ov-empty {
-  border: 1px dashed #d0d5dd;
+  border:
+    1px dashed #d0d5dd;
+
   border-radius: 18px;
+
   padding: 22px;
+
   text-align: center;
+
   color: #667085;
+
   font-weight: 900;
+
   background: #ffffff;
 }
 
 /* =========================================================
-   TWO COLUMN LAYOUT
+   TWO COLUMN GRID
 ========================================================= */
 
 .sa-ov-two-column-grid {
+  width: 100%;
+
+  min-width: 0;
+
   display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(360px, 1fr)
-  );
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
   gap: 28px;
+
   margin-bottom: 34px;
 }
 
 /* =========================================================
-   USER CARDS
+   QUICK USER CARDS
 ========================================================= */
 
 .sa-ov-user-card-grid {
   display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(240px, 1fr)
-  );
+
+  grid-template-columns:
+    repeat(
+      auto-fit,
+      minmax(240px, 1fr)
+    );
+
   gap: 18px;
 }
 
-.sa-ov-user-scroll-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
-  max-height: 760px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 8px;
+/* =========================================================
+   USER SCROLL LIST
+   VISIBLE SCROLLBAR
+========================================================= */
 
-  scrollbar-width: thin;
-  scrollbar-color: #b8c0cc #f1f5f9;
+.sa-ov-user-scroll-list {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns: 1fr;
+
+  gap: 18px;
+
+  max-height: 760px;
+
+  overflow-y: auto;
+
+  overflow-x: hidden;
+
+  padding-right: 10px;
+
+  scrollbar-width: auto;
+
+  scrollbar-color:
+    #aeb7c4
+    #edf1f5;
 }
 
 .sa-ov-user-scroll-list::-webkit-scrollbar {
@@ -330,417 +551,210 @@
 }
 
 .sa-ov-user-scroll-list::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #edf1f5;
+
   border-radius: 999px;
 }
 
 .sa-ov-user-scroll-list::-webkit-scrollbar-thumb {
-  background: #b8c0cc;
+  background: #aeb7c4;
+
   border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
 }
 
 .sa-ov-user-scroll-list::-webkit-scrollbar-thumb:hover {
-  background: #98a2b3;
+  background: #8d98a7;
 }
 
 .sa-overview-user-scroll {
   overflow-y: auto;
+
   overflow-x: hidden;
 }
 
+/* =========================================================
+   USER MINI CARD
+========================================================= */
+
 .sa-ov-user-mini-card {
-  border: 1px solid #edf0f4;
-  border-radius: 20px;
-  padding: 18px 20px;
-  background: #f8fafc;
+  width: 100%;
+
   min-width: 0;
+
+  border:
+    1px solid #edf0f4;
+
+  border-radius: 20px;
+
+  padding: 18px 20px;
+
+  background: #f8fafc;
+
   overflow: hidden;
+
   text-align: left;
+
   cursor: pointer;
+
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.sa-ov-user-mini-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color:
+    rgba(
+      255,
+      87,
+      51,
+      0.28
+    );
+
+  box-shadow:
+    0 12px 26px
+    rgba(
+      15,
+      23,
+      42,
+      0.06
+    );
 }
 
 .sa-ov-user-mini-top {
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
+
   gap: 12px;
+
   margin-bottom: 16px;
 }
 
 .sa-ov-user-name {
   margin: 0;
+
   color: #111827;
+
   font-size: 17px;
+
   font-weight: 900;
+
   word-break: break-word;
 }
 
 .sa-ov-small-text {
   margin: 8px 0 0;
+
   color: #667085;
+
   font-size: 13px;
+
   line-height: 1.4;
+
   word-break: break-word;
 }
 
+/* =========================================================
+   BADGE
+========================================================= */
+
 .sa-ov-badge {
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
+
   border-radius: 999px;
+
   padding: 7px 12px;
+
   background: #eef2ff;
+
   color: #344054;
+
   font-size: 12px;
+
   font-weight: 900;
+
   white-space: nowrap;
+
   text-transform: capitalize;
+
   flex-shrink: 0;
 }
 
+/* =========================================================
+   USER META
+========================================================= */
+
 .sa-ov-user-meta-grid {
   display: grid;
-  grid-template-columns: repeat(
-    2,
-    minmax(0, 1fr)
-  );
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
   column-gap: 26px;
+
   row-gap: 14px;
+
   margin-bottom: 16px;
 }
 
 .sa-ov-user-meta-item {
   min-width: 0;
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: 10px;
 }
 
 .sa-ov-user-meta-label {
   color: #475569;
+
   font-size: 14px;
+
   font-weight: 800;
+
   line-height: 1.2;
+
   white-space: nowrap;
 }
 
 .sa-ov-user-meta-value {
+  min-width: 0;
+
   color: #111827;
+
   font-size: 14px;
+
   font-weight: 900;
+
   line-height: 1.2;
+
   text-align: right;
+
   white-space: nowrap;
+
   overflow: hidden;
+
   text-overflow: ellipsis;
-}
-
-/* =========================================================
-   DEPARTMENT SNAPSHOT
-   EXACTLY 3 FULL DEPARTMENT CARDS
-========================================================= */
-
-.sa-ov-department-horizontal-scroll {
-  width: 100%;
-}
-
-.sa-overview-department-grid-scroll {
-  width: 100%;
-  display: grid;
-
-  grid-template-rows: 1fr;
-  grid-auto-flow: column;
-
-  /*
-    THREE COMPLETE CARDS.
-    2 gaps = 36px.
-  */
-  grid-auto-columns: calc(
-    (100% - 36px) / 3
-  );
-
-  gap: 18px;
-
-  overflow-x: auto;
-  overflow-y: hidden;
-
-  padding: 2px 2px 14px;
-
-  scroll-snap-type: x proximity;
-
-  scrollbar-width: thin;
-  scrollbar-color: #b8c0cc #f1f5f9;
-}
-
-.sa-overview-department-grid-scroll::-webkit-scrollbar {
-  height: 9px;
-}
-
-.sa-overview-department-grid-scroll::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 999px;
-}
-
-.sa-overview-department-grid-scroll::-webkit-scrollbar-thumb {
-  background: #b8c0cc;
-  border-radius: 999px;
-}
-
-.sa-overview-department-grid-scroll::-webkit-scrollbar-thumb:hover {
-  background: #98a2b3;
-}
-
-.sa-ov-department-card {
-  border: 1px solid #edf0f4;
-  border-radius: 20px;
-  padding: 18px;
-  background: #f8fafc;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sa-overview-department-card {
-  width: 100%;
-  min-width: 0;
-  max-width: none;
-  flex: none;
-  scroll-snap-align: start;
-}
-
-.sa-ov-department-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.sa-ov-department-top h3 {
-  margin: 0;
-  color: #111827;
-  font-size: 17px;
-  font-weight: 900;
-  overflow-wrap: anywhere;
-}
-
-.sa-ov-metric-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  color: #667085;
-  font-weight: 800;
-}
-
-.sa-ov-click-text {
-  margin: 10px 0 0;
-  color: #ff5733;
-  font-size: 13px;
-  font-weight: 900;
-}
-
-/* =========================================================
-   SNAPSHOT CARDS
-========================================================= */
-
-.sa-ov-snapshot-scroll-list {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 18px;
-}
-
-.sa-overview-snapshot-scroll {
-  --sa-snapshot-card-height: 390px;
-  --sa-snapshot-gap: 18px;
-
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-auto-rows: var(
-    --sa-snapshot-card-height
-  );
-
-  gap: var(--sa-snapshot-gap);
-
-  max-height: calc(
-    var(--sa-snapshot-card-height) +
-      var(--sa-snapshot-gap) +
-      (
-        var(--sa-snapshot-card-height) /
-          2
-      )
-  );
-
-  overflow-y: auto;
-  overflow-x: hidden;
-
-  padding-right: 9px;
-  padding-bottom: 4px;
-
-  scroll-snap-type: y proximity;
-
-  scrollbar-width: thin;
-  scrollbar-color: #b8c0cc #f1f5f9;
-}
-
-.sa-overview-snapshot-scroll::-webkit-scrollbar {
-  width: 9px;
-}
-
-.sa-overview-snapshot-scroll::-webkit-scrollbar-track {
-  background: #f1f5f9;
-  border-radius: 999px;
-}
-
-.sa-overview-snapshot-scroll::-webkit-scrollbar-thumb {
-  background: #b8c0cc;
-  border-radius: 999px;
-}
-
-.sa-overview-snapshot-scroll::-webkit-scrollbar-thumb:hover {
-  background: #98a2b3;
-}
-
-.sa-ov-work-card {
-  border: 1px solid #edf0f4;
-  border-radius: 20px;
-  padding: 22px;
-  background: #f8fafc;
-  min-width: 0;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sa-overview-snapshot-card {
-  width: 100%;
-  height: var(
-    --sa-snapshot-card-height
-  );
-
-  min-height: var(
-    --sa-snapshot-card-height
-  );
-
-  max-height: var(
-    --sa-snapshot-card-height
-  );
-
-  display: flex;
-  flex-direction: column;
-
-  overflow: hidden;
-
-  scroll-snap-align: start;
-}
-
-.sa-ov-work-card-top {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  margin-bottom: 18px;
-  min-width: 0;
-}
-
-.sa-ov-work-card-top h3 {
-  margin: 0;
-  color: #111827;
-  font-size: 18px;
-  font-weight: 900;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.sa-ov-work-card-top p {
-  color: #667085;
-}
-
-/* =========================================================
-   PROJECT DESCRIPTION PREVIEW
-   IMPORTANT CHANGE
-========================================================= */
-
-.sa-ov-project-description-preview {
-  width: 100%;
-  max-width: 100%;
-
-  margin: 10px 0 0 !important;
-
-  color: #667085;
-  font-size: 13px;
-  line-height: 1.45;
-
-  /*
-    SHOW ONLY PART OF DESCRIPTION.
-    COMPLETE DESCRIPTION IS AVAILABLE AFTER CLICK.
-  */
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-/* =========================================================
-   INFO BOX
-========================================================= */
-
-.sa-ov-info-grid {
-  display: grid;
-  grid-template-columns: repeat(
-    2,
-    minmax(0, 1fr)
-  );
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.sa-ov-info-box {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 14px 16px;
-  min-width: 0;
-  min-height: 76px;
-
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-
-  gap: 7px;
-
-  overflow: hidden;
-}
-
-.sa-ov-info-label {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 900;
-  line-height: 1.1;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  margin: 0;
-  display: block;
-}
-
-.sa-ov-info-value {
-  color: #111827;
-  font-size: 14px;
-  font-weight: 900;
-  line-height: 1.25;
-  margin: 0;
-  display: block;
-  width: 100%;
-
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
 }
 
 /* =========================================================
@@ -749,83 +763,960 @@
 
 .sa-ov-progress {
   display: block;
+
   width: 100%;
-  height: 10px;
-  margin-top: 10px;
+
+  height: 9px;
+
+  margin-top: 8px;
+
   border: 0;
+
   border-radius: 999px;
+
   overflow: hidden;
+
   appearance: none;
+
   -webkit-appearance: none;
+
   background: #ffd6cc;
-  flex-shrink: 0;
 }
 
 .sa-ov-progress::-webkit-progress-bar {
   background: #ffd6cc;
+
   border-radius: 999px;
 }
 
 .sa-ov-progress::-webkit-progress-value {
   background: #ff5733;
+
   border-radius: 999px;
 }
 
 .sa-ov-progress::-moz-progress-bar {
   background: #ff5733;
+
   border-radius: 999px;
 }
 
-.sa-overview-snapshot-card
-  .sa-ov-progress {
-  flex-shrink: 0;
-  margin-top: auto;
+/* =========================================================
+   DEPARTMENT SNAPSHOT SECTION
+========================================================= */
+
+.sa-ov-department-section {
+  width: 100%;
+
+  min-width: 0;
+
+  overflow: hidden;
 }
 
-.sa-overview-snapshot-card
-  .sa-ov-small-text {
-  display: block;
+.sa-ov-department-section-header {
+  width: 100%;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 20px;
+}
+
+/* =========================================================
+   DEPARTMENT SNAPSHOT
+   DESKTOP = 3 COLUMNS × 2 ROWS
+========================================================= */
+
+.sa-ov-department-snapshot-scroll {
+  --sa-dept-gap: 18px;
+
+  --sa-dept-card-height: 250px;
+
+  width: 100%;
+
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-rows:
+    repeat(
+      2,
+      var(--sa-dept-card-height)
+    );
+
+  grid-auto-flow: column;
+
+  /*
+     EXACTLY 3 COMPLETE CARDS IN EACH ROW
+  */
+  grid-auto-columns:
+    calc(
+      (
+          100% -
+          (var(--sa-dept-gap) * 2)
+        ) /
+        3
+    );
+
+  gap: var(--sa-dept-gap);
+
+  overflow-x: auto;
+
+  overflow-y: hidden;
+
+  padding:
+    2px
+    2px
+    14px;
+
+  scroll-behavior: smooth;
+
+  scroll-snap-type: x proximity;
+
+  scrollbar-width: auto;
+
+  scrollbar-color:
+    #aeb7c4
+    #edf1f5;
+}
+
+/* =========================================================
+   DEPARTMENT VISIBLE SCROLLBAR
+========================================================= */
+
+.sa-ov-department-snapshot-scroll::-webkit-scrollbar {
+  height: 10px;
+}
+
+.sa-ov-department-snapshot-scroll::-webkit-scrollbar-track {
+  background: #edf1f5;
+
+  border-radius: 999px;
+}
+
+.sa-ov-department-snapshot-scroll::-webkit-scrollbar-thumb {
+  background: #aeb7c4;
+
+  border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
+}
+
+.sa-ov-department-snapshot-scroll::-webkit-scrollbar-thumb:hover {
+  background: #8f9aaa;
+}
+
+/* =========================================================
+   DEPARTMENT CARD
+========================================================= */
+
+.sa-ov-department-snapshot-card {
+  width: 100%;
+
+  height:
+    var(--sa-dept-card-height);
+
+  min-width: 0;
+
+  min-height:
+    var(--sa-dept-card-height);
+
+  max-height:
+    var(--sa-dept-card-height);
+
+  position: relative;
+
+  border:
+    1px solid #e6eaf0;
+
+  border-radius: 20px;
+
+  background: #f8fafc;
+
+  padding: 17px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  overflow: hidden;
+
+  scroll-snap-align: start;
+
+  box-shadow:
+    0 7px 20px
+    rgba(
+      15,
+      23,
+      42,
+      0.035
+    );
+
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    background 0.16s ease;
+}
+
+.sa-ov-department-snapshot-card::before {
+  content: "";
+
+  position: absolute;
+
+  top: 0;
+
+  left: 0;
+
+  right: 0;
+
+  height: 3px;
+
+  background: #ff5733;
+}
+
+.sa-ov-department-snapshot-card:hover {
+  transform:
+    translateY(-2px);
+
+  background: #ffffff;
+
+  border-color:
+    rgba(
+      255,
+      87,
+      51,
+      0.32
+    );
+
+  box-shadow:
+    0 14px 30px
+    rgba(
+      15,
+      23,
+      42,
+      0.08
+    );
+}
+
+/* =========================================================
+   DEPARTMENT HEADER
+========================================================= */
+
+.sa-ov-department-card-header {
+  width: 100%;
+
+  min-width: 0;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-bottom: 14px;
+}
+
+.sa-ov-department-name-wrap {
+  min-width: 0;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+}
+
+.sa-ov-department-icon-box {
+  width: 38px;
+
+  height: 38px;
+
+  min-width: 38px;
+
+  min-height: 38px;
+
+  border-radius: 12px;
+
+  background: #fff0eb;
+
+  color: #ff5733;
+
+  display: grid;
+
+  place-items: center;
+
   flex-shrink: 0;
-  margin: 10px 0 0;
+}
+
+.sa-ov-department-icon-box svg {
+  color: #ff5733;
+
+  stroke: #ff5733;
+}
+
+.sa-ov-department-title-copy {
+  min-width: 0;
+}
+
+.sa-ov-department-title-copy h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 16px;
+
+  font-weight: 900;
+
+  line-height: 1.25;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-ov-department-title-copy span {
+  display: block;
+
+  margin-top: 3px;
+
+  color: #7b8799;
+
+  font-size: 10px;
+
+  font-weight: 700;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   DEPARTMENT USER BADGE
+========================================================= */
+
+.sa-ov-department-user-badge {
+  min-height: 30px;
+
+  padding: 0 10px;
+
+  border-radius: 999px;
+
+  background: #eef2ff;
+
+  color: #344054;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  font-size: 10px;
+
+  font-weight: 900;
+
+  white-space: nowrap;
+}
+
+/* =========================================================
+   DEPARTMENT METRICS
+========================================================= */
+
+.sa-ov-department-metrics-grid {
+  width: 100%;
+
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 9px;
+
+  margin-bottom: 12px;
+}
+
+.sa-ov-department-metric-box {
+  min-width: 0;
+
+  min-height: 55px;
+
+  border:
+    1px solid #e7ebf0;
+
+  border-radius: 13px;
+
+  background: #ffffff;
+
+  padding: 9px 11px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  justify-content: center;
+
+  gap: 4px;
+}
+
+.sa-ov-department-metric-box span {
+  display: block;
+
+  width: 100%;
+
+  color: #7b8799;
+
+  font-size: 9px;
+
+  font-weight: 900;
+
+  line-height: 1.1;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.02em;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+.sa-ov-department-metric-box strong {
+  display: block;
+
+  width: 100%;
+
+  color: #111827;
+
+  font-size: 16px;
+
+  font-weight: 900;
+
+  line-height: 1;
+
+  white-space: nowrap;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   DEPARTMENT PROGRESS
+========================================================= */
+
+.sa-ov-department-progress-area {
+  width: 100%;
+
+  margin-top: auto;
+
+  padding-top: 10px;
+
+  border-top:
+    1px solid #e7eaf0;
+
+  flex-shrink: 0;
+}
+
+.sa-ov-department-progress-head {
+  width: 100%;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: space-between;
+
+  gap: 10px;
+
+  margin-bottom: 5px;
+}
+
+.sa-ov-department-progress-head span {
+  color: #667085;
+
+  font-size: 9px;
+
+  font-weight: 800;
+}
+
+.sa-ov-department-progress-head strong {
+  color: #111827;
+
+  font-size: 10px;
+
+  font-weight: 900;
+}
+
+.sa-ov-department-progress-area
+  .sa-ov-progress {
+  width: 100%;
+
+  height: 7px;
+
+  margin: 0;
+}
+
+/* =========================================================
+   SNAPSHOT SCROLL AREA
+========================================================= */
+
+.sa-ov-snapshot-scroll-list {
+  width: 100%;
+
+  display: grid;
+
+  grid-template-columns: 1fr;
+
+  gap: 18px;
+}
+
+.sa-overview-snapshot-scroll {
+  --sa-snapshot-card-height:
+    390px;
+
+  --sa-snapshot-gap:
+    18px;
+
+  width: 100%;
+
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-columns: 1fr;
+
+  grid-auto-rows:
+    var(--sa-snapshot-card-height);
+
+  gap:
+    var(--sa-snapshot-gap);
+
+  max-height:
+    calc(
+      var(--sa-snapshot-card-height) +
+      var(--sa-snapshot-gap) +
+      (
+        var(--sa-snapshot-card-height) /
+        2
+      )
+    );
+
+  overflow-y: auto;
+
+  overflow-x: hidden;
+
+  padding-right: 10px;
+
   padding-bottom: 4px;
+
+  scroll-snap-type: y proximity;
+
+  scrollbar-width: auto;
+
+  scrollbar-color:
+    #aeb7c4
+    #edf1f5;
+}
+
+/* =========================================================
+   SNAPSHOT VISIBLE SCROLLBAR
+========================================================= */
+
+.sa-overview-snapshot-scroll::-webkit-scrollbar {
+  width: 9px;
+}
+
+.sa-overview-snapshot-scroll::-webkit-scrollbar-track {
+  background: #edf1f5;
+
+  border-radius: 999px;
+}
+
+.sa-overview-snapshot-scroll::-webkit-scrollbar-thumb {
+  background: #aeb7c4;
+
+  border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
+}
+
+.sa-overview-snapshot-scroll::-webkit-scrollbar-thumb:hover {
+  background: #8f9aaa;
+}
+
+/* =========================================================
+   SNAPSHOT CARD
+========================================================= */
+
+.sa-ov-work-card {
+  width: 100%;
+
+  min-width: 0;
+
+  border:
+    1px solid #edf0f4;
+
+  border-radius: 20px;
+
+  padding: 22px;
+
+  background: #f8fafc;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.sa-ov-work-card:hover {
+  transform:
+    translateY(-2px);
+
+  border-color:
+    rgba(
+      255,
+      87,
+      51,
+      0.25
+    );
+
+  box-shadow:
+    0 14px 28px
+    rgba(
+      15,
+      23,
+      42,
+      0.06
+    );
+}
+
+.sa-overview-snapshot-card {
+  width: 100%;
+
+  height:
+    var(--sa-snapshot-card-height);
+
+  min-height:
+    var(--sa-snapshot-card-height);
+
+  max-height:
+    var(--sa-snapshot-card-height);
+
+  display: flex;
+
+  flex-direction: column;
+
+  overflow: hidden;
+
+  scroll-snap-align: start;
+}
+
+/* =========================================================
+   SNAPSHOT HEADER
+========================================================= */
+
+.sa-ov-work-card-top {
+  width: 100%;
+
+  min-width: 0;
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: flex-start;
+
+  gap: 14px;
+
+  margin-bottom: 18px;
+}
+
+.sa-ov-work-card-top h3 {
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 18px;
+
+  font-weight: 900;
+
+  line-height: 1.3;
+
+  overflow-wrap: anywhere;
+}
+
+.sa-ov-work-card-top p {
+  margin: 7px 0 0;
+
+  color: #667085;
+
+  font-size: 13px;
+
   line-height: 1.4;
 }
 
 /* =========================================================
-   MODAL
+   PROJECT SNAPSHOT
+========================================================= */
+
+.sa-ov-project-snapshot-card {
+  overflow: hidden;
+}
+
+.sa-ov-project-card-top {
+  margin-bottom: 10px;
+}
+
+/* =========================================================
+   PROJECT DESCRIPTION
+   FULL WIDTH
+========================================================= */
+
+.sa-ov-project-description-preview {
+  display: -webkit-box;
+
+  width: 100%;
+
+  max-width: 100%;
+
+  margin: 0 0 14px;
+
+  color: #667085;
+
+  font-size: 13px;
+
+  line-height: 1.45;
+
+  -webkit-box-orient: vertical;
+
+  /*
+     Keep description short enough
+     so Tasks + progress text remain visible.
+  */
+  -webkit-line-clamp: 3;
+
+  overflow: hidden;
+
+  text-overflow: ellipsis;
+
+  white-space: normal;
+
+  word-break: normal;
+
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   INFO GRID
+========================================================= */
+
+.sa-ov-info-grid {
+  width: 100%;
+
+  min-width: 0;
+
+  display: grid;
+
+  grid-template-columns:
+    repeat(
+      2,
+      minmax(0, 1fr)
+    );
+
+  gap: 12px;
+
+  margin-bottom: 14px;
+}
+
+.sa-ov-info-box {
+  min-width: 0;
+
+  min-height: 70px;
+
+  background: #ffffff;
+
+  border:
+    1px solid #e5e7eb;
+
+  border-radius: 15px;
+
+  padding: 12px 14px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  justify-content: center;
+
+  gap: 6px;
+
+  overflow: hidden;
+}
+
+.sa-ov-info-label {
+  margin: 0;
+
+  color: #64748b;
+
+  font-size: 11px;
+
+  font-weight: 900;
+
+  line-height: 1.1;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.02em;
+}
+
+.sa-ov-info-value {
+  display: block;
+
+  width: 100%;
+
+  margin: 0;
+
+  color: #111827;
+
+  font-size: 13px;
+
+  font-weight: 900;
+
+  line-height: 1.25;
+
+  white-space: normal;
+
+  word-break: break-word;
+
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   SNAPSHOT PROGRESS
+========================================================= */
+
+.sa-overview-snapshot-card
+  > .sa-ov-progress {
+  margin-top: auto;
+
+  flex-shrink: 0;
+}
+
+.sa-ov-snapshot-progress-text {
+  margin: 8px 0 0;
+
+  padding-bottom: 2px;
+
+  flex-shrink: 0;
+
+  color: #667085;
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  line-height: 1.3;
+}
+
+/* =========================================================
+   MODAL BACKDROP
 ========================================================= */
 
 .sa-ov-modal-backdrop {
   position: fixed;
+
   inset: 0;
-  background: rgba(17, 24, 39, 0.5);
+
   z-index: 9999;
 
   padding: 24px;
 
   display: grid;
+
   place-items: center;
+
+  background:
+    rgba(
+      17,
+      24,
+      39,
+      0.5
+    );
+
+  backdrop-filter: blur(3px);
 }
 
+/* =========================================================
+   MODAL
+   VISIBLE SCROLLBAR
+========================================================= */
+
 .sa-ov-modal {
-  width: min(1180px, 96vw);
+  width:
+    min(
+      1180px,
+      96vw
+    );
+
   max-height: 88vh;
 
   overflow-y: auto;
+
   overflow-x: hidden;
 
   background: #ffffff;
 
   border-radius: 28px;
+
   padding: 30px;
 
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.25);
+  box-shadow:
+    0 24px 80px
+    rgba(
+      0,
+      0,
+      0,
+      0.25
+    );
 
-  /*
-    VISIBLE MODAL SCROLLBAR
-  */
-  scrollbar-width: thin;
-  scrollbar-color: #b8c0cc #f1f5f9;
+  scrollbar-width: auto;
+
+  scrollbar-color:
+    #aeb7c4
+    #edf1f5;
 }
 
 .sa-ov-modal::-webkit-scrollbar {
@@ -833,98 +1724,163 @@
 }
 
 .sa-ov-modal::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: #edf1f5;
+
   border-radius: 999px;
 }
 
 .sa-ov-modal::-webkit-scrollbar-thumb {
-  background: #b8c0cc;
+  background: #aeb7c4;
+
   border-radius: 999px;
+
+  border:
+    2px solid #edf1f5;
 }
 
 .sa-ov-modal::-webkit-scrollbar-thumb:hover {
-  background: #98a2b3;
+  background: #8f9aaa;
+}
+
+/* =========================================================
+   MODAL HEADER
+========================================================= */
+
+.sa-ov-modal-header-row {
+  position: sticky;
+
+  top: -30px;
+
+  z-index: 30;
+
+  margin:
+    -30px
+    -30px
+    24px;
+
+  padding:
+    24px
+    30px
+    20px;
+
+  background:
+    rgba(
+      255,
+      255,
+      255,
+      0.97
+    );
+
+  backdrop-filter: blur(8px);
+
+  border-bottom:
+    1px solid #edf0f3;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 18px;
 }
 
 .sa-ov-modal-top {
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
-  gap: 18px;
-  margin-bottom: 22px;
-  position: static;
-  background: transparent;
+  min-width: 0;
+
+  margin: 0;
 }
 
 .sa-ov-modal-title {
   margin: 0;
+
   color: #111827;
+
   font-size: 28px;
+
   font-weight: 900;
+
   line-height: 1.2;
-  background: transparent;
-  border-radius: 0;
-  padding: 0;
-  width: fit-content;
-  max-width: 70%;
+
+  overflow-wrap: anywhere;
 }
 
 .sa-ov-close-btn {
   border: 0;
+
   border-radius: 14px;
+
   background: #111827;
+
   color: #ffffff;
 
   padding: 11px 15px;
 
   display: inline-flex;
+
   align-items: center;
+
   gap: 8px;
 
   font-weight: 900;
+
   cursor: pointer;
 
-  position: sticky;
-  top: 0;
-
-  z-index: 100;
-
-  float: right;
-
-  margin-left: auto;
-  margin-bottom: 12px;
-
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.18);
+  flex-shrink: 0;
 }
 
+/* =========================================================
+   MODAL CONTENT
+========================================================= */
+
 .sa-ov-modal-content {
+  width: 100%;
+
+  min-width: 0;
+
   display: grid;
+
   gap: 22px;
 }
 
 /* =========================================================
-   MODAL DETAIL GRID
+   DETAIL GRID
 ========================================================= */
 
 .sa-ov-detail-grid {
+  width: 100%;
+
+  min-width: 0;
+
   display: grid;
-  grid-template-columns: repeat(
-    4,
-    minmax(0, 1fr)
-  );
+
+  grid-template-columns:
+    repeat(
+      4,
+      minmax(0, 1fr)
+    );
+
   gap: 16px;
 }
 
 .sa-ov-detail-box {
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 16px 18px;
   min-width: 0;
 
+  background: #f8fafc;
+
+  border:
+    1px solid #e5e7eb;
+
+  border-radius: 16px;
+
+  padding: 16px 18px;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: flex-start;
+
   justify-content: flex-start;
 
   gap: 8px;
@@ -937,111 +1893,248 @@
 }
 
 .sa-ov-detail-label {
+  margin: 0;
+
+  display: block;
+
   color: #64748b;
-  font-size: 13px;
+
+  font-size: 12px;
+
   font-weight: 900;
+
   line-height: 1.2;
 
   text-transform: uppercase;
-  letter-spacing: 0.02em;
 
-  margin: 0;
-  display: block;
+  letter-spacing: 0.02em;
 }
 
 .sa-ov-detail-value {
-  color: #111827;
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1.35;
-
-  margin: 0;
   display: block;
 
   width: 100%;
 
-  white-space: normal;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.sa-ov-modal-section-heading {
-  margin: 10px 0 0;
-  color: #111827;
-  font-size: 22px;
-  font-weight: 900;
-}
-
-.sa-ov-description-text {
   margin: 0;
-  color: #667085;
-  line-height: 1.6;
-  white-space: pre-wrap;
+
+  color: #111827;
+
+  font-size: 14px;
+
+  font-weight: 900;
+
+  line-height: 1.35;
+
+  white-space: normal;
+
+  word-break: break-word;
+
   overflow-wrap: anywhere;
 }
 
 /* =========================================================
-   GENERAL MODAL LIST
+   MODAL SECTION HEADING
+========================================================= */
+
+.sa-ov-modal-section-heading {
+  margin: 10px 0 0;
+
+  color: #111827;
+
+  font-size: 21px;
+
+  font-weight: 900;
+}
+
+/* =========================================================
+   DESCRIPTION
+========================================================= */
+
+.sa-ov-description-text {
+  margin: 0;
+
+  color: #667085;
+
+  font-size: 14px;
+
+  line-height: 1.65;
+
+  white-space: pre-wrap;
+
+  word-break: break-word;
+
+  overflow-wrap: anywhere;
+}
+
+/* =========================================================
+   COMPACT LIST
 ========================================================= */
 
 .sa-ov-compact-list {
+  width: 100%;
+
   display: grid;
+
   gap: 12px;
 }
 
 .sa-ov-compact-row {
+  width: 100%;
+
+  min-width: 0;
+
   background: #f8fafc;
-  border: 1px solid #e5e7eb;
+
+  border:
+    1px solid #e5e7eb;
+
   border-radius: 16px;
+
   padding: 14px;
 }
+
+.sa-ov-compact-row-head {
+  display: flex;
+
+  align-items: flex-start;
+
+  justify-content: space-between;
+
+  gap: 12px;
+}
+
+.sa-ov-compact-row p {
+  margin: 8px 0 0;
+
+  color: #667085;
+
+  font-size: 12px;
+
+  line-height: 1.45;
+}
+
+/* =========================================================
+   LIST BUTTON
+========================================================= */
 
 .sa-ov-list-button {
   width: 100%;
 
+  min-width: 0;
+
   background: #f8fafc;
 
-  border: 1px solid #e5e7eb;
+  border:
+    1px solid #e5e7eb;
+
   border-radius: 16px;
 
   padding: 16px;
 
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
 
   gap: 14px;
 
   text-align: left;
+
   cursor: pointer;
 }
 
+.sa-ov-list-main {
+  width: 100%;
+
+  min-width: 0;
+}
+
+.sa-ov-list-button strong {
+  color: #111827;
+
+  font-weight: 900;
+}
+
+.sa-ov-list-button p {
+  margin: 6px 0 0;
+
+  color: #667085;
+
+  font-size: 12px;
+
+  line-height: 1.45;
+}
+
 /* =========================================================
-   PROJECT COMPLETE DETAIL TASK LIST
+   PROJECT DETAILS MAIN PROGRESS
+========================================================= */
+
+.sa-ov-project-main-progress {
+  width: 100%;
+}
+
+.sa-ov-project-main-progress span {
+  display: block;
+
+  margin-top: 7px;
+
+  color: #667085;
+
+  font-size: 12px;
+
+  font-weight: 800;
+}
+
+/* =========================================================
+   PROJECT TASK LIST
 ========================================================= */
 
 .sa-ov-project-task-list {
+  width: 100%;
+
   display: grid;
+
   gap: 18px;
 }
 
+/* =========================================================
+   PROJECT TASK DETAIL CARD
+========================================================= */
+
 .sa-ov-project-task-detail-card {
   width: 100%;
+
   min-width: 0;
 
-  border: 1px solid #e5e7eb;
+  border:
+    1px solid #e5e7eb;
+
   border-radius: 20px;
 
   background: #ffffff;
 
   padding: 20px;
 
-  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+  box-shadow:
+    0 6px 20px
+    rgba(
+      15,
+      23,
+      42,
+      0.04
+    );
 }
 
 .sa-ov-project-task-detail-header {
+  width: 100%;
+
+  min-width: 0;
+
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
 
   gap: 16px;
@@ -1055,7 +2148,9 @@
   color: #111827;
 
   font-size: 18px;
+
   font-weight: 900;
+
   line-height: 1.35;
 
   overflow-wrap: anywhere;
@@ -1067,38 +2162,58 @@
   color: #667085;
 
   font-size: 13px;
+
   line-height: 1.5;
 
   overflow-wrap: anywhere;
 }
 
 .sa-ov-project-task-meta-grid {
-  grid-template-columns: repeat(
-    3,
-    minmax(0, 1fr)
-  );
+  grid-template-columns:
+    repeat(
+      3,
+      minmax(0, 1fr)
+    );
 }
+
+.sa-ov-project-task-progress {
+  width: 100%;
+
+  margin-top: 14px;
+}
+
+/* =========================================================
+   PROJECT SUBTASKS
+========================================================= */
 
 .sa-ov-project-subtask-heading {
   margin-top: 18px;
+
   margin-bottom: 10px;
 
   color: #111827;
 
   font-size: 15px;
+
   font-weight: 900;
 }
 
 .sa-ov-project-subtask-list {
+  width: 100%;
+
   display: grid;
+
   gap: 9px;
 }
 
 .sa-ov-project-subtask-row {
   width: 100%;
+
   min-width: 0;
 
-  border: 1px solid #e5e7eb;
+  border:
+    1px solid #e5e7eb;
+
   border-radius: 14px;
 
   background: #f8fafc;
@@ -1106,7 +2221,9 @@
   padding: 12px 14px;
 
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
 
   gap: 14px;
@@ -1114,7 +2231,9 @@
 
 .sa-ov-project-subtask-row strong {
   color: #111827;
+
   font-size: 13px;
+
   font-weight: 900;
 }
 
@@ -1124,11 +2243,14 @@
   color: #667085;
 
   font-size: 11px;
+
   line-height: 1.4;
 }
 
 .sa-ov-project-no-subtasks {
-  border: 1px dashed #cbd5e1;
+  border:
+    1px dashed #cbd5e1;
+
   border-radius: 14px;
 
   padding: 14px;
@@ -1136,22 +2258,34 @@
   color: #667085;
 
   font-size: 12px;
+
   font-weight: 800;
 
   text-align: center;
 }
 
 /* =========================================================
-   ACTIVE TASK MODAL FILTERS
+   ACTIVE / PENDING TASK MODAL FILTERS
 ========================================================= */
 
 .sa-ov-task-filter-panel {
+  width: 100%;
+
   display: grid;
 
   grid-template-columns:
-    minmax(280px, 1.5fr)
-    minmax(190px, 0.75fr)
-    minmax(210px, 0.9fr);
+    minmax(
+      280px,
+      1.5fr
+    )
+    minmax(
+      190px,
+      0.75fr
+    )
+    minmax(
+      210px,
+      0.9fr
+    );
 
   gap: 12px;
 
@@ -1164,11 +2298,13 @@
   position: relative;
 
   display: flex;
+
   align-items: center;
 }
 
 .sa-ov-task-search-icon {
   position: absolute;
+
   left: 14px;
 
   color: #64748b;
@@ -1178,11 +2314,12 @@
 
 .sa-ov-task-search-input {
   width: 100%;
+
   min-height: 46px;
 
-  box-sizing: border-box;
+  border:
+    1px solid #d8dee8;
 
-  border: 1px solid #d8dee8;
   border-radius: 13px;
 
   background: #ffffff;
@@ -1190,10 +2327,16 @@
   color: #111827;
 
   font-family: inherit;
+
   font-size: 14px;
+
   font-weight: 600;
 
-  padding: 0 14px 0 43px;
+  padding:
+    0
+    14px
+    0
+    43px;
 
   outline: none;
 }
@@ -1204,11 +2347,12 @@
 
 .sa-ov-task-filter-select {
   width: 100%;
+
   min-height: 46px;
 
-  box-sizing: border-box;
+  border:
+    1px solid #d8dee8;
 
-  border: 1px solid #d8dee8;
   border-radius: 13px;
 
   background: #ffffff;
@@ -1216,12 +2360,15 @@
   color: #111827;
 
   font-family: inherit;
+
   font-size: 14px;
+
   font-weight: 700;
 
   padding: 0 12px;
 
   cursor: pointer;
+
   outline: none;
 }
 
@@ -1231,23 +2378,32 @@
 
 .sa-ov-task-filter-select:disabled {
   background: #f8fafc;
+
   color: #94a3b8;
+
   cursor: not-allowed;
 }
 
 .sa-ov-task-filter-info {
+  width: 100%;
+
   display: flex;
+
   align-items: center;
+
   flex-wrap: wrap;
 
   gap: 10px 22px;
 
   background: #f8fafc;
 
-  border: 1px solid #e5e7eb;
+  border:
+    1px solid #e5e7eb;
+
   border-radius: 12px;
 
   padding: 10px 14px;
+
   margin-bottom: 14px;
 
   color: #64748b;
@@ -1260,89 +2416,157 @@
 }
 
 /* =========================================================
-   RESPONSIVE
+   TABLET
 ========================================================= */
 
 @media (max-width: 1100px) {
+
   .sa-ov-stat-grid {
-    grid-template-columns: repeat(
-      2,
-      minmax(0, 1fr)
-    );
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
   }
 
   .sa-ov-detail-grid {
-    grid-template-columns: repeat(
-      2,
-      minmax(0, 1fr)
-    );
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
   }
 
   .sa-ov-project-task-meta-grid {
-    grid-template-columns: repeat(
-      2,
-      minmax(0, 1fr)
-    );
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
   }
 
-  /*
-    Smaller displays:
-    show two complete department cards.
-  */
-  .sa-overview-department-grid-scroll {
-    grid-auto-columns: calc(
-      (100% - 18px) / 2
-    );
+  .sa-ov-department-snapshot-scroll {
+    grid-auto-columns:
+      calc(
+        (
+            100% -
+            var(--sa-dept-gap)
+          ) /
+          2
+      );
   }
+
 }
 
+/* =========================================================
+   FILTER TABLET
+========================================================= */
+
 @media (max-width: 900px) {
+
   .sa-ov-task-filter-panel {
     grid-template-columns: 1fr;
   }
+
 }
 
+/* =========================================================
+   MOBILE
+========================================================= */
+
 @media (max-width: 760px) {
-  .sa-ov-title-row,
-  .sa-ov-work-card-top,
-  .sa-ov-user-mini-top,
-  .sa-ov-project-task-detail-header {
+
+  .sa-ov-title-row {
     flex-direction: column;
+  }
+
+  .sa-ov-h1 {
+    font-size: 34px;
+  }
+
+  .sa-ov-two-column-grid {
+    grid-template-columns: 1fr;
   }
 
   .sa-ov-big-search-bar {
     grid-template-columns: 1fr;
   }
 
-  .sa-ov-stat-grid,
-  .sa-ov-info-grid,
-  .sa-ov-detail-grid,
-  .sa-ov-user-meta-grid,
-  .sa-ov-project-task-meta-grid {
+  .sa-ov-stat-grid {
     grid-template-columns: 1fr;
   }
 
-  .sa-overview-department-grid-scroll {
-    grid-auto-columns: 88%;
+  .sa-ov-info-grid {
+    grid-template-columns: 1fr;
   }
 
-  .sa-overview-snapshot-scroll {
-    --sa-snapshot-card-height: 390px;
+  .sa-ov-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-ov-user-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-ov-project-task-meta-grid {
+    grid-template-columns: 1fr;
   }
 
   .sa-ov-detail-box-wide {
     grid-column: span 1;
   }
 
+  .sa-ov-work-card-top {
+    flex-direction: column;
+  }
+
+  .sa-ov-user-mini-top {
+    flex-direction: column;
+  }
+
+  .sa-ov-project-task-detail-header {
+    flex-direction: column;
+  }
+
   .sa-ov-project-subtask-row {
     flex-direction: column;
+  }
+
+  .sa-ov-department-snapshot-scroll {
+    --sa-dept-card-height:
+      250px;
+
+    grid-auto-columns: 88%;
+
+    gap: 14px;
+  }
+
+  .sa-overview-snapshot-scroll {
+    --sa-snapshot-card-height:
+      410px;
   }
 
   .sa-ov-modal {
     padding: 22px;
   }
 
-  .sa-ov-modal-title {
-    max-width: 100%;
+  .sa-ov-modal-header-row {
+    top: -22px;
+
+    margin:
+      -22px
+      -22px
+      22px;
+
+    padding:
+      20px
+      22px;
+
+    flex-direction: column;
   }
+
+  .sa-ov-close-btn {
+    align-self: flex-end;
+  }
+
 }

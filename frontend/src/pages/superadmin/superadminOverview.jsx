@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
-  CalendarDays,
   ClipboardList,
   FolderKanban,
   RefreshCw,
@@ -15,6 +14,10 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import "./superadminOverview.css";
 
+/* =====================================================
+   HELPERS
+===================================================== */
+
 const getPendingTasks = (user) => {
   return (
     Number(user.todo_tasks || 0) +
@@ -26,19 +29,31 @@ const getPendingTasks = (user) => {
 };
 
 const statusLabel = (status) => {
-  const value = String(status || "").toLowerCase();
+  const value = String(status || "")
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "_");
 
   if (value === "not_started") return "To Do";
   if (value === "todo") return "To Do";
+  if (value === "to_do") return "To Do";
+
   if (value === "in_progress") return "In Progress";
   if (value === "ongoing") return "In Progress";
+
   if (value === "under_review") return "Under Review";
+
   if (value === "completed") return "Completed";
   if (value === "done") return "Completed";
+
   if (value === "rejected") return "Rejected";
+
   if (value === "blocked") return "Blocked";
+
   if (value === "on_hold") return "On Hold";
+
   if (value === "cancelled") return "Cancelled";
+  if (value === "canceled") return "Cancelled";
 
   return status || "-";
 };
@@ -59,8 +74,15 @@ const formatDate = (value) => {
   });
 };
 
+/* =====================================================
+   PROGRESS BAR
+===================================================== */
+
 const ProgressBar = ({ value = 0 }) => {
-  const safeValue = Math.max(0, Math.min(100, Number(value || 0)));
+  const safeValue = Math.max(
+    0,
+    Math.min(100, Number(value || 0))
+  );
 
   return (
     <progress
@@ -72,44 +94,79 @@ const ProgressBar = ({ value = 0 }) => {
   );
 };
 
-const OverviewStatCard = ({ icon: Icon, label, value, onClick }) => {
+/* =====================================================
+   TOP STAT CARD
+===================================================== */
+
+const OverviewStatCard = ({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+}) => {
   return (
     <button
       type="button"
       className="sa-overview-inline-stat-card sa-ov-overview-stat-card"
       onClick={onClick}
     >
-      <strong className="sa-ov-overview-stat-value">{value || 0}</strong>
+      <strong className="sa-ov-overview-stat-value">
+        {value || 0}
+      </strong>
 
       <div className="sa-ov-overview-stat-footer">
         <div className="sa-overview-inline-stat-icon sa-ov-overview-stat-icon">
           <Icon size={20} />
         </div>
 
-        <span className="sa-ov-overview-stat-label">{label}</span>
+        <span className="sa-ov-overview-stat-label">
+          {label}
+        </span>
       </div>
     </button>
   );
 };
 
+/* =====================================================
+   MAIN PAGE
+===================================================== */
+
 const SuperadminOverview = () => {
   const navigate = useNavigate();
 
   const [data, setData] = useState(null);
+
   const [search, setSearch] = useState("");
+
   const [loading, setLoading] = useState(true);
+
   const [message, setMessage] = useState("");
 
   const [modal, setModal] = useState(null);
-  const [userDetailsLoading, setUserDetailsLoading] = useState(false);
-  const [projectDetailsLoading, setProjectDetailsLoading] = useState(false);
+
+  const [
+    userDetailsLoading,
+    setUserDetailsLoading,
+  ] = useState(false);
+
+  const [
+    projectDetailsLoading,
+    setProjectDetailsLoading,
+  ] = useState(false);
+
+  /* =====================================================
+     FETCH OVERVIEW
+  ===================================================== */
 
   const fetchOverview = async () => {
     try {
       setLoading(true);
       setMessage("");
 
-      const response = await api.get("/superadmin/overview");
+      const response = await api.get(
+        "/superadmin/overview"
+      );
+
       setData(response.data);
     } catch (error) {
       setMessage(
@@ -126,50 +183,106 @@ const SuperadminOverview = () => {
     fetchOverview();
   }, []);
 
-  const users = data?.employee_workload || [];
-  const tasks = data?.recent_tasks || [];
-  const projects = data?.projects || [];
-  const stats = data?.stats || {};
+  /* =====================================================
+     DATA
+  ===================================================== */
+
+  const users =
+    data?.employee_workload || [];
+
+  const tasks =
+    data?.recent_tasks || [];
+
+  const projects =
+    data?.projects || [];
+
+  const stats =
+    data?.stats || {};
+
+  /* =====================================================
+     MOST ACTIVE USERS
+  ===================================================== */
 
   const activeUsers = useMemo(() => {
     return [...users]
-      .filter((user) => Number(user.total_tasks || 0) > 0)
+      .filter(
+        (user) =>
+          Number(user.total_tasks || 0) > 0
+      )
       .sort(
         (a, b) =>
-          Number(b.total_tasks || 0) - Number(a.total_tasks || 0)
+          Number(b.total_tasks || 0) -
+          Number(a.total_tasks || 0)
       );
   }, [users]);
 
+  /* =====================================================
+     NEEDS ATTENTION
+  ===================================================== */
+
   const attentionUsers = useMemo(() => {
     return [...users]
-      .filter((user) => getPendingTasks(user) > 0)
-      .sort((a, b) => getPendingTasks(b) - getPendingTasks(a));
+      .filter(
+        (user) =>
+          getPendingTasks(user) > 0
+      )
+      .sort(
+        (a, b) =>
+          getPendingTasks(b) -
+          getPendingTasks(a)
+      );
   }, [users]);
 
-  const filteredQuickUsers = useMemo(() => {
-    const value = search.toLowerCase().trim();
+  /* =====================================================
+     QUICK USER SEARCH
+  ===================================================== */
 
-    if (!value) return [];
+  const filteredQuickUsers =
+    useMemo(() => {
+      const value =
+        search.toLowerCase().trim();
 
-    return users
-      .filter((user) => {
-        return (
-          user.full_name?.toLowerCase().includes(value) ||
-          user.email?.toLowerCase().includes(value) ||
-          user.employee_code?.toLowerCase().includes(value) ||
-          user.department_name?.toLowerCase().includes(value) ||
-          user.designation?.toLowerCase().includes(value) ||
-          user.role_name?.toLowerCase().includes(value)
-        );
-      })
-      .slice(0, 6);
-  }, [users, search]);
+      if (!value) {
+        return [];
+      }
+
+      return users
+        .filter((user) => {
+          return (
+            user.full_name
+              ?.toLowerCase()
+              .includes(value) ||
+            user.email
+              ?.toLowerCase()
+              .includes(value) ||
+            user.employee_code
+              ?.toLowerCase()
+              .includes(value) ||
+            user.department_name
+              ?.toLowerCase()
+              .includes(value) ||
+            user.designation
+              ?.toLowerCase()
+              .includes(value) ||
+            user.role_name
+              ?.toLowerCase()
+              .includes(value)
+          );
+        })
+        .slice(0, 6);
+    }, [users, search]);
+
+  /* =====================================================
+     DEPARTMENT SUMMARY
+  ===================================================== */
 
   const departmentSummary = useMemo(() => {
     const map = new Map();
 
     users.forEach((user) => {
-      const department = user.department_name || "No Department";
+      const department =
+        user.department_name ||
+        "No Department";
 
       if (!map.has(department)) {
         map.set(department, {
@@ -182,45 +295,77 @@ const SuperadminOverview = () => {
         });
       }
 
-      const item = map.get(department);
+      const item =
+        map.get(department);
 
       item.users += 1;
-      item.tasks += Number(user.total_tasks || 0);
-      item.projects += Number(user.total_projects || 0);
-      item.pending += getPendingTasks(user);
-      item.progressTotal += Number(user.average_task_progress || 0);
+
+      item.tasks += Number(
+        user.total_tasks || 0
+      );
+
+      item.projects += Number(
+        user.total_projects || 0
+      );
+
+      item.pending +=
+        getPendingTasks(user);
+
+      item.progressTotal += Number(
+        user.average_task_progress || 0
+      );
     });
 
-    return Array.from(map.values())
+    return Array.from(
+      map.values()
+    )
       .map((item) => ({
         ...item,
+
         averageProgress:
           item.users > 0
-            ? Math.round(item.progressTotal / item.users)
+            ? Math.round(
+                item.progressTotal /
+                  item.users
+              )
             : 0,
       }))
-      .sort((a, b) => b.tasks - a.tasks);
+      .sort(
+        (a, b) =>
+          b.tasks - a.tasks
+      );
   }, [users]);
 
-  const openUserDetails = async (user) => {
+  /* =====================================================
+     OPEN USER DETAILS
+  ===================================================== */
+
+  const openUserDetails = async (
+    user
+  ) => {
     try {
       setUserDetailsLoading(true);
 
-      const response = await api.get(
-        `/superadmin/users/${user.user_id}`
-      );
+      const response =
+        await api.get(
+          `/superadmin/users/${user.user_id}`
+        );
 
       setModal({
         type: "user",
-        title: user.full_name || "User Details",
+        title:
+          user.full_name ||
+          "User Details",
         data: response.data,
       });
     } catch (error) {
       setModal({
         type: "error",
-        title: "Unable to Load User",
+        title:
+          "Unable to Load User",
         data:
-          error.response?.data?.message ||
+          error.response?.data
+            ?.message ||
           error.response?.data?.error ||
           "Failed to load user details.",
       });
@@ -229,54 +374,108 @@ const SuperadminOverview = () => {
     }
   };
 
-  const openTaskDetails = (task) => {
+  /* =====================================================
+     OPEN TASK DETAILS
+  ===================================================== */
+
+  const openTaskDetails = (
+    task
+  ) => {
     setModal({
       type: "task",
-      title: task.task_title || "Task Details",
+      title:
+        task.task_title ||
+        "Task Details",
       data: task,
     });
   };
 
-  /*
-  =====================================================
-  LOAD COMPLETE PROJECT + ALL TASKS + ALL SUBTASKS
-  =====================================================
-  */
+  /* =====================================================
+     OPEN COMPLETE PROJECT DETAILS
 
-  const openProjectDetails = async (project) => {
+     Loads:
+     - complete project
+     - all tasks
+     - subtasks contained in tasks response
+  ===================================================== */
+
+  const openProjectDetails = async (
+    project
+  ) => {
     try {
       setProjectDetailsLoading(true);
 
-      const [projectsResponse, tasksResponse] = await Promise.all([
-        api.get("/superadmin/projects"),
-        api.get("/superadmin/tasks"),
+      const [
+        projectsResponse,
+        tasksResponse,
+      ] = await Promise.all([
+        api.get(
+          "/superadmin/projects"
+        ),
+        api.get(
+          "/superadmin/tasks"
+        ),
       ]);
 
-      const allProjects = projectsResponse.data?.projects || [];
-      const allTasks = tasksResponse.data?.tasks || [];
+      const allProjects =
+        projectsResponse.data?.projects ||
+        [];
+
+      const allTasks =
+        tasksResponse.data?.tasks ||
+        [];
 
       const completeProject =
         allProjects.find(
           (item) =>
-            String(item.project_id) === String(project.project_id)
+            String(
+              item.project_id
+            ) ===
+            String(
+              project.project_id
+            )
         ) || project;
 
-      const projectTasks = allTasks.filter((task) => {
-        if (task.project_id && project.project_id) {
-          return (
-            String(task.project_id) === String(project.project_id)
-          );
-        }
+      const projectTasks =
+        allTasks.filter(
+          (task) => {
+            if (
+              task.project_id &&
+              project.project_id
+            ) {
+              return (
+                String(
+                  task.project_id
+                ) ===
+                String(
+                  project.project_id
+                )
+              );
+            }
 
-        return (
-          String(task.project_title || "").trim().toLowerCase() ===
-          String(project.project_title || "").trim().toLowerCase()
+            return (
+              String(
+                task.project_title ||
+                  ""
+              )
+                .trim()
+                .toLowerCase() ===
+              String(
+                project.project_title ||
+                  ""
+              )
+                .trim()
+                .toLowerCase()
+            );
+          }
         );
-      });
 
       setModal({
         type: "project",
-        title: completeProject.project_title || "Project Details",
+        title:
+          completeProject.project_title ||
+          "Project Details",
+
         data: {
           ...completeProject,
           tasks: projectTasks,
@@ -285,9 +484,13 @@ const SuperadminOverview = () => {
     } catch (error) {
       setModal({
         type: "error",
-        title: "Unable to Load Project",
+
+        title:
+          "Unable to Load Project",
+
         data:
-          error.response?.data?.message ||
+          error.response?.data
+            ?.message ||
           error.response?.data?.error ||
           "Failed to load complete project details.",
       });
@@ -296,40 +499,64 @@ const SuperadminOverview = () => {
     }
   };
 
-  const openDepartmentDetails = (department) => {
-    const departmentName = department.department;
+  /* =====================================================
+     OPEN DEPARTMENT
+  ===================================================== */
 
-    const departmentUsers = users.filter(
-      (user) =>
-        (user.department_name || "No Department") ===
-        departmentName
-    );
+  const openDepartmentDetails = (
+    department
+  ) => {
+    const departmentName =
+      department.department;
 
-    const departmentTasks = tasks.filter(
-      (task) =>
-        (task.department_name || "No Department") ===
-        departmentName
-    );
+    const departmentUsers =
+      users.filter(
+        (user) =>
+          (user.department_name ||
+            "No Department") ===
+          departmentName
+      );
 
-    const departmentProjects = projects.filter(
-      (project) =>
-        (project.department_name || "No Department") ===
-        departmentName
-    );
+    const departmentTasks =
+      tasks.filter(
+        (task) =>
+          (task.department_name ||
+            "No Department") ===
+          departmentName
+      );
+
+    const departmentProjects =
+      projects.filter(
+        (project) =>
+          (project.department_name ||
+            "No Department") ===
+          departmentName
+      );
 
     setModal({
       type: "department",
+
       title: `${departmentName} Department`,
+
       data: {
         department,
         users: departmentUsers,
         tasks: departmentTasks,
-        projects: departmentProjects,
+        projects:
+          departmentProjects,
       },
     });
   };
 
-  const openListModal = (title, type, items) => {
+  /* =====================================================
+     LIST MODAL
+  ===================================================== */
+
+  const openListModal = (
+    title,
+    type,
+    items
+  ) => {
     setModal({
       type,
       title,
@@ -337,16 +564,35 @@ const SuperadminOverview = () => {
     });
   };
 
-  const activeTasks = tasks.filter((task) =>
-    ["not_started", "in_progress", "under_review"].includes(
-      String(task.status_group || "").toLowerCase()
-    )
-  );
+  /* =====================================================
+     ACTIVE + PENDING TASKS
+  ===================================================== */
 
-  const pendingTasks = tasks.filter(
-    (task) =>
-      String(task.status_group || "").toLowerCase() !== "completed"
-  );
+  const activeTasks =
+    tasks.filter((task) =>
+      [
+        "not_started",
+        "in_progress",
+        "under_review",
+      ].includes(
+        String(
+          task.status_group || ""
+        ).toLowerCase()
+      )
+    );
+
+  const pendingTasks =
+    tasks.filter(
+      (task) =>
+        String(
+          task.status_group || ""
+        ).toLowerCase() !==
+        "completed"
+    );
+
+  /* =====================================================
+     LOADING
+  ===================================================== */
 
   if (loading) {
     return (
@@ -358,17 +604,27 @@ const SuperadminOverview = () => {
 
   return (
     <div className="sa-ov-page">
+
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
       <div className="sa-ov-title-row">
         <div>
-          <h1 className="sa-ov-h1">Superadmin Overview</h1>
+          <h1 className="sa-ov-h1">
+            Superadmin Overview
+          </h1>
 
           <p className="sa-ov-subtitle">
-            Click any tile, user, task, project, department or
-            snapshot to view the complete details.
+            Click any tile, user,
+            task, project, department
+            or snapshot to view the
+            complete details.
           </p>
         </div>
 
         <button
+          type="button"
           className="sa-ov-primary-btn"
           onClick={fetchOverview}
         >
@@ -378,29 +634,47 @@ const SuperadminOverview = () => {
       </div>
 
       {message && (
-        <div className="sa-ov-message">{message}</div>
+        <div className="sa-ov-message">
+          {message}
+        </div>
       )}
+
+      {/* =====================================================
+          STAT CARDS
+      ===================================================== */}
 
       <div className="sa-ov-stat-grid">
         <OverviewStatCard
           icon={Users}
           label="Total Users"
           value={stats.total_users}
-          onClick={() => navigate("/superadmin/users")}
+          onClick={() =>
+            navigate(
+              "/superadmin/users"
+            )
+          }
         />
 
         <OverviewStatCard
           icon={FolderKanban}
           label="Total Projects"
           value={stats.total_projects}
-          onClick={() => navigate("/superadmin/projects")}
+          onClick={() =>
+            navigate(
+              "/superadmin/projects"
+            )
+          }
         />
 
         <OverviewStatCard
           icon={ClipboardList}
           label="Total Tasks"
           value={stats.total_tasks}
-          onClick={() => navigate("/superadmin/tasks")}
+          onClick={() =>
+            navigate(
+              "/superadmin/tasks"
+            )
+          }
         />
 
         <OverviewStatCard
@@ -435,22 +709,27 @@ const SuperadminOverview = () => {
       ===================================================== */}
 
       <section className="sa-ov-card">
+
         <div className="sa-ov-quick-search-header">
           <h2 className="sa-ov-section-title">
             <Search
               size={22}
               className="sa-ov-section-icon"
             />
+
             Quick User Search
           </h2>
 
           <p className="sa-ov-section-sub">
-            Search and click any user card to open personal
-            details, attendance, skills and tasks.
+            Search and click any user
+            card to open personal
+            details, attendance, skills
+            and tasks.
           </p>
         </div>
 
         <div className="sa-ov-big-search-bar">
+
           <div className="sa-ov-big-search-input-wrap">
             <Search
               size={18}
@@ -460,7 +739,9 @@ const SuperadminOverview = () => {
             <input
               value={search}
               onChange={(event) =>
-                setSearch(event.target.value)
+                setSearch(
+                  event.target.value
+                )
               }
               placeholder="Type a name, email, department, role or designation..."
               className="sa-ov-big-search-input"
@@ -471,26 +752,34 @@ const SuperadminOverview = () => {
             type="button"
             className="sa-ov-open-users-btn"
             onClick={() =>
-              navigate("/superadmin/users")
+              navigate(
+                "/superadmin/users"
+              )
             }
           >
             Open full Users page
+
             <ArrowRight size={17} />
           </button>
+
         </div>
 
         {search.trim() ? (
           filteredQuickUsers.length ? (
             <div className="sa-ov-user-card-grid">
-              {filteredQuickUsers.map((user) => (
-                <UserMiniCard
-                  key={user.user_id}
-                  user={user}
-                  onClick={() =>
-                    openUserDetails(user)
-                  }
-                />
-              ))}
+              {filteredQuickUsers.map(
+                (user) => (
+                  <UserMiniCard
+                    key={user.user_id}
+                    user={user}
+                    onClick={() =>
+                      openUserDetails(
+                        user
+                      )
+                    }
+                  />
+                )
+              )}
             </div>
           ) : (
             <div className="sa-ov-empty">
@@ -498,6 +787,7 @@ const SuperadminOverview = () => {
             </div>
           )
         ) : null}
+
       </section>
 
       {/* =====================================================
@@ -505,138 +795,255 @@ const SuperadminOverview = () => {
       ===================================================== */}
 
       <div className="sa-ov-two-column-grid">
+
         <section className="sa-ov-card">
+
           <h2 className="sa-ov-section-title">
             <AlertCircle
               size={22}
               className="sa-ov-section-icon"
             />
+
             Needs Attention
           </h2>
 
           <p className="sa-ov-section-sub">
-            First 3 users are visible. Scroll to view the
-            remaining users.
+            First 3 users are visible.
+            Scroll to view the remaining
+            users.
           </p>
 
           {attentionUsers.length ? (
             <div className="sa-overview-user-scroll sa-ov-user-scroll-list">
-              {attentionUsers.map((user) => (
-                <UserMiniCard
-                  key={user.user_id}
-                  user={user}
-                  showPending
-                  onClick={() =>
-                    openUserDetails(user)
-                  }
-                />
-              ))}
+              {attentionUsers.map(
+                (user) => (
+                  <UserMiniCard
+                    key={user.user_id}
+                    user={user}
+                    showPending
+                    onClick={() =>
+                      openUserDetails(
+                        user
+                      )
+                    }
+                  />
+                )
+              )}
             </div>
           ) : (
             <div className="sa-ov-empty">
               No pending workload found.
             </div>
           )}
+
         </section>
 
         <section className="sa-ov-card">
+
           <h2 className="sa-ov-section-title">
             <TrendingUp
               size={22}
               className="sa-ov-section-icon"
             />
+
             Most Active Users
           </h2>
 
           <p className="sa-ov-section-sub">
-            First 3 users are visible. Scroll to view the
-            remaining users.
+            First 3 users are visible.
+            Scroll to view the remaining
+            users.
           </p>
 
           {activeUsers.length ? (
             <div className="sa-overview-user-scroll sa-ov-user-scroll-list">
-              {activeUsers.map((user) => (
-                <UserMiniCard
-                  key={user.user_id}
-                  user={user}
-                  onClick={() =>
-                    openUserDetails(user)
-                  }
-                />
-              ))}
+              {activeUsers.map(
+                (user) => (
+                  <UserMiniCard
+                    key={user.user_id}
+                    user={user}
+                    onClick={() =>
+                      openUserDetails(
+                        user
+                      )
+                    }
+                  />
+                )
+              )}
             </div>
           ) : (
             <div className="sa-ov-empty">
               No active users found.
             </div>
           )}
+
         </section>
+
       </div>
 
       {/* =====================================================
           DEPARTMENT SNAPSHOT
+          3 COLUMNS × 2 ROWS
       ===================================================== */}
 
-      <section className="sa-ov-card">
-        <h2 className="sa-ov-section-title">
-          <Users
-            size={22}
-            className="sa-ov-section-icon"
-          />
-          Department Snapshot
-        </h2>
+      <section className="sa-ov-card sa-ov-department-section">
 
-        <p className="sa-ov-section-sub">
-          Three departments are fully visible. Scroll horizontally
-          to view the remaining departments.
-        </p>
-
-        <div className="sa-overview-department-grid-scroll sa-ov-department-horizontal-scroll">
-          {departmentSummary.map((department) => (
-            <button
-              type="button"
-              className="sa-overview-department-card sa-ov-department-card"
-              key={department.department}
-              onClick={() =>
-                openDepartmentDetails(department)
-              }
-            >
-              <div className="sa-ov-department-top">
-                <h3>{department.department}</h3>
-
-                <span className="sa-ov-badge">
-                  {department.users} users
-                </span>
-              </div>
-
-              <div className="sa-ov-metric-row">
-                <span>Tasks</span>
-                <strong>{department.tasks}</strong>
-              </div>
-
-              <div className="sa-ov-metric-row">
-                <span>Projects</span>
-                <strong>{department.projects}</strong>
-              </div>
-
-              <div className="sa-ov-metric-row">
-                <span>Pending</span>
-                <strong>{department.pending}</strong>
-              </div>
-
-              <div className="sa-ov-metric-row">
-                <span>Avg Progress</span>
-                <strong>
-                  {department.averageProgress}%
-                </strong>
-              </div>
-
-              <ProgressBar
-                value={department.averageProgress}
+        <div className="sa-ov-department-section-header">
+          <div>
+            <h2 className="sa-ov-section-title">
+              <Users
+                size={22}
+                className="sa-ov-section-icon"
               />
-            </button>
-          ))}
+
+              Department Snapshot
+            </h2>
+
+            <p className="sa-ov-section-sub">
+              Six departments are
+              visible at a time. Scroll
+              horizontally to view more
+              departments.
+            </p>
+          </div>
         </div>
+
+        {departmentSummary.length ? (
+          <div className="sa-ov-department-snapshot-scroll">
+
+            {departmentSummary.map(
+              (department) => (
+                <button
+                  type="button"
+                  key={
+                    department.department
+                  }
+                  className="sa-ov-department-snapshot-card"
+                  onClick={() =>
+                    openDepartmentDetails(
+                      department
+                    )
+                  }
+                >
+
+                  <div className="sa-ov-department-card-header">
+
+                    <div className="sa-ov-department-name-wrap">
+
+                      <div className="sa-ov-department-icon-box">
+                        <Users size={19} />
+                      </div>
+
+                      <div className="sa-ov-department-title-copy">
+                        <h3>
+                          {
+                            department.department
+                          }
+                        </h3>
+
+                        <span>
+                          Department overview
+                        </span>
+                      </div>
+
+                    </div>
+
+                    <span className="sa-ov-department-user-badge">
+                      {department.users}{" "}
+                      {department.users === 1
+                        ? "User"
+                        : "Users"}
+                    </span>
+
+                  </div>
+
+                  <div className="sa-ov-department-metrics-grid">
+
+                    <div className="sa-ov-department-metric-box">
+                      <span>
+                        Tasks
+                      </span>
+
+                      <strong>
+                        {
+                          department.tasks
+                        }
+                      </strong>
+                    </div>
+
+                    <div className="sa-ov-department-metric-box">
+                      <span>
+                        Projects
+                      </span>
+
+                      <strong>
+                        {
+                          department.projects
+                        }
+                      </strong>
+                    </div>
+
+                    <div className="sa-ov-department-metric-box">
+                      <span>
+                        Pending
+                      </span>
+
+                      <strong>
+                        {
+                          department.pending
+                        }
+                      </strong>
+                    </div>
+
+                    <div className="sa-ov-department-metric-box">
+                      <span>
+                        Avg Progress
+                      </span>
+
+                      <strong>
+                        {
+                          department.averageProgress
+                        }
+                        %
+                      </strong>
+                    </div>
+
+                  </div>
+
+                  <div className="sa-ov-department-progress-area">
+
+                    <div className="sa-ov-department-progress-head">
+                      <span>
+                        Overall Progress
+                      </span>
+
+                      <strong>
+                        {
+                          department.averageProgress
+                        }
+                        %
+                      </strong>
+                    </div>
+
+                    <ProgressBar
+                      value={
+                        department.averageProgress
+                      }
+                    />
+
+                  </div>
+
+                </button>
+              )
+            )}
+
+          </div>
+        ) : (
+          <div className="sa-ov-empty">
+            No departments found.
+          </div>
+        )}
+
       </section>
 
       {/* =====================================================
@@ -644,23 +1051,30 @@ const SuperadminOverview = () => {
       ===================================================== */}
 
       <div className="sa-ov-two-column-grid">
-        {/* TASK SNAPSHOT */}
+
+        {/* =====================================================
+            TASK SNAPSHOT
+        ===================================================== */}
 
         <section className="sa-ov-card">
+
           <h2 className="sa-ov-section-title">
             <ClipboardList
               size={22}
               className="sa-ov-section-icon"
             />
+
             Task Progress Snapshot
           </h2>
 
           <p className="sa-ov-section-sub">
-            One task tile is fully visible. Scroll to view the
+            One task tile is fully
+            visible. Scroll to view the
             remaining tasks.
           </p>
 
           <div className="sa-overview-snapshot-scroll sa-ov-snapshot-scroll-list">
+
             {tasks.map((task) => (
               <button
                 type="button"
@@ -670,51 +1084,77 @@ const SuperadminOverview = () => {
                   openTaskDetails(task)
                 }
               >
+
                 <div className="sa-ov-work-card-top">
+
                   <div className="sa-ov-min-width-0">
-                    <h3>{task.task_title}</h3>
-                    <p>{task.project_title || "-"}</p>
+
+                    <h3>
+                      {
+                        task.task_title
+                      }
+                    </h3>
+
+                    <p>
+                      {
+                        task.project_title ||
+                        "-"
+                      }
+                    </p>
+
                   </div>
 
                   <span className="sa-ov-badge">
                     {statusLabel(
-                      task.status_group
+                      task.status_group ||
+                        task.status
                     )}
                   </span>
+
                 </div>
 
                 <div className="sa-ov-info-grid">
+
                   <InfoBox
                     label="Assignee"
                     value={
-                      task.assignee_name || "-"
+                      task.assignee_name ||
+                      "-"
                     }
                   />
 
                   <InfoBox
                     label="Assigned By"
                     value={
-                      task.assigned_by_name || "-"
+                      task.assigned_by_name ||
+                      "-"
                     }
                   />
 
                   <InfoBox
                     label="Subtasks"
                     value={`${
-                      task.completed_subtasks || 0
+                      task.completed_subtasks ||
+                      0
                     }/${
-                      task.total_subtasks || 0
+                      task.total_subtasks ||
+                      0
                     }`}
                   />
+
                 </div>
 
                 <ProgressBar
-                  value={task.progress || 0}
+                  value={
+                    task.progress || 0
+                  }
                 />
 
-                <p className="sa-ov-small-text">
-                  Progress: {task.progress || 0}%
+                <p className="sa-ov-small-text sa-ov-snapshot-progress-text">
+                  Progress:{" "}
+                  {task.progress || 0}%
                 </p>
+
               </button>
             ))}
 
@@ -723,105 +1163,145 @@ const SuperadminOverview = () => {
                 No tasks found.
               </div>
             )}
+
           </div>
+
         </section>
 
-        {/* PROJECT SNAPSHOT */}
+        {/* =====================================================
+            PROJECT SNAPSHOT
+        ===================================================== */}
 
         <section className="sa-ov-card">
+
           <h2 className="sa-ov-section-title">
             <FolderKanban
               size={22}
               className="sa-ov-section-icon"
             />
+
             Project Snapshot
           </h2>
 
           <p className="sa-ov-section-sub">
-            One project tile is fully visible. Scroll to view the
+            One project tile is fully
+            visible. Scroll to view the
             remaining projects.
           </p>
 
           <div className="sa-overview-snapshot-scroll sa-ov-snapshot-scroll-list">
-            {projects.map((project) => (
-              <button
-                type="button"
-                className="sa-overview-snapshot-card sa-ov-work-card"
-                key={project.project_id}
-                onClick={() =>
-                  openProjectDetails(project)
-                }
-              >
-                <div className="sa-ov-work-card-top">
-                  <div className="sa-ov-min-width-0">
-                    <h3>
-                      {project.project_title}
-                    </h3>
 
-                    <p className="sa-ov-project-description-preview">
-                      {project.project_description ||
-                        "-"}
-                    </p>
+            {projects.map(
+              (project) => (
+                <button
+                  type="button"
+                  className="sa-overview-snapshot-card sa-ov-work-card sa-ov-project-snapshot-card"
+                  key={
+                    project.project_id
+                  }
+                  onClick={() =>
+                    openProjectDetails(
+                      project
+                    )
+                  }
+                >
+
+                  {/* TITLE + STATUS */}
+
+                  <div className="sa-ov-work-card-top sa-ov-project-card-top">
+
+                    <div className="sa-ov-min-width-0">
+
+                      <h3>
+                        {
+                          project.project_title
+                        }
+                      </h3>
+
+                    </div>
+
+                    <span className="sa-ov-badge">
+                      {statusLabel(
+                        project.status ||
+                          project.status_group
+                      )}
+                    </span>
+
                   </div>
 
-                  <span className="sa-ov-badge">
-                    {statusLabel(
-                      project.status
-                    )}
-                  </span>
-                </div>
+                  {/* FULL WIDTH DESCRIPTION */}
 
-                <div className="sa-ov-info-grid">
-                  <InfoBox
-                    label="Created By"
+                  <p className="sa-ov-project-description-preview">
+                    {project.project_description ||
+                      project.description ||
+                      "-"}
+                  </p>
+
+                  {/* PROJECT INFORMATION */}
+
+                  <div className="sa-ov-info-grid">
+
+                    <InfoBox
+                      label="Created By"
+                      value={
+                        project.created_by_name ||
+                        "-"
+                      }
+                    />
+
+                    <InfoBox
+                      label="Assigned To"
+                      value={
+                        project.assigned_names ||
+                        "-"
+                      }
+                    />
+
+                    <InfoBox
+                      label="Tasks"
+                      value={`${
+                        project.completed_tasks ||
+                        0
+                      }/${
+                        project.total_tasks ||
+                        0
+                      }`}
+                    />
+
+                  </div>
+
+                  <ProgressBar
                     value={
-                      project.created_by_name ||
-                      "-"
+                      project.overall_progress ||
+                      0
                     }
                   />
 
-                  <InfoBox
-                    label="Assigned To"
-                    value={
-                      project.assigned_names || "-"
-                    }
-                  />
+                  <p className="sa-ov-small-text sa-ov-snapshot-progress-text">
+                    Project Progress:{" "}
+                    {project.overall_progress ||
+                      0}
+                    %
+                  </p>
 
-                  <InfoBox
-                    label="Tasks"
-                    value={`${
-                      project.completed_tasks || 0
-                    }/${
-                      project.total_tasks || 0
-                    }`}
-                  />
-                </div>
-
-                <ProgressBar
-                  value={
-                    project.overall_progress ||
-                    0
-                  }
-                />
-
-                <p className="sa-ov-small-text">
-                  Project Progress:{" "}
-                  {project.overall_progress || 0}%
-                </p>
-              </button>
-            ))}
+                </button>
+              )
+            )}
 
             {!projects.length && (
               <div className="sa-ov-empty">
                 No projects found.
               </div>
             )}
+
           </div>
+
         </section>
+
       </div>
 
       {/* =====================================================
-          USER LOADING MODAL
+          USER DETAILS LOADING
       ===================================================== */}
 
       {userDetailsLoading && (
@@ -836,7 +1316,7 @@ const SuperadminOverview = () => {
       )}
 
       {/* =====================================================
-          PROJECT LOADING MODAL
+          PROJECT DETAILS LOADING
       ===================================================== */}
 
       {projectDetailsLoading && (
@@ -845,13 +1325,14 @@ const SuperadminOverview = () => {
           onClose={() => {}}
         >
           <div className="sa-ov-empty">
-            Loading project, tasks and subtasks...
+            Loading project, tasks and
+            subtasks...
           </div>
         </DetailsModal>
       )}
 
       {/* =====================================================
-          DETAIL MODAL
+          MAIN DETAIL MODALS
       ===================================================== */}
 
       {modal &&
@@ -859,23 +1340,32 @@ const SuperadminOverview = () => {
         !projectDetailsLoading && (
           <DetailsModal
             title={modal.title}
-            onClose={() => setModal(null)}
+            onClose={() =>
+              setModal(null)
+            }
           >
+
             {modal.type === "user" && (
-              <UserDetails data={modal.data} />
+              <UserDetails
+                data={modal.data}
+              />
             )}
 
             {modal.type === "task" && (
-              <TaskDetails task={modal.data} />
+              <TaskDetails
+                task={modal.data}
+              />
             )}
 
-            {modal.type === "project" && (
+            {modal.type ===
+              "project" && (
               <ProjectDetails
                 project={modal.data}
               />
             )}
 
-            {modal.type === "department" && (
+            {modal.type ===
+              "department" && (
               <DepartmentDetails
                 data={modal.data}
                 openUserDetails={
@@ -890,7 +1380,8 @@ const SuperadminOverview = () => {
               />
             )}
 
-            {modal.type === "userList" && (
+            {modal.type ===
+              "userList" && (
               <UserList
                 users={modal.data}
                 openUserDetails={
@@ -899,7 +1390,8 @@ const SuperadminOverview = () => {
               />
             )}
 
-            {modal.type === "taskList" && (
+            {modal.type ===
+              "taskList" && (
               <FilterableTaskList
                 tasks={modal.data}
                 openTaskDetails={
@@ -923,6 +1415,7 @@ const SuperadminOverview = () => {
                 {modal.data}
               </div>
             )}
+
           </DetailsModal>
         )}
     </div>
@@ -938,7 +1431,8 @@ const UserMiniCard = ({
   showPending = false,
   onClick,
 }) => {
-  const pendingTasks = getPendingTasks(user);
+  const pendingTasks =
+    getPendingTasks(user);
 
   return (
     <button
@@ -946,7 +1440,9 @@ const UserMiniCard = ({
       className="sa-ov-user-mini-card"
       onClick={onClick}
     >
+
       <div className="sa-ov-user-mini-top">
+
         <div className="sa-ov-min-width-0">
           <h3 className="sa-ov-user-name">
             {user.full_name || "-"}
@@ -960,16 +1456,19 @@ const UserMiniCard = ({
         <span className="sa-ov-badge">
           {user.role_name || "-"}
         </span>
+
       </div>
 
       <div className="sa-ov-user-meta-grid">
+
         <div className="sa-ov-user-meta-item">
           <span className="sa-ov-user-meta-label">
             Department
           </span>
 
           <strong className="sa-ov-user-meta-value">
-            {user.department_name || "-"}
+            {user.department_name ||
+              "-"}
           </strong>
         </div>
 
@@ -1003,21 +1502,27 @@ const UserMiniCard = ({
           <strong className="sa-ov-user-meta-value">
             {showPending
               ? pendingTasks
-              : user.total_projects || 0}
+              : user.total_projects ||
+                0}
           </strong>
         </div>
+
       </div>
 
       <ProgressBar
         value={
-          user.average_task_progress || 0
+          user.average_task_progress ||
+          0
         }
       />
 
       <p className="sa-ov-small-text">
         Task Progress:{" "}
-        {user.average_task_progress || 0}%
+        {user.average_task_progress ||
+          0}
+        %
       </p>
+
     </button>
   );
 };
@@ -1026,16 +1531,21 @@ const UserMiniCard = ({
    INFO BOX
 ===================================================== */
 
-const InfoBox = ({ label, value }) => {
+const InfoBox = ({
+  label,
+  value,
+}) => {
   return (
     <div className="sa-ov-info-box">
+
       <span className="sa-ov-info-label">
         {label}
       </span>
 
       <strong className="sa-ov-info-value">
-        {value || "-"}
+        {value ?? "-"}
       </strong>
+
     </div>
   );
 };
@@ -1050,24 +1560,40 @@ const DetailsModal = ({
   onClose,
 }) => {
   return (
-    <div className="sa-ov-modal-backdrop">
+    <div
+      className="sa-ov-modal-backdrop"
+      onMouseDown={(event) => {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
+          onClose?.();
+        }
+      }}
+    >
       <div className="sa-ov-modal">
-        <button
-          type="button"
-          className="sa-ov-close-btn"
-          onClick={onClose}
-        >
-          <X size={18} />
-          Close
-        </button>
 
-        <div className="sa-ov-modal-top">
-          <h2 className="sa-ov-modal-title">
-            {title}
-          </h2>
+        <div className="sa-ov-modal-header-row">
+
+          <div className="sa-ov-modal-top">
+            <h2 className="sa-ov-modal-title">
+              {title}
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            className="sa-ov-close-btn"
+            onClick={onClose}
+          >
+            <X size={18} />
+            Close
+          </button>
+
         </div>
 
         {children}
+
       </div>
     </div>
   );
@@ -1077,20 +1603,29 @@ const DetailsModal = ({
    USER DETAILS
 ===================================================== */
 
-const UserDetails = ({ data }) => {
-  const user = data.user || {};
+const UserDetails = ({
+  data,
+}) => {
+  const user =
+    data.user || {};
+
   const assignedTasks =
     data.assigned_tasks || [];
+
   const createdTasks =
     data.created_tasks || [];
+
   const assignedProjects =
     data.assigned_projects || [];
+
   const recentAttendance =
     data.recent_attendance || [];
 
   return (
     <div className="sa-ov-modal-content">
+
       <div className="sa-ov-detail-grid">
+
         <DetailBox
           label="Name"
           value={user.full_name}
@@ -1113,7 +1648,9 @@ const UserDetails = ({ data }) => {
 
         <DetailBox
           label="Department"
-          value={user.department_name}
+          value={
+            user.department_name
+          }
         />
 
         <DetailBox
@@ -1130,7 +1667,8 @@ const UserDetails = ({ data }) => {
           label="Attendance"
           value={`${
             user.attendance
-              ?.attendance_percentage || 0
+              ?.attendance_percentage ||
+            0
           }%`}
         />
 
@@ -1141,51 +1679,85 @@ const UserDetails = ({ data }) => {
             0
           }%`}
         />
+
       </div>
 
-      <SectionHeading title="Assigned Tasks" />
-      <TaskList tasks={assignedTasks} />
+      <SectionHeading
+        title="Assigned Tasks"
+      />
 
-      <SectionHeading title="Tasks Assigned By This User" />
-      <TaskList tasks={createdTasks} />
+      <TaskList
+        tasks={assignedTasks}
+      />
 
-      <SectionHeading title="Assigned Projects" />
-      <ProjectList projects={assignedProjects} />
+      <SectionHeading
+        title="Tasks Assigned By This User"
+      />
 
-      <SectionHeading title="Recent Attendance" />
+      <TaskList
+        tasks={createdTasks}
+      />
+
+      <SectionHeading
+        title="Assigned Projects"
+      />
+
+      <ProjectList
+        projects={assignedProjects}
+      />
+
+      <SectionHeading
+        title="Recent Attendance"
+      />
 
       {recentAttendance.length ? (
         <div className="sa-ov-compact-list">
-          {recentAttendance.map((row) => (
-            <div
-              className="sa-ov-compact-row"
-              key={row.attendance_id}
-            >
-              <strong>
-                {row.attendance_date}
-              </strong>
 
-              <span className="sa-ov-badge">
-                {row.status}
-              </span>
+          {recentAttendance.map(
+            (row) => (
+              <div
+                className="sa-ov-compact-row"
+                key={
+                  row.attendance_id
+                }
+              >
+                <div className="sa-ov-compact-row-head">
 
-              <p>
-                Check In:{" "}
-                {row.check_in_time || "-"} ·
-                Check Out:{" "}
-                {row.check_out_time ||
-                  "-"}{" "}
-                · Minutes:{" "}
-                {row.total_minutes || 0}
-              </p>
-            </div>
-          ))}
+                  <strong>
+                    {
+                      row.attendance_date
+                    }
+                  </strong>
+
+                  <span className="sa-ov-badge">
+                    {row.status}
+                  </span>
+
+                </div>
+
+                <p>
+                  Check In:{" "}
+                  {row.check_in_time ||
+                    "-"}{" "}
+                  · Check Out:{" "}
+                  {row.check_out_time ||
+                    "-"}{" "}
+                  · Minutes:{" "}
+                  {row.total_minutes ||
+                    0}
+                </p>
+
+              </div>
+            )
+          )}
+
         </div>
       ) : (
         <div className="sa-ov-empty">
           No attendance found.
         </div>
       )}
+
     </div>
   );
 };
@@ -1194,10 +1766,14 @@ const UserDetails = ({ data }) => {
    TASK DETAILS
 ===================================================== */
 
-const TaskDetails = ({ task }) => {
+const TaskDetails = ({
+  task,
+}) => {
   return (
     <div className="sa-ov-modal-content">
+
       <div className="sa-ov-detail-grid">
+
         <DetailBox
           label="Task"
           value={task.task_title}
@@ -1205,7 +1781,9 @@ const TaskDetails = ({ task }) => {
 
         <DetailBox
           label="Project"
-          value={task.project_title}
+          value={
+            task.project_title
+          }
         />
 
         <DetailBox
@@ -1218,32 +1796,44 @@ const TaskDetails = ({ task }) => {
 
         <DetailBox
           label="Progress"
-          value={`${task.progress || 0}%`}
+          value={`${
+            task.progress || 0
+          }%`}
         />
 
         <DetailBox
           label="Assignee"
-          value={task.assignee_name}
+          value={
+            task.assignee_name
+          }
         />
 
         <DetailBox
           label="Assignee Email"
-          value={task.assignee_email}
+          value={
+            task.assignee_email
+          }
         />
 
         <DetailBox
           label="Assigned By"
-          value={task.assigned_by_name}
+          value={
+            task.assigned_by_name
+          }
         />
 
         <DetailBox
           label="Assigned By Email"
-          value={task.assigned_by_email}
+          value={
+            task.assigned_by_email
+          }
         />
 
         <DetailBox
           label="Department"
-          value={task.department_name}
+          value={
+            task.department_name
+          }
         />
 
         <DetailBox
@@ -1255,133 +1845,175 @@ const TaskDetails = ({ task }) => {
 
         <DetailBox
           label="Due Date"
-          value={formatDate(task.due_date)}
+          value={formatDate(
+            task.due_date
+          )}
         />
 
         <DetailBox
           label="Subtasks"
           value={`${
-            task.completed_subtasks || 0
+            task.completed_subtasks ||
+            0
           }/${
             task.total_subtasks || 0
           }`}
         />
+
       </div>
 
       <ProgressBar
         value={task.progress || 0}
       />
 
-      <SectionHeading title="Description" />
+      <SectionHeading
+        title="Description"
+      />
 
       <p className="sa-ov-description-text">
-        {task.task_description || "-"}
+        {task.task_description ||
+          "-"}
       </p>
 
-      <SectionHeading title="Subtasks" />
+      <SectionHeading
+        title="Subtasks"
+      />
 
       {task.subtasks?.length ? (
         <div className="sa-ov-compact-list">
-          {task.subtasks.map((subtask) => (
-            <div
-              className="sa-ov-compact-row"
-              key={subtask.task_id}
-            >
-              <strong>
-                {subtask.task_title}
-              </strong>
 
-              <span className="sa-ov-badge">
-                {subtask.is_checked
-                  ? "Completed"
-                  : "Pending"}
-              </span>
+          {task.subtasks.map(
+            (subtask) => (
+              <div
+                className="sa-ov-compact-row"
+                key={
+                  subtask.task_id
+                }
+              >
 
-              <p>
-                {formatDate(
-                  subtask.start_date
-                )}{" "}
-                to{" "}
-                {formatDate(
-                  subtask.due_date
-                )}
-              </p>
-            </div>
-          ))}
+                <div className="sa-ov-compact-row-head">
+                  <strong>
+                    {
+                      subtask.task_title
+                    }
+                  </strong>
+
+                  <span className="sa-ov-badge">
+                    {subtask.is_checked
+                      ? "Completed"
+                      : "Pending"}
+                  </span>
+                </div>
+
+                <p>
+                  {formatDate(
+                    subtask.start_date
+                  )}{" "}
+                  to{" "}
+                  {formatDate(
+                    subtask.due_date
+                  )}
+                </p>
+
+              </div>
+            )
+          )}
+
         </div>
       ) : (
         <div className="sa-ov-empty">
           No subtasks found.
         </div>
       )}
+
     </div>
   );
 };
 
 /* =====================================================
-   PROJECT DETAILS
-   NOW SHOWS PROJECT + ALL TASKS + ALL SUBTASKS
+   COMPLETE PROJECT DETAILS
 ===================================================== */
 
-const ProjectDetails = ({ project }) => {
+const ProjectDetails = ({
+  project,
+}) => {
   const projectTasks =
     project.tasks || [];
 
+  const progress =
+    Number(
+      project.overall_progress ??
+        project.progress ??
+        0
+    ) || 0;
+
   return (
     <div className="sa-ov-modal-content">
+
       <div className="sa-ov-detail-grid">
+
         <DetailBox
           label="Project"
-          value={project.project_title}
+          value={
+            project.project_title
+          }
         />
 
         <DetailBox
           label="Status"
           value={statusLabel(
             project.status ||
-              project.status_group
+              project.status_group ||
+              project.normalized_status
           )}
         />
 
         <DetailBox
           label="Progress"
-          value={`${
-            project.overall_progress ||
-            project.progress ||
-            0
-          }%`}
+          value={`${progress}%`}
         />
 
         <DetailBox
           label="Department"
-          value={project.department_name}
+          value={
+            project.department_name
+          }
         />
 
         <DetailBox
           label="Created By"
-          value={project.created_by_name}
+          value={
+            project.created_by_name
+          }
         />
 
         <DetailBox
           label="Creator Email"
-          value={project.created_by_email}
+          value={
+            project.created_by_email
+          }
         />
 
         <DetailBox
           label="Assigned To"
-          value={project.assigned_names}
+          value={
+            project.assigned_names
+          }
         />
 
         <DetailBox
           label="Assigned Emails"
-          value={project.assigned_emails}
+          value={
+            project.assigned_emails
+          }
         />
 
         <DetailBox
           label="Start Date"
           value={formatDate(
             project.start_date ||
-              project.project_start_date
+              project.project_start_date ||
+              project.created_at
           )}
         />
 
@@ -1397,8 +2029,8 @@ const ProjectDetails = ({ project }) => {
         <DetailBox
           label="Total Tasks"
           value={
-            project.total_tasks ||
-            projectTasks.length ||
+            project.total_tasks ??
+            projectTasks.length ??
             0
           }
         />
@@ -1406,20 +2038,27 @@ const ProjectDetails = ({ project }) => {
         <DetailBox
           label="Completed Tasks"
           value={
-            project.completed_tasks || 0
+            project.completed_tasks ??
+            0
           }
         />
+
       </div>
 
-      <ProgressBar
-        value={
-          project.overall_progress ||
-          project.progress ||
-          0
-        }
-      />
+      <div className="sa-ov-project-main-progress">
+        <ProgressBar
+          value={progress}
+        />
 
-      <SectionHeading title="Project Description" />
+        <span>
+          Project Progress:{" "}
+          {progress}%
+        </span>
+      </div>
+
+      <SectionHeading
+        title="Project Description"
+      />
 
       <p className="sa-ov-description-text">
         {project.project_description ||
@@ -1433,35 +2072,45 @@ const ProjectDetails = ({ project }) => {
 
       {projectTasks.length ? (
         <div className="sa-ov-project-task-list">
-          {projectTasks.map((task) => (
-            <ProjectTaskDetailsCard
-              key={task.task_id}
-              task={task}
-            />
-          ))}
+
+          {projectTasks.map(
+            (task) => (
+              <ProjectTaskDetailsCard
+                key={task.task_id}
+                task={task}
+              />
+            )
+          )}
+
         </div>
       ) : (
         <div className="sa-ov-empty">
-          No tasks found for this project.
+          No tasks found for this
+          project.
         </div>
       )}
+
     </div>
   );
 };
 
 /* =====================================================
-   PROJECT TASK CARD WITH SUBTASKS
+   PROJECT TASK + SUBTASK CARD
 ===================================================== */
 
 const ProjectTaskDetailsCard = ({
   task,
 }) => {
-  const subtasks = task.subtasks || [];
+  const subtasks =
+    task.subtasks || [];
 
   return (
     <article className="sa-ov-project-task-detail-card">
+
       <div className="sa-ov-project-task-detail-header">
+
         <div className="sa-ov-min-width-0">
+
           <h4>
             {task.task_title ||
               "Untitled Task"}
@@ -1471,6 +2120,7 @@ const ProjectTaskDetailsCard = ({
             {task.task_description ||
               "No task description."}
           </p>
+
         </div>
 
         <span className="sa-ov-badge">
@@ -1479,17 +2129,23 @@ const ProjectTaskDetailsCard = ({
               task.status
           )}
         </span>
+
       </div>
 
       <div className="sa-ov-detail-grid sa-ov-project-task-meta-grid">
+
         <DetailBox
           label="Assignee"
-          value={task.assignee_name}
+          value={
+            task.assignee_name
+          }
         />
 
         <DetailBox
           label="Assigned By"
-          value={task.assigned_by_name}
+          value={
+            task.assigned_by_name
+          }
         />
 
         <DetailBox
@@ -1501,29 +2157,37 @@ const ProjectTaskDetailsCard = ({
 
         <DetailBox
           label="Due Date"
-          value={formatDate(task.due_date)}
+          value={formatDate(
+            task.due_date
+          )}
         />
 
         <DetailBox
           label="Progress"
-          value={`${task.progress || 0}%`}
+          value={`${
+            task.progress || 0
+          }%`}
         />
 
         <DetailBox
           label="Subtasks"
           value={`${
-            task.completed_subtasks || 0
+            task.completed_subtasks ||
+            0
           }/${
             task.total_subtasks ||
             subtasks.length ||
             0
           }`}
         />
+
       </div>
 
-      <ProgressBar
-        value={task.progress || 0}
-      />
+      <div className="sa-ov-project-task-progress">
+        <ProgressBar
+          value={task.progress || 0}
+        />
+      </div>
 
       <div className="sa-ov-project-subtask-heading">
         Subtasks
@@ -1531,41 +2195,52 @@ const ProjectTaskDetailsCard = ({
 
       {subtasks.length ? (
         <div className="sa-ov-project-subtask-list">
-          {subtasks.map((subtask) => (
-            <div
-              key={subtask.task_id}
-              className="sa-ov-project-subtask-row"
-            >
-              <div className="sa-ov-min-width-0">
-                <strong>
-                  {subtask.task_title ||
-                    "-"}
-                </strong>
 
-                <p>
-                  {formatDate(
-                    subtask.start_date
-                  )}{" "}
-                  to{" "}
-                  {formatDate(
-                    subtask.due_date
-                  )}
-                </p>
+          {subtasks.map(
+            (subtask) => (
+              <div
+                key={
+                  subtask.task_id
+                }
+                className="sa-ov-project-subtask-row"
+              >
+
+                <div className="sa-ov-min-width-0">
+
+                  <strong>
+                    {subtask.task_title ||
+                      "-"}
+                  </strong>
+
+                  <p>
+                    {formatDate(
+                      subtask.start_date
+                    )}{" "}
+                    to{" "}
+                    {formatDate(
+                      subtask.due_date
+                    )}
+                  </p>
+
+                </div>
+
+                <span className="sa-ov-badge">
+                  {subtask.is_checked
+                    ? "Completed"
+                    : "Pending"}
+                </span>
+
               </div>
+            )
+          )}
 
-              <span className="sa-ov-badge">
-                {subtask.is_checked
-                  ? "Completed"
-                  : "Pending"}
-              </span>
-            </div>
-          ))}
         </div>
       ) : (
         <div className="sa-ov-project-no-subtasks">
           No subtasks added.
         </div>
       )}
+
     </article>
   );
 };
@@ -1582,7 +2257,9 @@ const DepartmentDetails = ({
 }) => {
   return (
     <div className="sa-ov-modal-content">
+
       <div className="sa-ov-detail-grid">
+
         <DetailBox
           label="Department"
           value={
@@ -1592,12 +2269,16 @@ const DepartmentDetails = ({
 
         <DetailBox
           label="Users"
-          value={data.department.users}
+          value={
+            data.department.users
+          }
         />
 
         <DetailBox
           label="Tasks"
-          value={data.department.tasks}
+          value={
+            data.department.tasks
+          }
         />
 
         <DetailBox
@@ -1618,9 +2299,12 @@ const DepartmentDetails = ({
           label="Average Progress"
           value={`${data.department.averageProgress}%`}
         />
+
       </div>
 
-      <SectionHeading title="Department Users" />
+      <SectionHeading
+        title="Department Users"
+      />
 
       <UserList
         users={data.users}
@@ -1629,7 +2313,9 @@ const DepartmentDetails = ({
         }
       />
 
-      <SectionHeading title="Department Tasks" />
+      <SectionHeading
+        title="Department Tasks"
+      />
 
       <TaskList
         tasks={data.tasks}
@@ -1638,7 +2324,9 @@ const DepartmentDetails = ({
         }
       />
 
-      <SectionHeading title="Department Projects" />
+      <SectionHeading
+        title="Department Projects"
+      />
 
       <ProjectList
         projects={data.projects}
@@ -1646,6 +2334,7 @@ const DepartmentDetails = ({
           openProjectDetails
         }
       />
+
     </div>
   );
 };
@@ -1668,6 +2357,7 @@ const UserList = ({
 
   return (
     <div className="sa-ov-compact-list">
+
       {users.map((user) => (
         <button
           key={user.user_id}
@@ -1677,12 +2367,15 @@ const UserList = ({
             openUserDetails?.(user)
           }
         >
-          <div>
+
+          <div className="sa-ov-min-width-0">
             <strong>
               {user.full_name}
             </strong>
 
-            <p>{user.email}</p>
+            <p>
+              {user.email}
+            </p>
 
             <p>
               {user.department_name ||
@@ -1695,8 +2388,10 @@ const UserList = ({
           <span className="sa-ov-badge">
             {user.role_name}
           </span>
+
         </button>
       ))}
+
     </div>
   );
 };
@@ -1709,8 +2404,10 @@ const FilterableTaskList = ({
   tasks = [],
   openTaskDetails,
 }) => {
-  const [taskSearch, setTaskSearch] =
-    useState("");
+  const [
+    taskSearch,
+    setTaskSearch,
+  ] = useState("");
 
   const [
     departmentFilter,
@@ -1722,21 +2419,30 @@ const FilterableTaskList = ({
     setProjectFilter,
   ] = useState("");
 
-  const departments = useMemo(() => {
-    return Array.from(
-      new Set(
-        tasks
-          .map(
-            (task) =>
-              task.department_name ||
-              "No Department"
-          )
-          .filter(Boolean)
-      )
-    ).sort((a, b) =>
-      a.localeCompare(b)
-    );
-  }, [tasks]);
+  /* =====================================================
+     DEPARTMENTS
+  ===================================================== */
+
+  const departments =
+    useMemo(() => {
+      return Array.from(
+        new Set(
+          tasks
+            .map(
+              (task) =>
+                task.department_name ||
+                "No Department"
+            )
+            .filter(Boolean)
+        )
+      ).sort((a, b) =>
+        a.localeCompare(b)
+      );
+    }, [tasks]);
+
+  /* =====================================================
+     TASKS BY DEPARTMENT
+  ===================================================== */
 
   const departmentTasks =
     useMemo(() => {
@@ -1750,7 +2456,14 @@ const FilterableTaskList = ({
             "No Department") ===
           departmentFilter
       );
-    }, [tasks, departmentFilter]);
+    }, [
+      tasks,
+      departmentFilter,
+    ]);
+
+  /* =====================================================
+     PROJECT OPTIONS
+  ===================================================== */
 
   const projectOptions =
     useMemo(() => {
@@ -1768,7 +2481,9 @@ const FilterableTaskList = ({
           }
 
           const projectId =
-            String(task.project_id);
+            String(
+              task.project_id
+            );
 
           if (
             !projectMap.has(
@@ -1810,6 +2525,10 @@ const FilterableTaskList = ({
     setProjectFilter("");
   }, [departmentFilter]);
 
+  /* =====================================================
+     FINAL FILTER
+  ===================================================== */
+
   const filteredTasks =
     useMemo(() => {
       const query =
@@ -1846,7 +2565,8 @@ const FilterableTaskList = ({
               task.assigned_by_name,
               task.assigned_by_email,
               statusLabel(
-                task.status_group
+                task.status_group ||
+                  task.status
               ),
             ]
               .filter(Boolean)
@@ -1866,8 +2586,11 @@ const FilterableTaskList = ({
 
   return (
     <div className="sa-ov-modal-content">
+
       <div className="sa-ov-task-filter-panel">
+
         <div className="sa-ov-task-search-wrap">
+
           <Search
             size={18}
             className="sa-ov-task-search-icon"
@@ -1884,17 +2607,21 @@ const FilterableTaskList = ({
             placeholder="Search task, employee, project..."
             className="sa-ov-task-search-input"
           />
+
         </div>
 
         <select
           className="sa-ov-task-filter-select"
-          value={departmentFilter}
+          value={
+            departmentFilter
+          }
           onChange={(event) =>
             setDepartmentFilter(
               event.target.value
             )
           }
         >
+
           <option value="">
             All Departments
           </option>
@@ -1909,6 +2636,7 @@ const FilterableTaskList = ({
               </option>
             )
           )}
+
         </select>
 
         <select
@@ -1923,6 +2651,7 @@ const FilterableTaskList = ({
             )
           }
         >
+
           <option value="">
             {departmentFilter
               ? "All Projects"
@@ -1945,10 +2674,13 @@ const FilterableTaskList = ({
               </option>
             )
           )}
+
         </select>
+
       </div>
 
       <div className="sa-ov-task-filter-info">
+
         <span>
           Department:{" "}
           <strong>
@@ -1969,8 +2701,7 @@ const FilterableTaskList = ({
                     String(
                       projectFilter
                     )
-                )
-                  ?.project_title ||
+                )?.project_title ||
                 "-"
               : "All"}
           </strong>
@@ -1983,6 +2714,7 @@ const FilterableTaskList = ({
           </strong>{" "}
           task(s)
         </span>
+
       </div>
 
       <TaskList
@@ -1991,6 +2723,7 @@ const FilterableTaskList = ({
           openTaskDetails
         }
       />
+
     </div>
   );
 };
@@ -2013,6 +2746,7 @@ const TaskList = ({
 
   return (
     <div className="sa-ov-compact-list">
+
       {tasks.map((task) => (
         <button
           key={task.task_id}
@@ -2022,26 +2756,33 @@ const TaskList = ({
             openTaskDetails?.(task)
           }
         >
-          <div>
+
+          <div className="sa-ov-list-main">
+
             <strong>
               {task.task_title}
             </strong>
 
             <p>
-              {task.project_title || "-"}
+              {task.project_title ||
+                "-"}
             </p>
 
             <p>
               Assignee:{" "}
-              {task.assignee_name || "-"}{" "}
+              {task.assignee_name ||
+                "-"}{" "}
               · Assigned By:{" "}
               {task.assigned_by_name ||
                 "-"}
             </p>
 
             <ProgressBar
-              value={task.progress || 0}
+              value={
+                task.progress || 0
+              }
             />
+
           </div>
 
           <span className="sa-ov-badge">
@@ -2050,8 +2791,10 @@ const TaskList = ({
                 task.status
             )}
           </span>
+
         </button>
       ))}
+
     </div>
   );
 };
@@ -2074,51 +2817,64 @@ const ProjectList = ({
 
   return (
     <div className="sa-ov-compact-list">
-      {projects.map((project) => (
-        <button
-          key={project.project_id}
-          type="button"
-          className="sa-ov-list-button"
-          onClick={() =>
-            openProjectDetails?.(
-              project
-            )
-          }
-        >
-          <div>
-            <strong>
-              {project.project_title}
-            </strong>
 
-            <p>
-              {project.project_description ||
-                "-"}
-            </p>
+      {projects.map(
+        (project) => (
+          <button
+            key={
+              project.project_id
+            }
+            type="button"
+            className="sa-ov-list-button"
+            onClick={() =>
+              openProjectDetails?.(
+                project
+              )
+            }
+          >
 
-            <p>
-              Created By:{" "}
-              {project.created_by_name ||
-                "-"}{" "}
-              · Assigned To:{" "}
-              {project.assigned_names ||
-                "-"}
-            </p>
+            <div className="sa-ov-list-main">
 
-            <ProgressBar
-              value={
-                project.overall_progress ||
-                0
-              }
-            />
-          </div>
+              <strong>
+                {
+                  project.project_title
+                }
+              </strong>
 
-          <span className="sa-ov-badge">
-            {statusLabel(
-              project.status
-            )}
-          </span>
-        </button>
-      ))}
+              <p>
+                {project.project_description ||
+                  "-"}
+              </p>
+
+              <p>
+                Created By:{" "}
+                {project.created_by_name ||
+                  "-"}{" "}
+                · Assigned To:{" "}
+                {project.assigned_names ||
+                  "-"}
+              </p>
+
+              <ProgressBar
+                value={
+                  project.overall_progress ||
+                  0
+                }
+              />
+
+            </div>
+
+            <span className="sa-ov-badge">
+              {statusLabel(
+                project.status ||
+                  project.status_group
+              )}
+            </span>
+
+          </button>
+        )
+      )}
+
     </div>
   );
 };
@@ -2131,9 +2887,8 @@ const DetailBox = ({
   label,
   value,
 }) => {
-  const labelText = String(
-    label || ""
-  );
+  const labelText =
+    String(label || "");
 
   const shouldBeWide =
     labelText
@@ -2151,16 +2906,22 @@ const DetailBox = ({
           : ""
       }`}
     >
+
       <span className="sa-ov-detail-label">
         {label}
       </span>
 
       <strong className="sa-ov-detail-value">
-        {value || "-"}
+        {value ?? "-"}
       </strong>
+
     </div>
   );
 };
+
+/* =====================================================
+   SECTION HEADING
+===================================================== */
 
 const SectionHeading = ({
   title,
