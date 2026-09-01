@@ -1,4 +1,3 @@
-
 const express = require("express");
 
 const authMiddleware = require(
@@ -12,34 +11,17 @@ const {
 );
 
 
-/* =========================================================
-   MAIN SUPERADMIN CONTROLLER
-========================================================= */
+/*
+=========================================================
+MAIN SUPERADMIN CONTROLLER
+=========================================================
+*/
 
 const {
-
-  getSuperadminOverview,
-
-  getSuperadminUsers,
-
-  getSuperadminUserDetails,
-
-  getSuperadminTasks,
-
-  getSuperadminProjects,
-
-  getSuperadminProjectOptions,
-
-  getSuperadminProjectContext,
-
-  createSuperadminProject,
-
-  updateSuperadminProjectAssignees,
-
-  createSuperadminMainTask,
-
-  deleteOwnSuperadminProject,
-
+  getSuperadminFieldVisits,
+  getAllProjects,
+  getAllMainTasks,
+  getAllUsersBase
 
 } = require(
   "../controllers/superadmincontroller"
@@ -47,12 +29,13 @@ const {
 
 
 
-/* =========================================================
-   ATTENDANCE
-========================================================= */
+/*
+=========================================================
+ATTENDANCE
+=========================================================
+*/
 
 const {
-
   getSuperadminAttendance,
 
 } = require(
@@ -61,22 +44,18 @@ const {
 
 
 
-/* =========================================================
-   CALENDAR
-========================================================= */
+/*
+=========================================================
+CALENDAR
+=========================================================
+*/
 
 const {
-
   getSuperadminCalendar,
-
   getSuperadminMeetingEmployees,
-
   createSuperadminMeeting,
-
   updateSuperadminMeeting,
-
   cancelSuperadminMeeting,
-
 
 } = require(
   "../controllers/superadmincalendarcontroller"
@@ -84,282 +63,201 @@ const {
 
 
 
-/* =========================================================
-   FIELD VISITS
-========================================================= */
-
-const {
-
-  getSuperadminFieldVisits,
-
-} = require(
-  "../controllers/superadmincontroller"
-);
-
-
-
-const router =
-  express.Router();
+const router = express.Router();
 
 
 
 const superadminOnly = [
-
   authMiddleware,
-
   requireRole("superadmin"),
-
 ];
 
 
 
-/* =========================================================
-   OVERVIEW
-========================================================= */
+/*
+=========================================================
+PROJECTS
+=========================================================
+*/
 
 
 router.get(
-
-  "/overview",
-
-  ...superadminOnly,
-
-  getSuperadminOverview
-
-);
-
-
-
-/* =========================================================
-   USERS
-========================================================= */
-
-
-router.get(
-
-  "/users",
-
-  ...superadminOnly,
-
-  getSuperadminUsers
-
-);
-
-
-
-router.get(
-
-  "/users/:userId",
-
-  ...superadminOnly,
-
-  getSuperadminUserDetails
-
-);
-
-
-
-/* =========================================================
-   TASKS
-========================================================= */
-
-
-router.get(
-
-  "/tasks",
-
-  ...superadminOnly,
-
-  getSuperadminTasks
-
-);
-
-
-
-/* =========================================================
-   PROJECTS
-========================================================= */
-
-
-router.get(
-
   "/projects",
-
   ...superadminOnly,
+  async(req,res)=>{
 
-  getSuperadminProjects
+    try{
 
+      const projects =
+        await getAllProjects();
+
+      res.json({
+        success:true,
+        projects
+      });
+
+    }
+    catch(error){
+
+      res.status(500).json({
+        success:false,
+        message:error.message
+      });
+
+    }
+
+  }
 );
 
+
+
+/*
+=========================================================
+TASKS
+=========================================================
+*/
 
 
 router.get(
-
-  "/project-options",
-
+  "/tasks",
   ...superadminOnly,
+  async(req,res)=>{
 
-  getSuperadminProjectOptions
+    try{
 
+      const tasks =
+        await getAllMainTasks();
+
+      res.json({
+        success:true,
+        tasks
+      });
+
+    }
+    catch(error){
+
+      res.status(500).json({
+        success:false,
+        message:error.message
+      });
+
+    }
+
+  }
 );
 
 
 
-router.post(
-
-  "/projects/assign",
-
-  ...superadminOnly,
-
-  createSuperadminProject
-
-);
-
+/*
+=========================================================
+USERS
+=========================================================
+*/
 
 
 router.get(
-
-  "/projects/:projectId/context",
-
+  "/users",
   ...superadminOnly,
+  async(req,res)=>{
 
-  getSuperadminProjectContext
+    try{
 
+      const users =
+        await getAllUsersBase();
+
+      res.json({
+        success:true,
+        users
+      });
+
+    }
+    catch(error){
+
+      res.status(500).json({
+        success:false,
+        message:error.message
+      });
+
+    }
+
+  }
 );
 
 
 
-router.put(
-
-  "/projects/:projectId/assignees",
-
-  ...superadminOnly,
-
-  updateSuperadminProjectAssignees
-
-);
-
-
-
-router.post(
-
-  "/projects/:projectId/tasks",
-
-  ...superadminOnly,
-
-  createSuperadminMainTask
-
-);
-
-
-
-router.delete(
-
-  "/projects/:projectId",
-
-  ...superadminOnly,
-
-  deleteOwnSuperadminProject
-
-);
-
-
-
-/* =========================================================
-   ATTENDANCE — ALL ORGANIZATION DATA
-========================================================= */
+/*
+=========================================================
+ATTENDANCE
+=========================================================
+*/
 
 
 router.get(
-
   "/attendance",
-
   ...superadminOnly,
-
   getSuperadminAttendance
-
 );
 
 
 
-/* =========================================================
-   CALENDAR — ALL ORGANIZATION DATA
-========================================================= */
+/*
+=========================================================
+CALENDAR
+=========================================================
+*/
 
 
 router.get(
-
   "/calendar",
-
   ...superadminOnly,
-
   getSuperadminCalendar
-
 );
 
 
 
 router.get(
-
   "/calendar/employees",
-
   ...superadminOnly,
-
   getSuperadminMeetingEmployees
-
 );
 
 
 
 router.post(
-
   "/calendar/meetings",
-
   ...superadminOnly,
-
   createSuperadminMeeting
-
 );
 
 
 
 router.put(
-
   "/calendar/meetings/:meetingId",
-
   ...superadminOnly,
-
   updateSuperadminMeeting
-
 );
 
 
 
 router.patch(
-
   "/calendar/meetings/:meetingId/cancel",
-
   ...superadminOnly,
-
   cancelSuperadminMeeting
-
 );
 
 
 
-/* =========================================================
-   FIELD VISITS — ALL USERS
-========================================================= */
+/*
+=========================================================
+FIELD VISITS
+=========================================================
+*/
 
 
 router.get(
-
   "/field-visits",
-
   ...superadminOnly,
-
   getSuperadminFieldVisits
-
 );
 
 

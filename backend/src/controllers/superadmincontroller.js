@@ -1843,31 +1843,12 @@ async()=>{
 
 module.exports = {
 
-  // overview
-  getSuperadminOverview,
-
-  // users
-  getSuperadminUsers,
-  getSuperadminUserDetails,
-
-  // tasks
-  getSuperadminTasks,
-
-  // projects
-  getSuperadminProjects,
-  getSuperadminProjectOptions,
-  getSuperadminProjectContext,
-  createSuperadminProject,
-  updateSuperadminProjectAssignees,
-  createSuperadminMainTask,
-  deleteOwnSuperadminProject,
-
-  // field visits
   getSuperadminFieldVisits,
 
-  // helpers if required
   getAllProjects,
+
   getAllMainTasks,
+
   getAllUsersBase
 
 };
