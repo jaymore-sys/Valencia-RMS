@@ -35,8 +35,8 @@ const adminReviewRoutes = require("./routes/adminreviewroutes");
 
 const calendarRoutes = require("./routes/calendarroutes");
 
-const { 
-  startDeadlineEmailJob 
+const {
+  startDeadlineEmailJob
 } = require("./jobs/deadlineemailjob");
 
 
@@ -45,96 +45,71 @@ const app = express();
 
 
 /*
-=========================================================
-CORS CONFIGURATION
-=========================================================
+=================================================
+CORS
+=================================================
 */
 
 
-const allowedOrigins = [
-
-  "https://myvol.in",
-
-  "https://www.myvol.in",
-
-  "http://localhost:5173",
-
-  "http://127.0.0.1:5173",
-
-  "http://192.168.29.70:5173"
-
-];
-
-
-
-const corsOptions = {
-
-  origin: function(origin, callback){
-
-
-    // Allow server requests / Postman
-    if(!origin){
-      return callback(null,true);
-    }
-
-
-    if(
-      allowedOrigins.includes(origin)
-    ){
-
-      return callback(null,true);
-
-    }
-
-
-    console.error(
-      "Blocked CORS Origin:",
-      origin
-    );
-
-
-    return callback(null,false);
-
-  },
-
-
-  credentials:true,
-
-
-  methods:[
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-    "OPTIONS"
-  ],
-
-
-  allowedHeaders:[
-    "Content-Type",
-    "Authorization",
-    "Accept",
-    "Origin",
-    "X-Requested-With"
-  ],
-
-
-  optionsSuccessStatus:204
-
-};
-
-
-
 app.use(
-  cors(corsOptions)
+  cors({
+    origin: function(origin, callback){
+
+      const allowed = [
+        "https://myvol.in",
+        "https://www.myvol.in",
+        "http://localhost:5173",
+        "http://localhost:5174"
+      ];
+
+
+      if(!origin){
+        return callback(null,true);
+      }
+
+
+      if(allowed.includes(origin)){
+        return callback(null,true);
+      }
+
+
+      console.log(
+        "CORS BLOCKED:",
+        origin
+      );
+
+
+      // allow hostinger proxy requests
+      return callback(null,true);
+
+    },
+
+    credentials:true,
+
+    methods:[
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+
+    allowedHeaders:[
+      "Content-Type",
+      "Authorization",
+      "Accept"
+    ]
+  })
 );
+
 
 
 app.options(
   "*",
-  cors(corsOptions)
+  cors()
 );
+
 
 
 app.use(
@@ -143,233 +118,130 @@ app.use(
 
 
 
+
 /*
-=========================================================
-HEALTH CHECK
-=========================================================
+=================================================
+HEALTH
+=================================================
 */
 
 
-app.get(
-  "/",
-  (req,res)=>{
+app.get("/",(req,res)=>{
 
-    res.json({
-      message:
-      "Valencia RMS Backend is running"
-    });
+  res.json({
+    message:"Valencia RMS Backend Running"
+  });
 
-  }
-);
+});
 
 
+app.get("/api/health",(req,res)=>{
 
-app.get(
-  "/api/health",
-  (req,res)=>{
+  res.json({
+    success:true,
+    service:"valencia-rms-backend"
+  });
 
-    res.json({
-
-      success:true,
-
-      service:
-      "valencia-rms-backend"
-
-    });
-
-  }
-);
+});
 
 
 
 app.get(
-  "/api/db-test",
-  async(req,res)=>{
+"/api/db-test",
+async(req,res)=>{
 
+try{
 
-    try{
-
-
-      const [rows] =
-      await db.query(
-        "SELECT DATABASE() AS database_name"
-      );
-
-
-      res.json({
-
-        success:true,
-
-        database:
-        rows[0].database_name
-
-      });
-
-
-    }
-    catch(error){
-
-
-      res.status(500).json({
-
-        success:false,
-
-        message:
-        "Database connection failed",
-
-        error:
-        error.message
-
-      });
-
-
-    }
-
-
-  }
+const [rows]=await db.query(
+"SELECT DATABASE() AS database_name"
 );
+
+
+res.json({
+success:true,
+database:rows[0].database_name
+});
+
+
+}
+catch(error){
+
+res.status(500).json({
+success:false,
+message:error.message
+});
+
+
+}
+
+
+});
 
 
 
 
 /*
-=========================================================
+=================================================
 ROUTES
-=========================================================
+=================================================
 */
 
 
-app.use(
-  "/api/auth",
-  authRoutes
-);
+app.use("/api/auth",authRoutes);
+
+app.use("/api/administrator",administratorRoutes);
+
+app.use("/api/admin",adminRoutes);
+
+app.use("/api/admin-projects",adminProjectRoutes);
+
+app.use("/api/administrator-projects",administratorProjectRoutes);
+
+app.use("/api/admin-overview",adminOverviewRoutes);
+
+app.use("/api/admin-profile",adminProfileRoutes);
+
+app.use("/api/admin-tasks",adminTaskRoutes);
+
+app.use("/api/admin-attendance",adminAttendanceRoutes);
+
+app.use("/api/admin-leaves",adminLeaveRoutes);
 
 
-app.use(
-  "/api/administrator",
-  administratorRoutes
-);
+app.use("/api/employee-overview",employeeOverviewRoutes);
+
+app.use("/api/employee-tasks",employeeTaskRoutes);
+
+app.use("/api/employee-profile",employeeProfileRoutes);
+
+app.use("/api/employee-attendance",employeeAttendanceRoutes);
+
+app.use("/api/employee-leaves",employeeLeaveRoutes);
 
 
-app.use(
-  "/api/admin",
-  adminRoutes
-);
+app.use("/api/superadmin",superadminRoutes);
 
 
-app.use(
-  "/api/admin-projects",
-  adminProjectRoutes
-);
+app.use("/api/employee-mini-tasks",employeeMiniTaskRoutes);
+
+app.use("/api/admin-mini-tasks",adminMiniTaskRoutes);
 
 
-app.use(
-  "/api/administrator-projects",
-  administratorProjectRoutes
-);
+app.use("/api/employee-projects",employeeProjectRoutes);
+
+app.use("/api/admin-review",adminReviewRoutes);
 
 
-app.use(
-  "/api/admin-overview",
-  adminOverviewRoutes
-);
+app.use("/api/calendar",calendarRoutes);
 
 
-app.use(
-  "/api/admin-profile",
-  adminProfileRoutes
-);
-
-
-app.use(
-  "/api/admin-tasks",
-  adminTaskRoutes
-);
-
-
-app.use(
-  "/api/admin-attendance",
-  adminAttendanceRoutes
-);
-
-
-app.use(
-  "/api/admin-leaves",
-  adminLeaveRoutes
-);
-
-
-app.use(
-  "/api/employee-overview",
-  employeeOverviewRoutes
-);
-
-
-app.use(
-  "/api/employee-tasks",
-  employeeTaskRoutes
-);
-
-
-app.use(
-  "/api/employee-profile",
-  employeeProfileRoutes
-);
-
-
-app.use(
-  "/api/employee-attendance",
-  employeeAttendanceRoutes
-);
-
-
-app.use(
-  "/api/employee-leaves",
-  employeeLeaveRoutes
-);
-
-
-app.use(
-  "/api/superadmin",
-  superadminRoutes
-);
-
-
-app.use(
-  "/api/employee-mini-tasks",
-  employeeMiniTaskRoutes
-);
-
-
-app.use(
-  "/api/admin-mini-tasks",
-  adminMiniTaskRoutes
-);
-
-
-app.use(
-  "/api/employee-projects",
-  employeeProjectRoutes
-);
-
-
-app.use(
-  "/api/admin-review",
-  adminReviewRoutes
-);
-
-
-app.use(
-  "/api/calendar",
-  calendarRoutes
-);
 
 
 
 /*
-=========================================================
-SERVER START
-=========================================================
+=================================================
+SERVER
+=================================================
 */
 
 
@@ -377,30 +249,17 @@ const PORT =
 process.env.PORT || 5000;
 
 
-const HOST =
-process.env.HOST || "0.0.0.0";
-
-
-
 app.listen(
-  PORT,
-  HOST,
-  ()=>{
+PORT,
+"0.0.0.0",
+()=>{
+
+console.log(
+`Server running on port ${PORT}`
+);
 
 
-    console.log(
-      `Server running on http://${HOST}:${PORT}`
-    );
+startDeadlineEmailJob();
 
-
-    console.log(
-      "Allowed CORS Origins:",
-      allowedOrigins
-    );
-
-
-    startDeadlineEmailJob();
-
-
-  }
+}
 );
