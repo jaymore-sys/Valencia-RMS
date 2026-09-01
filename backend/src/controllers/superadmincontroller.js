@@ -1843,54 +1843,41 @@ async()=>{
 
 const getSuperadminProjectOptions = async(req,res)=>{
 
-  try{
-
-    const [departments] = await db.query(
-      `
-      SELECT DISTINCT department
-      FROM projects
-      WHERE department IS NOT NULL
-      `
-    );
+try{
 
 
-    const [employees] = await db.query(
-      `
-      SELECT 
-      user_id,
-      full_name
-      FROM users
-      WHERE status='active'
-      `
-    );
+res.json({
+
+success:true,
+
+departments:[],
+
+employees:[]
+
+});
 
 
-    res.json({
+}
+catch(error){
 
-      success:true,
-
-      departments,
-
-      employees
-
-    });
+console.log(
+"PROJECT OPTIONS ERROR:",
+error
+);
 
 
-  }
-  catch(error){
+res.status(500).json({
 
-    res.status(500).json({
+success:false,
 
-      success:false,
+message:error.message
 
-      message:error.message
+});
 
-    });
 
-  }
+}
 
 };
-
 
 module.exports = {
 
@@ -1902,6 +1889,8 @@ module.exports = {
 
   getAllUsersBase,
 
-  getSuperadminProjectOptions
+  getSuperadminProjectOptions,
+
+  getSuperadminOverview
 
 };

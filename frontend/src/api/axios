@@ -6,40 +6,47 @@ const api = axios.create({
   baseURL:
     "https://blanchedalmond-turkey-793003.hostingersite.com/api",
 
-  headers:{
-    "Content-Type":"application/json"
+  headers: {
+
+    "Content-Type": "application/json"
+
   }
 
 });
 
 
 
+/*
+=================================================
+REQUEST INTERCEPTOR
+=================================================
+*/
+
 api.interceptors.request.use(
 
 (config)=>{
 
 
-const token =
-  sessionStorage.getItem("token") ||
-  localStorage.getItem("token");
+  const token =
+    sessionStorage.getItem("token") ||
+    localStorage.getItem("token");
 
 
-console.log(
-  "API TOKEN:",
-  token
-);
+  console.log(
+    "SENDING TOKEN:",
+    token
+  );
 
 
+  if(token){
 
-if(token && token !== "undefined" && token !== "null"){
+    config.headers.Authorization =
+      `Bearer ${token}`;
 
-  config.headers.Authorization =
-    `Bearer ${token}`;
-
-}
+  }
 
 
-return config;
+  return config;
 
 
 },
@@ -47,7 +54,7 @@ return config;
 
 (error)=>{
 
-return Promise.reject(error);
+  return Promise.reject(error);
 
 }
 
@@ -55,75 +62,82 @@ return Promise.reject(error);
 
 
 
+
+
+/*
+=================================================
+RESPONSE INTERCEPTOR
+=================================================
+*/
+
 api.interceptors.response.use(
 
-(response)=>response,
+
+(response)=>{
+
+
+  return response;
+
+
+},
 
 
 (error)=>{
 
 
-const message =
- error.response?.data?.message ||
- error.response?.data?.error ||
- "";
-
-
-const lowerMessage =
- String(message).toLowerCase();
+  console.log(
+    "API ERROR:",
+    error.response?.status,
+    error.response?.data
+  );
 
 
 
-const isRealAuthError =
+  /*
+  ONLY logout on actual 401
+  */
 
- error.response?.status === 401 ||
-
- lowerMessage.includes(
- "authorization token missing"
- ) ||
-
- lowerMessage.includes(
- "invalid token"
- ) ||
-
- lowerMessage.includes(
- "jwt expired"
- ) ||
-
- lowerMessage.includes(
- "token expired"
- ) ||
-
- lowerMessage.includes(
- "malformed token"
- );
+  if(
+    error.response?.status === 401
+  ){
 
 
-
-if(isRealAuthError){
-
-
-sessionStorage.removeItem("token");
-sessionStorage.removeItem("user");
+    sessionStorage.removeItem(
+      "token"
+    );
 
 
-localStorage.removeItem("token");
-localStorage.removeItem("user");
+    sessionStorage.removeItem(
+      "user"
+    );
 
 
-if(
- window.location.pathname !== "/login"
-){
-
-window.location.href="/login";
-
-}
+    localStorage.removeItem(
+      "token"
+    );
 
 
-}
+    localStorage.removeItem(
+      "user"
+    );
 
 
-return Promise.reject(error);
+
+    if(
+      window.location.pathname !== "/login"
+    ){
+
+      window.location.href =
+        "/login";
+
+    }
+
+
+  }
+
+
+
+  return Promise.reject(error);
 
 
 }
