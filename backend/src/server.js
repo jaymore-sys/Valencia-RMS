@@ -57,36 +57,55 @@ CORS
 */
 
 
+const allowedOrigins = [
+
+  "https://myvol.in",
+
+  "https://www.myvol.in",
+
+  "http://localhost:5173",
+
+  "http://localhost:5174"
+
+];
+
+
+
 app.use(
+
   cors({
 
-    origin:function(origin,callback){
+    origin: function(origin, callback){
 
-      const allowedOrigins=[
-        "https://myvol.in",
-        "https://www.myvol.in",
-        "http://localhost:5173",
-        "http://localhost:5174"
-      ];
 
+      // Allow server-to-server requests
 
       if(!origin){
+
         return callback(null,true);
+
       }
+
 
 
       if(allowedOrigins.includes(origin)){
+
         return callback(null,true);
+
       }
 
 
+
       console.log(
-        "CORS ALLOWED:",
+        "CORS REQUEST FROM:",
         origin
       );
 
 
+      // Hostinger proxy compatibility
+
       return callback(null,true);
+
 
     },
 
@@ -95,28 +114,55 @@ app.use(
 
 
     methods:[
+
       "GET",
+
       "POST",
+
       "PUT",
+
       "PATCH",
+
       "DELETE",
+
       "OPTIONS"
+
     ],
 
 
     allowedHeaders:[
+
       "Content-Type",
+
       "Authorization",
+
       "Accept"
+
     ]
 
   })
+
+);
+
+
+
+
+// IMPORTANT FOR PREFLIGHT REQUESTS
+
+app.options(
+
+  "*",
+
+  cors()
+
 );
 
 
 
 app.use(
+
   express.json()
+
 );
 
 
@@ -131,7 +177,9 @@ HEALTH
 app.get("/",(req,res)=>{
 
   res.json({
+
     message:"Valencia RMS Backend Running"
+
   });
 
 });
@@ -139,6 +187,7 @@ app.get("/",(req,res)=>{
 
 
 app.get("/api/health",(req,res)=>{
+
 
   res.json({
 
@@ -148,20 +197,26 @@ app.get("/api/health",(req,res)=>{
 
   });
 
+
 });
 
 
 
 
 app.get(
+
 "/api/db-test",
+
 async(req,res)=>{
+
 
 try{
 
 
 const [rows]=await db.query(
+
 "SELECT DATABASE() AS database_name"
+
 );
 
 
@@ -206,108 +261,155 @@ API ROUTES
 
 
 app.use(
+
 "/api/auth",
+
 authRoutes
+
 );
 
 
 
 app.use(
+
 "/api/administrator",
+
 administratorRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin",
+
 adminRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-projects",
+
 adminProjectRoutes
+
 );
 
 
 
 app.use(
+
 "/api/administrator-projects",
+
 administratorProjectRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-overview",
+
 adminOverviewRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-profile",
+
 adminProfileRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-tasks",
+
 adminTaskRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-attendance",
+
 adminAttendanceRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-leaves",
+
 adminLeaveRoutes
+
 );
 
 
 
 
 app.use(
+
 "/api/employee-overview",
+
 employeeOverviewRoutes
+
 );
 
 
 
 app.use(
+
 "/api/employee-tasks",
+
 employeeTaskRoutes
+
 );
 
 
 
 app.use(
+
 "/api/employee-profile",
+
 employeeProfileRoutes
+
 );
 
 
 
 app.use(
+
 "/api/employee-attendance",
+
 employeeAttendanceRoutes
+
 );
 
 
 
 app.use(
+
 "/api/employee-leaves",
+
 employeeLeaveRoutes
+
 );
+
+
 
 
 
@@ -319,44 +421,63 @@ SUPERADMIN
 
 
 app.use(
+
 "/api/superadmin",
+
 superadminRoutes
+
 );
 
 
 
 
+
 app.use(
+
 "/api/employee-mini-tasks",
+
 employeeMiniTaskRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-mini-tasks",
+
 adminMiniTaskRoutes
+
 );
 
 
 
 app.use(
+
 "/api/employee-projects",
+
 employeeProjectRoutes
+
 );
 
 
 
 app.use(
+
 "/api/admin-review",
+
 adminReviewRoutes
+
 );
 
 
 
 app.use(
+
 "/api/calendar",
+
 calendarRoutes
+
 );
 
 
@@ -369,7 +490,11 @@ calendarRoutes
 =================================================
 */
 
-app.use((req,res)=>{
+
+app.use(
+
+(req,res)=>{
+
 
 res.status(404).json({
 
@@ -381,7 +506,10 @@ path:req.originalUrl
 
 });
 
-});
+
+}
+
+);
 
 
 
@@ -394,24 +522,30 @@ SERVER
 */
 
 
-const PORT =
-process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 
 
 
 app.listen(
+
 PORT,
+
 "0.0.0.0",
+
 ()=>{
 
 
 console.log(
+
 `Server running on port ${PORT}`
+
 );
+
 
 
 startDeadlineEmailJob();
 
 
 }
+
 );
