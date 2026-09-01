@@ -122,62 +122,98 @@ const getMeetingEmployees = async (req, res) => {
         });
     }
 
-    if (
-      String(user.role_name).toLowerCase() !==
-      "admin"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "Admin access required.",
-      });
-    }
+    const roleName =
+  String(
+    user.role_name || ""
+  ).toLowerCase();
+
+if (
+  ![
+    "admin",
+    "employee",
+  ].includes(roleName)
+) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "Calendar meeting access denied.",
+  });
+}
+
 
     const [employees] = await db.query(
       `
-        SELECT
-          u.user_id,
-          u.employee_code,
-          u.full_name,
-          u.email,
-          u.designation,
-          u.department_id,
-          d.department_name,
-          LOWER(r.role_name) AS role_name
+      SELECT
+        u.user_id,
+        u.employee_code,
+        u.full_name,
+        u.email,
+        u.designation,
+        u.department_id,
 
-        FROM users u
+        d.department_name,
 
-        LEFT JOIN roles r
-          ON r.role_id = u.role_id
+        LOWER(r.role_name) AS role_name
 
-        LEFT JOIN departments d
-          ON d.department_id =
-          u.department_id
+      FROM users u
 
-        WHERE
-          (
-            (
-              u.department_id = ?
-              AND LOWER(r.role_name) = 'employee'
-            )
+      LEFT JOIN roles r
+        ON r.role_id = u.role_id
 
-            OR LOWER(r.role_name) = 'administrator'
-          )
+      LEFT JOIN departments d
+        ON d.department_id = u.department_id
 
-        AND LOWER(
+      WHERE
+        LOWER(
           COALESCE(
             u.status,
             'active'
           )
         ) != 'deleted'
 
-        ORDER BY
-          CASE
-            WHEN LOWER(r.role_name) = 'administrator'
-            THEN 0
-            ELSE 1
-          END,
+        AND LOWER(
+          COALESCE(
+            r.role_name,
+            ''
+          )
+        ) IN (
+          'employee',
+          'administrator'
+        )
 
-          u.full_name ASC
+      ORDER BY
+
+        /*
+        Logged-in Admin's department employees FIRST
+        */
+
+        CASE
+          WHEN
+            LOWER(r.role_name) = 'employee'
+            AND u.department_id = ?
+          THEN 0
+
+          /*
+          All remaining company employees SECOND
+          */
+
+          WHEN
+            LOWER(r.role_name) = 'employee'
+          THEN 1
+
+          /*
+          Administrator LAST
+          */
+
+          WHEN
+            LOWER(r.role_name) = 'administrator'
+          THEN 2
+
+          ELSE 3
+        END,
+
+        d.department_name ASC,
+        u.full_name ASC
       `,
       [user.department_id]
     );
@@ -201,7 +237,6 @@ const getMeetingEmployees = async (req, res) => {
     });
   }
 };
-
 /*
 ========================================================
 ADMIN - CREATE MEETING
@@ -225,17 +260,24 @@ const createMeeting = async (req, res) => {
         });
     }
 
-    if (
-      String(
-        user.role_name
-      ).toLowerCase() !== "admin"
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "Admin access required.",
-      });
-    }
+    const roleName =
+  String(
+    user.role_name || ""
+  ).toLowerCase();
+
+if (
+  ![
+    "admin",
+    "employee",
+  ].includes(roleName)
+) {
+  return res.status(403).json({
+    success: false,
+    message:
+      "You do not have permission to schedule meetings.",
+  });
+}
+
 
     const {
       title,
@@ -326,18 +368,15 @@ const createMeeting = async (req, res) => {
         WHERE
           u.user_id IN (${placeholders})
 
-        AND (
-          (
-            u.department_id = ?
-            AND LOWER(
-              r.role_name
-            ) = 'employee'
-          )
-
-          OR LOWER(
-            r.role_name
-          ) = 'administrator'
-        )
+      AND LOWER(
+  COALESCE(
+    r.role_name,
+    ''
+  )
+) IN (
+  'employee',
+  'administrator'
+)
 
         AND LOWER(
           COALESCE(
@@ -348,7 +387,7 @@ const createMeeting = async (req, res) => {
         `,
         [
           ...employeeIds,
-          user.department_id,
+          
         ]
       );
 
@@ -1199,68 +1238,79 @@ const getEmployeeCalendar = async (req, res) => {
     */
 
     const [meetings] = await db.query(
-      `
-      SELECT
-        m.id AS id,
+  `
+  SELECT
+    m.id AS id,
 
-        m.title,
+    m.title,
 
-        m.description,
+    m.description,
 
-        DATE_FORMAT(
-          m.meeting_date,
-          '%Y-%m-%d'
-        ) AS meeting_date,
+    m.created_by,
 
-        TIME_FORMAT(
-          m.start_time,
-          '%H:%i'
-        ) AS start_time,
+    DATE_FORMAT(
+      m.meeting_date,
+      '%Y-%m-%d'
+    ) AS meeting_date,
 
-        TIME_FORMAT(
-          m.end_time,
-          '%H:%i'
-        ) AS end_time,
+    TIME_FORMAT(
+      m.start_time,
+      '%H:%i'
+    ) AS start_time,
 
-        m.status,
+    TIME_FORMAT(
+      m.end_time,
+      '%H:%i'
+    ) AS end_time,
 
-        creator.full_name
-          AS created_by_name,
+    m.status,
 
-        GROUP_CONCAT(
-          DISTINCT participant.full_name
-          ORDER BY participant.full_name
-          SEPARATOR ', '
-        ) AS participants
+    creator.full_name
+      AS created_by_name,
 
-      FROM meetings m
+    GROUP_CONCAT(
+      DISTINCT participant.full_name
+      ORDER BY participant.full_name
+      SEPARATOR ', '
+    ) AS participants
 
-      INNER JOIN meeting_employees mine
-        ON mine.meeting_id = m.id
+  FROM meetings m
 
-      LEFT JOIN users creator
-        ON creator.user_id =
-           m.created_by
+  LEFT JOIN meeting_employees mine
+    ON mine.meeting_id = m.id
 
-      LEFT JOIN meeting_employees all_me
-        ON all_me.meeting_id = m.id
+    AND mine.employee_id = ?
 
-      LEFT JOIN users participant
-        ON participant.user_id =
-           all_me.employee_id
+  LEFT JOIN users creator
+    ON creator.user_id =
+       m.created_by
 
-      WHERE
-        mine.employee_id = ?
+  LEFT JOIN meeting_employees all_me
+    ON all_me.meeting_id = m.id
 
-      GROUP BY
-        m.id
+  LEFT JOIN users participant
+    ON participant.user_id =
+       all_me.employee_id
 
-      ORDER BY
-        m.meeting_date ASC,
-        m.start_time ASC
-      `,
-      [employeeId]
-    );
+  WHERE
+    (
+      mine.employee_id IS NOT NULL
+
+      OR m.created_by = ?
+    )
+
+  GROUP BY
+    m.id
+
+  ORDER BY
+    m.meeting_date ASC,
+    m.start_time ASC
+  `,
+  [
+    employeeId,
+    employeeId,
+  ]
+);
 
     /*
     ========================================================
@@ -1519,15 +1569,15 @@ WHERE id = ?
       WHERE
         u.user_id IN (${placeholders})
 
-      AND (
-        (
-          u.department_id = ?
-          AND LOWER(r.role_name) = 'employee'
-        )
-
-        OR LOWER(r.role_name) = 'administrator'
-      )
-
+      AND LOWER(
+  COALESCE(
+    r.role_name,
+    ''
+  )
+) IN (
+  'employee',
+  'administrator'
+)
       AND LOWER(
         COALESCE(
           u.status,
@@ -1537,7 +1587,7 @@ WHERE id = ?
     `,
     [
       ...employeeIds,
-      user.department_id,
+      
     ]
   );
 
