@@ -1841,14 +1841,33 @@ async()=>{
 };
 
 
-/* =========================================================
-   CONTROLLER EXPORTS
-========================================================= */
-
 module.exports = {
+
+  // overview
+  getSuperadminOverview,
+
+  // users
+  getSuperadminUsers,
+  getSuperadminUserDetails,
+
+  // tasks
+  getSuperadminTasks,
+
+  // projects
+  getSuperadminProjects,
+  getSuperadminProjectOptions,
+  getSuperadminProjectContext,
+  createSuperadminProject,
+  updateSuperadminProjectAssignees,
+  createSuperadminMainTask,
+  deleteOwnSuperadminProject,
+
+  // field visits
   getSuperadminFieldVisits,
-  getAllMainTasks,
+
+  // helpers if required
   getAllProjects,
-  getAllUsersBase,
-  getAttendanceSummaryMap,
+  getAllMainTasks,
+  getAllUsersBase
+
 };
