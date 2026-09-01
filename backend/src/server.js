@@ -19,25 +19,31 @@ const adminTaskRoutes = require("./routes/admintaskroutes");
 const adminAttendanceRoutes = require("./routes/adminattendanceroutes");
 const adminLeaveRoutes = require("./routes/adminleaveroutes");
 
+
 const employeeOverviewRoutes = require("./routes/employeeoverviewroutes");
 const employeeTaskRoutes = require("./routes/employeetaskroutes");
 const employeeProfileRoutes = require("./routes/employeeprofileroutes");
 const employeeAttendanceRoutes = require("./routes/employeeattendanceroutes");
 const employeeLeaveRoutes = require("./routes/employeeleaveroutes");
 
+
 const superadminRoutes = require("./routes/superadminroutes");
+
 
 const employeeMiniTaskRoutes = require("./routes/employeeminitaskroutes");
 const adminMiniTaskRoutes = require("./routes/adminminitaskroutes");
 
 const employeeProjectRoutes = require("./routes/employeeprojectroutes");
+
 const adminReviewRoutes = require("./routes/adminreviewroutes");
 
 const calendarRoutes = require("./routes/calendarroutes");
 
+
 const {
   startDeadlineEmailJob
 } = require("./jobs/deadlineemailjob");
+
 
 
 const app = express();
@@ -53,9 +59,10 @@ CORS
 
 app.use(
   cors({
-    origin: function(origin, callback){
 
-      const allowed = [
+    origin:function(origin,callback){
+
+      const allowedOrigins=[
         "https://myvol.in",
         "https://www.myvol.in",
         "http://localhost:5173",
@@ -68,23 +75,24 @@ app.use(
       }
 
 
-      if(allowed.includes(origin)){
+      if(allowedOrigins.includes(origin)){
         return callback(null,true);
       }
 
 
       console.log(
-        "CORS BLOCKED:",
+        "CORS ALLOWED:",
         origin
       );
 
 
-      // allow hostinger proxy requests
       return callback(null,true);
 
     },
 
+
     credentials:true,
+
 
     methods:[
       "GET",
@@ -95,19 +103,14 @@ app.use(
       "OPTIONS"
     ],
 
+
     allowedHeaders:[
       "Content-Type",
       "Authorization",
       "Accept"
     ]
+
   })
-);
-
-
-
-app.options(
-  "*",
-  cors()
 );
 
 
@@ -115,7 +118,6 @@ app.options(
 app.use(
   express.json()
 );
-
 
 
 
@@ -135,14 +137,19 @@ app.get("/",(req,res)=>{
 });
 
 
+
 app.get("/api/health",(req,res)=>{
 
   res.json({
+
     success:true,
+
     service:"valencia-rms-backend"
+
   });
 
 });
+
 
 
 
@@ -152,23 +159,33 @@ async(req,res)=>{
 
 try{
 
+
 const [rows]=await db.query(
 "SELECT DATABASE() AS database_name"
 );
 
 
+
 res.json({
+
 success:true,
+
 database:rows[0].database_name
+
 });
 
 
 }
+
 catch(error){
 
+
 res.status(500).json({
+
 success:false,
+
 message:error.message
+
 });
 
 
@@ -176,63 +193,195 @@ message:error.message
 
 
 });
+
 
 
 
 
 /*
 =================================================
-ROUTES
+API ROUTES
 =================================================
 */
 
 
-app.use("/api/auth",authRoutes);
-
-app.use("/api/administrator",administratorRoutes);
-
-app.use("/api/admin",adminRoutes);
-
-app.use("/api/admin-projects",adminProjectRoutes);
-
-app.use("/api/administrator-projects",administratorProjectRoutes);
-
-app.use("/api/admin-overview",adminOverviewRoutes);
-
-app.use("/api/admin-profile",adminProfileRoutes);
-
-app.use("/api/admin-tasks",adminTaskRoutes);
-
-app.use("/api/admin-attendance",adminAttendanceRoutes);
-
-app.use("/api/admin-leaves",adminLeaveRoutes);
+app.use(
+"/api/auth",
+authRoutes
+);
 
 
-app.use("/api/employee-overview",employeeOverviewRoutes);
 
-app.use("/api/employee-tasks",employeeTaskRoutes);
-
-app.use("/api/employee-profile",employeeProfileRoutes);
-
-app.use("/api/employee-attendance",employeeAttendanceRoutes);
-
-app.use("/api/employee-leaves",employeeLeaveRoutes);
+app.use(
+"/api/administrator",
+administratorRoutes
+);
 
 
-app.use("/api/superadmin",superadminRoutes);
+
+app.use(
+"/api/admin",
+adminRoutes
+);
 
 
-app.use("/api/employee-mini-tasks",employeeMiniTaskRoutes);
 
-app.use("/api/admin-mini-tasks",adminMiniTaskRoutes);
-
-
-app.use("/api/employee-projects",employeeProjectRoutes);
-
-app.use("/api/admin-review",adminReviewRoutes);
+app.use(
+"/api/admin-projects",
+adminProjectRoutes
+);
 
 
-app.use("/api/calendar",calendarRoutes);
+
+app.use(
+"/api/administrator-projects",
+administratorProjectRoutes
+);
+
+
+
+app.use(
+"/api/admin-overview",
+adminOverviewRoutes
+);
+
+
+
+app.use(
+"/api/admin-profile",
+adminProfileRoutes
+);
+
+
+
+app.use(
+"/api/admin-tasks",
+adminTaskRoutes
+);
+
+
+
+app.use(
+"/api/admin-attendance",
+adminAttendanceRoutes
+);
+
+
+
+app.use(
+"/api/admin-leaves",
+adminLeaveRoutes
+);
+
+
+
+
+app.use(
+"/api/employee-overview",
+employeeOverviewRoutes
+);
+
+
+
+app.use(
+"/api/employee-tasks",
+employeeTaskRoutes
+);
+
+
+
+app.use(
+"/api/employee-profile",
+employeeProfileRoutes
+);
+
+
+
+app.use(
+"/api/employee-attendance",
+employeeAttendanceRoutes
+);
+
+
+
+app.use(
+"/api/employee-leaves",
+employeeLeaveRoutes
+);
+
+
+
+/*
+=================================================
+SUPERADMIN
+=================================================
+*/
+
+
+app.use(
+"/api/superadmin",
+superadminRoutes
+);
+
+
+
+
+app.use(
+"/api/employee-mini-tasks",
+employeeMiniTaskRoutes
+);
+
+
+
+app.use(
+"/api/admin-mini-tasks",
+adminMiniTaskRoutes
+);
+
+
+
+app.use(
+"/api/employee-projects",
+employeeProjectRoutes
+);
+
+
+
+app.use(
+"/api/admin-review",
+adminReviewRoutes
+);
+
+
+
+app.use(
+"/api/calendar",
+calendarRoutes
+);
+
+
+
+
+
+/*
+=================================================
+404 HANDLER
+=================================================
+*/
+
+app.use((req,res)=>{
+
+res.status(404).json({
+
+success:false,
+
+message:"API route not found",
+
+path:req.originalUrl
+
+});
+
+});
 
 
 
@@ -249,10 +398,12 @@ const PORT =
 process.env.PORT || 5000;
 
 
+
 app.listen(
 PORT,
 "0.0.0.0",
 ()=>{
+
 
 console.log(
 `Server running on port ${PORT}`
@@ -260,6 +411,7 @@ console.log(
 
 
 startDeadlineEmailJob();
+
 
 }
 );
