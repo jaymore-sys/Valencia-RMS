@@ -19,7 +19,6 @@ import {
   MapPin,
 } from "lucide-react";
 
-
 import vnlLogo from "../assets/VNL_logo.webp";
 
 import "./Superadminlayout.css";
@@ -40,9 +39,7 @@ const getUser = () => {
       "{}"
     );
 
-  }
-
-  catch {
+  } catch {
 
     return {};
 
@@ -52,20 +49,16 @@ const getUser = () => {
 
 
 
-
 /* =========================================================
    COMPONENT
 ========================================================= */
-
 
 const SuperadminLayout = () => {
 
 
   const navigate = useNavigate();
 
-
   const user = getUser();
-
 
 
   const [
@@ -83,10 +76,8 @@ const SuperadminLayout = () => {
 
   const logout = () => {
 
-
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
-
 
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -99,15 +90,13 @@ const SuperadminLayout = () => {
       }
     );
 
-
   };
 
 
 
 
-
   /* =======================================================
-     USER INITIALS
+     INITIALS
   ======================================================= */
 
 
@@ -115,415 +104,343 @@ const SuperadminLayout = () => {
 
     user?.full_name
 
-    ?.split(" ")
+      ?.split(" ")
 
-    .filter(Boolean)
+      .filter(Boolean)
 
-    .map(
-      part => part[0]
-    )
+      .map(
+        part => part[0]
+      )
 
-    .join("")
+      .join("")
 
-    .slice(0,2)
+      .slice(0,2)
 
-    .toUpperCase()
+      .toUpperCase()
 
-    ||
+      ||
 
-    "SA";
+      "SA";
 
 
 
 
 
+  return (
 
-return (
+    <div
 
-<div
+      className={
+        `sa-shell ${
+          sidebarCollapsed
+          ?
+          "sa-sidebar-collapsed"
+          :
+          ""
+        }`
+      }
 
-className={
+    >
 
-`sa-shell ${
-sidebarCollapsed
-?
-"sa-sidebar-collapsed"
-:
-""
-}`
 
-}
 
->
+      {/* SIDEBAR */}
 
+      <aside className="sa-sidebar">
 
 
+        {/* COLLAPSE BUTTON */}
 
-{/* ===================================================
-    SIDEBAR
-=================================================== */}
+        <button
 
+          type="button"
 
-<aside className="sa-sidebar">
+          className="sa-sidebar-toggle"
 
+          onClick={() =>
+            setSidebarCollapsed(
+              previous => !previous
+            )
+          }
 
+        >
 
-<button
+          {
+            sidebarCollapsed
 
-type="button"
+            ?
 
-className="sa-sidebar-toggle"
+            <ChevronRight size={18}/>
 
-onClick={
+            :
 
-()=>setSidebarCollapsed(
-previous=>!previous
-)
+            <ChevronLeft size={18}/>
 
-}
+          }
 
-title={
+        </button>
 
-sidebarCollapsed
-?
-"Expand sidebar"
-:
-"Collapse sidebar"
 
-}
 
 
->
+        {/* LOGO */}
 
-{
+        <div className="sa-logo-wrap">
 
-sidebarCollapsed
+          <img
 
-?
+            src={vnlLogo}
 
-<ChevronRight size={18}/>
+            alt="Valencia Nutrition"
 
-:
+            className="sa-logo-img"
 
-<ChevronLeft size={18}/>
+          />
 
-}
+        </div>
 
 
-</button>
 
 
 
+        {/* NAVIGATION */}
 
+        <nav className="sa-nav">
 
-{/* LOGO */}
 
+          <NavLink
+            to="/superadmin/overview"
+            title="Overview"
+          >
 
-<div className="sa-logo-wrap">
+            <BarChart3/>
 
-<img
+            <span>
+              Overview
+            </span>
 
-src={vnlLogo}
+          </NavLink>
 
-alt="Valencia Nutrition"
 
-className="sa-logo-img"
 
-/>
 
-</div>
+          <NavLink
+            to="/superadmin/projects"
+            title="Projects"
+          >
 
+            <FolderKanban/>
 
+            <span>
+              Projects
+            </span>
 
+          </NavLink>
 
 
 
-{/* NAVIGATION */}
 
 
-<nav className="sa-nav">
+          <NavLink
+            to="/superadmin/tasks"
+            title="Tasks"
+          >
 
+            <ClipboardList/>
 
+            <span>
+              Tasks
+            </span>
 
-<NavLink
+          </NavLink>
 
-to="/superadmin/overview"
 
-title="Overview"
 
->
 
-<BarChart3/>
 
-<span>
-Overview
-</span>
+          <NavLink
+            to="/superadmin/users"
+            title="Users"
+          >
 
-</NavLink>
+            <Users/>
 
+            <span>
+              Users
+            </span>
 
+          </NavLink>
 
 
 
 
-<NavLink
 
-to="/superadmin/projects"
+          <NavLink
+            to="/superadmin/calendar"
+            title="Calendar"
+          >
 
-title="Projects"
+            <CalendarDays/>
 
->
+            <span>
+              Calendar
+            </span>
 
-<FolderKanban/>
+          </NavLink>
 
-<span>
-Projects
-</span>
 
-</NavLink>
 
 
 
+          <NavLink
+            to="/superadmin/attendance"
+            title="Attendance"
+          >
 
+            <CalendarCheck/>
 
+            <span>
+              Attendance
+            </span>
 
-<NavLink
+          </NavLink>
 
-to="/superadmin/tasks"
 
-title="Tasks"
 
->
 
-<ClipboardList/>
 
-<span>
-Tasks
-</span>
+          {/* FIELD VISITS */}
 
-</NavLink>
+          <NavLink
+            to="/superadmin/field-visits"
+            title="Field Visits"
+          >
 
+            <MapPin/>
 
+            <span>
+              Field Visits
+            </span>
 
+          </NavLink>
 
 
 
-<NavLink
 
-to="/superadmin/users"
+        </nav>
 
-title="Users"
 
->
 
-<Users/>
 
-<span>
-Users
-</span>
 
-</NavLink>
 
 
+        {/* BOTTOM */}
 
+        <div className="sa-sidebar-bottom">
 
 
+          <div className="sa-user-card">
 
 
-<NavLink
+            <div className="sa-user-avatar">
 
-to="/superadmin/calendar"
+              {initials}
 
-title="Calendar"
+            </div>
 
->
 
-<CalendarDays/>
 
-<span>
-Calendar
-</span>
+            <div className="sa-user-info">
 
-</NavLink>
 
+              <strong>
 
+                {
+                  user?.full_name ||
+                  "Superadmin"
+                }
 
+              </strong>
 
 
+              <p>
 
-<NavLink
+                {
+                  user?.email ||
+                  "-"
+                }
 
-to="/superadmin/attendance"
+              </p>
 
-title="Attendance"
 
->
+              <span>
 
-<CalendarCheck/>
+                {
+                  user?.role_name ||
+                  "superadmin"
+                }
 
-<span>
-Attendance
-</span>
+              </span>
 
-</NavLink>
 
+            </div>
 
 
+          </div>
 
 
 
-{/* FIELD VISITS */}
 
 
-<NavLink
 
-to="/superadmin/field-visits"
+          <button
 
-title="Field Visits"
+            type="button"
 
->
+            className="sa-logout-btn"
 
-<MapPin/>
+            onClick={logout}
 
-<span>
-Field Visits
-</span>
+          >
 
+            <LogOut size={18}/>
 
-</NavLink>
 
+            <span>
+              Logout
+            </span>
 
 
+          </button>
 
 
-</nav>
 
+        </div>
 
 
 
+      </aside>
 
 
-{/* BOTTOM AREA */}
 
 
-<div className="sa-sidebar-bottom">
 
 
 
+      {/* MAIN CONTENT */}
 
+      <main className="sa-main">
 
-<div className="sa-user-card">
+        <Outlet/>
 
+      </main>
 
-<div className="sa-user-avatar">
 
-{initials}
 
-</div>
+    </div>
 
-
-
-
-<div className="sa-user-info">
-
-
-<strong>
-
-{
-user?.full_name ||
-"Superadmin"
-}
-
-</strong>
-
-
-
-<p>
-
-{
-user?.email ||
-"-"
-}
-
-</p>
-
-
-
-
-<span>
-
-{
-user?.role_name ||
-"superadmin"
-}
-
-</span>
-
-
-</div>
-
-
-</div>
-
-
-
-
-
-
-
-<button
-
-type="button"
-
-className="sa-logout-btn"
-
-onClick={logout}
-
->
-
-
-<LogOut size={18}/>
-
-
-<span>
-Logout
-</span>
-
-
-</button>
-
-
-
-</div>
-
-
-
-</aside>
-
-
-
-
-
-
-{/* ===================================================
-    MAIN
-=================================================== */}
-
-
-
-<main className="sa-main">
-
-<Outlet/>
-
-</main>
-
-
-
-
-</div>
-
-);
-
+  );
 
 };
 
