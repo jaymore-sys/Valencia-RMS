@@ -18,7 +18,6 @@ CONTROLLERS
 =========================================================
 */
 
-
 const {
 
   getSuperadminFieldVisits,
@@ -27,7 +26,9 @@ const {
 
   getAllMainTasks,
 
-  getAllUsersBase
+  getAllUsersBase,
+
+  getSuperadminProjectOptions
 
 
 } = require(
@@ -65,9 +66,7 @@ const {
 
 
 
-
 const router = express.Router();
-
 
 
 
@@ -89,7 +88,6 @@ OVERVIEW
 =========================================================
 */
 
-
 router.get(
 
   "/overview",
@@ -98,9 +96,7 @@ router.get(
 
   async(req,res)=>{
 
-
     try{
-
 
       res.json({
 
@@ -111,18 +107,13 @@ router.get(
           message:
           "Superadmin overview working"
 
-
         }
-
 
       });
 
 
-
     }
-
     catch(error){
-
 
       res.status(500).json({
 
@@ -130,16 +121,14 @@ router.get(
 
         message:error.message
 
-
       });
 
-
     }
-
 
   }
 
 );
+
 
 
 
@@ -166,7 +155,6 @@ router.get(
 
 
       const projects =
-
         await getAllProjects();
 
 
@@ -177,9 +165,7 @@ router.get(
 
         projects
 
-
       });
-
 
 
     }
@@ -187,12 +173,17 @@ router.get(
     catch(error){
 
 
+      console.log(
+        "PROJECT ERROR:",
+        error
+      );
+
+
       res.status(500).json({
 
         success:false,
 
         message:error.message
-
 
       });
 
@@ -203,6 +194,74 @@ router.get(
   }
 
 );
+
+
+
+
+
+
+
+/*
+=========================================================
+PROJECT OPTIONS
+=========================================================
+*/
+
+
+router.get(
+
+  "/project-options",
+
+  ...superadminOnly,
+
+  async(req,res)=>{
+
+
+    try{
+
+
+      const options =
+        await getSuperadminProjectOptions();
+
+
+
+      res.json({
+
+        success:true,
+
+        ...options
+
+      });
+
+
+    }
+
+    catch(error){
+
+
+      console.log(
+        "PROJECT OPTIONS ERROR:",
+        error
+      );
+
+
+      res.status(500).json({
+
+        success:false,
+
+        message:error.message
+
+      });
+
+
+    }
+
+
+  }
+
+);
+
+
 
 
 
@@ -230,7 +289,6 @@ router.get(
 
 
       const tasks =
-
         await getAllMainTasks();
 
 
@@ -240,7 +298,6 @@ router.get(
         success:true,
 
         tasks
-
 
       });
 
@@ -256,7 +313,6 @@ router.get(
 
         message:error.message
 
-
       });
 
 
@@ -266,6 +322,8 @@ router.get(
   }
 
 );
+
+
 
 
 
@@ -293,7 +351,6 @@ router.get(
 
 
       const users =
-
         await getAllUsersBase();
 
 
@@ -303,7 +360,6 @@ router.get(
         success:true,
 
         users
-
 
       });
 
@@ -319,7 +375,6 @@ router.get(
 
         message:error.message
 
-
       });
 
 
@@ -329,6 +384,8 @@ router.get(
   }
 
 );
+
+
 
 
 
@@ -352,6 +409,7 @@ router.get(
   getSuperadminAttendance
 
 );
+
 
 
 
@@ -440,6 +498,7 @@ router.patch(
 
 
 
+
 /*
 =========================================================
 FIELD VISITS
@@ -456,7 +515,6 @@ router.get(
   getSuperadminFieldVisits
 
 );
-
 
 
 

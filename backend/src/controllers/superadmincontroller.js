@@ -1841,6 +1841,57 @@ async()=>{
 };
 
 
+const getSuperadminProjectOptions = async(req,res)=>{
+
+  try{
+
+    const [departments] = await db.query(
+      `
+      SELECT DISTINCT department
+      FROM projects
+      WHERE department IS NOT NULL
+      `
+    );
+
+
+    const [employees] = await db.query(
+      `
+      SELECT 
+      user_id,
+      full_name
+      FROM users
+      WHERE status='active'
+      `
+    );
+
+
+    res.json({
+
+      success:true,
+
+      departments,
+
+      employees
+
+    });
+
+
+  }
+  catch(error){
+
+    res.status(500).json({
+
+      success:false,
+
+      message:error.message
+
+    });
+
+  }
+
+};
+
+
 module.exports = {
 
   getSuperadminFieldVisits,
@@ -1849,6 +1900,8 @@ module.exports = {
 
   getAllMainTasks,
 
-  getAllUsersBase
+  getAllUsersBase,
+
+  getSuperadminProjectOptions
 
 };
