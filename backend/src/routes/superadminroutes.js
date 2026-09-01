@@ -11,15 +11,15 @@ const {
 );
 
 
+
 /*
 =========================================================
-SUPERADMIN CONTROLLER
+CONTROLLERS
 =========================================================
 */
 
-const {
 
-  getSuperadminOverview,
+const {
 
   getSuperadminFieldVisits,
 
@@ -36,12 +36,6 @@ const {
 
 
 
-/*
-=========================================================
-ATTENDANCE
-=========================================================
-*/
-
 const {
 
   getSuperadminAttendance
@@ -51,12 +45,6 @@ const {
 );
 
 
-
-/*
-=========================================================
-CALENDAR
-=========================================================
-*/
 
 const {
 
@@ -77,7 +65,9 @@ const {
 
 
 
+
 const router = express.Router();
+
 
 
 
@@ -88,6 +78,8 @@ const superadminOnly = [
   requireRole("superadmin")
 
 ];
+
+
 
 
 
@@ -104,9 +96,52 @@ router.get(
 
   ...superadminOnly,
 
-  getSuperadminOverview
+  async(req,res)=>{
+
+
+    try{
+
+
+      res.json({
+
+        success:true,
+
+        data:{
+
+          message:
+          "Superadmin overview working"
+
+
+        }
+
+
+      });
+
+
+
+    }
+
+    catch(error){
+
+
+      res.status(500).json({
+
+        success:false,
+
+        message:error.message
+
+
+      });
+
+
+    }
+
+
+  }
 
 );
+
+
 
 
 
@@ -131,6 +166,7 @@ router.get(
 
 
       const projects =
+
         await getAllProjects();
 
 
@@ -141,10 +177,13 @@ router.get(
 
         projects
 
+
       });
 
 
+
     }
+
     catch(error){
 
 
@@ -153,6 +192,7 @@ router.get(
         success:false,
 
         message:error.message
+
 
       });
 
@@ -163,6 +203,9 @@ router.get(
   }
 
 );
+
+
+
 
 
 
@@ -187,6 +230,7 @@ router.get(
 
 
       const tasks =
+
         await getAllMainTasks();
 
 
@@ -197,10 +241,12 @@ router.get(
 
         tasks
 
+
       });
 
 
     }
+
     catch(error){
 
 
@@ -209,6 +255,7 @@ router.get(
         success:false,
 
         message:error.message
+
 
       });
 
@@ -219,6 +266,9 @@ router.get(
   }
 
 );
+
+
+
 
 
 
@@ -243,6 +293,7 @@ router.get(
 
 
       const users =
+
         await getAllUsersBase();
 
 
@@ -253,10 +304,12 @@ router.get(
 
         users
 
+
       });
 
 
     }
+
     catch(error){
 
 
@@ -265,6 +318,7 @@ router.get(
         success:false,
 
         message:error.message
+
 
       });
 
@@ -275,6 +329,9 @@ router.get(
   }
 
 );
+
+
+
 
 
 
@@ -299,6 +356,10 @@ router.get(
 
 
 
+
+
+
+
 /*
 =========================================================
 CALENDAR
@@ -318,6 +379,8 @@ router.get(
 
 
 
+
+
 router.get(
 
   "/calendar/employees",
@@ -327,6 +390,8 @@ router.get(
   getSuperadminMeetingEmployees
 
 );
+
+
 
 
 
@@ -342,6 +407,8 @@ router.post(
 
 
 
+
+
 router.put(
 
   "/calendar/meetings/:meetingId",
@@ -354,6 +421,8 @@ router.put(
 
 
 
+
+
 router.patch(
 
   "/calendar/meetings/:meetingId/cancel",
@@ -363,6 +432,10 @@ router.patch(
   cancelSuperadminMeeting
 
 );
+
+
+
+
 
 
 
@@ -383,6 +456,11 @@ router.get(
   getSuperadminFieldVisits
 
 );
+
+
+
+
+
 
 
 

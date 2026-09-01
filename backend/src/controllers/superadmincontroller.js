@@ -1843,8 +1843,6 @@ async()=>{
 
 module.exports = {
 
-  getSuperadminOverview,
-
   getSuperadminFieldVisits,
 
   getAllProjects,
