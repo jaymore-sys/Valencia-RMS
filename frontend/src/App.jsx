@@ -1,102 +1,553 @@
-{/* ===================================================
-    SUPERADMIN
-=================================================== */}
+import {
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
 
-<Route
-  path="/superadmin"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "superadmin",
-      ]}
-    >
-      <SuperadminLayout />
-    </ProtectedRoute>
+import LoginPage from "./pages/LoginPage";
+
+/* ================= ADMINISTRATOR ================= */
+
+import AdministratorLayout from "./layouts/Administratorlayout";
+
+import AdministratorOverview from "./pages/administrator/administratorOverview";
+
+import AdministratorProjects from "./pages/administrator/administratorProjects";
+
+import AdministratorTasks from "./pages/administrator/administratorTasks";
+
+import AdministratorCalendar from "./pages/administrator/administratorCalendar";
+
+import AdministratorReports from "./pages/administrator/administratorReports";
+
+import AdministratorProfile from "./pages/administrator/administratorProfile";
+
+import AdministratorUsers from "./pages/administrator/administratorUsers";
+
+import AdministratorAttendance from "./pages/administrator/administratorAttendance";
+
+import AdministratorLeaveApplications from "./pages/administrator/administratorLeaveApplications";
+
+/* ================= EMPLOYEE ================= */
+
+import EmployeeLayout from "./layouts/Employeelayout";
+
+import EmployeeOverview from "./pages/employee/employeeOverview";
+
+import EmployeeProjects from "./pages/employee/employeeProjects";
+
+import EmployeeTasks from "./pages/employee/employeeTasks";
+
+import EmployeeCalendar from "./pages/employee/employeeCalendar";
+
+import EmployeeProfile from "./pages/employee/employeeProfile";
+
+import EmployeeAttendance from "./pages/employee/employeeAttendance";
+
+import EmployeeLeaveApplications from "./pages/employee/employeeLeaveApplications";
+
+/* ================= ADMIN ================= */
+
+import AdminLayout from "./layouts/Adminlayout";
+
+import AdminOverview from "./pages/admin/adminOverview";
+
+import AdminProjects from "./pages/admin/adminProjects";
+
+import AdminTasks from "./pages/admin/adminTasks";
+
+import AdminCalendar from "./pages/admin/adminCalendar";
+
+import AdminProfile from "./pages/admin/adminProfile";
+
+import AdminUsers from "./pages/admin/adminUsers";
+
+import AdminAttendance from "./pages/admin/adminAttendance";
+
+import AdminLeaveApplications from "./pages/admin/adminLeaveApplications";
+
+/* ================= SUPERADMIN ================= */
+
+import SuperadminLayout from "./layouts/Superadminlayout";
+
+import SuperadminOverview from "./pages/superadmin/superadminOverview";
+
+import SuperadminUsers from "./pages/superadmin/superadminUsers";
+
+import SuperadminTasks from "./pages/superadmin/superadminTasks";
+
+import SuperadminProjects from "./pages/superadmin/superadminProjects";
+
+import SuperadminFieldVisits from "./pages/superadmin/superadminFieldVisits";
+
+/* NEW SUPERADMIN PAGES */
+
+import SuperadminCalendar from "./pages/superadmin/superadminCalendar";
+
+import SuperadminAttendance from "./pages/superadmin/superadminAttendance";
+
+/* ========================================================
+   AUTH HELPERS
+======================================================== */
+
+const getStoredUser = () => {
+  try {
+    return JSON.parse(
+      sessionStorage.getItem("user") ||
+        localStorage.getItem("user") ||
+        "{}"
+    );
+  } catch {
+    return {};
   }
->
+};
 
-  {/* DEFAULT */}
+/* ========================================================
+   DEFAULT ROUTE BY ROLE
+======================================================== */
 
-  <Route
-    index
-    element={
+const getDefaultRouteByRole = (
+  roleName
+) => {
+  if (
+    roleName ===
+    "administrator"
+  ) {
+    return "/administrator/overview";
+  }
+
+  if (
+    roleName ===
+    "superadmin"
+  ) {
+    return "/superadmin/overview";
+  }
+
+  if (
+    roleName === "admin"
+  ) {
+    return "/admin/overview";
+  }
+
+  if (
+    roleName ===
+    "employee"
+  ) {
+    return "/employee/overview";
+  }
+
+  return "/login";
+};
+
+/* ========================================================
+   PROTECTED ROUTE
+======================================================== */
+
+const ProtectedRoute = ({
+  children,
+  allowedRoles,
+}) => {
+  const token =
+    sessionStorage.getItem(
+      "token"
+    ) ||
+    localStorage.getItem(
+      "token"
+    );
+
+  const user =
+    getStoredUser();
+
+  if (
+    !token ||
+    !user?.role_name
+  ) {
+    return (
       <Navigate
-        to="/superadmin/overview"
+        to="/login"
         replace
       />
-    }
-  />
+    );
+  }
 
+  if (
+    allowedRoles?.length &&
+    !allowedRoles.includes(
+      user.role_name
+    )
+  ) {
+    return (
+      <Navigate
+        to={getDefaultRouteByRole(
+          user.role_name
+        )}
+        replace
+      />
+    );
+  }
 
-  {/* OVERVIEW */}
+  return children;
+};
 
-  <Route
-    path="overview"
-    element={
-      <SuperadminOverview />
-    }
-  />
+/* ========================================================
+   APP
+======================================================== */
 
+const App = () => {
+  return (
+    <Routes>
+      {/* ===================================================
+          LOGIN
+      =================================================== */}
 
-  {/* PROJECTS */}
+      <Route
+        path="/"
+        element={
+          <Navigate
+            to="/login"
+            replace
+          />
+        }
+      />
 
-  <Route
-    path="projects"
-    element={
-      <SuperadminProjects />
-    }
-  />
+      <Route
+        path="/login"
+        element={<LoginPage />}
+      />
 
+      {/* ===================================================
+          ADMINISTRATOR
+      =================================================== */}
 
-  {/* TASKS */}
+      <Route
+        path="/administrator"
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "administrator",
+            ]}
+          >
+            <AdministratorLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route
+          index
+          element={
+            <Navigate
+              to="/administrator/overview"
+              replace
+            />
+          }
+        />
 
-  <Route
-    path="tasks"
-    element={
-      <SuperadminTasks />
-    }
-  />
+        <Route
+          path="overview"
+          element={
+            <AdministratorOverview />
+          }
+        />
 
+        <Route
+          path="projects"
+          element={
+            <AdministratorProjects />
+          }
+        />
 
-  {/* USERS */}
+        <Route
+          path="tasks"
+          element={
+            <AdministratorTasks />
+          }
+        />
 
-  <Route
-    path="users"
-    element={
-      <SuperadminUsers />
-    }
-  />
+        <Route
+          path="calendar"
+          element={
+            <AdministratorCalendar />
+          }
+        />
 
+        <Route
+          path="leave-applications"
+          element={
+            <AdministratorLeaveApplications />
+          }
+        />
 
-  {/* CALENDAR */}
+        <Route
+          path="reports"
+          element={
+            <AdministratorReports />
+          }
+        />
 
-  <Route
-    path="calendar"
-    element={
-      <SuperadminCalendar />
-    }
-  />
+        <Route
+          path="profile"
+          element={
+            <AdministratorProfile />
+          }
+        />
 
+        <Route
+          path="users"
+          element={
+            <AdministratorUsers />
+          }
+        />
 
-  {/* ATTENDANCE */}
+        <Route
+          path="attendance"
+          element={
+            <AdministratorAttendance />
+          }
+        />
+      </Route>
 
-  <Route
-    path="attendance"
-    element={
-      <SuperadminAttendance />
-    }
-  />
+      {/* ===================================================
+          EMPLOYEE
+      =================================================== */}
 
+      <Route
+        path="/employee"
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "employee",
+            ]}
+          >
+            <EmployeeLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route
+          index
+          element={
+            <Navigate
+              to="/employee/overview"
+              replace
+            />
+          }
+        />
 
-  {/* FIELD VISITS */}
+        <Route
+          path="overview"
+          element={
+            <EmployeeOverview />
+          }
+        />
 
-  <Route
-    path="field-visits"
-    element={
-      <SuperadminFieldVisits />
-    }
-  />
+        <Route
+          path="projects"
+          element={
+            <EmployeeProjects />
+          }
+        />
 
+        <Route
+          path="tasks"
+          element={
+            <EmployeeTasks />
+          }
+        />
 
-</Route>
+        <Route
+          path="calendar"
+          element={
+            <EmployeeCalendar />
+          }
+        />
+
+        <Route
+          path="profile"
+          element={
+            <EmployeeProfile />
+          }
+        />
+
+        <Route
+          path="attendance"
+          element={
+            <EmployeeAttendance />
+          }
+        />
+
+        <Route
+          path="leave-applications"
+          element={
+            <EmployeeLeaveApplications />
+          }
+        />
+      </Route>
+
+      {/* ===================================================
+          ADMIN
+      =================================================== */}
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "admin",
+            ]}
+          >
+            <AdminLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route
+          index
+          element={
+            <Navigate
+              to="/admin/overview"
+              replace
+            />
+          }
+        />
+
+        <Route
+          path="overview"
+          element={
+            <AdminOverview />
+          }
+        />
+
+        <Route
+          path="projects"
+          element={
+            <AdminProjects />
+          }
+        />
+
+        <Route
+          path="tasks"
+          element={
+            <AdminTasks />
+          }
+        />
+
+        <Route
+          path="calendar"
+          element={
+            <AdminCalendar />
+          }
+        />
+
+        <Route
+          path="profile"
+          element={
+            <AdminProfile />
+          }
+        />
+
+        <Route
+          path="users"
+          element={
+            <AdminUsers />
+          }
+        />
+
+        <Route
+          path="attendance"
+          element={
+            <AdminAttendance />
+          }
+        />
+
+        <Route
+          path="leave-applications"
+          element={
+            <AdminLeaveApplications />
+          }
+        />
+      </Route>
+
+      {/* ===================================================
+          SUPERADMIN
+      =================================================== */}
+
+      <Route
+        path="/superadmin"
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "superadmin",
+            ]}
+          >
+            <SuperadminLayout />
+          </ProtectedRoute>
+        }
+      >
+        {/* DEFAULT */}
+
+        <Route
+          index
+          element={
+            <Navigate
+              to="/superadmin/overview"
+              replace
+            />
+          }
+        />
+
+        {/* OVERVIEW */}
+
+        <Route
+          path="overview"
+          element={
+            <SuperadminOverview />
+          }
+        />
+
+        {/* PROJECTS */}
+
+        <Route
+          path="projects"
+          element={
+            <SuperadminProjects />
+          }
+        />
+
+        {/* TASKS */}
+
+        <Route
+          path="tasks"
+          element={
+            <SuperadminTasks />
+          }
+        />
+
+        {/* USERS */}
+
+        <Route
+          path="users"
+          element={
+            <SuperadminUsers />
+          }
+        />
+
+      </Route>
+
+      {/* ===================================================
+          FALLBACK
+      =================================================== */}
+
+      <Route
+        path="*"
+        element={
+          <Navigate
+            to={getDefaultRouteByRole(
+              getStoredUser()
+                ?.role_name
+            )}
+            replace
+          />
+        }
+      />
+    </Routes>
+  );
+};
+
 export default App;
