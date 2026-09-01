@@ -37,7 +37,7 @@ jobs:
 
     - name: Check backend syntax
       working-directory: backend
-      run: npm run check
+      run: node --check src/server.js
 
 
     - name: Build frontend
