@@ -16,272 +16,517 @@ import {
   FolderKanban,
   LogOut,
   Users,
+  MapPin,
 } from "lucide-react";
+
 
 import vnlLogo from "../assets/VNL_logo.webp";
 
 import "./Superadminlayout.css";
+
+
 
 /* =========================================================
    GET LOGGED-IN SUPERADMIN
 ========================================================= */
 
 const getUser = () => {
+
   try {
+
     return JSON.parse(
       sessionStorage.getItem("user") ||
-        localStorage.getItem("user") ||
-        "{}"
+      localStorage.getItem("user") ||
+      "{}"
     );
-  } catch {
-    return {};
+
   }
+
+  catch {
+
+    return {};
+
+  }
+
 };
+
+
+
 
 /* =========================================================
    COMPONENT
 ========================================================= */
 
+
 const SuperadminLayout = () => {
+
+
   const navigate = useNavigate();
+
 
   const user = getUser();
 
+
+
   const [
     sidebarCollapsed,
-    setSidebarCollapsed,
+    setSidebarCollapsed
   ] = useState(false);
+
+
+
 
   /* =======================================================
      LOGOUT
   ======================================================= */
 
+
   const logout = () => {
+
+
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("user");
+
 
     localStorage.removeItem("token");
     localStorage.removeItem("user");
 
-    navigate("/login", {
-      replace: true,
-    });
+
+    navigate(
+      "/login",
+      {
+        replace:true
+      }
+    );
+
+
   };
+
+
+
+
 
   /* =======================================================
      USER INITIALS
   ======================================================= */
 
+
   const initials =
+
     user?.full_name
-      ?.split(" ")
-      .filter(Boolean)
-      .map((part) => part[0])
-      .join("")
-      .slice(0, 2)
-      .toUpperCase() || "SA";
 
-  /* =======================================================
-     JSX
-  ======================================================= */
+    ?.split(" ")
 
-  return (
-    <div
-      className={`sa-shell ${
-        sidebarCollapsed
-          ? "sa-sidebar-collapsed"
-          : ""
-      }`}
-    >
-      {/* ===================================================
-          SIDEBAR
-      =================================================== */}
+    .filter(Boolean)
 
-      <aside className="sa-sidebar">
-        {/* =================================================
-            COLLAPSE / EXPAND
-        ================================================= */}
+    .map(
+      part => part[0]
+    )
 
-        <button
-          type="button"
-          className="sa-sidebar-toggle"
-          onClick={() =>
-            setSidebarCollapsed(
-              (previous) => !previous
-            )
-          }
-          title={
-            sidebarCollapsed
-              ? "Expand sidebar"
-              : "Collapse sidebar"
-          }
-          aria-label={
-            sidebarCollapsed
-              ? "Expand sidebar"
-              : "Collapse sidebar"
-          }
-        >
-          {sidebarCollapsed ? (
-            <ChevronRight size={18} />
-          ) : (
-            <ChevronLeft size={18} />
-          )}
-        </button>
+    .join("")
 
-        {/* =================================================
-            LOGO
-        ================================================= */}
+    .slice(0,2)
 
-        <div className="sa-logo-wrap">
-          <img
-            src={vnlLogo}
-            alt="Valencia Nutrition"
-            className="sa-logo-img"
-          />
-        </div>
+    .toUpperCase()
 
-        {/* =================================================
-            NAVIGATION
-        ================================================= */}
+    ||
 
-        <nav className="sa-nav">
-          {/* OVERVIEW */}
+    "SA";
 
-          <NavLink
-            to="/superadmin/overview"
-            title="Overview"
-          >
-            <BarChart3 />
 
-            <span>
-              Overview
-            </span>
-          </NavLink>
 
-          {/* PROJECTS */}
 
-          <NavLink
-            to="/superadmin/projects"
-            title="Projects"
-          >
-            <FolderKanban />
 
-            <span>
-              Projects
-            </span>
-          </NavLink>
 
-          {/* TASKS */}
+return (
 
-          <NavLink
-            to="/superadmin/tasks"
-            title="Tasks"
-          >
-            <ClipboardList />
+<div
 
-            <span>
-              Tasks
-            </span>
-          </NavLink>
+className={
 
-          {/* USERS */}
+`sa-shell ${
+sidebarCollapsed
+?
+"sa-sidebar-collapsed"
+:
+""
+}`
 
-          <NavLink
-            to="/superadmin/users"
-            title="Users"
-          >
-            <Users />
+}
 
-            <span>
-              Users
-            </span>
-          </NavLink>
+>
 
-          {/* =================================================
-              CALENDAR - NEW
-          ================================================= */}
 
-          <NavLink
-            to="/superadmin/calendar"
-            title="Calendar"
-          >
-            <CalendarDays />
 
-            <span>
-              Calendar
-            </span>
-          </NavLink>
 
-          {/* =================================================
-              ATTENDANCE - NEW
-          ================================================= */}
+{/* ===================================================
+    SIDEBAR
+=================================================== */}
 
-          <NavLink
-            to="/superadmin/attendance"
-            title="Attendance"
-          >
-            <CalendarCheck />
 
-            <span>
-              Attendance
-            </span>
-          </NavLink>
-        </nav>
+<aside className="sa-sidebar">
 
-        {/* =================================================
-            SIDEBAR BOTTOM
-        ================================================= */}
 
-        <div className="sa-sidebar-bottom">
-          {/* USER CARD */}
 
-          <div className="sa-user-card">
-            <div className="sa-user-avatar">
-              {initials}
-            </div>
+<button
 
-            <div className="sa-user-info">
-              <strong>
-                {user?.full_name ||
-                  "Superadmin"}
-              </strong>
+type="button"
 
-              <p>
-                {user?.email || "-"}
-              </p>
+className="sa-sidebar-toggle"
 
-              <span>
-                {user?.role_name ||
-                  "superadmin"}
-              </span>
-            </div>
-          </div>
+onClick={
 
-          {/* LOGOUT */}
+()=>setSidebarCollapsed(
+previous=>!previous
+)
 
-          <button
-            type="button"
-            className="sa-logout-btn"
-            onClick={logout}
-          >
-            <LogOut size={18} />
+}
 
-            <span>
-              Logout
-            </span>
-          </button>
-        </div>
-      </aside>
+title={
 
-      {/* ===================================================
-          MAIN PAGE AREA
-      =================================================== */}
+sidebarCollapsed
+?
+"Expand sidebar"
+:
+"Collapse sidebar"
 
-      <main className="sa-main">
-        <Outlet />
-      </main>
-    </div>
-  );
+}
+
+
+>
+
+{
+
+sidebarCollapsed
+
+?
+
+<ChevronRight size={18}/>
+
+:
+
+<ChevronLeft size={18}/>
+
+}
+
+
+</button>
+
+
+
+
+
+{/* LOGO */}
+
+
+<div className="sa-logo-wrap">
+
+<img
+
+src={vnlLogo}
+
+alt="Valencia Nutrition"
+
+className="sa-logo-img"
+
+/>
+
+</div>
+
+
+
+
+
+
+{/* NAVIGATION */}
+
+
+<nav className="sa-nav">
+
+
+
+<NavLink
+
+to="/superadmin/overview"
+
+title="Overview"
+
+>
+
+<BarChart3/>
+
+<span>
+Overview
+</span>
+
+</NavLink>
+
+
+
+
+
+
+<NavLink
+
+to="/superadmin/projects"
+
+title="Projects"
+
+>
+
+<FolderKanban/>
+
+<span>
+Projects
+</span>
+
+</NavLink>
+
+
+
+
+
+
+<NavLink
+
+to="/superadmin/tasks"
+
+title="Tasks"
+
+>
+
+<ClipboardList/>
+
+<span>
+Tasks
+</span>
+
+</NavLink>
+
+
+
+
+
+
+<NavLink
+
+to="/superadmin/users"
+
+title="Users"
+
+>
+
+<Users/>
+
+<span>
+Users
+</span>
+
+</NavLink>
+
+
+
+
+
+
+
+<NavLink
+
+to="/superadmin/calendar"
+
+title="Calendar"
+
+>
+
+<CalendarDays/>
+
+<span>
+Calendar
+</span>
+
+</NavLink>
+
+
+
+
+
+
+<NavLink
+
+to="/superadmin/attendance"
+
+title="Attendance"
+
+>
+
+<CalendarCheck/>
+
+<span>
+Attendance
+</span>
+
+</NavLink>
+
+
+
+
+
+
+{/* FIELD VISITS */}
+
+
+<NavLink
+
+to="/superadmin/field-visits"
+
+title="Field Visits"
+
+>
+
+<MapPin/>
+
+<span>
+Field Visits
+</span>
+
+
+</NavLink>
+
+
+
+
+
+</nav>
+
+
+
+
+
+
+{/* BOTTOM AREA */}
+
+
+<div className="sa-sidebar-bottom">
+
+
+
+
+
+<div className="sa-user-card">
+
+
+<div className="sa-user-avatar">
+
+{initials}
+
+</div>
+
+
+
+
+<div className="sa-user-info">
+
+
+<strong>
+
+{
+user?.full_name ||
+"Superadmin"
+}
+
+</strong>
+
+
+
+<p>
+
+{
+user?.email ||
+"-"
+}
+
+</p>
+
+
+
+
+<span>
+
+{
+user?.role_name ||
+"superadmin"
+}
+
+</span>
+
+
+</div>
+
+
+</div>
+
+
+
+
+
+
+
+<button
+
+type="button"
+
+className="sa-logout-btn"
+
+onClick={logout}
+
+>
+
+
+<LogOut size={18}/>
+
+
+<span>
+Logout
+</span>
+
+
+</button>
+
+
+
+</div>
+
+
+
+</aside>
+
+
+
+
+
+
+{/* ===================================================
+    MAIN
+=================================================== */}
+
+
+
+<main className="sa-main">
+
+<Outlet/>
+
+</main>
+
+
+
+
+</div>
+
+);
+
+
 };
+
+
 
 export default SuperadminLayout;
