@@ -1,3 +1,4 @@
+
 const express = require("express");
 
 const authMiddleware = require(
@@ -10,11 +11,13 @@ const {
   "../middleware/rolemiddleware"
 );
 
+
 /* =========================================================
    MAIN SUPERADMIN CONTROLLER
 ========================================================= */
 
 const {
+
   getSuperadminOverview,
 
   getSuperadminUsers,
@@ -36,25 +39,34 @@ const {
   createSuperadminMainTask,
 
   deleteOwnSuperadminProject,
+
+
 } = require(
   "../controllers/superadmincontroller"
 );
+
+
 
 /* =========================================================
    ATTENDANCE
 ========================================================= */
 
 const {
+
   getSuperadminAttendance,
+
 } = require(
   "../controllers/superadminattendancecontroller"
 );
+
+
 
 /* =========================================================
    CALENDAR
 ========================================================= */
 
 const {
+
   getSuperadminCalendar,
 
   getSuperadminMeetingEmployees,
@@ -64,142 +76,292 @@ const {
   updateSuperadminMeeting,
 
   cancelSuperadminMeeting,
+
+
 } = require(
   "../controllers/superadmincalendarcontroller"
 );
 
+
+
+/* =========================================================
+   FIELD VISITS
+========================================================= */
+
+const {
+
+  getSuperadminFieldVisits,
+
+} = require(
+  "../controllers/superadmincontroller"
+);
+
+
+
 const router =
   express.Router();
 
+
+
 const superadminOnly = [
+
   authMiddleware,
+
   requireRole("superadmin"),
+
 ];
+
+
 
 /* =========================================================
    OVERVIEW
 ========================================================= */
 
+
 router.get(
+
   "/overview",
+
   ...superadminOnly,
+
   getSuperadminOverview
+
 );
+
+
 
 /* =========================================================
    USERS
 ========================================================= */
 
-router.get(
-  "/users",
-  ...superadminOnly,
-  getSuperadminUsers
-);
 
 router.get(
-  "/users/:userId",
+
+  "/users",
+
   ...superadminOnly,
-  getSuperadminUserDetails
+
+  getSuperadminUsers
+
 );
+
+
+
+router.get(
+
+  "/users/:userId",
+
+  ...superadminOnly,
+
+  getSuperadminUserDetails
+
+);
+
+
 
 /* =========================================================
    TASKS
 ========================================================= */
 
+
 router.get(
+
   "/tasks",
+
   ...superadminOnly,
+
   getSuperadminTasks
+
 );
+
+
 
 /* =========================================================
    PROJECTS
 ========================================================= */
 
-router.get(
-  "/projects",
-  ...superadminOnly,
-  getSuperadminProjects
-);
 
 router.get(
-  "/project-options",
+
+  "/projects",
+
   ...superadminOnly,
-  getSuperadminProjectOptions
+
+  getSuperadminProjects
+
 );
+
+
+
+router.get(
+
+  "/project-options",
+
+  ...superadminOnly,
+
+  getSuperadminProjectOptions
+
+);
+
+
 
 router.post(
+
   "/projects/assign",
+
   ...superadminOnly,
+
   createSuperadminProject
+
 );
 
+
+
 router.get(
+
   "/projects/:projectId/context",
+
   ...superadminOnly,
+
   getSuperadminProjectContext
+
 );
+
+
 
 router.put(
+
   "/projects/:projectId/assignees",
+
   ...superadminOnly,
+
   updateSuperadminProjectAssignees
+
 );
+
+
 
 router.post(
+
   "/projects/:projectId/tasks",
+
   ...superadminOnly,
+
   createSuperadminMainTask
+
 );
 
+
+
 router.delete(
+
   "/projects/:projectId",
+
   ...superadminOnly,
+
   deleteOwnSuperadminProject
+
 );
+
+
 
 /* =========================================================
    ATTENDANCE — ALL ORGANIZATION DATA
 ========================================================= */
 
+
 router.get(
+
   "/attendance",
+
   ...superadminOnly,
+
   getSuperadminAttendance
+
 );
+
+
 
 /* =========================================================
    CALENDAR — ALL ORGANIZATION DATA
 ========================================================= */
 
-router.get(
-  "/calendar",
-  ...superadminOnly,
-  getSuperadminCalendar
-);
 
 router.get(
-  "/calendar/employees",
+
+  "/calendar",
+
   ...superadminOnly,
-  getSuperadminMeetingEmployees
+
+  getSuperadminCalendar
+
 );
+
+
+
+router.get(
+
+  "/calendar/employees",
+
+  ...superadminOnly,
+
+  getSuperadminMeetingEmployees
+
+);
+
+
 
 router.post(
+
   "/calendar/meetings",
+
   ...superadminOnly,
+
   createSuperadminMeeting
+
 );
+
+
 
 router.put(
+
   "/calendar/meetings/:meetingId",
+
   ...superadminOnly,
+
   updateSuperadminMeeting
+
 );
 
+
+
 router.patch(
+
   "/calendar/meetings/:meetingId/cancel",
+
   ...superadminOnly,
+
   cancelSuperadminMeeting
+
 );
+
+
+
+/* =========================================================
+   FIELD VISITS — ALL USERS
+========================================================= */
+
+
+router.get(
+
+  "/field-visits",
+
+  ...superadminOnly,
+
+  getSuperadminFieldVisits
+
+);
+
+
 
 module.exports = router;

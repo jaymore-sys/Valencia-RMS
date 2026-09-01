@@ -78,6 +78,8 @@ import SuperadminTasks from "./pages/superadmin/superadminTasks";
 
 import SuperadminProjects from "./pages/superadmin/superadminProjects";
 
+import SuperadminFieldVisits from "./pages/superadmin/superadminFieldVisits";
+
 /* NEW SUPERADMIN PAGES */
 
 import SuperadminCalendar from "./pages/superadmin/superadminCalendar";

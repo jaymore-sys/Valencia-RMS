@@ -16,6 +16,57 @@ const PROJECT_DIVISIONS = [
    HELPERS
 ========================================================= */
 
+// Add before module.exports in superadmincontroller.js
+
+const getSuperadminFieldVisits = async (req, res) => {
+  try {
+    const [visits] = await db.query(`
+      SELECT
+        fv.visit_id,
+        fv.employee_id,
+        u.full_name,
+        u.email,
+        u.employee_code,
+        d.department_name,
+        fv.visit_type,
+        fv.visit_date,
+        fv.start_time,
+        fv.end_time,
+        fv.location,
+        fv.comment,
+        fv.status,
+        fv.review_remark,
+        fv.created_at,
+        fv.updated_at
+      FROM employee_field_visits fv
+      INNER JOIN users u
+        ON fv.employee_id = u.user_id
+      LEFT JOIN departments d
+        ON u.department_id = d.department_id
+      ORDER BY fv.created_at DESC
+    `);
+
+    res.json({
+      success:true,
+      summary:{
+        total:visits.length,
+        approved:visits.filter(v=>v.status==="approved").length,
+        pending:visits.filter(v=>v.status==="pending").length,
+        rejected:visits.filter(v=>v.status==="rejected").length,
+        employees:new Set(visits.map(v=>v.employee_id)).size
+      },
+      visits
+    });
+
+  } catch(error){
+    res.status(500).json({
+      success:false,
+      message:"Failed to fetch field visits"
+    });
+  }
+};
+
+
 const getLoggedInUserId = (req) =>
   Number(
     req.user?.user_id ||
@@ -3408,4 +3459,97 @@ module.exports = {
   createSuperadminMainTask,
 
   deleteOwnSuperadminProject,
+};
+
+
+
+// =====================================================
+// SUPERADMIN FIELD VISITS
+// =====================================================
+
+exports.getSuperadminFieldVisits = async (req, res) => {
+  try {
+
+    const [visits] = await db.query(
+      `
+      SELECT
+        fv.visit_id,
+        fv.employee_id,
+
+        u.full_name,
+        u.email,
+        u.employee_code,
+
+        d.department_name,
+
+        fv.visit_type,
+        fv.visit_date,
+        fv.start_time,
+        fv.end_time,
+        fv.location,
+        fv.comment,
+
+        fv.status,
+        fv.review_remark,
+
+        fv.created_at,
+        fv.updated_at
+
+      FROM employee_field_visits fv
+
+      INNER JOIN users u
+        ON fv.employee_id = u.user_id
+
+      LEFT JOIN departments d
+        ON u.department_id = d.department_id
+
+      ORDER BY fv.created_at DESC
+      `
+    );
+
+
+    const summary = {
+      total: visits.length,
+
+      approved: visits.filter(
+        v => v.status === "approved"
+      ).length,
+
+      pending: visits.filter(
+        v => v.status === "pending"
+      ).length,
+
+      rejected: visits.filter(
+        v => v.status === "rejected"
+      ).length,
+
+      employees:
+        new Set(
+          visits.map(v => v.employee_id)
+        ).size
+    };
+
+
+    res.json({
+      success:true,
+      summary,
+      visits
+    });
+
+
+  } catch(error){
+
+    console.error(
+      "Superadmin field visits error:",
+      error
+    );
+
+
+    res.status(500).json({
+      success:false,
+      message:
+        "Failed to fetch field visits"
+    });
+
+  }
 };
