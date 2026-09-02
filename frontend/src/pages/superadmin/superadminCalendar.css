@@ -1,19 +1,14 @@
-/* =====================================================
+/* ================================
    SUPERADMIN CALENDAR
-===================================================== */
+================================ */
 
 
-.sa-cal-page{
+.admin-cal-page {
 
-  width:100%;
-
-  min-height:100%;
-
-  padding:24px;
-
-  background:#f8fafc;
-
-  box-sizing:border-box;
+    width:100%;
+    padding:20px;
+    background:#f8fafc;
+    box-sizing:border-box;
 
 }
 
@@ -21,75 +16,133 @@
 
 /* HEADER */
 
-.sa-cal-header{
+.admin-cal-title-row {
 
-  margin-bottom:24px;
-
-}
-
-
-
-.sa-cal-header h1{
-
-  margin:0;
-
-  font-size:32px;
-
-  font-weight:800;
-
-  color:#111827;
+    margin-bottom:20px;
 
 }
 
 
+.admin-cal-title-row h1 {
 
-.sa-cal-header p{
-
-  margin-top:8px;
-
-  color:#64748b;
-
-  font-size:15px;
+    font-size:36px;
+    font-weight:900;
+    margin:0;
+    color:#0f172a;
 
 }
-
-
 
 
 
 /* MAIN CARD */
 
-.sa-cal-card{
+.admin-cal-card {
 
-  background:white;
-
-  border-radius:22px;
-
-  border:1px solid #e5e7eb;
-
-  overflow:hidden;
+    background:white;
+    border-radius:24px;
+    border:1px solid #e5e7eb;
+    overflow:hidden;
 
 }
-
-
 
 
 
 /* TOOLBAR */
 
-.sa-cal-toolbar{
+.admin-cal-toolbar {
 
-  display:flex;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:20px;
+    border-bottom:1px solid #e5e7eb;
 
-  align-items:center;
+}
 
-  justify-content:space-between;
 
-  gap:20px;
 
-  padding:20px;
+.admin-cal-filter-row {
 
-  border-bottom:1px solid #e5e7eb;
+    display:flex;
+    gap:10px;
+}
+
+
+
+.admin-cal-filter {
+
+
+    height:42px;
+    padding:0 22px;
+
+    border-radius:12px;
+
+    background:white;
+
+    border:1px solid #dbe2ec;
+
+    font-weight:800;
+
+    color:#475569;
+
+    cursor:pointer;
+
+}
+
+
+
+.admin-cal-filter.active {
+
+    background:#ff5a36;
+
+    color:white;
+
+    border-color:#ff5a36;
+
+}
+
+
+
+
+/* NAVIGATION */
+
+
+.admin-cal-navigation {
+
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-left:15px;
+
+}
+
+
+
+.admin-cal-nav-arrow {
+
+    width:42px;
+    height:42px;
+
+    border-radius:12px;
+
+    border:1px solid #dbe2ec;
+
+    background:white;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+}
+
+
+
+.admin-cal-month-name {
+
+    font-size:20px;
+    font-weight:900;
+
+    margin-left:10px;
 
 }
 
@@ -97,13 +150,39 @@
 
 
 
-.sa-cal-filter-row{
+/* BODY */
 
-  display:flex;
+.admin-cal-body {
 
-  gap:10px;
+    padding:0;
 
-  flex-wrap:wrap;
+}
+
+
+
+.admin-cal-week {
+
+
+    display:grid;
+
+    grid-template-columns:repeat(7,1fr);
+
+    border-bottom:1px solid #e5e7eb;
+
+}
+
+
+
+.admin-cal-week div {
+
+
+    padding:16px;
+
+    text-align:center;
+
+    font-weight:800;
+
+    color:#64748b;
 
 }
 
@@ -111,111 +190,83 @@
 
 
 
-.sa-cal-filter{
+/* CALENDAR ROW */
 
-  border:none;
 
-  background:#f1f5f9;
+.admin-cal-week-row {
 
-  color:#475569;
 
-  padding:9px 18px;
+    position:relative;
 
-  border-radius:999px;
+    min-height:145px;
 
-  font-weight:700;
+    border-bottom:1px solid #edf2f7;
 
-  cursor:pointer;
 
 }
 
 
 
-.sa-cal-filter.active{
-
-  background:#ff5a36;
-
-  color:white;
-
-}
+.admin-cal-days-row {
 
 
+    display:grid;
 
+    grid-template-columns:repeat(7,1fr);
 
-
-/* MONTH NAVIGATION */
-
-.sa-cal-navigation{
-
-  display:flex;
-
-  align-items:center;
-
-  gap:10px;
-
-}
-
-
-
-.sa-cal-nav-arrow{
-
-  width:34px;
-
-  height:34px;
-
-  border-radius:10px;
-
-  border:1px solid #e5e7eb;
-
-  background:white;
-
-  cursor:pointer;
-
-  display:flex;
-
-  align-items:center;
-
-  justify-content:center;
-
-}
-
-
-
-.sa-cal-month-name{
-
-  font-weight:800;
-
-  color:#111827;
 
 }
 
 
 
 
+/* DAYS */
 
-/* BUTTON */
 
-.sa-cal-schedule-main{
+.admin-cal-day {
 
-  background:#ff5a36;
 
-  color:white;
+    height:145px;
 
-  border:none;
+    background:white;
 
-  padding:12px 18px;
+    border:none;
 
-  border-radius:12px;
+    border-right:1px solid #f1f5f9;
 
-  font-weight:800;
+    padding:15px;
 
-  display:flex;
+    text-align:left;
 
-  align-items:center;
+    position:relative;
 
-  gap:8px;
 
-  cursor:pointer;
+}
+
+
+
+.admin-cal-day-number {
+
+
+    font-weight:800;
+
+    color:#1e293b;
+
+
+}
+
+
+.admin-cal-day.outside {
+
+    background:#fafafa;
+
+}
+
+
+.admin-cal-day.today {
+
+
+    background:#fff7ed;
 
 }
 
@@ -223,383 +274,219 @@
 
 
 
-/* CALENDAR BODY */
+/* EVENT LAYER */
 
-.sa-cal-body{
 
-  padding:20px;
+.admin-cal-event-layer {
+
+
+    position:absolute;
+
+    top:55px;
+
+    left:0;
+
+    right:0;
+
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:6px;
+
+
+    padding:0 8px;
+
 
 }
 
 
 
-.sa-cal-main{
-
-  width:100%;
-
-}
+/* EVENT BAR */
 
 
+.admin-cal-event-bar {
 
 
+    height:26px;
 
-/* WEEK */
+    border-radius:8px;
 
-.sa-cal-week{
+    display:flex;
 
-  display:grid;
+    align-items:center;
 
-  grid-template-columns:
-  repeat(7,1fr);
-
-  border-bottom:1px solid #e5e7eb;
-
-}
+    gap:8px;
 
 
-
-.sa-cal-week div{
-
-  padding:12px;
-
-  text-align:center;
-
-  color:#64748b;
-
-  font-weight:800;
-
-  font-size:13px;
-
-}
+    padding:0 10px;
 
 
+    color:white;
 
 
+    font-size:12px;
 
-/* GRID */
-
-.sa-cal-grid{
-
-  display:flex;
-
-  flex-direction:column;
-
-}
+    font-weight:800;
 
 
+    overflow:hidden;
 
-.sa-cal-week-row{
 
-  position:relative;
-
-  min-height:105px;
-
-  border-bottom:1px solid #f1f5f9;
+    cursor:pointer;
 
 }
 
 
 
 
+.admin-cal-event-bar-dot {
 
-.sa-cal-days-row{
 
-  display:grid;
+    width:7px;
 
-  grid-template-columns:
-  repeat(7,1fr);
+    height:7px;
+
+    border-radius:50%;
+
+    background:white;
+
+    flex-shrink:0;
+
+
+}
+
+
+
+.admin-cal-event-bar-title {
+
+
+    white-space:nowrap;
+
+    overflow:hidden;
+
+    text-overflow:ellipsis;
+
 
 }
 
 
 
 
+/* COLORS */
 
-.sa-cal-day{
 
-  height:105px;
+.admin-cal-event-bar-project {
 
-  background:white;
 
-  border:none;
+    background:#2563eb;
 
-  border-right:1px solid #f1f5f9;
-
-  cursor:pointer;
-
-  padding:12px;
-
-  text-align:right;
 
 }
 
 
+.admin-cal-event-bar-task {
 
-.sa-cal-day-number{
 
-  font-weight:700;
+    background:#f97316;
 
-  color:#334155;
 
 }
 
 
+.admin-cal-event-bar-meeting {
 
-.sa-cal-day.outside{
 
-  background:#fafafa;
+    background:#ef4444;
+
 
 }
 
 
+.admin-cal-event-bar-mini {
 
-.sa-cal-day.today{
 
-  background:#fff7ed;
+    background:#16a34a;
+
 
 }
-
-
-
-.sa-cal-day.selected{
-
-  outline:2px solid #ff5a36;
-
-}
-
-
-
-
-
-/* EVENTS */
-
-.sa-cal-event-layer{
-
-  position:absolute;
-
-  left:0;
-
-  right:0;
-
-  bottom:10px;
-
-  display:grid;
-
-  grid-template-columns:
-  repeat(7,1fr);
-
-  gap:4px;
-
-}
-
-
-
-
-
-.sa-cal-event-bar{
-
-  margin:0 4px;
-
-  padding:5px 10px;
-
-  border-radius:8px;
-
-  color:white;
-
-  font-size:12px;
-
-  font-weight:700;
-
-  display:flex;
-
-  align-items:center;
-
-  gap:6px;
-
-  cursor:pointer;
-
-  overflow:hidden;
-
-}
-
-
-
-.sa-cal-event-bar-project{
-
-  background:#2563eb;
-
-}
-
-
-
-.sa-cal-event-bar-task{
-
-  background:#f97316;
-
-}
-
-
-
-.sa-cal-event-bar-meeting{
-
-  background:#dc2626;
-
-}
-
-
-
-.sa-cal-event-bar-mini{
-
-  background:#16a34a;
-
-}
-
-
-
-.sa-cal-event-bar-dot{
-
-  width:7px;
-
-  height:7px;
-
-  background:white;
-
-  border-radius:50%;
-
-}
-
 
 
 
 
 /* LEGEND */
 
-.sa-cal-legend{
 
-  display:flex;
-
-  gap:20px;
-
-  padding:18px 0;
-
-  justify-content:center;
-
-}
+.admin-cal-legend {
 
 
+    display:flex;
 
-.sa-cal-legend div{
+    gap:20px;
 
-  display:flex;
-
-  align-items:center;
-
-  gap:8px;
-
-  font-weight:700;
-
-  color:#475569;
+    padding:18px;
 
 }
 
 
 
-.sa-cal-legend-dot{
-
-  width:10px;
-
-  height:10px;
-
-  border-radius:50%;
-
-}
+.admin-cal-legend div {
 
 
+    display:flex;
 
-.sa-cal-legend-dot.project{
+    align-items:center;
 
-  background:#2563eb;
+    gap:8px;
+
+    font-weight:700;
 
 }
 
 
 
-.sa-cal-legend-dot.task{
+.admin-cal-legend-dot {
 
-  background:#f97316;
+
+    width:10px;
+
+    height:10px;
+
+    border-radius:50%;
+
 
 }
 
 
 
-.sa-cal-legend-dot.meeting{
+.admin-cal-legend-dot.project {
 
-  background:#dc2626;
-
-}
-
-
-
-.sa-cal-legend-dot.mini{
-
-  background:#16a34a;
+    background:#2563eb;
 
 }
 
 
 
+.admin-cal-legend-dot.task {
 
-
-/* DETAILS PANEL */
-
-.sa-cal-body-details{
-
-  display:grid;
-
-  grid-template-columns:
-  1fr 330px;
-
-  gap:20px;
+    background:#f97316;
 
 }
 
 
 
-.sa-cal-details{
+.admin-cal-legend-dot.meeting {
 
-  border-left:1px solid #e5e7eb;
-
-  padding-left:20px;
+    background:#ef4444;
 
 }
 
 
 
-.sa-cal-details-header{
+.admin-cal-legend-dot.mini {
 
-  display:flex;
-
-  justify-content:space-between;
-
-  align-items:center;
-
-}
-
-
-
-.sa-cal-details-header button{
-
-  border:none;
-
-  background:#f1f5f9;
-
-  border-radius:10px;
-
-  width:34px;
-
-  height:34px;
-
-  cursor:pointer;
+    background:#16a34a;
 
 }
 
@@ -607,184 +494,48 @@
 
 
 
-/* EMPTY */
+/* REMOVE OLD EMPTY BUTTON LOOK */
 
-.sa-cal-empty-details{
 
-  text-align:center;
+.admin-cal-schedule-main {
 
-  padding:40px 10px;
 
-  color:#64748b;
+    margin-left:auto;
+
+    background:#ff5a36;
+
+    color:white;
+
+    border:none;
+
+    padding:12px 20px;
+
+    border-radius:14px;
+
+    font-weight:800;
+
 
 }
-
-
-
-.sa-cal-empty-details strong{
-
-  display:block;
-
-  margin-top:12px;
-
-  color:#334155;
-
-}
-
-
-
-
-
-/* LOADING */
-
-.sa-cal-loading{
-
-  text-align:center;
-
-  padding:20px;
-
-  color:#64748b;
-
-  font-weight:700;
-
-}
-
-
-
-
-
-/* MODAL */
-
-.sa-cal-modal-overlay{
-
-  position:fixed;
-
-  inset:0;
-
-  background:rgba(15,23,42,.45);
-
-  display:flex;
-
-  justify-content:center;
-
-  align-items:center;
-
-  z-index:1000;
-
-}
-
-
-
-.sa-cal-modal{
-
-  background:white;
-
-  width:520px;
-
-  max-height:90vh;
-
-  border-radius:22px;
-
-  overflow:hidden;
-
-}
-
-
-
-.sa-cal-modal-header{
-
-  display:flex;
-
-  justify-content:space-between;
-
-  padding:20px;
-
-  border-bottom:1px solid #e5e7eb;
-
-}
-
-
-
-.sa-cal-modal-content{
-
-  padding:20px;
-
-  overflow:auto;
-
-}
-
-
-
-.sa-cal-form-field{
-
-  margin-bottom:15px;
-
-}
-
-
-
-.sa-cal-form-field label{
-
-  display:block;
-
-  font-weight:700;
-
-  margin-bottom:6px;
-
-}
-
-
-
-.sa-cal-form-field input,
-
-.sa-cal-form-field textarea{
-
-  width:100%;
-
-  padding:12px;
-
-  border:1px solid #e5e7eb;
-
-  border-radius:12px;
-
-}
-
-
-
-.sa-cal-modal-footer{
-
-  padding:18px;
-
-  display:flex;
-
-  justify-content:flex-end;
-
-  gap:12px;
-
-  border-top:1px solid #e5e7eb;
-
-}
-
-
 
 
 
 @media(max-width:900px){
 
-  .sa-cal-toolbar{
 
-    flex-direction:column;
+.admin-cal-toolbar{
 
-    align-items:flex-start;
+    flex-wrap:wrap;
 
-  }
+}
 
 
-  .sa-cal-body-details{
+.admin-cal-week-row,
+.admin-cal-day{
 
-    grid-template-columns:1fr;
+    min-height:120px;
 
-  }
+    height:120px;
 
+}
 
 }
