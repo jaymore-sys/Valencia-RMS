@@ -6,6 +6,8 @@ import {
 
 import LoginPage from "./pages/LoginPage";
 
+import LeaveReview from "./pages/LeaveReview";
+
 /* ================= ADMINISTRATOR ================= */
 
 import AdministratorLayout from "./layouts/Administratorlayout";
@@ -564,6 +566,12 @@ const App = () => {
   />
 
 </Route>
+
+
+      <Route
+        path="/leave-review/:token"
+        element={<LeaveReview />}
+      />
 
       {/* ===================================================
           FALLBACK

@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const db = require("../config/db");
 const { sendMail } = require("../utils/emailservice");
 
@@ -12,11 +13,10 @@ const {
 ========================================================
 FIXED LEAVE EMAIL RECIPIENTS
 
-Always receive every leave application:
-- Manish
-- Rathika
+Temporary testing recipient:
+- jay.more@valencianutrition.com
 
-Department Admin(s) are added dynamically.
+Will be restored after email approval testing.
 ========================================================
 */
 
@@ -1173,6 +1173,37 @@ const applyEmployeeLeave =
 
       /*
       ------------------------------
+      CREATE EMAIL REVIEW TOKEN
+      ------------------------------
+      */
+
+      const reviewToken =
+        crypto.randomBytes(32).toString("hex");
+
+      await db.query(
+        `
+        INSERT INTO leave_review_tokens
+        (
+          leave_id,
+          token,
+          expires_at
+        )
+        VALUES
+        (
+          ?,
+          ?,
+          DATE_ADD(NOW(), INTERVAL 30 DAY)
+        )
+        `,
+        [
+          result.insertId,
+          reviewToken
+        ]
+      );
+
+
+      /*
+      ------------------------------
       GET EMPLOYEE
       ------------------------------
       */
@@ -1525,6 +1556,24 @@ Valencia RMS
                 <strong>Pending</strong>
                 and requires review.
               </p>
+
+              <div style="margin-top:25px;">
+                <a
+                  href="https://myvol.in/leave-review/${reviewToken}"
+                  style="
+                    background:#ff5733;
+                    color:#ffffff;
+                    padding:12px 24px;
+                    border-radius:8px;
+                    text-decoration:none;
+                    font-weight:bold;
+                    display:inline-block;
+                  "
+                >
+                  Review Leave Request
+                </a>
+              </div>
+
 
               <p>
                 Regards,<br />

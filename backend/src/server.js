@@ -38,6 +38,7 @@ const employeeProjectRoutes = require("./routes/employeeprojectroutes");
 const adminReviewRoutes = require("./routes/adminreviewroutes");
 
 const calendarRoutes = require("./routes/calendarroutes");
+const leaveReviewRoutes = require("./routes/leavereviewroutes");
 
 
 const {
@@ -353,6 +354,11 @@ employeeAttendanceRoutes
 app.use(
 "/api/employee-leaves",
 employeeLeaveRoutes
+);
+
+app.use(
+"/api/leave-review",
+leaveReviewRoutes
 );
 
 
