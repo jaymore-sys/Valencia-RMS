@@ -1,498 +1,672 @@
 import React, {
- useEffect,
- useMemo,
- useState
+  useEffect,
+  useMemo,
+  useState
 } from "react";
+
+import {
+  Search,
+  RefreshCw,
+  MapPin,
+  Users,
+  CheckCircle,
+  Clock,
+  XCircle
+} from "lucide-react";
 
 import api from "../../api/axios";
 
+import "./superadminFieldVisits.css";
 
-const SuperadminFieldVisits =()=>{
 
+const SuperadminFieldVisits = () => {
 
-const [visits,setVisits]=useState([]);
 
-const [summary,setSummary]=useState({});
+  const [
+    visits,
+    setVisits
+  ] = useState([]);
 
-const [loading,setLoading]=useState(true);
 
-const [search,setSearch]=useState("");
+  const [
+    summary,
+    setSummary
+  ] = useState({
+    total:0,
+    employees:0,
+    approved:0,
+    pending:0,
+    rejected:0
+  });
 
-const [status,setStatus]=useState("all");
 
+  const [
+    loading,
+    setLoading
+  ] = useState(true);
 
 
-const fetchVisits=async()=>{
+  const [
+    search,
+    setSearch
+  ] = useState("");
 
-try{
 
-setLoading(true);
+  const [
+    status,
+    setStatus
+  ] = useState("all");
 
 
-const res =
- await api.get(
- "/superadmin/field-visits"
- );
 
+  const fetchVisits = async()=>{
 
-setVisits(
- res.data?.visits || []
-);
+    try{
 
+      setLoading(true);
 
-setSummary(
- res.data?.summary || {}
-);
 
+      const response =
+        await api.get(
+          "/superadmin/field-visits"
+        );
 
-}
-catch(err){
 
-console.error(
- "Field visits error",
- err
- );
+      setVisits(
+        response.data?.visits || []
+      );
 
-}
-finally{
 
-setLoading(false);
+      setSummary(
+        response.data?.summary || {}
+      );
 
-}
 
-};
+    }
+    catch(error){
 
+      console.error(
+        "Superadmin field visits error:",
+        error
+      );
 
+    }
+    finally{
 
-useEffect(()=>{
+      setLoading(false);
 
-fetchVisits();
+    }
 
-},[]);
+  };
 
 
 
-const filteredVisits =
-useMemo(()=>{
+  useEffect(()=>{
 
+    fetchVisits();
 
-return visits.filter(v=>{
+  },[]);
 
 
-const text =
-[
-v.full_name,
-v.department_name,
-v.location,
-v.visit_type,
-v.comment
-]
-.join(" ")
-.toLowerCase();
 
 
-return (
+  const filteredVisits =
+    useMemo(()=>{
 
-text.includes(
-search.toLowerCase()
-)
 
-&&
+      return visits.filter(
+        (visit)=>{
 
-(
-status==="all"
-||
-v.status===status
-)
 
-);
+          const searchText =
+          [
+            visit.full_name,
+            visit.employee_code,
+            visit.department_name,
+            visit.location,
+            visit.visit_type,
+            visit.comment
+          ]
+          .join(" ")
+          .toLowerCase();
 
 
-});
 
+          const matchesSearch =
+            searchText.includes(
+              search.toLowerCase()
+            );
 
-},[
-visits,
-search,
-status
-]);
 
 
+          const matchesStatus =
+            status==="all"
+            ||
+            visit.status===status;
 
-return (
 
-<div style={styles.page}>
 
+          return (
+            matchesSearch &&
+            matchesStatus
+          );
 
-<div style={styles.header}>
 
-<div>
+        }
+      );
 
-<h1>
-Field Visits
-</h1>
 
-<p>
-View all employee field visits across all departments.
-</p>
+    },[
+      visits,
+      search,
+      status
+    ]);
 
-</div>
 
 
-<button
-style={styles.button}
-onClick={fetchVisits}
->
-Refresh
-</button>
+  return (
 
+    <div className="sa-field-page">
 
-</div>
 
+      {/* HEADER */}
 
+      <div className="sa-field-header">
 
-<div style={styles.cards}>
 
+        <div>
 
-<Card
-title="Total Visits"
-value={summary.total}
-/>
+          <h1>
+            Field Visits
+          </h1>
 
-<Card
-title="Employees"
-value={summary.employees}
-/>
 
+          <p>
+            View all employee field visits across all departments.
+          </p>
 
-<Card
-title="Approved"
-value={summary.approved}
-/>
 
+        </div>
 
-<Card
-title="Pending"
-value={summary.pending}
-/>
 
 
-<Card
-title="Rejected"
-value={summary.rejected}
-/>
+        <button
+          className="sa-field-refresh"
+          onClick={fetchVisits}
+        >
 
+          <RefreshCw size={17}/>
 
+          Refresh
 
-</div>
+        </button>
 
 
+      </div>
+            {/* SUMMARY CARDS */}
 
-<div style={styles.filters}>
+      <div className="sa-field-summary">
 
 
-<input
+        <div className="sa-field-card">
 
-placeholder="Search employee, department, location..."
+          <div className="sa-field-icon blue">
+            <MapPin size={22}/>
+          </div>
 
-value={search}
+          <div>
 
-onChange={
-e=>setSearch(e.target.value)
-}
+            <p>
+              Total Visits
+            </p>
 
-/>
+            <h2>
+              {summary.total || 0}
+            </h2>
 
+          </div>
 
-<select
+        </div>
 
-value={status}
 
-onChange={
-e=>setStatus(e.target.value)
-}
 
->
 
-<option value="all">
-All Status
-</option>
+        <div className="sa-field-card">
 
-<option value="approved">
-Approved
-</option>
+          <div className="sa-field-icon purple">
+            <Users size={22}/>
+          </div>
 
+          <div>
 
-<option value="pending">
-Pending
-</option>
+            <p>
+              Employees
+            </p>
 
+            <h2>
+              {summary.employees || 0}
+            </h2>
 
-<option value="rejected">
-Rejected
-</option>
+          </div>
 
+        </div>
 
-</select>
 
 
-</div>
 
 
+        <div className="sa-field-card">
 
+          <div className="sa-field-icon green">
+            <CheckCircle size={22}/>
+          </div>
 
-<div style={styles.tableBox}>
+          <div>
 
+            <p>
+              Approved
+            </p>
 
-{
-loading ?
+            <h2>
+              {summary.approved || 0}
+            </h2>
 
-<p>
-Loading...
-</p>
+          </div>
 
+        </div>
 
-:
 
-<table>
 
-<thead>
 
-<tr>
 
-<th>
-Employee
-</th>
+        <div className="sa-field-card">
 
-<th>
-Department
-</th>
+          <div className="sa-field-icon orange">
+            <Clock size={22}/>
+          </div>
 
-<th>
-Visit
-</th>
+          <div>
 
-<th>
-Date
-</th>
+            <p>
+              Pending
+            </p>
 
-<th>
-Location
-</th>
+            <h2>
+              {summary.pending || 0}
+            </h2>
 
-<th>
-Comment
-</th>
+          </div>
 
-<th>
-Status
-</th>
+        </div>
 
 
-</tr>
 
-</thead>
 
+      </div>
 
-<tbody>
 
 
-{
-filteredVisits.map(v=>(
 
 
-<tr key={v.visit_id}>
+      {/* FILTER AREA */}
 
 
-<td>
+      <div className="sa-field-filter-box">
 
-<strong>
-{v.full_name}
-</strong>
 
-<br/>
+        <div className="sa-field-search">
 
-{v.employee_code}
 
-</td>
+          <Search size={18}/>
 
 
-<td>
-{v.department_name || "-"}
-</td>
+          <input
 
+            type="text"
 
-<td>
+            placeholder="Search employee, department, location..."
 
-{v.visit_type}
+            value={search}
 
-<br/>
+            onChange={(event)=>
+              setSearch(
+                event.target.value
+              )
+            }
 
-{v.start_time}
--
-{v.end_time}
+          />
 
-</td>
 
+        </div>
 
 
-<td>
-{v.visit_date}
-</td>
 
 
-<td>
-{v.location}
-</td>
 
+        <select
 
-<td>
-{v.comment}
-</td>
+          value={status}
 
+          onChange={(event)=>
+            setStatus(
+              event.target.value
+            )
+          }
 
+        >
 
-<td>
+          <option value="all">
+            All Status
+          </option>
 
-<span
-style={{
-...styles.badge,
 
-background:
-v.status==="approved"
-?
-"#dcfce7"
-:
-v.status==="rejected"
-?
-"#fee2e2"
-:
-"#fef3c7"
-}}
->
+          <option value="approved">
+            Approved
+          </option>
 
-{v.status}
 
-</span>
+          <option value="pending">
+            Pending
+          </option>
 
 
-</td>
+          <option value="rejected">
+            Rejected
+          </option>
 
 
+        </select>
 
-</tr>
 
+      </div>
 
-))
 
-}
 
 
-</tbody>
 
+      {/* TABLE */}
 
-</table>
 
+      <div className="sa-field-table-card">
 
-}
 
+      {
+        loading ?
 
-</div>
+        (
 
+          <div className="sa-field-loading">
 
-</div>
+            Loading field visits...
 
+          </div>
 
-);
+        )
 
 
-};
+        :
 
+        filteredVisits.length===0
 
+        ?
 
-const Card=({title,value})=>(
+        (
 
-<div style={styles.card}>
+          <div className="sa-field-empty">
 
-<p>
-{title}
-</p>
 
-<h2>
-{value || 0}
-</h2>
+            <MapPin size={42}/>
 
-</div>
 
-);
+            <h3>
+              No Field Visits Found
+            </h3>
 
 
+            <p>
+              No field visits match your current filters.
+            </p>
 
-const styles={
 
-page:{
-padding:"25px",
-background:"#fff",
-borderRadius:"25px"
-},
+          </div>
 
 
-header:{
-display:"flex",
-justifyContent:"space-between",
-alignItems:"center"
-},
+        )
 
 
-button:{
-background:"#ff5733",
-color:"#fff",
-border:"none",
-padding:"12px 22px",
-borderRadius:"12px",
-fontWeight:800
-},
+        :
 
+        (
 
-cards:{
-display:"grid",
-gridTemplateColumns:
-"repeat(5,1fr)",
-gap:"15px",
-margin:"25px 0"
-},
+          <div className="sa-field-table-wrapper">
 
 
-card:{
-background:"#f8fafc",
-padding:"20px",
-borderRadius:"18px"
-},
+            <table>
 
 
-filters:{
-display:"flex",
-gap:"15px",
-marginBottom:"20px"
-},
+              <thead>
 
 
-tableBox:{
-overflowX:"auto"
-},
+                <tr>
 
 
-table:{
-width:"100%",
-borderCollapse:"collapse"
-},
+                  <th>
+                    Employee
+                  </th>
 
 
-badge:{
-padding:"7px 12px",
-borderRadius:"20px",
-fontWeight:800
-}
+                  <th>
+                    Department
+                  </th>
+
+
+                  <th>
+                    Visit Type
+                  </th>
+
+
+                  <th>
+                    Date
+                  </th>
+
+
+                  <th>
+                    Location
+                  </th>
+
+
+                  <th>
+                    Comment
+                  </th>
+
+
+                  <th>
+                    Status
+                  </th>
+
+
+                </tr>
+
+
+              </thead>
+                            <tbody>
+
+
+              {
+                filteredVisits.map(
+                  (visit)=>(
+
+
+                    <tr
+                      key={
+                        visit.visit_id
+                      }
+                    >
+
+
+                      <td>
+
+                        <div className="sa-field-employee">
+
+                          <strong>
+                            {
+                              visit.full_name
+                            }
+                          </strong>
+
+
+                          <span>
+                            {
+                              visit.employee_code ||
+                              "-"
+                            }
+                          </span>
+
+
+                        </div>
+
+                      </td>
+
+
+
+
+
+                      <td>
+
+                        {
+                          visit.department_name ||
+                          "-"
+                        }
+
+                      </td>
+
+
+
+
+
+                      <td>
+
+                        <strong>
+                          {
+                            visit.visit_type
+                          }
+                        </strong>
+
+
+                        <small>
+
+                          {
+                            visit.start_time
+                          }
+
+                          {" - "}
+
+                          {
+                            visit.end_time
+                          }
+
+                        </small>
+
+
+                      </td>
+
+
+
+
+
+                      <td>
+
+                        {
+                          visit.visit_date
+                        }
+
+                      </td>
+
+
+
+
+
+                      <td>
+
+                        {
+                          visit.location ||
+                          "-"
+                        }
+
+                      </td>
+
+
+
+
+
+                      <td>
+
+                        {
+                          visit.comment ||
+                          "-"
+                        }
+
+                      </td>
+
+
+
+
+
+                      <td>
+
+
+                        <span
+
+                          className={
+                            `sa-field-status ${
+                               visit.status
+                            }`
+                          }
+
+                        >
+
+                          {
+                            visit.status
+                          }
+
+
+                        </span>
+
+
+                      </td>
+
+
+
+                    </tr>
+
+
+                  )
+                )
+              }
+
+
+              </tbody>
+
+
+            </table>
+
+
+          </div>
+
+        )
+
+      }
+
+
+      </div>
+
+
+
+    </div>
+
+
+  );
+
 
 };
 
