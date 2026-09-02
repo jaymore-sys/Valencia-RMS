@@ -1209,6 +1209,18 @@ async()=>{
  .join(", "),
 
 
+ assignee_name:
+ assignees[0]?.full_name ||
+ task.primary_assignee_name ||
+ "-",
+
+
+ assignee_email:
+ assignees[0]?.email ||
+ task.primary_assignee_email ||
+ "-",
+
+
  assigned_emails:
 
  assignees
@@ -1861,7 +1873,38 @@ const getSuperadminOverview = async (req, res) => {
       summary: {
         total_projects: projects.length,
         total_tasks: tasks.length,
-        total_users: users.length
+        total_users: users.length,
+        active_tasks: tasks.filter(
+          task => [
+            "in_progress",
+            "under_review"
+          ].includes(
+            String(task.status_group || "").toLowerCase()
+          )
+        ).length,
+        pending_tasks: tasks.filter(
+          task =>
+            String(task.status_group || "").toLowerCase() !== "completed"
+        ).length
+      },
+
+      // Frontend compatibility
+      stats: {
+        total_projects: projects.length,
+        total_tasks: tasks.length,
+        total_users: users.length,
+        active_tasks: tasks.filter(
+          task => [
+            "in_progress",
+            "under_review"
+          ].includes(
+            String(task.status_group || "").toLowerCase()
+          )
+        ).length,
+        pending_tasks: tasks.filter(
+          task =>
+            String(task.status_group || "").toLowerCase() !== "completed"
+        ).length
       },
 
       projects,
