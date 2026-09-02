@@ -1841,6 +1841,51 @@ async()=>{
 };
 
 
+
+const getSuperadminOverview = async (req, res) => {
+  try {
+
+    const [
+      projects,
+      tasks,
+      users
+    ] = await Promise.all([
+      getAllProjects(),
+      getAllMainTasks(),
+      getAllUsersBase()
+    ]);
+
+    res.json({
+      success: true,
+
+      summary: {
+        total_projects: projects.length,
+        total_tasks: tasks.length,
+        total_users: users.length
+      },
+
+      projects,
+      tasks,
+      users
+
+    });
+
+  } catch(error) {
+
+    console.error(
+      "SUPERADMIN OVERVIEW ERROR:",
+      error
+    );
+
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+
+  }
+};
+
+
 const getSuperadminProjectOptions = async(req,res)=>{
 
 try{
