@@ -65,7 +65,11 @@ const LeaveReview = () => {
         <p>Status: <b>{leave.status}</b></p>
 
         <button
-          onClick={() => navigate("/admin/leave-applications")}
+          onClick={() =>
+            navigate(
+              `/admin/leave-applications?openLeave=${leave.leave_id}`
+            )
+          }
           style={{
             background:"#ff5733",
             color:"#fff",
