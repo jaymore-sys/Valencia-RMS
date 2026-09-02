@@ -188,16 +188,23 @@ const SuperadminOverview = () => {
   ===================================================== */
 
   const users =
-    data?.employee_workload || [];
+    data?.users ||
+    data?.employee_workload ||
+    [];
 
   const tasks =
-    data?.recent_tasks || [];
+    data?.tasks ||
+    data?.recent_tasks ||
+    [];
 
   const projects =
-    data?.projects || [];
+    data?.projects ||
+    [];
 
   const stats =
-    data?.stats || {};
+    data?.stats ||
+    data?.summary ||
+    {};
 
   /* =====================================================
      MOST ACTIVE USERS
@@ -647,7 +654,7 @@ const SuperadminOverview = () => {
         <OverviewStatCard
           icon={Users}
           label="Total Users"
-          value={stats.total_users}
+          value={stats.total_users || stats.totalUsers}
           onClick={() =>
             navigate(
               "/superadmin/users"
@@ -658,7 +665,7 @@ const SuperadminOverview = () => {
         <OverviewStatCard
           icon={FolderKanban}
           label="Total Projects"
-          value={stats.total_projects}
+          value={stats.total_projects || stats.totalProjects}
           onClick={() =>
             navigate(
               "/superadmin/projects"
@@ -669,7 +676,7 @@ const SuperadminOverview = () => {
         <OverviewStatCard
           icon={ClipboardList}
           label="Total Tasks"
-          value={stats.total_tasks}
+          value={stats.total_tasks || stats.totalTasks}
           onClick={() =>
             navigate(
               "/superadmin/tasks"
@@ -680,7 +687,7 @@ const SuperadminOverview = () => {
         <OverviewStatCard
           icon={TrendingUp}
           label="Active Tasks"
-          value={stats.active_tasks}
+          value={stats.active_tasks || 0}
           onClick={() =>
             openListModal(
               "Active Tasks",
@@ -693,7 +700,7 @@ const SuperadminOverview = () => {
         <OverviewStatCard
           icon={AlertCircle}
           label="Pending Tasks"
-          value={stats.pending_tasks}
+          value={stats.pending_tasks || 0}
           onClick={() =>
             openListModal(
               "Pending Tasks",

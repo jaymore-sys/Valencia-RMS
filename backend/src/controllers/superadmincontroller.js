@@ -1886,6 +1886,61 @@ const getSuperadminOverview = async (req, res) => {
 };
 
 
+
+/* =========================================================
+   API RESPONSE HANDLERS
+========================================================= */
+
+const getSuperadminProjects = async(req,res)=>{
+  try{
+    const projects = await getAllProjects();
+    res.json({
+      success:true,
+      projects
+    });
+  }catch(error){
+    console.error("SUPERADMIN PROJECTS ERROR:", error);
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+
+
+const getSuperadminTasks = async(req,res)=>{
+  try{
+    const tasks = await getAllMainTasks();
+    res.json({
+      success:true,
+      tasks
+    });
+  }catch(error){
+    console.error("SUPERADMIN TASKS ERROR:", error);
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+
+
+const getSuperadminUsers = async(req,res)=>{
+  try{
+    const users = await getAllUsersBase();
+    res.json({
+      success:true,
+      users
+    });
+  }catch(error){
+    console.error("SUPERADMIN USERS ERROR:", error);
+    res.status(500).json({
+      success:false,
+      message:error.message
+    });
+  }
+};
+
 const getSuperadminProjectOptions = async(req,res)=>{
 
 try{
@@ -1929,10 +1984,12 @@ module.exports = {
   getSuperadminFieldVisits,
 
   getAllProjects,
-
   getAllMainTasks,
-
   getAllUsersBase,
+
+  getSuperadminProjects,
+  getSuperadminTasks,
+  getSuperadminUsers,
 
   getSuperadminProjectOptions,
 

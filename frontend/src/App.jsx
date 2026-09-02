@@ -465,70 +465,105 @@ const App = () => {
       </Route>
 
       {/* ===================================================
-          SUPERADMIN
-      =================================================== */}
+    SUPERADMIN
+=================================================== */}
 
-      <Route
-        path="/superadmin"
-        element={
-          <ProtectedRoute
-            allowedRoles={[
-              "superadmin",
-            ]}
-          >
-            <SuperadminLayout />
-          </ProtectedRoute>
-        }
-      >
-        {/* DEFAULT */}
+<Route
+  path="/superadmin"
+  element={
+    <ProtectedRoute
+      allowedRoles={[
+        "superadmin",
+      ]}
+    >
+      <SuperadminLayout />
+    </ProtectedRoute>
+  }
+>
 
-        <Route
-          index
-          element={
-            <Navigate
-              to="/superadmin/overview"
-              replace
-            />
-          }
-        />
+  {/* DEFAULT */}
 
-        {/* OVERVIEW */}
+  <Route
+    index
+    element={
+      <Navigate
+        to="/superadmin/overview"
+        replace
+      />
+    }
+  />
 
-        <Route
-          path="overview"
-          element={
-            <SuperadminOverview />
-          }
-        />
 
-        {/* PROJECTS */}
+  {/* OVERVIEW */}
 
-        <Route
-          path="projects"
-          element={
-            <SuperadminProjects />
-          }
-        />
+  <Route
+    path="overview"
+    element={
+      <SuperadminOverview />
+    }
+  />
 
-        {/* TASKS */}
 
-        <Route
-          path="tasks"
-          element={
-            <SuperadminTasks />
-          }
-        />
+  {/* PROJECTS */}
 
-        {/* USERS */}
+  <Route
+    path="projects"
+    element={
+      <SuperadminProjects />
+    }
+  />
 
-        <Route
-          path="users"
-          element={
-            <SuperadminUsers />
-          }
-        />
 
-      </Route>
+  {/* TASKS */}
+
+  <Route
+    path="tasks"
+    element={
+      <SuperadminTasks />
+    }
+  />
+
+
+  {/* USERS */}
+
+  <Route
+    path="users"
+    element={
+      <SuperadminUsers />
+    }
+  />
+
+
+  {/* CALENDAR */}
+
+  <Route
+    path="calendar"
+    element={
+      <SuperadminCalendar />
+    }
+  />
+
+
+  {/* ATTENDANCE */}
+
+  <Route
+    path="attendance"
+    element={
+      <SuperadminAttendance />
+    }
+  />
+
+
+  {/* FIELD VISITS */}
+
+  <Route
+    path="field-visits"
+    element={
+      <SuperadminFieldVisits />
+    }
+  />
+
+</Route>
 
       {/* ===================================================
           FALLBACK

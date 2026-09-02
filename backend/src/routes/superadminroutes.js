@@ -10,9 +10,9 @@ const {
 const {
 
   getSuperadminFieldVisits,
-  getAllProjects,
-  getAllMainTasks,
-  getAllUsersBase,
+  getSuperadminProjects,
+  getSuperadminTasks,
+  getSuperadminUsers,
   getSuperadminProjectOptions,
   getSuperadminOverview
 
@@ -77,7 +77,7 @@ PROJECTS
 router.get(
   "/projects",
   ...superadminOnly,
-  getAllProjects
+  getSuperadminProjects
 );
 
 
@@ -103,7 +103,7 @@ TASKS
 router.get(
   "/tasks",
   ...superadminOnly,
-  getAllMainTasks
+  getSuperadminTasks
 );
 
 
@@ -121,7 +121,7 @@ USERS
 router.get(
   "/users",
   ...superadminOnly,
-  getAllUsersBase
+  getSuperadminUsers
 );
 
 
