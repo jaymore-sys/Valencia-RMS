@@ -1452,9 +1452,9 @@ const SuperadminCalendar = () => {
     }
 
     return (
-      <section className="admin-cal-detail-section">
+      <section className="superadmin-cal-detail-section">
         <h4
-          className={`admin-cal-detail-heading admin-cal-${type}-text`}
+          className={`superadmin-cal-detail-heading superadmin-cal-${type}-text`}
         >
           {title}
         </h4>
@@ -1539,7 +1539,7 @@ const SuperadminCalendar = () => {
 
             return (
               <div
-                className="admin-cal-detail-item"
+                className="superadmin-cal-detail-item"
                 key={
                   item.id ||
                   item.task_id ||
@@ -1549,12 +1549,12 @@ const SuperadminCalendar = () => {
                 }
               >
                 <span
-                  className={`admin-cal-detail-dot admin-cal-${type}-dot`}
+                  className={`superadmin-cal-detail-dot superadmin-cal-${type}-dot`}
                 />
 
-                <div className="admin-cal-detail-info">
+                <div className="superadmin-cal-detail-info">
                   {meta && (
-                    <span className="admin-cal-detail-meta">
+                    <span className="superadmin-cal-detail-meta">
                       {meta}
                     </span>
                   )}
@@ -1695,10 +1695,10 @@ const SuperadminCalendar = () => {
                     "meeting" &&
                     status !==
                       "cancelled" && (
-                      <div className="admin-cal-meeting-actions">
+                      <div className="superadmin-cal-meeting-actions">
                         <button
                           type="button"
-                          className="admin-cal-edit-meeting"
+                          className="superadmin-cal-edit-meeting"
                           onClick={(
                             clickEvent
                           ) => {
@@ -1720,7 +1720,7 @@ const SuperadminCalendar = () => {
 
                         <button
                           type="button"
-                          className="admin-cal-cancel-meeting"
+                          className="superadmin-cal-cancel-meeting"
                           onClick={(
                             clickEvent
                           ) => {
@@ -1746,7 +1746,7 @@ const SuperadminCalendar = () => {
                     "meeting" &&
                     status ===
                       "cancelled" && (
-                      <span className="admin-cal-cancelled-label">
+                      <span className="superadmin-cal-cancelled-label">
                         Cancelled
                       </span>
                     )}
@@ -1764,12 +1764,12 @@ const SuperadminCalendar = () => {
   ========================================================= */
 
   return (
-    <div className="admin-cal-page">
+    <div className="superadmin-cal-page">
       {/* =====================================================
           TITLE
       ===================================================== */}
 
-      <div className="admin-cal-title-row">
+      <div className="superadmin-cal-title-row">
         <div>
           <h1>
             Calendar
@@ -1814,22 +1814,22 @@ const SuperadminCalendar = () => {
           CALENDAR CARD
       ===================================================== */}
 
-      <div className="admin-cal-card">
+      <div className="superadmin-cal-card">
         {/* =================================================
             TOOLBAR
         ================================================= */}
 
-        <div className="admin-cal-toolbar">
+        <div className="superadmin-cal-toolbar">
           {/* FILTERS */}
 
-          <div className="admin-cal-filter-row">
+          <div className="superadmin-cal-filter-row">
             <button
               type="button"
               className={
                 activeFilter ===
                 "all"
-                  ? "admin-cal-filter active all"
-                  : "admin-cal-filter"
+                  ? "superadmin-cal-filter active all"
+                  : "superadmin-cal-filter"
               }
               onClick={() =>
                 setActiveFilter(
@@ -1845,8 +1845,8 @@ const SuperadminCalendar = () => {
               className={
                 activeFilter ===
                 "project"
-                  ? "admin-cal-filter active project"
-                  : "admin-cal-filter"
+                  ? "superadmin-cal-filter active project"
+                  : "superadmin-cal-filter"
               }
               onClick={() =>
                 setActiveFilter(
@@ -1862,8 +1862,8 @@ const SuperadminCalendar = () => {
               className={
                 activeFilter ===
                 "task"
-                  ? "admin-cal-filter active task"
-                  : "admin-cal-filter"
+                  ? "superadmin-cal-filter active task"
+                  : "superadmin-cal-filter"
               }
               onClick={() =>
                 setActiveFilter(
@@ -1879,8 +1879,8 @@ const SuperadminCalendar = () => {
               className={
                 activeFilter ===
                 "meeting"
-                  ? "admin-cal-filter active meeting"
-                  : "admin-cal-filter"
+                  ? "superadmin-cal-filter active meeting"
+                  : "superadmin-cal-filter"
               }
               onClick={() =>
                 setActiveFilter(
@@ -1896,8 +1896,8 @@ const SuperadminCalendar = () => {
               className={
                 activeFilter ===
                 "mini"
-                  ? "admin-cal-filter active mini"
-                  : "admin-cal-filter"
+                  ? "superadmin-cal-filter active mini"
+                  : "superadmin-cal-filter"
               }
               onClick={() =>
                 setActiveFilter(
@@ -1911,10 +1911,10 @@ const SuperadminCalendar = () => {
 
           {/* MONTH NAVIGATION */}
 
-          <div className="admin-cal-navigation">
+          <div className="superadmin-cal-navigation">
             <button
               type="button"
-              className="admin-cal-nav-arrow"
+              className="superadmin-cal-nav-arrow"
               onClick={
                 previousMonth
               }
@@ -1926,7 +1926,7 @@ const SuperadminCalendar = () => {
 
             <button
               type="button"
-              className="admin-cal-nav-arrow"
+              className="superadmin-cal-nav-arrow"
               onClick={
                 nextMonth
               }
@@ -1936,7 +1936,7 @@ const SuperadminCalendar = () => {
               />
             </button>
 
-            <span className="admin-cal-month-name">
+            <span className="superadmin-cal-month-name">
               {currentDate.toLocaleString(
                 "en-US",
                 {
@@ -1954,7 +1954,7 @@ const SuperadminCalendar = () => {
 
           <button
             type="button"
-            className="admin-cal-schedule-main"
+            className="superadmin-cal-schedule-main"
             onClick={() =>
               openMeeting()
             }
@@ -1974,18 +1974,18 @@ const SuperadminCalendar = () => {
         <div
           className={
             selectedDate
-              ? "admin-cal-body admin-cal-body-details"
-              : "admin-cal-body"
+              ? "superadmin-cal-body superadmin-cal-body-details"
+              : "superadmin-cal-body"
           }
         >
           {/* ===============================================
               MAIN CALENDAR
           =============================================== */}
 
-          <div className="admin-cal-main">
+          <div className="superadmin-cal-main">
             {/* WEEK NAMES */}
 
-            <div className="admin-cal-week">
+            <div className="superadmin-cal-week">
               {[
                 "Mon",
                 "Tue",
@@ -2009,7 +2009,7 @@ const SuperadminCalendar = () => {
 
             {/* CALENDAR GRID */}
 
-            <div className="admin-cal-grid">
+            <div className="superadmin-cal-grid">
               {calendarWeeks.map(
                 (
                   week,
@@ -2022,14 +2022,14 @@ const SuperadminCalendar = () => {
 
                   return (
                     <div
-                      className="admin-cal-week-row"
+                      className="superadmin-cal-week-row"
                       key={
                         weekIndex
                       }
                     >
                       {/* DATE CELLS */}
 
-                      <div className="admin-cal-days-row">
+                      <div className="superadmin-cal-days-row">
                         {week.map(
                           (
                             calendarDate
@@ -2049,7 +2049,7 @@ const SuperadminCalendar = () => {
                                   calendarDate.dateString
                                 }
                                 className={[
-                                  "admin-cal-day",
+                                  "superadmin-cal-day",
 
                                   !calendarDate.currentMonth
                                     ? "outside"
@@ -2075,7 +2075,7 @@ const SuperadminCalendar = () => {
                                   )
                                 }
                               >
-                                <span className="admin-cal-day-number">
+                                <span className="superadmin-cal-day-number">
                                   {
                                     calendarDate.number
                                   }
@@ -2088,7 +2088,7 @@ const SuperadminCalendar = () => {
 
                       {/* EVENT BARS */}
 
-                      <div className="admin-cal-event-layer">
+                      <div className="superadmin-cal-event-layer">
                         {weekEvents.map(
                           (
                             event,
@@ -2118,7 +2118,7 @@ const SuperadminCalendar = () => {
                             return (
                               <div
                                 key={`${event.type}-${eventIndex}-${weekIndex}`}
-                                className={`admin-cal-event-bar admin-cal-event-bar-${event.type}`}
+                                className={`superadmin-cal-event-bar superadmin-cal-event-bar-${event.type}`}
                                 style={{
                                   gridColumn: `${
                                     segment.startIndex +
@@ -2148,9 +2148,9 @@ const SuperadminCalendar = () => {
                                     : event.title
                                 }
                               >
-                                <span className="admin-cal-event-bar-dot" />
+                                <span className="superadmin-cal-event-bar-dot" />
 
-                                <span className="admin-cal-event-bar-title">
+                                <span className="superadmin-cal-event-bar-title">
                                   {segment.continuesBefore
                                     ? ""
                                     : event.title}
@@ -2160,7 +2160,7 @@ const SuperadminCalendar = () => {
                                   creator &&
                                   segment.span >=
                                     2 && (
-                                    <span className="admin-cal-event-bar-creator">
+                                    <span className="superadmin-cal-event-bar-creator">
                                       {
                                         creator
                                       }
@@ -2172,7 +2172,7 @@ const SuperadminCalendar = () => {
                                   event
                                     .source
                                     ?.start_time && (
-                                    <span className="admin-cal-event-bar-time">
+                                    <span className="superadmin-cal-event-bar-time">
                                       {displayTime(
                                         event
                                           .source
@@ -2193,30 +2193,30 @@ const SuperadminCalendar = () => {
 
             {/* LEGEND */}
 
-            <div className="admin-cal-legend">
+            <div className="superadmin-cal-legend">
               <div>
-                <span className="admin-cal-legend-dot project" />
+                <span className="superadmin-cal-legend-dot project" />
                 Project
               </div>
 
               <div>
-                <span className="admin-cal-legend-dot task" />
+                <span className="superadmin-cal-legend-dot task" />
                 Task
               </div>
 
               <div>
-                <span className="admin-cal-legend-dot meeting" />
+                <span className="superadmin-cal-legend-dot meeting" />
                 Meeting
               </div>
 
               <div>
-                <span className="admin-cal-legend-dot mini" />
+                <span className="superadmin-cal-legend-dot mini" />
                 Mini Task
               </div>
             </div>
 
             {loading && (
-              <div className="admin-cal-loading">
+              <div className="superadmin-cal-loading">
                 Loading organization
                 calendar...
               </div>
@@ -2228,8 +2228,8 @@ const SuperadminCalendar = () => {
           =============================================== */}
 
           {selectedDate && (
-            <aside className="admin-cal-details">
-              <div className="admin-cal-details-header">
+            <aside className="superadmin-cal-details">
+              <div className="superadmin-cal-details-header">
                 <strong>
                   {displayDate(
                     selectedDate
@@ -2250,10 +2250,10 @@ const SuperadminCalendar = () => {
                 </button>
               </div>
 
-              <div className="admin-cal-details-scroll">
+              <div className="superadmin-cal-details-scroll">
                 {selectedEvents.length ===
                 0 ? (
-                  <div className="admin-cal-empty-details">
+                  <div className="superadmin-cal-empty-details">
                     <CalendarDays
                       size={30}
                     />
@@ -2309,7 +2309,7 @@ const SuperadminCalendar = () => {
 
       {showMeeting && (
         <div
-          className="admin-cal-modal-overlay"
+          className="superadmin-cal-modal-overlay"
           onMouseDown={(
             event
           ) => {
@@ -2321,10 +2321,10 @@ const SuperadminCalendar = () => {
             }
           }}
         >
-          <div className="admin-cal-modal">
+          <div className="superadmin-cal-modal">
             {/* HEADER */}
 
-            <div className="admin-cal-modal-header">
+            <div className="superadmin-cal-modal-header">
               <h2>
                 {editingMeeting
                   ? "Update Meeting"
@@ -2345,10 +2345,10 @@ const SuperadminCalendar = () => {
 
             {/* CONTENT */}
 
-            <div className="admin-cal-modal-content">
+            <div className="superadmin-cal-modal-content">
               {/* TITLE */}
 
-              <div className="admin-cal-form-field">
+              <div className="superadmin-cal-form-field">
                 <label>
                   Meeting Title
                   <span>*</span>
@@ -2381,7 +2381,7 @@ const SuperadminCalendar = () => {
 
               {/* DESCRIPTION */}
 
-              <div className="admin-cal-form-field">
+              <div className="superadmin-cal-form-field">
                 <label>
                   Description /
                   Notes
@@ -2413,7 +2413,7 @@ const SuperadminCalendar = () => {
 
               {/* DATE */}
 
-              <div className="admin-cal-form-field admin-cal-date-field">
+              <div className="superadmin-cal-form-field superadmin-cal-date-field">
                 <label>
                   Date
                   <span>*</span>
@@ -2445,8 +2445,8 @@ const SuperadminCalendar = () => {
 
               {/* TIMES */}
 
-              <div className="admin-cal-time-row">
-                <div className="admin-cal-form-field">
+              <div className="superadmin-cal-time-row">
+                <div className="superadmin-cal-form-field">
                   <label>
                     Start Time
                     <span>*</span>
@@ -2476,7 +2476,7 @@ const SuperadminCalendar = () => {
                   />
                 </div>
 
-                <div className="admin-cal-form-field">
+                <div className="superadmin-cal-form-field">
                   <label>
                     End Time
                     <span>*</span>
@@ -2511,8 +2511,8 @@ const SuperadminCalendar = () => {
                   SELECT USERS FROM ALL DEPARTMENTS
               ================================================= */}
 
-              <div className="admin-cal-employee-block">
-                <div className="admin-cal-employee-heading">
+              <div className="superadmin-cal-employee-block">
+                <div className="superadmin-cal-employee-heading">
                   <label>
                     Select
                     Participants
@@ -2531,7 +2531,7 @@ const SuperadminCalendar = () => {
                   </button>
                 </div>
 
-                <div className="admin-cal-employee-list">
+                <div className="superadmin-cal-employee-list">
                   {employeesLoading ? (
                     <div
                       style={{
@@ -2579,7 +2579,7 @@ const SuperadminCalendar = () => {
 
                         return (
                           <label
-                            className="admin-cal-employee-option"
+                            className="superadmin-cal-employee-option"
                             key={
                               employeeId
                             }
@@ -2616,10 +2616,10 @@ const SuperadminCalendar = () => {
 
             {/* FOOTER */}
 
-            <div className="admin-cal-modal-footer">
+            <div className="superadmin-cal-modal-footer">
               <button
                 type="button"
-                className="admin-cal-modal-cancel"
+                className="superadmin-cal-modal-cancel"
                 onClick={
                   closeMeeting
                 }
@@ -2629,7 +2629,7 @@ const SuperadminCalendar = () => {
 
               <button
                 type="button"
-                className="admin-cal-modal-save"
+                className="superadmin-cal-modal-save"
                 disabled={
                   savingMeeting
                 }
@@ -2656,9 +2656,9 @@ const SuperadminCalendar = () => {
 
       {showCancelConfirm &&
         cancellingMeeting && (
-          <div className="admin-cal-confirm-overlay">
-            <div className="admin-cal-confirm-box">
-              <div className="admin-cal-confirm-icon">
+          <div className="superadmin-cal-confirm-overlay">
+            <div className="superadmin-cal-confirm-box">
+              <div className="superadmin-cal-confirm-icon">
                 <Trash2
                   size={22}
                 />
@@ -2678,17 +2678,17 @@ const SuperadminCalendar = () => {
                 ?
               </p>
 
-              <p className="admin-cal-confirm-note">
+              <p className="superadmin-cal-confirm-note">
                 All participants
                 will receive a
                 cancellation
                 email.
               </p>
 
-              <div className="admin-cal-confirm-actions">
+              <div className="superadmin-cal-confirm-actions">
                 <button
                   type="button"
-                  className="admin-cal-confirm-back"
+                  className="superadmin-cal-confirm-back"
                   onClick={
                     closeCancelConfirm
                   }
@@ -2698,7 +2698,7 @@ const SuperadminCalendar = () => {
 
                 <button
                   type="button"
-                  className="admin-cal-confirm-delete"
+                  className="superadmin-cal-confirm-delete"
                   onClick={
                     cancelMeeting
                   }
