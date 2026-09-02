@@ -1,149 +1,368 @@
+/* =========================================================
+   SUPERADMIN FIELD VISITS
+========================================================= */
+
 .sa-field-page {
+
   background:#f7f8fc;
+
   min-height:100%;
+
   padding:32px;
+
   color:#0f172a;
+
+  box-sizing:border-box;
+
 }
 
 
+/* =========================================================
+   HEADER
+========================================================= */
+
 .sa-field-header {
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:flex-start;
+
   margin-bottom:32px;
+
 }
 
 
 .sa-field-header h1 {
+
   font-size:38px;
+
   font-weight:900;
+
   margin:0;
+
+  color:#07162f;
+
 }
 
 
 .sa-field-header p {
+
   margin-top:10px;
+
   color:#64748b;
+
   font-size:16px;
+
 }
+
 
 
 .sa-field-refresh {
+
+  height:48px;
+
+  padding:0 26px;
+
+  display:flex;
+
+  align-items:center;
+
+  gap:8px;
+
   background:#ff5a36;
+
   color:white;
+
   border:none;
-  padding:14px 28px;
+
   border-radius:14px;
+
   font-weight:800;
+
   cursor:pointer;
+
+  font-size:14px;
+
 }
 
 
-/* CARDS */
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
 
 .sa-field-summary {
+
   display:grid;
-  grid-template-columns:repeat(5,1fr);
-  gap:18px;
+
+  grid-template-columns:
+  repeat(4, minmax(220px,1fr));
+
+  gap:24px;
+
   margin-bottom:30px;
+
 }
+
 
 
 .sa-field-card {
-  background:#fff;
-  border-radius:22px;
-  padding:28px;
-  min-height:120px;
-  border:1px solid #edf0f5;
+
+  background:#ffffff;
+
+  border-radius:20px;
+
+  padding:26px;
+
+  min-height:150px;
+
+  border:1px solid #e8edf4;
+
+  display:flex;
+
+  flex-direction:column;
+
+  justify-content:space-between;
+
+  box-sizing:border-box;
+
+  transition:.2s ease;
+
 }
+
+
+
+.sa-field-card:hover {
+
+  transform:translateY(-2px);
+
+  box-shadow:
+  0 12px 28px rgba(15,23,42,.06);
+
+}
+
+
+
+/* ICON BOX */
+
+.sa-field-icon {
+
+  width:44px;
+
+  height:44px;
+
+  border-radius:12px;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+}
+
+
+
+.sa-field-icon.blue {
+
+  background:#e8f2ff;
+
+  color:#2563eb;
+
+}
+
+
+.sa-field-icon.purple {
+
+  background:#f3e8ff;
+
+  color:#9333ea;
+
+}
+
+
+.sa-field-icon.green {
+
+  background:#dcfce7;
+
+  color:#16a34a;
+
+}
+
+
+.sa-field-icon.orange {
+
+  background:#ffedd5;
+
+  color:#ea580c;
+
+}
+
+
+
+/* TEXT */
 
 
 .sa-field-card p {
+
+  margin:18px 0 0;
+
   color:#64748b;
-  font-size:15px;
+
+  font-size:14px;
+
   font-weight:700;
+
 }
+
 
 
 .sa-field-card h2 {
-  margin-top:20px;
-  font-size:32px;
+
+  margin:12px 0 0;
+
+  font-size:34px;
+
+  line-height:1;
+
   font-weight:900;
+
+  color:#07162f;
+
 }
 
 
-/* FILTER */
+
+
+/* =========================================================
+   FILTER
+========================================================= */
+
 
 .sa-field-filter-box {
 
   display:flex;
+
   gap:16px;
+
   margin-bottom:25px;
 
 }
 
 
+
 .sa-field-search {
 
   flex:1;
+
   background:white;
+
   border:1px solid #dbe2ec;
+
   border-radius:14px;
+
   height:52px;
+
   display:flex;
+
   align-items:center;
+
   padding:0 18px;
+
 }
+
+
+
+.sa-field-search svg {
+
+  color:#94a3b8;
+
+}
+
 
 
 .sa-field-search input {
 
   border:none;
+
   outline:none;
+
   width:100%;
+
   font-size:15px;
 
+  margin-left:10px;
+
 }
+
 
 
 .sa-field-filter-box select {
 
   width:220px;
+
+  height:52px;
+
   border:1px solid #dbe2ec;
+
   border-radius:14px;
+
   background:white;
+
   padding:0 18px;
+
   font-weight:700;
+
+  color:#475569;
 
 }
 
 
 
-/* TABLE BOX */
+/* =========================================================
+   TABLE
+========================================================= */
+
 
 .sa-field-table-card {
 
  background:white;
+
  border-radius:22px;
+
  border:1px solid #edf0f5;
+
  min-height:250px;
+
  overflow:hidden;
 
 }
 
 
+
 .sa-field-loading,
+
 .sa-field-empty {
 
  min-height:250px;
+
  display:flex;
+
  align-items:center;
+
  justify-content:center;
+
  flex-direction:column;
+
  color:#94a3b8;
+
  font-weight:700;
 
 }
+
 
 
 .sa-field-table-wrapper {
@@ -153,38 +372,89 @@
 }
 
 
+
 .sa-field-table-wrapper table {
 
  width:100%;
+
  border-collapse:collapse;
 
 }
 
 
+
 .sa-field-table-wrapper th {
 
  background:#f8fafc;
+
  padding:18px;
+
  text-align:left;
+
  color:#475569;
 
+ font-size:13px;
+
 }
+
 
 
 .sa-field-table-wrapper td {
 
  padding:18px;
+
  border-bottom:1px solid #f1f5f9;
 
+ font-size:14px;
+
+ color:#334155;
+
 }
+
+
+
+.sa-field-employee {
+
+ display:flex;
+
+ flex-direction:column;
+
+ gap:4px;
+
+}
+
+
+.sa-field-employee strong {
+
+ color:#0f172a;
+
+}
+
+
+.sa-field-employee span {
+
+ font-size:12px;
+
+ color:#94a3b8;
+
+}
+
+
+
+/* STATUS */
 
 
 .sa-field-status {
 
  padding:6px 14px;
+
  border-radius:50px;
+
  font-size:12px;
+
  font-weight:800;
+
+ text-transform:capitalize;
 
 }
 
@@ -192,6 +462,7 @@
 .sa-field-status.approved {
 
  background:#dcfce7;
+
  color:#15803d;
 
 }
@@ -200,6 +471,7 @@
 .sa-field-status.pending {
 
  background:#fef3c7;
+
  color:#b45309;
 
 }
@@ -208,15 +480,68 @@
 .sa-field-status.rejected {
 
  background:#fee2e2;
+
  color:#dc2626;
 
 }
 
 
-@media(max-width:900px){
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+
+@media(max-width:1200px){
 
 .sa-field-summary{
-grid-template-columns:repeat(2,1fr);
+
+grid-template-columns:
+repeat(2,1fr);
+
+}
+
+}
+
+
+
+@media(max-width:700px){
+
+.sa-field-page{
+
+padding:20px;
+
+}
+
+
+.sa-field-header{
+
+flex-direction:column;
+
+gap:20px;
+
+}
+
+
+.sa-field-summary{
+
+grid-template-columns:
+1fr;
+
+}
+
+
+.sa-field-filter-box{
+
+flex-direction:column;
+
+}
+
+
+.sa-field-filter-box select{
+
+width:100%;
+
 }
 
 }
