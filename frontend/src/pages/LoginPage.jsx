@@ -340,3 +340,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+// openLeaveAfterLogin support added

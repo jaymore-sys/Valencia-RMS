@@ -391,33 +391,6 @@ const AdminLeaveApplications = () => {
       applications,
     ]);
 
-  useEffect(() => {
-
-    if (
-      openLeaveId &&
-      applications.length &&
-      !selectedLeave
-    ) {
-
-      const target =
-        applications.find(
-          (item) =>
-            String(item.leave_id) ===
-            String(openLeaveId)
-        );
-
-      if (target) {
-        setSelectedLeave(target);
-      }
-
-    }
-
-  }, [
-    openLeaveId,
-    applications,
-    selectedLeave
-  ]);
-
   const openDetails = (
     leave
   ) => {
@@ -545,7 +518,50 @@ const AdminLeaveApplications = () => {
     },
   ];
 
-  return (
+  
+// OPEN_LEAVE_AUTO_POPUP
+useEffect(() => {
+
+  const pendingLeave =
+    new URLSearchParams(window.location.search)
+      .get("openLeave")
+      ||
+      localStorage.getItem("openLeaveAfterLogin");
+
+  if (
+    pendingLeave &&
+    applications.length
+  ) {
+
+    const found =
+      applications.find(
+        (item) =>
+          String(item.leave_id) ===
+          String(pendingLeave)
+      );
+
+    if(found){
+
+      setSelectedLeave(found);
+      setShowModal(true);
+
+      localStorage.removeItem(
+        "openLeaveAfterLogin"
+      );
+
+      window.history.replaceState(
+        {},
+        document.title,
+        window.location.pathname
+      );
+    }
+
+  }
+
+},[applications]);
+// END OPEN_LEAVE_AUTO_POPUP
+
+return (
     <div style={styles.page}>
       <div style={styles.header}>
         <div>

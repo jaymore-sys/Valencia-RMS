@@ -10,43 +10,33 @@ const LeaveReview = () => {
   useEffect(() => {
 
     const load = async () => {
-
       try {
+        const response = await api.get(`/leave-review/${token}`);
 
-        const response =
-          await api.get(
-            `/leave-review/${token}`
+        const leaveId = response.data?.leave?.leave_id;
+
+        if (leaveId) {
+          localStorage.setItem(
+            "openLeaveAfterLogin",
+            String(leaveId)
           );
 
-        const leave =
-          response.data.leave;
-
-        navigate(
-          `/admin/leave-applications?openLeave=${leave.leave_id}`,
-          {
-            replace:true
-          }
-        );
+          navigate(
+            `/admin/leave-applications?openLeave=${leaveId}`,
+            { replace:true }
+          );
+        }
 
       } catch(error) {
-
         console.error(error);
-
       }
-
     };
 
     load();
 
-  }, [token,navigate]);
+  }, [token, navigate]);
 
-
-  return (
-    <div style={{padding:40}}>
-      Opening leave application...
-    </div>
-  );
-
+  return null;
 };
 
 export default LeaveReview;
