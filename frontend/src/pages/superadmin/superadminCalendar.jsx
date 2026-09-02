@@ -20,7 +20,7 @@ import api from "../../api/axios";
   Reuse the existing working
   Admin Calendar CSS.
 */
-import "../../superadmin/superadminCalendar.css";
+import "./superadminCalendar.css";
 
 /* =========================================================
    DATE HELPERS

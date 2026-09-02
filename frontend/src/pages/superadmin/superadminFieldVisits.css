@@ -1,590 +1,222 @@
-/* =====================================================
-   SUPERADMIN FIELD VISITS
-===================================================== */
-
-
-.sa-field-page{
-
-  width:100%;
-
+.sa-field-page {
+  background:#f7f8fc;
   min-height:100%;
-
-  padding:24px;
-
-  box-sizing:border-box;
-
-  background:#f8fafc;
-
+  padding:32px;
+  color:#0f172a;
 }
 
 
+.sa-field-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:32px;
+}
 
-/* =====================================================
-   HEADER
-===================================================== */
+
+.sa-field-header h1 {
+  font-size:38px;
+  font-weight:900;
+  margin:0;
+}
 
 
-.sa-field-header{
+.sa-field-header p {
+  margin-top:10px;
+  color:#64748b;
+  font-size:16px;
+}
+
+
+.sa-field-refresh {
+  background:#ff5a36;
+  color:white;
+  border:none;
+  padding:14px 28px;
+  border-radius:14px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+
+/* CARDS */
+
+.sa-field-summary {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:18px;
+  margin-bottom:30px;
+}
+
+
+.sa-field-card {
+  background:#fff;
+  border-radius:22px;
+  padding:28px;
+  min-height:120px;
+  border:1px solid #edf0f5;
+}
+
+
+.sa-field-card p {
+  color:#64748b;
+  font-size:15px;
+  font-weight:700;
+}
+
+
+.sa-field-card h2 {
+  margin-top:20px;
+  font-size:32px;
+  font-weight:900;
+}
+
+
+/* FILTER */
+
+.sa-field-filter-box {
 
   display:flex;
-
-  justify-content:space-between;
-
-  align-items:center;
-
+  gap:16px;
   margin-bottom:25px;
 
 }
 
 
+.sa-field-search {
 
-.sa-field-header h1{
-
-  margin:0;
-
-  font-size:32px;
-
-  font-weight:800;
-
-  color:#111827;
-
+  flex:1;
+  background:white;
+  border:1px solid #dbe2ec;
+  border-radius:14px;
+  height:52px;
+  display:flex;
+  align-items:center;
+  padding:0 18px;
 }
 
 
+.sa-field-search input {
 
-.sa-field-header p{
-
-  margin-top:8px;
-
-  color:#64748b;
-
+  border:none;
+  outline:none;
+  width:100%;
   font-size:15px;
 
 }
 
 
+.sa-field-filter-box select {
 
-
-
-.sa-field-refresh{
-
-  display:flex;
-
-  align-items:center;
-
-  gap:8px;
-
-  background:#ff5a36;
-
-  color:white;
-
-  border:none;
-
-  padding:12px 22px;
-
-  border-radius:12px;
-
+  width:220px;
+  border:1px solid #dbe2ec;
+  border-radius:14px;
+  background:white;
+  padding:0 18px;
   font-weight:700;
 
-  cursor:pointer;
-
-  transition:.2s;
-
 }
 
 
 
-.sa-field-refresh:hover{
+/* TABLE BOX */
 
-  opacity:.9;
+.sa-field-table-card {
 
-}
-
-
-
-/* =====================================================
-   SUMMARY CARDS
-===================================================== */
-
-
-.sa-field-summary{
-
-  display:grid;
-
-  grid-template-columns:
-  repeat(4,1fr);
-
-  gap:18px;
-
-  margin-bottom:25px;
+ background:white;
+ border-radius:22px;
+ border:1px solid #edf0f5;
+ min-height:250px;
+ overflow:hidden;
 
 }
 
 
+.sa-field-loading,
+.sa-field-empty {
 
-.sa-field-card{
-
-  background:white;
-
-  border:1px solid #e5e7eb;
-
-  border-radius:18px;
-
-  padding:20px;
-
-  display:flex;
-
-  align-items:center;
-
-  gap:15px;
+ min-height:250px;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ flex-direction:column;
+ color:#94a3b8;
+ font-weight:700;
 
 }
 
 
+.sa-field-table-wrapper {
 
-.sa-field-card p{
-
-  margin:0 0 5px;
-
-  color:#64748b;
-
-  font-size:14px;
-
-  font-weight:600;
+ overflow:auto;
 
 }
 
 
+.sa-field-table-wrapper table {
 
-.sa-field-card h2{
-
-  margin:0;
-
-  font-size:28px;
-
-  color:#111827;
+ width:100%;
+ border-collapse:collapse;
 
 }
 
 
+.sa-field-table-wrapper th {
 
-
-
-.sa-field-icon{
-
-  width:48px;
-
-  height:48px;
-
-  border-radius:14px;
-
-  display:flex;
-
-  align-items:center;
-
-  justify-content:center;
+ background:#f8fafc;
+ padding:18px;
+ text-align:left;
+ color:#475569;
 
 }
 
 
+.sa-field-table-wrapper td {
 
-.sa-field-icon.blue{
-
-  background:#dbeafe;
-
-  color:#2563eb;
+ padding:18px;
+ border-bottom:1px solid #f1f5f9;
 
 }
 
 
+.sa-field-status {
 
-.sa-field-icon.purple{
-
-  background:#ede9fe;
-
-  color:#7c3aed;
-
-}
-
-
-
-.sa-field-icon.green{
-
-  background:#dcfce7;
-
-  color:#16a34a;
+ padding:6px 14px;
+ border-radius:50px;
+ font-size:12px;
+ font-weight:800;
 
 }
 
 
+.sa-field-status.approved {
 
-.sa-field-icon.orange{
-
-  background:#ffedd5;
-
-  color:#ea580c;
+ background:#dcfce7;
+ color:#15803d;
 
 }
 
 
+.sa-field-status.pending {
 
-
-
-/* =====================================================
-   FILTERS
-===================================================== */
-
-
-.sa-field-filter-box{
-
-  background:white;
-
-  border:1px solid #e5e7eb;
-
-  border-radius:18px;
-
-  padding:16px;
-
-  display:flex;
-
-  gap:15px;
-
-  margin-bottom:20px;
+ background:#fef3c7;
+ color:#b45309;
 
 }
 
 
+.sa-field-status.rejected {
 
-.sa-field-search{
-
-  flex:1;
-
-  display:flex;
-
-  align-items:center;
-
-  gap:10px;
-
-  border:1px solid #e5e7eb;
-
-  border-radius:12px;
-
-  padding:0 14px;
+ background:#fee2e2;
+ color:#dc2626;
 
 }
-
-
-
-.sa-field-search input{
-
-  width:100%;
-
-  border:none;
-
-  outline:none;
-
-  height:42px;
-
-  font-size:14px;
-
-}
-
-
-
-.sa-field-filter-box select{
-
-  width:170px;
-
-  border:1px solid #e5e7eb;
-
-  border-radius:12px;
-
-  padding:0 12px;
-
-  background:white;
-
-}
-
-
-
-
-
-/* =====================================================
-   TABLE
-===================================================== */
-
-
-.sa-field-table-card{
-
-  background:white;
-
-  border-radius:18px;
-
-  border:1px solid #e5e7eb;
-
-  overflow:hidden;
-
-}
-
-
-
-.sa-field-table-wrapper{
-
-  overflow-x:auto;
-
-}
-
-
-
-.sa-field-table-wrapper table{
-
-  width:100%;
-
-  border-collapse:collapse;
-
-}
-
-
-
-.sa-field-table-wrapper th{
-
-  text-align:left;
-
-  padding:16px;
-
-  background:#f8fafc;
-
-  color:#475569;
-
-  font-size:13px;
-
-  font-weight:800;
-
-}
-
-
-
-.sa-field-table-wrapper td{
-
-  padding:16px;
-
-  border-top:1px solid #f1f5f9;
-
-  color:#334155;
-
-  font-size:14px;
-
-}
-
-
-
-.sa-field-table-wrapper tr:hover{
-
-  background:#fafafa;
-
-}
-
-
-
-
-
-/* =====================================================
-   EMPLOYEE
-===================================================== */
-
-
-.sa-field-employee{
-
-  display:flex;
-
-  flex-direction:column;
-
-  gap:4px;
-
-}
-
-
-
-.sa-field-employee strong{
-
-  color:#111827;
-
-}
-
-
-
-.sa-field-employee span{
-
-  font-size:12px;
-
-  color:#64748b;
-
-}
-
-
-
-
-
-.sa-field-table-wrapper small{
-
-  display:block;
-
-  margin-top:4px;
-
-  color:#64748b;
-
-}
-
-
-
-
-
-/* =====================================================
-   STATUS
-===================================================== */
-
-
-.sa-field-status{
-
-  padding:6px 12px;
-
-  border-radius:999px;
-
-  font-size:12px;
-
-  font-weight:800;
-
-  text-transform:capitalize;
-
-}
-
-
-
-.sa-field-status.approved{
-
-  background:#dcfce7;
-
-  color:#15803d;
-
-}
-
-
-
-.sa-field-status.pending{
-
-  background:#fef3c7;
-
-  color:#b45309;
-
-}
-
-
-
-.sa-field-status.rejected{
-
-  background:#fee2e2;
-
-  color:#b91c1c;
-
-}
-
-
-
-
-
-/* =====================================================
-   EMPTY / LOADING
-===================================================== */
-
-
-.sa-field-empty,
-
-.sa-field-loading{
-
-  min-height:250px;
-
-  display:flex;
-
-  flex-direction:column;
-
-  align-items:center;
-
-  justify-content:center;
-
-  color:#64748b;
-
-}
-
-
-
-.sa-field-empty h3{
-
-  margin:15px 0 5px;
-
-  color:#334155;
-
-}
-
-
-
-.sa-field-empty p{
-
-  margin:0;
-
-}
-
-
-
-/* =====================================================
-   RESPONSIVE
-===================================================== */
 
 
 @media(max-width:900px){
 
-  .sa-field-summary{
-
-    grid-template-columns:
-    repeat(2,1fr);
-
-  }
-
-
+.sa-field-summary{
+grid-template-columns:repeat(2,1fr);
 }
-
-
-
-@media(max-width:600px){
-
-  .sa-field-header{
-
-    flex-direction:column;
-
-    align-items:flex-start;
-
-    gap:15px;
-
-  }
-
-
-  .sa-field-summary{
-
-    grid-template-columns:1fr;
-
-  }
-
-
-  .sa-field-filter-box{
-
-    flex-direction:column;
-
-  }
-
-
-  .sa-field-filter-box select{
-
-    width:100%;
-
-  }
 
 }
