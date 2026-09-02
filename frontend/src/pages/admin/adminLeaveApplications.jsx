@@ -15,15 +15,6 @@ import {
 import api from "../../api/axios";
 
 const AdminLeaveApplications = () => {
-
-  const urlParams =
-    new URLSearchParams(
-      window.location.search
-    );
-
-  const openLeaveId =
-    urlParams.get("openLeave");
-
   const [applications, setApplications] =
     useState([]);
 
@@ -399,6 +390,33 @@ const AdminLeaveApplications = () => {
       selectedLeave,
       applications,
     ]);
+
+  useEffect(() => {
+
+    if (
+      openLeaveId &&
+      applications.length &&
+      !selectedLeave
+    ) {
+
+      const target =
+        applications.find(
+          (item) =>
+            String(item.leave_id) ===
+            String(openLeaveId)
+        );
+
+      if (target) {
+        setSelectedLeave(target);
+      }
+
+    }
+
+  }, [
+    openLeaveId,
+    applications,
+    selectedLeave
+  ]);
 
   const openDetails = (
     leave
