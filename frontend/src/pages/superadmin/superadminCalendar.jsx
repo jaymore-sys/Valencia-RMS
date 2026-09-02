@@ -1764,35 +1764,7 @@ const SuperadminCalendar = () => {
   ========================================================= */
 
   return (
-    <div
-      className="admin-cal-page"
-      style={{
-        width: "100%",
-        maxWidth:
-          "1320px",
-
-        margin:
-          "0 auto",
-
-        padding:
-          "0 18px",
-
-        boxSizing:
-          "border-box",
-
-        minHeight:
-          "calc(100vh - 70px)",
-
-        display:
-          "flex",
-
-        flexDirection:
-          "column",
-
-        overflowX:
-          "hidden",
-      }}
-    >
+    <div className="admin-cal-page">
       {/* =====================================================
           TITLE
       ===================================================== */}

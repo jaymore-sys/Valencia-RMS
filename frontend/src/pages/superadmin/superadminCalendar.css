@@ -2885,3 +2885,59 @@
 .superadmin-main-calendar .superadmin-cal-event-bar {
   pointer-events: auto !important;
 }
+
+/* Superadmin Calendar CSS compatible with existing calendar JSX */
+
+.admin-cal-page{
+ width:100%;
+ min-height:100vh;
+ box-sizing:border-box;
+}
+
+.admin-cal-event-bar{
+ height:22px;
+ min-height:22px;
+ display:flex;
+ align-items:center;
+ gap:6px;
+ padding:0 7px;
+ border-radius:5px;
+ overflow:hidden;
+ font-size:10px;
+ font-weight:700;
+}
+
+.admin-cal-event-bar-dot{
+ width:6px;
+ height:6px;
+ border-radius:50%;
+ background:currentColor;
+ flex-shrink:0;
+}
+
+.admin-cal-event-bar-title{
+ min-width:0;
+ overflow:hidden;
+ text-overflow:ellipsis;
+ white-space:nowrap;
+}
+
+.admin-cal-event-bar-project{
+ background:#e8f3ff;
+ color:#2677cb;
+}
+
+.admin-cal-event-bar-task{
+ background:#fff0df;
+ color:#d96b1f;
+}
+
+.admin-cal-event-bar-meeting{
+ background:#ffe9e4;
+ color:#e34c33;
+}
+
+.admin-cal-event-bar-mini{
+ background:#def7e8;
+ color:#218a4c;
+}
