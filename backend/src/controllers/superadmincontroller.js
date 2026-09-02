@@ -1191,6 +1191,20 @@ async()=>{
 
  ...task,
 
+ assignee_name:
+   task.primary_assignee_name ||
+   assignees[0]?.full_name ||
+   null,
+
+ assignee_email:
+   task.primary_assignee_email ||
+   assignees[0]?.email ||
+   null,
+
+ assignee_employee_code:
+   task.primary_assignee_employee_code ||
+   assignees[0]?.employee_code ||
+   null,
 
  assignees,
 
@@ -1207,18 +1221,6 @@ async()=>{
  assignees
  .map(a=>a.full_name)
  .join(", "),
-
-
- assignee_name:
- assignees[0]?.full_name ||
- task.primary_assignee_name ||
- "-",
-
-
- assignee_email:
- assignees[0]?.email ||
- task.primary_assignee_email ||
- "-",
 
 
  assigned_emails:
@@ -1688,12 +1690,88 @@ async()=>{
  r.role_name,
 
 
- d.department_name
+ d.department_name,
 
+
+ COUNT(DISTINCT t.task_id)
+ AS total_tasks,
+
+
+ COUNT(DISTINCT p.project_id)
+ AS total_projects,
+
+
+ COALESCE(
+  ROUND(AVG(t.progress)),
+  0
+ )
+ AS average_task_progress,
+
+
+ SUM(
+ CASE
+ WHEN t.status IN(
+  'not_started',
+  'todo'
+ )
+ THEN 1
+ ELSE 0
+ END
+ )
+ AS todo_tasks,
+
+
+ SUM(
+ CASE
+ WHEN t.status IN(
+  'in_progress',
+  'ongoing'
+ )
+ THEN 1
+ ELSE 0
+ END
+ )
+ AS in_progress_tasks,
+
+
+ SUM(
+ CASE
+ WHEN t.status IN(
+  'under_review'
+ )
+ THEN 1
+ ELSE 0
+ END
+ )
+ AS under_review_tasks,
+
+
+ SUM(
+ CASE
+ WHEN t.status IN(
+  'rejected'
+ )
+ THEN 1
+ ELSE 0
+ END
+ )
+ AS rejected_tasks,
+
+
+ SUM(
+ CASE
+ WHEN t.status IN(
+  'blocked',
+  'on_hold'
+ )
+ THEN 1
+ ELSE 0
+ END
+ )
+ AS blocked_tasks
 
 
  FROM users u
-
 
 
  JOIN roles r
@@ -1702,17 +1780,55 @@ async()=>{
  u.role_id
 
 
-
  LEFT JOIN departments d
 
  ON d.department_id =
  u.department_id
 
 
+ LEFT JOIN tasks t
+
+ ON (
+  t.assigned_to_user_id =
+  u.user_id
+ )
+
+
+ LEFT JOIN projects p
+
+ ON (
+  p.created_by_user_id =
+  u.user_id
+ )
+
 
  WHERE
  u.status!='deleted'
 
+
+ GROUP BY
+
+ u.user_id,
+
+ u.employee_code,
+
+ u.full_name,
+
+ u.email,
+
+ u.phone,
+
+ u.designation,
+
+ u.status,
+
+ u.department_id,
+
+ u.role_id,
+
+ r.role_name,
+
+ d.department_name
 
 
  ORDER BY
@@ -1727,9 +1843,6 @@ async()=>{
 
 
 };
-
-
-
 
 
 /* =========================================================
@@ -1873,38 +1986,7 @@ const getSuperadminOverview = async (req, res) => {
       summary: {
         total_projects: projects.length,
         total_tasks: tasks.length,
-        total_users: users.length,
-        active_tasks: tasks.filter(
-          task => [
-            "in_progress",
-            "under_review"
-          ].includes(
-            String(task.status_group || "").toLowerCase()
-          )
-        ).length,
-        pending_tasks: tasks.filter(
-          task =>
-            String(task.status_group || "").toLowerCase() !== "completed"
-        ).length
-      },
-
-      // Frontend compatibility
-      stats: {
-        total_projects: projects.length,
-        total_tasks: tasks.length,
-        total_users: users.length,
-        active_tasks: tasks.filter(
-          task => [
-            "in_progress",
-            "under_review"
-          ].includes(
-            String(task.status_group || "").toLowerCase()
-          )
-        ).length,
-        pending_tasks: tasks.filter(
-          task =>
-            String(task.status_group || "").toLowerCase() !== "completed"
-        ).length
+        total_users: users.length
       },
 
       projects,
