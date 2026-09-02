@@ -15,6 +15,15 @@ import {
 import api from "../../api/axios";
 
 const AdminLeaveApplications = () => {
+
+  const urlParams =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const openLeaveId =
+    urlParams.get("openLeave");
+
   const [applications, setApplications] =
     useState([]);
 
