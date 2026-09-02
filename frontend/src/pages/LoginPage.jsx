@@ -63,6 +63,23 @@ const LoginPage = () => {
 
       localStorage.setItem("user", JSON.stringify(user));
 
+      const redirectAfterLogin =
+        localStorage.getItem("redirectAfterLogin");
+
+      if (redirectAfterLogin) {
+        localStorage.removeItem("redirectAfterLogin");
+
+        navigate(
+          redirectAfterLogin,
+          {
+            replace:true
+          }
+        );
+
+        return;
+      }
+
+
       const dashboardRoute = getDashboardRoute(user.role_name);
 
       if (dashboardRoute === "/login") {
