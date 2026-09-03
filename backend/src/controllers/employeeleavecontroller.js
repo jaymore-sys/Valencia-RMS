@@ -1557,22 +1557,18 @@ Valencia RMS
                 and requires review.
               </p>
 
-              <div style="margin-top:25px;">
-                <a
-                  href="https://myvol.in/leave-review/${reviewToken}"
-                  style="
-                    background:#ff5733;
-                    color:#ffffff;
-                    padding:12px 24px;
-                    border-radius:8px;
-                    text-decoration:none;
-                    font-weight:bold;
-                    display:inline-block;
-                  "
-                >
-                  Review Leave Request
-                </a>
-              </div>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:25px;">
+                <tr>
+                  <td align="center" bgcolor="#ff5733" style="border-radius:8px;">
+                    <a
+                      href="https://myvol.in/leave-review/${reviewToken}"
+                      style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;"
+                    >
+                      Review Leave Request
+                    </a>
+                  </td>
+                </tr>
+              </table>
 
 
               <p>

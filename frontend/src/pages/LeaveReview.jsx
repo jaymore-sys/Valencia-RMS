@@ -16,20 +16,20 @@ const LeaveReview = () => {
         const leaveId = response.data?.leave?.leave_id;
 
         if (leaveId) {
-          const user = JSON.parse(localStorage.getItem("user") || "null");
-          const role = String(user?.role_name || "").toLowerCase();
+          localStorage.setItem(
+            "openLeaveAfterLogin",
+            String(leaveId)
+          );
 
-          localStorage.setItem("openLeaveAfterLogin", String(leaveId));
+          localStorage.setItem(
+            "redirectAfterLogin",
+            `/admin/leave-applications?openLeave=${leaveId}`
+          );
 
-          if (role === "admin" || role === "administrator" || role === "superadmin") {
-            navigate(`/admin/leave-applications?openLeave=${leaveId}`, { replace:true });
-          } else {
-            localStorage.setItem(
-              "redirectAfterLogin",
-              `/admin/leave-applications?openLeave=${leaveId}`
-            );
-            navigate("/login", { replace:true });
-          }
+          navigate(
+            `/admin/leave-applications?openLeave=${leaveId}`,
+            { replace:true }
+          );
         }
 
       } catch(error) {

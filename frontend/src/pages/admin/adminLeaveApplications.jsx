@@ -522,9 +522,10 @@ const AdminLeaveApplications = () => {
 // OPEN_LEAVE_AUTO_POPUP
 useEffect(() => {
 
+  const params = new URLSearchParams(window.location.search);
+
   const pendingLeave =
-    new URLSearchParams(window.location.search)
-      .get("openLeave")
+    params.get("openLeave")
       ||
       localStorage.getItem("openLeaveAfterLogin");
 

@@ -64,7 +64,10 @@ const LoginPage = () => {
       localStorage.setItem("user", JSON.stringify(user));
 
       const redirectAfterLogin =
-        localStorage.getItem("redirectAfterLogin");
+        localStorage.getItem("redirectAfterLogin") ||
+        (localStorage.getItem("openLeaveAfterLogin")
+          ? `/admin/leave-applications?openLeave=${localStorage.getItem("openLeaveAfterLogin")}`
+          : null);
 
       if (redirectAfterLogin) {
         localStorage.removeItem("redirectAfterLogin");
