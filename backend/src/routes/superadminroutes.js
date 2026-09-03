@@ -10,6 +10,7 @@ const {
 const {
 
   getSuperadminFieldVisits,
+  getSuperadminLeaves,
   getSuperadminProjects,
   getSuperadminTasks,
   getSuperadminUsers,
@@ -194,6 +195,9 @@ router.patch(
 
 
 
+
+
+router.get("/leaves", ...superadminOnly, getSuperadminLeaves);
 
 
 /*

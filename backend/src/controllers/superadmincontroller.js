@@ -2104,6 +2104,14 @@ message:error.message
 
 };
 
+
+const getSuperadminLeaves = async(req,res)=>{
+ try{
+ const [applications]=await db.query(`SELECT la.*, u.full_name AS employee_name, d.department_name FROM leave_applications la LEFT JOIN users u ON u.user_id=la.employee_id LEFT JOIN departments d ON d.department_id=u.department_id ORDER BY la.applied_at DESC`);
+ res.json({success:true,applications});
+ }catch(error){res.status(500).json({success:false,message:error.message});}
+};
+
 module.exports = {
 
   getSuperadminFieldVisits,
@@ -2118,6 +2126,7 @@ module.exports = {
 
   getSuperadminProjectOptions,
 
-  getSuperadminOverview
+  getSuperadminOverview,
+  getSuperadminLeaves
 
 };

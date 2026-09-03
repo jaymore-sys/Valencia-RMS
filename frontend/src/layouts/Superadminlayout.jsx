@@ -17,6 +17,7 @@ import {
   LogOut,
   Users,
   MapPin,
+  ClipboardCheck,
 } from "lucide-react";
 
 import vnlLogo from "../assets/VNL_logo.webp";
@@ -310,6 +311,15 @@ const SuperadminLayout = () => {
 
 
           {/* FIELD VISITS */}
+
+          <NavLink
+            to="/superadmin/leave-applications"
+            title="Leave Applications"
+          >
+            <ClipboardCheck/>
+            <span>Leave Applications</span>
+          </NavLink>
+
 
           <NavLink
             to="/superadmin/field-visits"
