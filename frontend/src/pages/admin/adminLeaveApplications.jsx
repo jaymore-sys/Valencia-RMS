@@ -1962,6 +1962,7 @@ const styles = {
       "1px solid #d1d5db",
     borderRadius: "11px",
     background: "#ffffff",
+    color: "#111827",
     fontWeight: 900,
     cursor: "pointer",
   },
