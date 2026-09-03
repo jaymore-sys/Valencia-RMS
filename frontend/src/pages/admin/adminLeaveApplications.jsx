@@ -35,6 +35,9 @@ const AdminLeaveApplications = () => {
   const [selectedLeave, setSelectedLeave] =
     useState(null);
 
+  const [showModal, setShowModal] =
+    useState(false);
+
   const [reviewRemark, setReviewRemark] =
     useState("");
 
@@ -530,7 +533,6 @@ useEffect(() => {
 
   if (
     pendingLeave &&
-    applications &&
     applications.length
   ) {
 
