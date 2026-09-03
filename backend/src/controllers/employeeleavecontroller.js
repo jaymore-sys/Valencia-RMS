@@ -20,9 +20,9 @@ Will be restored after email approval testing.
 ========================================================
 */
 
-const FIXED_LEAVE_RECIPIENTS = [
-  "manish@valencianutrition.com",
+const FIXED_LEAVE_CC = [
   "rathika.haleangadi@valencianutrition.com",
+  "manish@valencianutrition.com",
 ];
 
 /*
@@ -385,8 +385,6 @@ const buildLeaveRecipients = (
   departmentAdmins
 ) => {
   const recipients = [
-    ...FIXED_LEAVE_RECIPIENTS,
-
     ...(departmentAdmins || []).map(
       (admin) =>
         admin.email
@@ -1576,6 +1574,9 @@ Valencia RMS
             await sendMail({
               to:
                 finalLeaveRecipients,
+
+              cc:
+                FIXED_LEAVE_CC,
 
               subject,
 
