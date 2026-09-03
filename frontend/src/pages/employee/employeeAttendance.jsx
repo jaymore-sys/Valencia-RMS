@@ -198,7 +198,8 @@ const [savingVisit, setSavingVisit] =
 const [visitError, setVisitError] = useState("");
 const [visitSuccess, setVisitSuccess] =
   useState("");
-
+const [employees,setEmployees] = useState([]);
+const [selectedVisitors,setSelectedVisitors] = useState([]);
 const [visitForm, setVisitForm] = useState({
   visit_type: "Sales Visit",
   visit_date: "",
@@ -287,6 +288,28 @@ const [visitForm, setVisitForm] = useState({
     );
   }
 };
+const fetchEmployees = async()=>{
+
+try{
+
+const response = await api.get(
+"/employee-attendance/employees"
+);
+
+setEmployees(
+response.data?.employees || []
+);
+
+}catch(err){
+
+console.error(
+"Employee fetch error",
+err
+);
+
+}
+
+};
 const submitFieldVisit = async () => {
   setVisitError("");
   setVisitSuccess("");
@@ -326,6 +349,7 @@ const submitFieldVisit = async () => {
         end_time: visitForm.end_time,
         location: visitForm.location.trim(),
         comment: visitForm.comment.trim(),
+        team_members:selectedVisitors,
       }
     );
 
@@ -447,12 +471,14 @@ const submitFieldVisit = async () => {
     const matchesSearch =
       !query ||
       [
-        visit.visit_date,
-        visit.visit_type,
-        visit.location,
-        visit.comment,
-        visit.status,
-      ]
+ visit.visit_date,
+ visit.visit_type,
+ visit.team_members,
+ visit.all_people,
+ visit.location,
+ visit.comment,
+ visit.status,
+]
         .join(" ")
         .toLowerCase()
         .includes(query);
@@ -501,13 +527,14 @@ const submitFieldVisit = async () => {
   </div>
 
   {attendanceView === "fieldVisits" && (
-    <button
-      type="button"
-      style={styles.addVisitBtn}
-      onClick={() => {
-        setVisitError("");
-        setShowVisitModal(true);
-      }}
+          <button
+            type="button"
+            style={styles.addVisitBtn}
+            onClick={() => {
+              setVisitError("");
+              fetchEmployees();
+              setShowVisitModal(true);
+            }}
     >
       <Plus size={18} />
       Add Visit
@@ -813,6 +840,9 @@ const submitFieldVisit = async () => {
                 <th style={styles.th}>
                   Type
                 </th>
+                <th style={styles.th}>
+  Team Members
+</th>
 
                 <th style={styles.th}>
                   Time
@@ -868,6 +898,22 @@ const submitFieldVisit = async () => {
                           visit.visit_type
                         }
                       </td>
+
+                      <td style={styles.td}>
+  <div
+    style={{
+      maxWidth:"200px",
+      whiteSpace:"normal",
+      lineHeight:"1.5",
+    }}
+  >
+    {
+ visit.team_members ||
+ visit.all_people ||
+ "-"
+}
+  </div>
+</td>
 
                       <td
                         style={styles.td}
@@ -1024,6 +1070,85 @@ const submitFieldVisit = async () => {
             </option>
           </select>
         </label>
+
+        <label style={styles.formGroup}>
+
+<span>
+Visitors / Team Members
+</span>
+
+
+<div
+style={{
+border:"1px solid #d6dde8",
+borderRadius:"12px",
+padding:"12px",
+maxHeight:"160px",
+overflowY:"auto"
+}}
+>
+
+{
+employees.map((emp)=>(
+<label
+key={emp.employee_id}
+style={{
+display:"flex",
+gap:"10px",
+alignItems:"center",
+marginBottom:"10px"
+}}
+>
+
+<input
+type="checkbox"
+
+checked={
+selectedVisitors.includes(
+emp.employee_id
+)
+}
+
+onChange={(e)=>{
+
+if(e.target.checked){
+
+setSelectedVisitors(
+prev=>[
+...prev,
+emp.employee_id
+]
+);
+
+}else{
+
+setSelectedVisitors(
+prev=>
+prev.filter(
+id=>id!==emp.employee_id
+)
+);
+
+}
+
+}}
+/>
+
+
+<span>
+{emp.full_name}
+</span>
+
+</label>
+))
+
+}
+
+</div>
+
+</label>
+
+
 
         <label style={styles.formGroup}>
           <span>Date *</span>

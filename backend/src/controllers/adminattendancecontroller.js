@@ -968,167 +968,124 @@ const getDepartmentAttendance = async (
   }
 };
 
-/* =========================================================
-   ADMIN - GET DEPARTMENT FIELD VISITS
-========================================================= */
-
-const getDepartmentFieldVisits = async (req, res) => {
+const getDepartmentFieldVisits = async (req,res)=>{
   try {
+
     const { admin, error } =
       await getLoggedInAdmin(req);
 
-    if (error) {
-      return res
-        .status(error.status)
-        .json({
-          success: false,
-          message: error.message,
-        });
+    if(error){
+      return res.status(error.status).json({
+        success:false,
+        message:error.message
+      });
     }
 
-    const [visits] = await db.query(
-      `
+
+    const [visits] = await db.query(`
       SELECT
-        fv.visit_id,
-        fv.employee_id,
-        fv.visit_type,
 
-        DATE_FORMAT(
-          fv.visit_date,
-          '%Y-%m-%d'
-        ) AS visit_date,
+      fv.*,
 
-        TIME_FORMAT(
-          fv.start_time,
-          '%H:%i'
-        ) AS start_time,
+      creator.full_name AS full_name,
+      creator.employee_code,
 
-        TIME_FORMAT(
-          fv.end_time,
-          '%H:%i'
-        ) AS end_time,
-
-        fv.location,
-        fv.comment,
-        fv.status,
-
-        fv.reviewed_by,
-
-        DATE_FORMAT(
-          fv.reviewed_at,
-          '%Y-%m-%d %H:%i:%s'
-        ) AS reviewed_at,
-
-        fv.review_remark,
-
-        employee.full_name,
-        employee.email,
-        employee.employee_code,
-        employee.designation,
-        employee.department_id,
-
-        department.department_name,
-
-        reviewer.full_name
-          AS reviewed_by_name
+      GROUP_CONCAT(
+        DISTINCT members.full_name
+        SEPARATOR ', '
+      ) AS team_members
 
       FROM employee_field_visits fv
 
-      INNER JOIN users employee
-        ON employee.user_id =
-           fv.employee_id
+      LEFT JOIN users creator
+        ON creator.user_id = fv.employee_id
 
-      LEFT JOIN departments department
-        ON department.department_id =
-           employee.department_id
 
-      LEFT JOIN users reviewer
-        ON reviewer.user_id =
-           fv.reviewed_by
+      LEFT JOIN field_visit_members fvm
+        ON fvm.visit_id = fv.visit_id
 
-      WHERE
-        employee.department_id = ?
 
-        AND LOWER(
-          COALESCE(
-            employee.status,
-            'active'
-          )
-        ) != 'deleted'
+      LEFT JOIN users members
+        ON members.user_id = fvm.employee_id
 
-      ORDER BY
-        CASE
-          WHEN fv.status = 'pending'
-          THEN 0
-          ELSE 1
-        END,
 
-        fv.visit_date DESC,
-        fv.start_time DESC,
-        fv.visit_id DESC
-      `,
-      [admin.department_id]
-    );
+      WHERE creator.department_id = ?
+
+      GROUP BY fv.visit_id
+
+      ORDER BY fv.visit_date DESC
+
+    `,
+    [
+      admin.department_id
+    ]);
+
+
+    visits.forEach((visit)=>{
+
+      visit.all_people = [
+
+        visit.full_name,
+
+        ...(visit.team_members
+          ? visit.team_members.split(", ")
+          : [])
+
+      ];
+
+    });
+
 
     const summary = {
+
       total: visits.length,
 
-      approved: visits.filter(
-        (visit) =>
-          String(
-            visit.status || ""
-          ).toLowerCase() ===
-          "approved"
-      ).length,
+      approved:
+        visits.filter(v =>
+          v.status === "approved"
+        ).length,
 
-      pending: visits.filter(
-        (visit) =>
-          String(
-            visit.status || ""
-          ).toLowerCase() ===
-          "pending"
-      ).length,
+      pending:
+        visits.filter(v =>
+          v.status === "pending"
+        ).length,
 
-      rejected: visits.filter(
-        (visit) =>
-          String(
-            visit.status || ""
-          ).toLowerCase() ===
-          "rejected"
-      ).length,
+      rejected:
+        visits.filter(v =>
+          v.status === "rejected"
+        ).length
+
     };
 
+
     return res.json({
-      success: true,
 
-      department_id:
-        admin.department_id,
-
-      department_name:
-        admin.department_name,
+      success:true,
 
       summary,
 
-      visits,
+      visits
+
     });
-  } catch (error) {
+
+
+  } catch(error){
+
     console.error(
-      "Get department field visits error:",
+      "Department field visits error",
       error
     );
 
+
     return res.status(500).json({
-      success: false,
+
+      success:false,
 
       message:
-        "Failed to fetch field visits.",
+      "Failed to fetch field visits."
 
-      error:
-        error.message,
-
-      sqlMessage:
-        error.sqlMessage || null,
     });
+
   }
 };
 
@@ -1851,157 +1808,207 @@ Valencia RMS
 /* =========================================================
    ADMIN - GET OWN FIELD VISITS
 ========================================================= */
-
-const getAdminFieldVisits = async (
+const getEmployeesForFieldVisit = async (
   req,
   res
 ) => {
   try {
-    const {
-      admin,
-      error,
-    } =
-      await getLoggedInAdmin(
-        req
-      );
+
+    const { admin, error } =
+      await getLoggedInAdmin(req);
 
     if (error) {
       return res
         .status(error.status)
         .json({
-          success: false,
-          message:
-            error.message,
+          success:false,
+          message:error.message,
         });
     }
 
-    const [visits] =
+
+    const [employees] =
       await db.query(
         `
         SELECT
-          fv.visit_id,
-          fv.employee_id,
-          fv.visit_type,
+          u.user_id,
+          u.employee_code,
+          u.full_name,
+          u.email,
+          u.designation
 
-          DATE_FORMAT(
-            fv.visit_date,
-            '%Y-%m-%d'
-          ) AS visit_date,
-
-          TIME_FORMAT(
-            fv.start_time,
-            '%H:%i'
-          ) AS start_time,
-
-          TIME_FORMAT(
-            fv.end_time,
-            '%H:%i'
-          ) AS end_time,
-
-          fv.location,
-          fv.comment,
-          fv.status,
-          fv.review_remark,
-          fv.created_at,
-          fv.updated_at
-
-        FROM employee_field_visits fv
+        FROM users u
 
         WHERE
-          fv.employee_id = ?
+          u.department_id = ?
+
+        AND LOWER(
+          COALESCE(
+            u.status,
+            'active'
+          )
+        ) != 'deleted'
 
         ORDER BY
-          fv.visit_date DESC,
-          fv.start_time DESC,
-          fv.visit_id DESC
+          u.full_name ASC
         `,
         [
-          admin.user_id,
+          admin.department_id
         ]
       );
 
-    const summary = {
-      total:
-        visits.length,
-
-      approved:
-        visits.filter(
-          (visit) =>
-            String(
-              visit.status
-            ).toLowerCase() ===
-            "approved"
-        ).length,
-
-      pending:
-        visits.filter(
-          (visit) =>
-            String(
-              visit.status
-            ).toLowerCase() ===
-            "pending"
-        ).length,
-
-      rejected:
-        visits.filter(
-          (visit) =>
-            String(
-              visit.status
-            ).toLowerCase() ===
-            "rejected"
-        ).length,
-    };
 
     return res.json({
-      success: true,
-
-      admin: {
-        user_id:
-          admin.user_id,
-
-        full_name:
-          admin.full_name,
-
-        department_id:
-          admin.department_id,
-
-        department_name:
-          admin.department_name,
-      },
-
-      summary,
-      visits,
+      success:true,
+      employees
     });
-  } catch (error) {
+
+
+  } catch(error){
+
     console.error(
-      "Get Admin field visits error:",
+      "Get employees for field visit error:",
       error
     );
 
-    return res
-      .status(500)
-      .json({
-        success: false,
 
-        message:
-          "Failed to fetch Admin field visits.",
+    return res.status(500).json({
+      success:false,
+      message:
+        "Failed to fetch employees."
+    });
 
-        error:
-          error.message,
-      });
   }
 };
+const getAdminFieldVisits = async (
+ req,
+ res
+) => {
+
+try {
+
+const {
+ admin,
+ error
+} = await getLoggedInAdmin(req);
+
+
+if(error){
+ return res.status(error.status).json({
+  success:false,
+  message:error.message
+ });
+}
+
+
+const [visits] = await db.query(
+`
+SELECT
+
+fv.*,
+
+creator.full_name,
+
+GROUP_CONCAT(
+ DISTINCT members.full_name
+ SEPARATOR ', '
+) AS team_members
+
+
+FROM employee_field_visits fv
+
+
+LEFT JOIN users creator
+ON creator.user_id = fv.employee_id
+
+
+LEFT JOIN field_visit_members fvm
+ON fvm.visit_id = fv.visit_id
+
+
+LEFT JOIN users members
+ON members.user_id = fvm.employee_id
+
+
+WHERE fv.employee_id = ?
+
+
+GROUP BY fv.visit_id
+
+
+ORDER BY fv.visit_date DESC
+
+`,
+[
+ admin.user_id
+]
+);
+
+
+
+visits.forEach((visit)=>{
+
+visit.all_people = [
+
+visit.full_name,
+
+...(visit.team_members
+? visit.team_members.split(", ")
+: [])
+
+];
+
+});
+
+
+return res.json({
+
+success:true,
+
+visits
+
+});
+
+
+}
+catch(error){
+
+console.error(
+"Get Admin field visits error:",
+error
+);
+
+
+return res.status(500).json({
+
+success:false,
+
+message:
+"Failed to fetch Admin field visits."
+
+});
+
+}
+
+};
 module.exports = {
-  getDepartmentAttendance,
 
-  getDepartmentFieldVisits,
-  reviewFieldVisit,
+ getDepartmentAttendance,
 
-  getAdminDepartmentAttendance:
-    getDepartmentAttendance,
+ getDepartmentFieldVisits,
 
-  getAdminAttendance:
-    getDepartmentAttendance,
-    createAdminFieldVisit,
-getAdminFieldVisits,
+ reviewFieldVisit,
+
+ getAdminDepartmentAttendance:
+ getDepartmentAttendance,
+
+ getAdminAttendance:
+ getDepartmentAttendance,
+
+ createAdminFieldVisit,
+
+ getAdminFieldVisits,
+
+ getEmployeesForFieldVisit,
+
 };

@@ -49,6 +49,7 @@ const AdminAttendance = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
   const [fieldVisitMode, setFieldVisitMode] = useState("team");
 const [teamVisits, setTeamVisits] = useState([]);
 const [myVisits, setMyVisits] = useState([]);
@@ -60,7 +61,9 @@ const [visitMessage, setVisitMessage] = useState("");
 
 const [showVisitModal, setShowVisitModal] = useState(false);
 const [savingVisit, setSavingVisit] = useState(false);
-
+const [employees, setEmployees] = useState([]);
+const [selectedVisitors, setSelectedVisitors] = useState([]);
+const [visitorSearch, setVisitorSearch] = useState("");
 const [visitForm, setVisitForm] = useState({
   visit_type: "Sales Visit",
   visit_date: "",
@@ -152,7 +155,26 @@ const fetchMyVisits = async () => {
     setVisitLoading(false);
   }
 };
+const fetchEmployees = async () => {
+  try {
 
+    const response = await api.get(
+      "/admin-attendance/employees"
+    );
+
+    setEmployees(
+      response.data?.users ||
+      response.data?.employees ||
+      []
+    );
+
+  } catch(err){
+    console.error(
+      "Fetch employees error:",
+      err
+    );
+  }
+};
 const fetchFieldVisits = async () => {
   await Promise.all([
     fetchTeamVisits(),
@@ -192,6 +214,7 @@ const submitAdminVisit = async () => {
         end_time: visitForm.end_time,
         location: visitForm.location.trim(),
         comment: visitForm.comment.trim(),
+        visitor_ids: selectedVisitors,
       }
     );
 
@@ -203,6 +226,8 @@ const submitAdminVisit = async () => {
       location: "",
       comment: "",
     });
+    setSelectedVisitors([]);
+setVisitorSearch("");
 
     setShowVisitModal(false);
     setFieldVisitMode("my");
@@ -262,8 +287,8 @@ const reviewVisit = async (visit, status) => {
   }
 };
   useEffect(() => {
-    fetchAttendance();
-  }, []);
+  fetchAttendance();
+}, []);
 
   const filteredEmployees = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
@@ -337,26 +362,46 @@ const employeeVisitSummary = useMemo(() => {
   const map = {};
 
   teamVisits.forEach((visit) => {
-    const id = visit.employee_id;
+    const people =
+visit.all_people || 
+[visit.full_name];
 
-    if (!map[id]) {
-      map[id] = {
-        employee_id: id,
-        full_name: visit.full_name || "Employee",
-        employee_code: visit.employee_code || "-",
-        total: 0,
-        approved: 0,
-        pending: 0,
-        rejected: 0,
-      };
-    }
 
-    map[id].total += 1;
+people.forEach((person)=>{
 
-    const status = String(visit.status || "").toLowerCase();
+const id = person;
 
-    if (status === "approved") map[id].approved += 1;
-    if (status === "pending") map[id].pending += 1;
+if(!map[id]){
+
+map[id]={
+employee_id:id,
+full_name:id,
+employee_code:"-",
+total:0,
+approved:0,
+pending:0,
+rejected:0
+};
+
+}
+
+map[id].total += 1;
+
+const status =
+String(visit.status||"").toLowerCase();
+
+if(status==="approved")
+map[id].approved++;
+
+if(status==="pending")
+map[id].pending++;
+
+if(status==="rejected")
+map[id].rejected++;
+
+});
+
+  
     if (status === "rejected") map[id].rejected += 1;
   });
 
@@ -446,9 +491,11 @@ useEffect(() => {
       : styles.tabButton
   }
   onClick={() => {
-    setActiveTab("fieldVisits");
-    fetchFieldVisits();
-  }}
+  setActiveTab("fieldVisits");
+  setVisitError("");
+  setVisitMessage("");
+  fetchFieldVisits();
+}}
 >
   Field Visits
 </button>
@@ -604,11 +651,12 @@ useEffect(() => {
     <button
       type="button"
       style={styles.outlineVisitButton}
-      onClick={() => {
-        setVisitError("");
-        setVisitMessage("");
-        setShowVisitModal(true);
-      }}
+     onClick={() => {
+  setVisitError("");
+  setVisitMessage("");
+  fetchEmployees();
+  setShowVisitModal(true);
+}}
     >
       + Add Visit
     </button>
@@ -724,7 +772,11 @@ useEffect(() => {
                     <tr key={visit.visit_id}>
                       <td style={styles.td}>
                         <strong>
-                          {visit.full_name || "-"}
+                          {visit.all_people?.map((person,index)=>(
+<div key={index}>
+{person}
+</div>
+)) || "-"}
                         </strong>
 
                         {visit.employee_code && (
@@ -881,7 +933,11 @@ useEffect(() => {
                     <tr key={visit.visit_id}>
                       <td style={styles.td}>
                         <strong>
-                          {visit.full_name || "-"}
+                          {visit.all_people?.map((person,index)=>(
+<div key={index}>
+{person}
+</div>
+)) || "-"}
                         </strong>
 
                         {visit.employee_code && (
@@ -1185,6 +1241,110 @@ useEffect(() => {
       )}
 
       <div style={styles.visitFormGrid}>
+
+        <label style={styles.visitFormGroup}>
+
+<span>
+Visitors / Team Members
+</span>
+
+
+<input
+type="text"
+placeholder="Search employee..."
+value={visitorSearch}
+onChange={(e)=>
+setVisitorSearch(e.target.value)
+}
+style={styles.visitFormInput}
+/>
+
+
+<div
+style={{
+border:"1px solid #d6dde8",
+borderRadius:"12px",
+padding:"10px",
+maxHeight:"160px",
+overflowY:"auto"
+}}
+>
+
+{
+employees
+.filter((emp)=>
+emp.full_name
+?.toLowerCase()
+.includes(
+visitorSearch.toLowerCase()
+)
+)
+.map((emp)=>{
+
+const checked =
+selectedVisitors.includes(
+Number(emp.user_id)
+);
+
+
+return (
+
+<label
+key={emp.user_id}
+style={{
+display:"flex",
+gap:"10px",
+padding:"7px",
+fontWeight:700
+}}
+>
+
+<input
+type="checkbox"
+checked={checked}
+onChange={()=>{
+
+if(checked){
+
+setSelectedVisitors(prev=>
+prev.filter(
+id=>id!==Number(emp.user_id)
+)
+);
+
+}
+else{
+
+setSelectedVisitors(prev=>[
+...prev,
+Number(emp.user_id)
+]);
+
+}
+
+}}
+/>
+
+{emp.full_name}
+
+</label>
+
+)
+
+})
+}
+
+</div>
+
+
+<p>
+Selected:
+{selectedVisitors.length}
+employee(s)
+</p>
+
+
+</label>
         <label style={styles.visitFormGroup}>
           <span>Visit Type *</span>
 
@@ -1198,16 +1358,25 @@ useEffect(() => {
               }))
             }
           >
-            <option value="Sales Visit">Sales Visit</option>
-            <option value="Client Visit">Client Visit</option>
-            <option value="Market Visit">Market Visit</option>
-            <option value="Vendor Visit">Vendor Visit</option>
-            <option value="Distributor Visit">
-              Distributor Visit
-            </option>
-            <option value="Business Meeting">
-              Business Meeting
-            </option>
+            <option value="Sales Visit">
+Sales Visit
+</option>
+
+<option value="Exhibition Visit">
+Exhibition Visit
+</option>
+
+<option value="Manufacturer Visit">
+Manufacturer Visit
+</option>
+
+<option value="Document Visit">
+Document Visit
+</option>
+
+<option value="Procurement Visit">
+Procurement Visit
+</option>
           </select>
         </label>
 

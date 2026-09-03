@@ -327,117 +327,194 @@ const getEmployeeAttendance = async (req, res) => {
    EMPLOYEE - GET FIELD VISITS
 ========================================================= */
 
-const getEmployeeFieldVisits = async (req, res) => {
+const getEmployeeFieldVisits = async (req,res)=>{
   try {
+
     const employeeId = Number(req.user?.user_id);
 
-    if (!employeeId) {
+    if(!employeeId){
       return res.status(401).json({
-        success: false,
-        message: "Unauthorized.",
+        success:false,
+        message:"Unauthorized."
       });
     }
 
+
     const [visits] = await db.query(
-      `
-      SELECT
-        fv.visit_id,
-        fv.employee_id,
-        fv.visit_type,
+`
+SELECT
 
-        DATE_FORMAT(
-          fv.visit_date,
-          '%Y-%m-%d'
-        ) AS visit_date,
+  fv.visit_id,
+  fv.employee_id,
 
-        TIME_FORMAT(
-          fv.start_time,
-          '%H:%i'
-        ) AS start_time,
+  creator.full_name AS employee_name,
 
-        TIME_FORMAT(
-          fv.end_time,
-          '%H:%i'
-        ) AS end_time,
+  fv.visit_type,
 
-        fv.location,
-        fv.comment,
-        fv.status,
+  DATE_FORMAT(
+    fv.visit_date,
+    '%Y-%m-%d'
+  ) AS visit_date,
 
-        fv.reviewed_by,
 
-        reviewer.full_name
-          AS reviewed_by_name,
+  TIME_FORMAT(
+    fv.start_time,
+    '%H:%i'
+  ) AS start_time,
 
-        DATE_FORMAT(
-          fv.reviewed_at,
-          '%Y-%m-%d %H:%i:%s'
-        ) AS reviewed_at,
 
-        fv.review_remark,
+  TIME_FORMAT(
+    fv.end_time,
+    '%H:%i'
+  ) AS end_time,
 
-        fv.created_at,
-        fv.updated_at
 
-      FROM employee_field_visits fv
+  fv.location,
+  fv.comment,
+  fv.status,
 
-      LEFT JOIN users reviewer
-        ON reviewer.user_id =
-           fv.reviewed_by
 
-      WHERE
-        fv.employee_id = ?
+  GROUP_CONCAT(
+    DISTINCT members.full_name
+    SEPARATOR ', '
+  ) AS team_members,
 
-      ORDER BY
-        fv.visit_date DESC,
-        fv.start_time DESC,
-        fv.visit_id DESC
-      `,
-      [employeeId]
-    );
 
-    const summary = {
-      total: visits.length,
+  reviewer.full_name
+  AS reviewed_by_name,
 
-      approved: visits.filter(
-        (visit) =>
-          String(visit.status).toLowerCase() ===
-          "approved"
-      ).length,
 
-      pending: visits.filter(
-        (visit) =>
-          String(visit.status).toLowerCase() ===
-          "pending"
-      ).length,
+  fv.review_remark,
 
-      rejected: visits.filter(
-        (visit) =>
-          String(visit.status).toLowerCase() ===
-          "rejected"
-      ).length,
-    };
 
-    return res.json({
-      success: true,
-      summary,
-      visits,
-    });
-  } catch (error) {
-    console.error(
-      "Get employee field visits error:",
-      error
-    );
+  fv.created_at,
+  fv.updated_at
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to fetch field visits.",
-      error: error.message,
-      sqlMessage:
-        error.sqlMessage || null,
-    });
-  }
+
+FROM employee_field_visits fv
+
+
+LEFT JOIN users creator
+ON creator.user_id =
+fv.employee_id
+
+
+LEFT JOIN field_visit_members fvm
+ON fvm.visit_id =
+fv.visit_id
+
+
+LEFT JOIN users members
+ON members.user_id =
+fvm.employee_id
+
+
+LEFT JOIN users reviewer
+ON reviewer.user_id =
+fv.reviewed_by
+
+
+
+WHERE
+(
+ fv.employee_id = ?
+
+ OR EXISTS
+ (
+   SELECT 1
+
+   FROM field_visit_members check_member
+
+   WHERE
+   check_member.visit_id =
+   fv.visit_id
+
+   AND
+   check_member.employee_id = ?
+ )
+)
+
+
+GROUP BY
+fv.visit_id
+
+
+ORDER BY
+
+fv.visit_date DESC,
+fv.start_time DESC,
+fv.visit_id DESC
+
+`,
+[
+ employeeId,
+ employeeId
+]
+);
+
+
+
+const summary={
+
+total:visits.length,
+
+
+approved:visits.filter(
+v =>
+String(v.status).toLowerCase()
+==="approved"
+).length,
+
+
+pending:visits.filter(
+v =>
+String(v.status).toLowerCase()
+==="pending"
+).length,
+
+
+rejected:visits.filter(
+v =>
+String(v.status).toLowerCase()
+==="rejected"
+).length
+
+};
+
+
+
+return res.json({
+
+success:true,
+
+summary,
+
+visits
+
+});
+
+
+}catch(error){
+
+console.error(
+"Get employee field visits error:",
+error
+);
+
+
+return res.status(500).json({
+
+success:false,
+
+message:
+"Failed to fetch field visits.",
+
+error:error.message
+
+});
+
+}
+
 };
 
 /* =========================================================
