@@ -1551,20 +1551,14 @@ Valencia RMS
                 </tr>
               </table>
 
-              <p>
-                This application is currently
-                <strong>Pending</strong>
-                and requires review.
-              </p>
+              <p>This application is currently <strong>Pending</strong> and requires review.</p>
 
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin-top:25px;">
+              <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
                 <tr>
-                  <td align="center" bgcolor="#ff5733" style="border-radius:8px;">
-                    <a
-                      href="https://myvol.in/leave-review/${reviewToken}"
-                      style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;"
-                    >
-                      Review Leave Request
+                  <td style="background:#ff5733;border-radius:8px;text-align:center;">
+                    <a href="https://myvol.in/leave-review/${reviewToken}"
+                       style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
+                       Review Leave Request
                     </a>
                   </td>
                 </tr>
