@@ -84,6 +84,7 @@ const AdminAttendance = () => {
 
     if (tab === "fieldVisits" || token) {
       setActiveTab("fieldVisits");
+      fetchFieldVisits();
     }
   }, []);
 

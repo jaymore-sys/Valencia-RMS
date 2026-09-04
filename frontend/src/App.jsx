@@ -115,15 +115,17 @@ function FieldVisitReviewRedirect(){
 
   const target = `/admin/attendance?tab=fieldVisits&fieldVisitToken=${token}`;
 
-  window.history.replaceState(
-    {},
-    "",
-    target
-  );
+  const authToken =
+    sessionStorage.getItem("token") ||
+    localStorage.getItem("token");
 
-  window.location.href = target;
+  if (!authToken) {
+    localStorage.setItem("redirectAfterLogin", target);
+    return <Navigate to="/login" replace />;
+  }
 
-  return null;
+  window.history.replaceState({}, "", target);
+  return <Navigate to={target} replace />;
 }
 
 const getDefaultRouteByRole = (
