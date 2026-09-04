@@ -76,8 +76,13 @@ const AdminAttendance = () => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("fieldVisitToken");
+    const tab = params.get("tab");
+
     if (token) {
       setFieldVisitToken(token);
+    }
+
+    if (tab === "fieldVisits" || token) {
       setActiveTab("fieldVisits");
     }
   }, []);
