@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const crypto = require("crypto");
 const {
   sendMail,
 } = require("../utils/emailservice");
@@ -1480,6 +1481,64 @@ const createAdminFieldVisit = async (
         ]
       );
 
+     const teamMembers =
+  req.body?.visitor_ids || [];
+
+
+if(teamMembers.length){
+
+  const values = teamMembers.map(
+    (id)=>[
+      result.insertId,
+      id
+    ]
+  );
+
+
+  await db.query(
+    `
+    INSERT INTO field_visit_members
+    (
+      visit_id,
+      employee_id
+    )
+    VALUES ?
+    `,
+    [
+      values
+    ]
+  );
+
+}
+// CREATE FIELD VISIT REVIEW TOKEN
+
+const reviewToken =
+  crypto.randomBytes(32).toString("hex");
+
+
+await db.query(
+`
+INSERT INTO field_visit_review_tokens
+(
+ visit_id,
+ token,
+ expires_at
+)
+VALUES
+(
+ ?,
+ ?,
+ DATE_ADD(NOW(), INTERVAL 30 DAY)
+)
+`,
+[
+ result.insertId,
+ reviewToken
+]
+);
+
+
+
     /*
     --------------------------------
     GET SAVED VISIT
@@ -1540,13 +1599,13 @@ const createAdminFieldVisit = async (
     };
 
     try {
-      const subject =
-        `Admin Field Visit - ${
-          admin.full_name ||
-          "Admin"
-        }`;
 
-      const text = `
+  const subject =
+    `Admin Field Visit - ${
+      admin.full_name || "Admin"
+    }`;
+
+  const text = `
 A Field Visit has been added through Valencia RMS.
 
 Name: ${admin.full_name || "-"}
@@ -1568,220 +1627,141 @@ Regards,
 Valencia RMS
 `;
 
-      const html = `
-        <div style="
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #111827;
-        ">
-          <h2 style="
-            color:#ff5733;
-          ">
-            Admin Field Visit
-          </h2>
+  const html = `
+  <div style="font-family:Arial">
+    <h2 style="color:#ff5733">
+      Admin Field Visit
+    </h2>
 
-          <p>
-            A Field Visit has been added
-            through Valencia RMS.
-          </p>
+    <p>
+      A Field Visit has been added through Valencia RMS.
+    </p>
 
-          <table style="
-            border-collapse: collapse;
-            width: 100%;
-            max-width: 650px;
-          ">
+    <p>
+      <b>Name:</b> ${admin.full_name || "-"}<br/>
+      <b>Department:</b> ${admin.department_name || "-"}<br/>
+      <b>Visit Type:</b> ${visitType}<br/>
+      <b>Date:</b> ${visitDate}<br/>
+      <b>Time:</b> ${startTime} - ${endTime}<br/>
+      <b>Location:</b> ${location}<br/>
+      <b>Reason:</b> ${comment}
+    </p>
 
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Name</strong>
-              </td>
+    <p>
+      Regards,<br/>
+      Valencia RMS
+    </p>
+  </div>
+  `;
 
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${admin.full_name || "-"}
-              </td>
-            </tr>
 
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Department</strong>
-              </td>
+ const recipients = [
+  HR_FIELD_VISIT_EMAIL
+];
 
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${
-                  admin.department_name ||
-                  "-"
-                }
-              </td>
-            </tr>
 
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Visit Type</strong>
-              </td>
+// add selected team members emails
+if(teamMembers.length){
 
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${visitType}
-              </td>
-            </tr>
+  const [memberEmails] = await db.query(
+    `
+    SELECT email
+    FROM users
+    WHERE user_id IN (?)
+    `,
+    [
+      teamMembers
+    ]
+  );
 
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Date</strong>
-              </td>
 
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${visitDate}
-              </td>
-            </tr>
+  memberEmails.forEach((user)=>{
 
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Time</strong>
-              </td>
-
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${startTime}
-                -
-                ${endTime}
-              </td>
-            </tr>
-
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Location</strong>
-              </td>
-
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${location}
-              </td>
-            </tr>
-
-            <tr>
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                <strong>Reason</strong>
-              </td>
-
-              <td style="
-                padding:8px;
-                border:1px solid #ddd;
-              ">
-                ${comment}
-              </td>
-            </tr>
-
-          </table>
-
-          <p>
-            Regards,<br />
-            Valencia RMS
-          </p>
-        </div>
-      `;
-
-      const mailResponse =
-        await sendMail({
-          to:
-            HR_FIELD_VISIT_EMAIL,
-
-          subject,
-          text,
-          html,
-
-          replyTo:
-            admin.email ||
-            undefined,
-        });
-
-      emailResult = {
-        sent:
-          !mailResponse?.skipped,
-
-        skipped:
-          Boolean(
-            mailResponse?.skipped
-          ),
-
-        messageId:
-          mailResponse
-            ?.messageId ||
-          null,
-      };
-    } catch (
-      emailError
-    ) {
-      console.error(
-        "Admin field visit HR email failed:",
-        emailError
-      );
-
-      /*
-      IMPORTANT:
-      Email failure must not
-      delete the Field Visit.
-      */
-
-      emailResult = {
-        sent: false,
-        skipped: false,
-        error:
-          emailError.message,
-      };
+    if(user.email){
+      recipients.push(user.email);
     }
 
-    return res
-      .status(201)
-      .json({
-        success: true,
+  });
 
-        message:
-          "Field visit added successfully.",
+}
 
-        visit:
-          visitRows[0] ||
-          null,
 
-        email:
-          emailResult,
-      });
+// add department admin email
+if(admin.department_id){
+
+  const [deptAdmins] = await db.query(
+    `
+    SELECT email
+    FROM users
+    WHERE department_id = ?
+    AND role_id = (
+      SELECT role_id
+      FROM roles
+      WHERE role_name = 'admin'
+    )
+    `,
+    [
+      admin.department_id
+    ]
+  );
+
+
+  deptAdmins.forEach((user)=>{
+
+    if(user.email){
+      recipients.push(user.email);
+    }
+
+  });
+
+}
+
+
+const mailResponse =
+await sendMail({
+  to: [...new Set(recipients)],
+  subject,
+  text,
+  html,
+  replyTo: admin.email || undefined,
+});
+
+  emailResult = {
+    sent:
+      !mailResponse?.skipped,
+
+    skipped:
+      Boolean(
+        mailResponse?.skipped
+      ),
+
+    messageId:
+      mailResponse?.messageId || null,
+  };
+
+
+} catch(emailError){
+
+  console.error(
+    "Admin field visit HR email failed:",
+    emailError
+  );
+
+
+  emailResult = {
+    sent:false,
+    skipped:false,
+    error:
+      emailError.message,
+  };
+
+}
+    return res.status(200).json({
+      success: true,
+      message: "Field visit added successfully.",
+      visit: visitRows[0] || null,
+      email: emailResult,
+    });
   } catch (error) {
     console.error(
       "Create Admin field visit error:",
@@ -1804,82 +1784,12 @@ Valencia RMS
           null,
       });
   }
+
 };
 /* =========================================================
    ADMIN - GET OWN FIELD VISITS
 ========================================================= */
-const getEmployeesForFieldVisit = async (
-  req,
-  res
-) => {
-  try {
 
-    const { admin, error } =
-      await getLoggedInAdmin(req);
-
-    if (error) {
-      return res
-        .status(error.status)
-        .json({
-          success:false,
-          message:error.message,
-        });
-    }
-
-
-    const [employees] =
-      await db.query(
-        `
-        SELECT
-          u.user_id,
-          u.employee_code,
-          u.full_name,
-          u.email,
-          u.designation
-
-        FROM users u
-
-        WHERE
-          u.department_id = ?
-
-        AND LOWER(
-          COALESCE(
-            u.status,
-            'active'
-          )
-        ) != 'deleted'
-
-        ORDER BY
-          u.full_name ASC
-        `,
-        [
-          admin.department_id
-        ]
-      );
-
-
-    return res.json({
-      success:true,
-      employees
-    });
-
-
-  } catch(error){
-
-    console.error(
-      "Get employees for field visit error:",
-      error
-    );
-
-
-    return res.status(500).json({
-      success:false,
-      message:
-        "Failed to fetch employees."
-    });
-
-  }
-};
 const getAdminFieldVisits = async (
  req,
  res
@@ -1930,8 +1840,18 @@ LEFT JOIN users members
 ON members.user_id = fvm.employee_id
 
 
-WHERE fv.employee_id = ?
+WHERE 
+(
+  fv.employee_id = ?
 
+  OR EXISTS (
+    SELECT 1
+    FROM field_visit_members fvm2
+    WHERE 
+      fvm2.visit_id = fv.visit_id
+      AND fvm2.employee_id = ?
+  )
+)
 
 GROUP BY fv.visit_id
 
@@ -1940,6 +1860,7 @@ ORDER BY fv.visit_date DESC
 
 `,
 [
+ admin.user_id,
  admin.user_id
 ]
 );
@@ -1991,6 +1912,60 @@ message:
 }
 
 };
+const getEmployeesForFieldVisit = async(req,res)=>{
+
+try{
+
+const [rows] = await db.query(
+`
+SELECT
+u.user_id,
+u.full_name,
+r.role_name
+
+FROM users u
+
+LEFT JOIN roles r
+ON r.role_id = u.role_id
+
+WHERE u.user_id != ?
+
+AND LOWER(r.role_name) IN(
+'employee',
+'admin',
+'administrator'
+)
+
+ORDER BY u.full_name ASC
+`,
+[
+req.user.user_id
+]
+);
+
+
+return res.json({
+success:true,
+employees:rows
+});
+
+
+}
+catch(error){
+
+console.error(
+"ADMIN FIELD VISIT EMPLOYEE ERROR",
+error
+);
+
+return res.status(500).json({
+success:false,
+message:error.message
+});
+
+}
+
+};
 module.exports = {
 
  getDepartmentAttendance,
@@ -2009,6 +1984,6 @@ module.exports = {
 
  getAdminFieldVisits,
 
- getEmployeesForFieldVisit,
+getEmployeesForFieldVisit,
 
 };

@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const crypto = require("crypto");
 const {
   sendMail,
 } = require("../utils/emailservice");
@@ -328,8 +329,9 @@ const getEmployeeAttendance = async (req, res) => {
 ========================================================= */
 
 const getEmployeeFieldVisits = async (req,res)=>{
+  
   try {
-
+console.log("FIELD VISIT REQUEST USER:", req.user);
     const employeeId = Number(req.user?.user_id);
 
     if(!employeeId){
@@ -694,6 +696,57 @@ const createEmployeeFieldVisit = async (
           comment,
         ]
       );
+      if(
+ Array.isArray(req.body.visitor_ids) &&
+ req.body.visitor_ids.length
+){
+
+ const members = req.body.visitor_ids.map(
+  id => [
+    result.insertId,
+    Number(id)
+  ]
+ );
+
+ await db.query(
+ `
+ INSERT INTO field_visit_members
+ (
+  visit_id,
+  employee_id
+ )
+ VALUES ?
+ `,
+ [members]
+ );
+
+}
+// CREATE FIELD VISIT REVIEW TOKEN
+
+const reviewToken =
+  crypto.randomBytes(32).toString("hex");
+
+
+await db.query(
+`
+INSERT INTO field_visit_review_tokens
+(
+ visit_id,
+ token,
+ expires_at
+)
+VALUES
+(
+ ?,
+ ?,
+ DATE_ADD(NOW(), INTERVAL 30 DAY)
+)
+`,
+[
+ result.insertId,
+ reviewToken
+]
+);
 
     /* =========================
        GET SAVED VISIT
@@ -828,10 +881,56 @@ const createEmployeeFieldVisit = async (
           hrEmail
         );
 
-      let toEmails =
-        adminEmails;
+      let toEmails = [
+  ...adminEmails
+];
 
-      let ccEmails = [];
+let ccEmails = [];
+const selectedVisitors =
+[
+ ...(req.body.visitor_ids || []),
+ ...(req.body.team_member_ids || []),
+ ...(req.body.members || [])
+];
+
+console.log(
+ "SELECTED VISIT MEMBERS:",
+ selectedVisitors
+);
+
+
+if (
+  Array.isArray(selectedVisitors) &&
+  selectedVisitors.length
+) {
+
+  const [memberRows] = await db.query(
+    `
+    SELECT email
+    FROM users
+    WHERE user_id IN (?)
+    AND email IS NOT NULL
+    `,
+    [
+      selectedVisitors
+    ]
+  );
+
+
+  memberRows.forEach((member)=>{
+
+    if(member.email){
+
+      toEmails.push(
+        member.email.trim()
+      );
+
+    }
+
+  });
+
+}
+
 
       /*
        If department has Admin(s):
@@ -843,18 +942,28 @@ const createEmployeeFieldVisit = async (
       */
 
       if (
-        adminEmails.length > 0
-      ) {
-        if (!hrAlreadyAdmin) {
-          ccEmails = [
-            HR_FIELD_VISIT_EMAIL,
-          ];
-        }
-      } else {
-        toEmails = [
-          HR_FIELD_VISIT_EMAIL,
-        ];
-      }
+  !hrAlreadyAdmin
+) {
+
+  ccEmails.push(
+    HR_FIELD_VISIT_EMAIL
+  );
+
+}
+
+
+// If no admin exists,
+// HR should still receive mail
+if(
+  adminEmails.length === 0 &&
+  toEmails.length === 0
+){
+
+  toEmails.push(
+    HR_FIELD_VISIT_EMAIL
+  );
+
+}
 
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
@@ -1087,26 +1196,46 @@ Valencia RMS
 
         </div>
       `;
+      toEmails = [
+ ...new Set(toEmails)
+];
+console.log(
+"FINAL MAIL TO:",
+toEmails
+);
 
-      const mailResponse =
-        await sendMail({
-          to:
-            toEmails.join(", "),
+console.log(
+"FINAL MAIL CC:",
+ccEmails
+);
+ccEmails = [
+ ...new Set(ccEmails)
+];
+console.log(
+ "FINAL FIELD VISIT MAIL TO:",
+ toEmails
+);
 
-          cc:
-            ccEmails.length
-              ? ccEmails
-              : undefined,
+console.log(
+ "FINAL FIELD VISIT MAIL CC:",
+ ccEmails
+);
+const mailResponse = await sendMail({
 
-          subject,
-          text,
-          html,
+  to: toEmails,
 
-          replyTo:
-            employee.email ||
-            undefined,
-        });
+  cc: ccEmails,
 
+  subject,
+
+  text,
+
+  html,
+
+  replyTo:
+    employee.email || undefined,
+
+});
       emailResult = {
         sent:
           !mailResponse?.skipped,
@@ -1184,9 +1313,69 @@ Valencia RMS
   }
 };
 
+const getEmployeesForFieldVisit = async(req,res)=>{
 
+try{
+
+const [rows] = await db.query(
+`
+SELECT 
+u.user_id,
+u.full_name,
+r.role_name
+
+FROM users u
+
+LEFT JOIN roles r
+ON r.role_id = u.role_id
+
+WHERE u.user_id != ?
+
+AND LOWER(r.role_name) IN (
+'employee',
+'admin',
+'administrator'
+)
+
+ORDER BY u.full_name ASC
+`,
+[
+req.user.user_id
+]
+);
+
+
+console.log(
+"FIELD VISIT EMPLOYEE LIST:",
+rows
+);
+
+
+res.json({
+success:true,
+employees:rows
+});
+
+
+}
+catch(error){
+
+console.error(
+"GET EMPLOYEES FIELD VISIT ERROR",
+error
+);
+
+res.status(500).json({
+success:false,
+message:error.message
+});
+
+}
+
+};
 module.exports = {
   getEmployeeAttendance,
   getEmployeeFieldVisits,
   createEmployeeFieldVisit,
+  getEmployeesForFieldVisit
 };

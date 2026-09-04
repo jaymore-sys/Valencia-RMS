@@ -1056,8 +1056,7 @@ const AdminCalendar = () => {
   flexDirection: "column",
   overflowY: "auto",
   overflowX: "hidden",
-  transform: "translateY(-125px)",
-  transform: "translateX(-15px)",
+  transform: "translate(-15px, -125px)"
 }}
     >
       {/* ==================== TITLE ==================== */}

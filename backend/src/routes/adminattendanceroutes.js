@@ -3,11 +3,19 @@ const authMiddleware = require("../middleware/authmiddleware");
 const { requireRole } = require("../middleware/rolemiddleware");
 
 const {
+
   getDepartmentAttendance,
+
   getDepartmentFieldVisits,
+
   reviewFieldVisit,
+
   createAdminFieldVisit,
-getAdminFieldVisits,
+
+  getAdminFieldVisits,
+
+  getEmployeesForFieldVisit,
+
 } = require("../controllers/adminattendancecontroller");
 
 const router = express.Router();
@@ -49,7 +57,12 @@ router.get(
   requireRole("admin"),
   getDepartmentFieldVisits
 );
-
+router.get(
+  "/field-visit-employees",
+  authMiddleware,
+  requireRole("admin"),
+  getEmployeesForFieldVisit
+);
 router.post(
   "/field-visits/:visitId/review",
   authMiddleware,

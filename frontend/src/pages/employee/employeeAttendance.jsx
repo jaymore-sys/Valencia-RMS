@@ -167,7 +167,7 @@ const EmployeeAttendance = () => {
     late: 0,
     leave: 0,
   });
-
+const [visitorSearch,setVisitorSearch] = useState("");
   const [attendance, setAttendance] = useState([]);
   const [activeRange, setActiveRange] = useState("week");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -253,8 +253,8 @@ const [visitForm, setVisitForm] = useState({
   const fetchFieldVisits = async () => {
   try {
     const response = await api.get(
-      "/employee-attendance/field-visits"
-    );
+"/employee-attendance/field-visits"
+);
 
     setFieldVisits(
       Array.isArray(response.data?.visits)
@@ -349,7 +349,7 @@ const submitFieldVisit = async () => {
         end_time: visitForm.end_time,
         location: visitForm.location.trim(),
         comment: visitForm.comment.trim(),
-        team_members:selectedVisitors,
+        visitor_ids:selectedVisitors,
       }
     );
 
@@ -1053,101 +1053,252 @@ const submitFieldVisit = async () => {
               )
             }
           >
-            <option value="Sales Visit">
-              Sales Visit
-            </option>
+                  <option value="Sales Visit">
+                    Sales Visit
+                  </option>
 
-            <option value="Client Visit">
-              Client Visit
-            </option>
+                  <option value="Exhibition Visit">
+                    Exhibition Visit
+                  </option>
 
-            <option value="Market Visit">
-              Market Visit
-            </option>
+                  <option value="Manufacturer Visit">
+                    Manufacturer Visit
+                  </option>
+                  <option value="Business Visit">
+                    Business Visit
+                  </option>
 
-            <option value="Vendor Visit">
-              Vendor Visit
-            </option>
+                  <option value="Document Visit">
+                    Document Visit
+                  </option>
+
+                  <option value="Procurement Visit">
+                    Procurement Visit
+                  </option>
+
+                  <option value="Client Visit">
+                    Client Visit
+                  </option>
+
+                  <option value="Market Visit">
+                    Market Visit
+                  </option>
+
+                  <option value="Vendor Visit">
+                    Vendor Visit
+                  </option>
           </select>
         </label>
-
-        <label style={styles.formGroup}>
+        
+      <label style={styles.formGroup}>
 
 <span>
 Visitors / Team Members
 </span>
 
 
-<div
-style={{
-border:"1px solid #d6dde8",
-borderRadius:"12px",
-padding:"12px",
-maxHeight:"160px",
-overflowY:"auto"
-}}
->
+<input
+type="text"
+style={styles.formInput}
+placeholder="Search employee..."
+value={visitorSearch}
+onChange={(e)=>setVisitorSearch(e.target.value)}
+/>
+
+
+{/* SELECTED EMPLOYEES */}
 
 {
-employees.map((emp)=>(
-<label
-key={emp.employee_id}
+selectedVisitors.length > 0 && (
+
+<div
 style={{
 display:"flex",
-gap:"10px",
-alignItems:"center",
+flexWrap:"wrap",
+gap:"8px",
+marginTop:"10px",
 marginBottom:"10px"
 }}
 >
 
+{
+selectedVisitors.map((id)=>{
+
+const emp =
+employees.find(
+(e)=>e.user_id===id
+);
+
+return (
+
+<div
+key={id}
+style={{
+background:"#fff0eb",
+color:"#ff5733",
+border:"1px solid #ffd1c7",
+padding:"5px 10px",
+borderRadius:"999px",
+fontSize:"11px",
+fontWeight:800,
+display:"flex",
+alignItems:"center",
+gap:"6px"
+}}
+>
+
+{emp?.full_name}
+
+
+<button
+type="button"
+style={{
+border:"none",
+background:"transparent",
+cursor:"pointer",
+fontWeight:900,
+color:"#ff5733"
+}}
+
+onClick={()=>{
+
+setSelectedVisitors(
+prev=>
+prev.filter(
+(item)=>item!==id
+)
+);
+
+}}
+
+>
+×
+</button>
+
+
+</div>
+
+)
+
+})
+
+}
+
+</div>
+
+)
+
+}
+
+
+<div
+style={{
+border:"1px solid #d6dde8",
+borderRadius:"14px",
+marginTop:"8px",
+height:"95px",
+overflowY:"auto",
+padding:"8px",
+background:"#fff"
+}}
+>
+
+{
+employees.length === 0 ? (
+
+<div
+style={{
+color:"#64748b",
+fontSize:"14px"
+}}
+>
+No employees found
+</div>
+
+)
+
+:
+
+employees
+.filter((emp)=>{
+
+return emp.full_name
+?.toLowerCase()
+.includes(
+visitorSearch.toLowerCase()
+);
+
+})
+.map((emp)=>(
+
+<label
+key={emp.user_id}
+style={{
+display:"flex",
+alignItems:"center",
+gap:"10px",
+padding:"8px 5px",
+cursor:"pointer"
+}}
+>
+
 <input
+
 type="checkbox"
 
 checked={
 selectedVisitors.includes(
-emp.employee_id
+emp.user_id
 )
 }
 
 onChange={(e)=>{
+
 
 if(e.target.checked){
 
 setSelectedVisitors(
 prev=>[
 ...prev,
-emp.employee_id
+emp.user_id
 ]
 );
 
-}else{
+}
+
+else{
 
 setSelectedVisitors(
 prev=>
 prev.filter(
-id=>id!==emp.employee_id
+id=>id!==emp.user_id
 )
 );
 
 }
 
-}}
-/>
 
+}}
+
+
+/>
 
 <span>
 {emp.full_name}
 </span>
 
+
 </label>
+
+
 ))
 
 }
 
+
 </div>
-
 </label>
-
+       
 
 
         <label style={styles.formGroup}>
@@ -1445,14 +1596,28 @@ visitFormGrid: {
   display: "grid",
   gridTemplateColumns:
     "repeat(2, minmax(0, 1fr))",
-  gap: "14px",
+  columnGap: "14px",
+  rowGap: "10px",
+  alignItems: "start",
 },
-
+visitTypeFix:{
+  gridColumn:"2",
+  gridRow:"1",
+},
+employeeList:{
+  border:"1px solid #d6dde8",
+  borderRadius:"12px",
+  marginTop:"6px",
+  height:"65px",
+  overflowY:"auto",
+  padding:"4px 8px",
+  background:"#ffffff",
+},
 formGroup: {
   display: "flex",
   flexDirection: "column",
-  gap: "8px",
-  marginBottom: "15px",
+  gap: "6px",
+  marginBottom: "8px",
   color: "#111827",
   fontSize: "13px",
   fontWeight: 900,

@@ -35,14 +35,18 @@ router.get(
 /* =========================================================
    FIELD VISITS
 ========================================================= */
-
 router.get(
-  "/field-visits",
+ "/field-visits",
+ authMiddleware,
+ onlyEmployee,
+ employeeAttendanceController.getEmployeeFieldVisits
+);
+router.get(
+  "/employees",
   authMiddleware,
   onlyEmployee,
-  employeeAttendanceController.getEmployeeFieldVisits
+  employeeAttendanceController.getEmployeesForFieldVisit
 );
-
 router.post(
   "/field-visits",
   authMiddleware,
