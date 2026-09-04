@@ -1499,7 +1499,7 @@ if(teamMembers.length){
     `
     INSERT INTO field_visit_members
     (
-      visit_id,
+      field_visit_id,
       employee_id
     )
     VALUES ?

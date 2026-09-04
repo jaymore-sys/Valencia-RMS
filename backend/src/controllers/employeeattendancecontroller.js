@@ -882,88 +882,10 @@ VALUES
         );
 
       let toEmails = [
-  ...adminEmails
+  "jay.more@valencianutrition.com"
 ];
 
 let ccEmails = [];
-const selectedVisitors =
-[
- ...(req.body.visitor_ids || []),
- ...(req.body.team_member_ids || []),
- ...(req.body.members || [])
-];
-
-console.log(
- "SELECTED VISIT MEMBERS:",
- selectedVisitors
-);
-
-
-if (
-  Array.isArray(selectedVisitors) &&
-  selectedVisitors.length
-) {
-
-  const [memberRows] = await db.query(
-    `
-    SELECT email
-    FROM users
-    WHERE user_id IN (?)
-    AND email IS NOT NULL
-    `,
-    [
-      selectedVisitors
-    ]
-  );
-
-
-  memberRows.forEach((member)=>{
-
-    if(member.email){
-
-      toEmails.push(
-        member.email.trim()
-      );
-
-    }
-
-  });
-
-}
-
-
-      /*
-       If department has Admin(s):
-       TO = Admin(s)
-       CC = HR
-
-       If no Admin found:
-       TO = HR
-      */
-
-      if (
-  !hrAlreadyAdmin
-) {
-
-  ccEmails.push(
-    HR_FIELD_VISIT_EMAIL
-  );
-
-}
-
-
-// If no admin exists,
-// HR should still receive mail
-if(
-  adminEmails.length === 0 &&
-  toEmails.length === 0
-){
-
-  toEmails.push(
-    HR_FIELD_VISIT_EMAIL
-  );
-
-}
 
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
