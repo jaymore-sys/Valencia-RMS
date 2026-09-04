@@ -1189,6 +1189,18 @@ Valencia RMS
             Department Admin.
           </p>
 
+          <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+            <tr>
+              <td style="background:#ff5733;border-radius:8px;text-align:center;">
+                <a href="https://myvol.in/field-visit-review/${reviewToken}"
+                   style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
+                   Review Field Visit
+                </a>
+              </td>
+            </tr>
+          </table>
+
+
           <p>
             Regards,<br />
             Valencia RMS

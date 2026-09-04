@@ -1003,7 +1003,7 @@ const getDepartmentFieldVisits = async (req,res)=>{
 
 
       LEFT JOIN field_visit_members fvm
-        ON fvm.visit_id = fv.visit_id
+        ON fvm.field_visit_id = fv.visit_id
 
 
       LEFT JOIN users members
@@ -1791,7 +1791,7 @@ ON creator.user_id = fv.employee_id
 
 
 LEFT JOIN field_visit_members fvm
-ON fvm.visit_id = fv.visit_id
+ON fvm.field_visit_id = fv.visit_id
 
 
 LEFT JOIN users members
@@ -1806,7 +1806,7 @@ WHERE
     SELECT 1
     FROM field_visit_members fvm2
     WHERE 
-      fvm2.visit_id = fv.visit_id
+      fvm2.field_visit_id = fv.visit_id
       AND fvm2.employee_id = ?
   )
 )
