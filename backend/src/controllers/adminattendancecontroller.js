@@ -6,6 +6,8 @@ const {
 
 const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
+const MANISH_FIELD_VISIT_EMAIL =
+  "manish@valencianutrition.com";
 const OFFICE_START_MINUTES = 11 * 60; // 11:00 AM
 const OFFICE_END_MINUTES = 19 * 60 + 30; // 7:30 PM
 
@@ -1686,15 +1688,63 @@ Valencia RMS
   `;
 
 
- const recipients = [
-  "jay.more@valencianutrition.com"
-];
+  const [superadminRows] = await db.query(
+    `
+    SELECT DISTINCT u.email
+    FROM users u
+    INNER JOIN roles r
+      ON r.role_id = u.role_id
+    WHERE LOWER(r.role_name) = 'superadmin'
+      AND LOWER(COALESCE(u.status, 'active')) != 'deleted'
+      AND u.email IS NOT NULL
+      AND TRIM(u.email) != ''
+    `
+  );
 
+  const reviewerEmails = [
+    ...new Set(
+      superadminRows
+        .map((row) =>
+          String(row.email || "")
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    ),
+  ];
 
+  let toEmails = reviewerEmails;
+
+  let ccEmails = [
+    HR_FIELD_VISIT_EMAIL,
+    MANISH_FIELD_VISIT_EMAIL,
+  ]
+    .map((email) =>
+      String(email || "")
+        .trim()
+        .toLowerCase()
+    )
+    .filter(
+      (email, index, array) =>
+        email &&
+        array.indexOf(email) === index &&
+        !toEmails.includes(email)
+    );
+
+  // Fallback: HR + Manish still receive the mail
+  // if no active Superadmin account is found.
+  if (toEmails.length === 0) {
+    toEmails = [
+      HR_FIELD_VISIT_EMAIL,
+      MANISH_FIELD_VISIT_EMAIL,
+    ];
+    ccEmails = [];
+  }
 
 const mailResponse =
 await sendMail({
-  to: [...new Set(recipients)],
+  to: toEmails,
+  cc: ccEmails,
   subject,
   text,
   html,

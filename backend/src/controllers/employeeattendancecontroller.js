@@ -6,6 +6,8 @@ const {
 
 const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
+const MANISH_FIELD_VISIT_EMAIL =
+  "manish@valencianutrition.com";
 const tableColumnsCache = {};
 
 const getTableColumns = async (tableName) => {
@@ -402,7 +404,7 @@ fv.employee_id
 
 
 LEFT JOIN field_visit_members fvm
-ON fvm.field_visit_id =
+ON fvm.visit_id =
 fv.visit_id
 
 
@@ -428,7 +430,7 @@ WHERE
    FROM field_visit_members check_member
 
    WHERE
-   check_member.field_visit_id =
+   check_member.visit_id =
    fv.visit_id
 
    AND
@@ -712,7 +714,7 @@ const createEmployeeFieldVisit = async (
  `
  INSERT INTO field_visit_members
  (
-  field_visit_id,
+  visit_id,
   employee_id
  )
  VALUES ?
@@ -865,27 +867,62 @@ VALUES
     };
 
     try {
-      const hrEmail =
-        HR_FIELD_VISIT_EMAIL
-          .trim()
-          .toLowerCase();
-
       /*
-       If Rathika later becomes
-       an Admin, prevent duplicate
-       email.
+       Employee Field Visit recipients:
+       TO = active Admin(s) of employee's department
+       CC = Rathika + Manish
+
+       Selected visitors/team members are intentionally
+       NOT added to the approval email.
       */
 
-      const hrAlreadyAdmin =
-        adminEmails.includes(
-          hrEmail
-        );
-
       let toEmails = [
-  "jay.more@valencianutrition.com"
-];
+        ...adminEmails,
+      ];
 
-let ccEmails = [];
+      let ccEmails = [
+        HR_FIELD_VISIT_EMAIL,
+        MANISH_FIELD_VISIT_EMAIL,
+      ];
+
+      // Remove duplicates across TO and CC.
+      toEmails = [
+        ...new Set(
+          toEmails
+            .map((email) =>
+              String(email || "")
+                .trim()
+                .toLowerCase()
+            )
+            .filter(Boolean)
+        ),
+      ];
+
+      ccEmails = [
+        ...new Set(
+          ccEmails
+            .map((email) =>
+              String(email || "")
+                .trim()
+                .toLowerCase()
+            )
+            .filter(
+              (email) =>
+                email &&
+                !toEmails.includes(email)
+            )
+        ),
+      ];
+
+      // If no department Admin is configured,
+      // fixed recipients must still receive the request.
+      if (toEmails.length === 0) {
+        toEmails = [
+          HR_FIELD_VISIT_EMAIL,
+          MANISH_FIELD_VISIT_EMAIL,
+        ];
+        ccEmails = [];
+      }
 
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
@@ -1110,18 +1147,6 @@ Valencia RMS
             review by the respective
             Department Admin.
           </p>
-
-          <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
-            <tr>
-              <td style="background:#ff5733;border-radius:8px;text-align:center;">
-                <a href="https://myvol.in/field-visit-review/${reviewToken}"
-                   style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
-                   Review Field Visit
-                </a>
-              </td>
-            </tr>
-          </table>
-
 
           <p>
             Regards,<br />

@@ -22,7 +22,7 @@ Will be restored after email approval testing.
 
 const FIXED_LEAVE_CC = [
   "rathika.haleangadi@valencianutrition.com",
-  
+  "manish@valencianutrition.com",
 ];
 
 /*
