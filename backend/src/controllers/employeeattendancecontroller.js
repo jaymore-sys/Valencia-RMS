@@ -402,7 +402,7 @@ fv.employee_id
 
 
 LEFT JOIN field_visit_members fvm
-ON fvm.visit_id =
+ON fvm.field_visit_id =
 fv.visit_id
 
 
@@ -428,7 +428,7 @@ WHERE
    FROM field_visit_members check_member
 
    WHERE
-   check_member.visit_id =
+   check_member.field_visit_id =
    fv.visit_id
 
    AND
@@ -988,8 +988,6 @@ Status: Pending
 
 This Field Visit requires review by the respective Department Admin.
 
-Review Link: https://myvol.in/field-visit-review/${reviewToken}
-
 Regards,
 Valencia RMS
 `;
@@ -1191,17 +1189,6 @@ Valencia RMS
             Department Admin.
           </p>
 
-          <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
-            <tr>
-              <td style="background:#ff5733;border-radius:8px;text-align:center;">
-                <a href="https://myvol.in/field-visit-review/${reviewToken}"
-                   style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
-                   Review Field Visit
-                </a>
-              </td>
-            </tr>
-          </table>
-
           <p>
             Regards,<br />
             Valencia RMS
@@ -1233,12 +1220,6 @@ console.log(
  "FINAL FIELD VISIT MAIL CC:",
  ccEmails
 );
-toEmails = [
-  "jay.more@valencianutrition.com"
-];
-
-ccEmails = [];
-
 const mailResponse = await sendMail({
 
   to: toEmails,
