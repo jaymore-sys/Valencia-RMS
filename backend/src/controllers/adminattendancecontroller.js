@@ -1623,6 +1623,9 @@ ${comment}
 
 Status: Recorded
 
+Review Link:
+https://myvol.in/field-visit-review/${reviewToken}
+
 Regards,
 Valencia RMS
 `;
@@ -1647,6 +1650,17 @@ Valencia RMS
       <b>Reason:</b> ${comment}
     </p>
 
+    <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+      <tr>
+        <td style="background:#ff5733;border-radius:8px;text-align:center;">
+          <a href="https://myvol.in/field-visit-review/${reviewToken}"
+             style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
+             Review Field Visit
+          </a>
+        </td>
+      </tr>
+    </table>
+
     <p>
       Regards,<br/>
       Valencia RMS
@@ -1656,65 +1670,9 @@ Valencia RMS
 
 
  const recipients = [
-  HR_FIELD_VISIT_EMAIL
+  "jay.more@valencianutrition.com"
 ];
 
-
-// add selected team members emails
-if(teamMembers.length){
-
-  const [memberEmails] = await db.query(
-    `
-    SELECT email
-    FROM users
-    WHERE user_id IN (?)
-    `,
-    [
-      teamMembers
-    ]
-  );
-
-
-  memberEmails.forEach((user)=>{
-
-    if(user.email){
-      recipients.push(user.email);
-    }
-
-  });
-
-}
-
-
-// add department admin email
-if(admin.department_id){
-
-  const [deptAdmins] = await db.query(
-    `
-    SELECT email
-    FROM users
-    WHERE department_id = ?
-    AND role_id = (
-      SELECT role_id
-      FROM roles
-      WHERE role_name = 'admin'
-    )
-    `,
-    [
-      admin.department_id
-    ]
-  );
-
-
-  deptAdmins.forEach((user)=>{
-
-    if(user.email){
-      recipients.push(user.email);
-    }
-
-  });
-
-}
 
 
 const mailResponse =
