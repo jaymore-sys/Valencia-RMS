@@ -1001,6 +1001,9 @@ const getDepartmentFieldVisits = async (req,res)=>{
       LEFT JOIN users creator
         ON creator.user_id = fv.employee_id
 
+      LEFT JOIN roles creator_role
+        ON creator_role.role_id = creator.role_id
+
 
       LEFT JOIN field_visit_members fvm
         ON fvm.field_visit_id = fv.visit_id
@@ -1011,6 +1014,10 @@ const getDepartmentFieldVisits = async (req,res)=>{
 
 
       WHERE creator.department_id = ?
+
+        AND LOWER(
+          COALESCE(creator_role.role_name, '')
+        ) = 'employee'
 
       GROUP BY fv.visit_id
 
@@ -1169,16 +1176,27 @@ const reviewFieldVisit = async (req, res) => {
           ON employee.user_id =
              fv.employee_id
 
+        INNER JOIN roles employee_role
+          ON employee_role.role_id =
+             employee.role_id
+
         WHERE
           fv.visit_id = ?
 
           AND employee.department_id = ?
+
+          AND employee.user_id <> ?
+
+          AND LOWER(
+            COALESCE(employee_role.role_name, '')
+          ) = 'employee'
 
         LIMIT 1
         `,
         [
           visitId,
           admin.department_id,
+          admin.user_id,
         ]
       );
 
@@ -1186,7 +1204,7 @@ const reviewFieldVisit = async (req, res) => {
       return res.status(404).json({
         success: false,
         message:
-          "Field visit not found for your department.",
+          "Only employee field visits from your department can be reviewed by Admin.",
       });
     }
 
@@ -1443,11 +1461,9 @@ const createAdminFieldVisit = async (
     --------------------------------
     SAVE ADMIN VISIT
 
-    Admin cannot approve themselves,
-    so Admin's own visit is recorded
-    directly as approved.
-
-    HR still receives notification.
+    Admin cannot approve themselves.
+    Admin's own Field Visit must remain
+    pending until Superadmin reviews it.
     --------------------------------
     */
 
@@ -1467,7 +1483,7 @@ const createAdminFieldVisit = async (
 
         VALUES (
           ?, ?, ?, ?, ?, ?, ?,
-          'approved'
+          'pending'
         )
         `,
         [
@@ -1587,9 +1603,9 @@ VALUES
 
     /*
     --------------------------------
-    EMAIL HR ONLY
+    EMAIL SUPERADMIN REVIEWER
 
-    NO SUPERADMIN EMAIL.
+    Current reviewer email is Jay More.
     --------------------------------
     */
 
@@ -1606,7 +1622,7 @@ VALUES
     }`;
 
   const text = `
-A Field Visit has been added through Valencia RMS.
+An Admin Field Visit has been submitted for Superadmin approval.
 
 Name: ${admin.full_name || "-"}
 Email: ${admin.email || "-"}
@@ -1621,10 +1637,10 @@ Location: ${location}
 Reason:
 ${comment}
 
-Status: Recorded
+Status: Pending Superadmin Approval
 
 Review Link:
-https://myvol.in/field-visit-review/${reviewToken}
+https://myvol.in/superadmin/field-visits?visitId=${result.insertId}
 
 Regards,
 Valencia RMS
@@ -1637,7 +1653,7 @@ Valencia RMS
     </h2>
 
     <p>
-      A Field Visit has been added through Valencia RMS.
+      An Admin Field Visit has been submitted for Superadmin approval.
     </p>
 
     <p>
@@ -1647,13 +1663,14 @@ Valencia RMS
       <b>Date:</b> ${visitDate}<br/>
       <b>Time:</b> ${startTime} - ${endTime}<br/>
       <b>Location:</b> ${location}<br/>
-      <b>Reason:</b> ${comment}
+      <b>Reason:</b> ${comment}<br/>
+      <b>Status:</b> Pending Superadmin Approval
     </p>
 
     <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
       <tr>
         <td style="background:#ff5733;border-radius:8px;text-align:center;">
-          <a href="https://myvol.in/field-visit-review/${reviewToken}"
+          <a href="https://myvol.in/superadmin/field-visits?visitId=${result.insertId}"
              style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
              Review Field Visit
           </a>
@@ -1701,7 +1718,7 @@ await sendMail({
 } catch(emailError){
 
   console.error(
-    "Admin field visit HR email failed:",
+    "Admin field visit Superadmin email failed:",
     emailError
   );
 

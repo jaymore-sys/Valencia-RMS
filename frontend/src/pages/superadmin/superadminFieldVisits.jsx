@@ -47,6 +47,12 @@ const SuperadminFieldVisits = () => {
 
 
   const [
+    reviewingId,
+    setReviewingId
+  ] = useState(null);
+
+
+  const [
     search,
     setSearch
   ] = useState("");
@@ -58,12 +64,31 @@ const SuperadminFieldVisits = () => {
   ] = useState("all");
 
 
+  const [
+    message,
+    setMessage
+  ] = useState("");
+
+
+  const [
+    errorMessage,
+    setErrorMessage
+  ] = useState("");
+
+
+
+  /* =========================================================
+     FETCH FIELD VISITS
+  ========================================================= */
+
 
   const fetchVisits = async()=>{
 
     try{
 
       setLoading(true);
+
+      setErrorMessage("");
 
 
       const response =
@@ -78,7 +103,13 @@ const SuperadminFieldVisits = () => {
 
 
       setSummary(
-        response.data?.summary || {}
+        response.data?.summary || {
+          total:0,
+          employees:0,
+          approved:0,
+          pending:0,
+          rejected:0
+        }
       );
 
 
@@ -88,6 +119,12 @@ const SuperadminFieldVisits = () => {
       console.error(
         "Superadmin field visits error:",
         error
+      );
+
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+        "Failed to load Admin field visits."
       );
 
     }
@@ -109,9 +146,118 @@ const SuperadminFieldVisits = () => {
 
 
 
+  /* =========================================================
+     APPROVE / REJECT FIELD VISIT
+  ========================================================= */
+
+
+  const reviewVisit = async(
+    visit,
+    nextStatus
+  )=>{
+
+    if(!visit?.visit_id){
+      return;
+    }
+
+
+    const isApprove =
+      nextStatus === "approved";
+
+
+    const confirmed =
+      window.confirm(
+        isApprove
+        ?
+        `Approve field visit request from ${
+          visit.full_name || "this Admin"
+        }?`
+        :
+        `Reject field visit request from ${
+          visit.full_name || "this Admin"
+        }?`
+      );
+
+
+    if(!confirmed){
+      return;
+    }
+
+
+    try{
+
+      setReviewingId(
+        visit.visit_id
+      );
+
+
+      setMessage("");
+
+      setErrorMessage("");
+
+
+      const response =
+        await api.patch(
+          `/superadmin/field-visits/${visit.visit_id}/review`,
+          {
+            status:nextStatus
+          }
+        );
+
+
+      setMessage(
+        response.data?.message ||
+        (
+          isApprove
+          ?
+          "Admin field visit approved successfully."
+          :
+          "Admin field visit rejected successfully."
+        )
+      );
+
+
+      await fetchVisits();
+
+
+    }
+    catch(error){
+
+      console.error(
+        "Superadmin review field visit error:",
+        error
+      );
+
+
+      setErrorMessage(
+        error?.response?.data?.message ||
+        "Failed to review Admin field visit."
+      );
+
+    }
+    finally{
+
+      setReviewingId(null);
+
+    }
+
+  };
+
+
+
+  /* =========================================================
+     FILTER FIELD VISITS
+  ========================================================= */
+
 
   const filteredVisits =
     useMemo(()=>{
+
+
+      const searchValue =
+        search
+        .toLowerCase()
+        .trim();
 
 
       return visits.filter(
@@ -133,16 +279,27 @@ const SuperadminFieldVisits = () => {
 
 
           const matchesSearch =
+            !searchValue
+            ||
             searchText.includes(
-              search.toLowerCase()
+              searchValue
             );
+
+
+
+          const visitStatus =
+            String(
+              visit.status || ""
+            )
+            .toLowerCase()
+            .trim();
 
 
 
           const matchesStatus =
             status==="all"
             ||
-            visit.status===status;
+            visitStatus===status;
 
 
 
@@ -169,7 +326,10 @@ const SuperadminFieldVisits = () => {
     <div className="sa-field-page">
 
 
-      {/* HEADER */}
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
+
 
       <div className="sa-field-header">
 
@@ -182,7 +342,7 @@ const SuperadminFieldVisits = () => {
 
 
           <p>
-            View all employee field visits across all departments.
+            Review and manage field visit requests submitted by Admin users.
           </p>
 
 
@@ -191,8 +351,10 @@ const SuperadminFieldVisits = () => {
 
 
         <button
+          type="button"
           className="sa-field-refresh"
           onClick={fetchVisits}
+          disabled={loading}
         >
 
           <RefreshCw size={17}/>
@@ -203,16 +365,85 @@ const SuperadminFieldVisits = () => {
 
 
       </div>
-            {/* SUMMARY CARDS */}
+
+
+
+      {/* =====================================================
+          SUCCESS MESSAGE
+      ===================================================== */}
+
+
+      {
+        message
+        ?
+
+        (
+
+          <div
+            className="sa-field-alert success"
+          >
+
+            {message}
+
+          </div>
+
+        )
+
+        :
+
+        null
+      }
+
+
+
+      {/* =====================================================
+          ERROR MESSAGE
+      ===================================================== */}
+
+
+      {
+        errorMessage
+        ?
+
+        (
+
+          <div
+            className="sa-field-alert error"
+          >
+
+            {errorMessage}
+
+          </div>
+
+        )
+
+        :
+
+        null
+      }
+
+
+
+      {/* =====================================================
+          SUMMARY CARDS
+      ===================================================== */}
+
 
       <div className="sa-field-summary">
+
+
+
+        {/* TOTAL VISITS */}
 
 
         <div className="sa-field-card">
 
           <div className="sa-field-icon blue">
+
             <MapPin size={22}/>
+
           </div>
+
 
           <div>
 
@@ -231,16 +462,23 @@ const SuperadminFieldVisits = () => {
 
 
 
+
+        {/* ADMINS */}
+
+
         <div className="sa-field-card">
 
           <div className="sa-field-icon purple">
+
             <Users size={22}/>
+
           </div>
+
 
           <div>
 
             <p>
-              Employees
+              Admins
             </p>
 
             <h2>
@@ -255,11 +493,17 @@ const SuperadminFieldVisits = () => {
 
 
 
+        {/* APPROVED */}
+
+
         <div className="sa-field-card">
 
           <div className="sa-field-icon green">
+
             <CheckCircle size={22}/>
+
           </div>
+
 
           <div>
 
@@ -279,11 +523,17 @@ const SuperadminFieldVisits = () => {
 
 
 
+        {/* PENDING */}
+
+
         <div className="sa-field-card">
 
           <div className="sa-field-icon orange">
+
             <Clock size={22}/>
+
           </div>
+
 
           <div>
 
@@ -301,17 +551,20 @@ const SuperadminFieldVisits = () => {
 
 
 
-
       </div>
 
 
 
-
-
-      {/* FILTER AREA */}
+      {/* =====================================================
+          FILTER AREA
+      ===================================================== */}
 
 
       <div className="sa-field-filter-box">
+
+
+
+        {/* SEARCH */}
 
 
         <div className="sa-field-search">
@@ -324,7 +577,7 @@ const SuperadminFieldVisits = () => {
 
             type="text"
 
-            placeholder="Search employee, department, location..."
+            placeholder="Search admin, department, location..."
 
             value={search}
 
@@ -341,6 +594,7 @@ const SuperadminFieldVisits = () => {
 
 
 
+        {/* STATUS FILTER */}
 
 
         <select
@@ -354,6 +608,7 @@ const SuperadminFieldVisits = () => {
           }
 
         >
+
 
           <option value="all">
             All Status
@@ -382,16 +637,18 @@ const SuperadminFieldVisits = () => {
 
 
 
-
-
-      {/* TABLE */}
+      {/* =====================================================
+          TABLE
+      ===================================================== */}
 
 
       <div className="sa-field-table-card">
 
 
       {
-        loading ?
+        loading
+
+        ?
 
         (
 
@@ -430,7 +687,6 @@ const SuperadminFieldVisits = () => {
 
           </div>
 
-
         )
 
 
@@ -451,7 +707,7 @@ const SuperadminFieldVisits = () => {
 
 
                   <th>
-                    Employee
+                    Admin
                   </th>
 
 
@@ -485,162 +741,365 @@ const SuperadminFieldVisits = () => {
                   </th>
 
 
+                  <th>
+                    Action
+                  </th>
+
+
                 </tr>
 
 
               </thead>
-                            <tbody>
+
+
+
+              <tbody>
 
 
               {
                 filteredVisits.map(
-                  (visit)=>(
+                  (visit)=>{
 
 
-                    <tr
-                      key={
+                    const visitStatus =
+                      String(
+                        visit.status || ""
+                      )
+                      .toLowerCase()
+                      .trim();
+
+
+
+                    const isPending =
+                      visitStatus ===
+                      "pending";
+
+
+
+                    const isReviewing =
+                      Number(
+                        reviewingId
+                      )
+                      ===
+                      Number(
                         visit.visit_id
-                      }
-                    >
+                      );
 
 
-                      <td>
 
-                        <div className="sa-field-employee">
+                    return (
 
-                          <strong>
+                      <tr
+                        key={
+                          visit.visit_id
+                        }
+                      >
+
+
+
+                        {/* ADMIN */}
+
+
+                        <td>
+
+                          <div className="sa-field-employee">
+
+                            <strong>
+
+                              {
+                                visit.full_name ||
+                                "-"
+                              }
+
+                            </strong>
+
+
+                            <span>
+
+                              {
+                                visit.employee_code ||
+                                "-"
+                              }
+
+                            </span>
+
+
+                          </div>
+
+                        </td>
+
+
+
+                        {/* DEPARTMENT */}
+
+
+                        <td>
+
+                          {
+                            visit.department_name ||
+                            "-"
+                          }
+
+                        </td>
+
+
+
+                        {/* VISIT TYPE */}
+
+
+                        <td>
+
+
+                          <div
+                            className="sa-field-visit-type"
+                          >
+
+
+                            <strong>
+
+                              {
+                                visit.visit_type ||
+                                "-"
+                              }
+
+                            </strong>
+
+
+                            <small>
+
+                              {
+                                visit.start_time ||
+                                "-"
+                              }
+
+                              {" - "}
+
+                              {
+                                visit.end_time ||
+                                "-"
+                              }
+
+                            </small>
+
+
+                          </div>
+
+
+                        </td>
+
+
+
+                        {/* DATE */}
+
+
+                        <td>
+
+                          {
+                            visit.visit_date ||
+                            "-"
+                          }
+
+                        </td>
+
+
+
+                        {/* LOCATION */}
+
+
+                        <td>
+
+                          {
+                            visit.location ||
+                            "-"
+                          }
+
+                        </td>
+
+
+
+                        {/* COMMENT */}
+
+
+                        <td>
+
+
+                          <div
+                            className="sa-field-comment"
+                          >
+
                             {
-                              visit.full_name
-                            }
-                          </strong>
-
-
-                          <span>
-                            {
-                              visit.employee_code ||
+                              visit.comment ||
                               "-"
                             }
+
+                          </div>
+
+
+                        </td>
+
+
+
+                        {/* STATUS */}
+
+
+                        <td>
+
+
+                          <span
+
+                            className={
+                              `sa-field-status ${
+                                visitStatus
+                              }`
+                            }
+
+                          >
+
+                            {
+                              visitStatus ||
+                              "-"
+                            }
+
                           </span>
 
 
-                        </div>
-
-                      </td>
+                        </td>
 
 
 
+                        {/* ACTION */}
 
 
-                      <td>
+                        <td>
 
-                        {
-                          visit.department_name ||
-                          "-"
-                        }
-
-                      </td>
-
-
-
-
-
-                      <td>
-
-                        <strong>
-                          {
-                            visit.visit_type
-                          }
-                        </strong>
-
-
-                        <small>
 
                           {
-                            visit.start_time
+                            isPending
+
+                            ?
+
+                            (
+
+                              <div
+                                className="sa-field-actions"
+                              >
+
+
+
+                                {/* APPROVE */}
+
+
+                                <button
+
+                                  type="button"
+
+                                  className="
+                                    sa-field-action
+                                    approve
+                                  "
+
+                                  disabled={
+                                    isReviewing
+                                  }
+
+                                  onClick={() =>
+                                    reviewVisit(
+                                      visit,
+                                      "approved"
+                                    )
+                                  }
+
+                                >
+
+
+                                  <CheckCircle
+                                    size={15}
+                                  />
+
+
+                                  {
+                                    isReviewing
+                                    ?
+                                    "Processing..."
+                                    :
+                                    "Approve"
+                                  }
+
+
+                                </button>
+
+
+
+                                {/* REJECT */}
+
+
+                                <button
+
+                                  type="button"
+
+                                  className="
+                                    sa-field-action
+                                    reject
+                                  "
+
+                                  disabled={
+                                    isReviewing
+                                  }
+
+                                  onClick={() =>
+                                    reviewVisit(
+                                      visit,
+                                      "rejected"
+                                    )
+                                  }
+
+                                >
+
+
+                                  <XCircle
+                                    size={15}
+                                  />
+
+
+                                  Reject
+
+
+                                </button>
+
+
+                              </div>
+
+                            )
+
+                            :
+
+                            (
+
+                              <span
+                                className="
+                                  sa-field-reviewed-text
+                                "
+                              >
+
+                                Reviewed
+
+                              </span>
+
+                            )
                           }
 
-                          {" - "}
 
-                          {
-                            visit.end_time
-                          }
-
-                        </small>
-
-
-                      </td>
+                        </td>
 
 
 
+                      </tr>
 
 
-                      <td>
-
-                        {
-                          visit.visit_date
-                        }
-
-                      </td>
+                    );
 
 
-
-
-
-                      <td>
-
-                        {
-                          visit.location ||
-                          "-"
-                        }
-
-                      </td>
-
-
-
-
-
-                      <td>
-
-                        {
-                          visit.comment ||
-                          "-"
-                        }
-
-                      </td>
-
-
-
-
-
-                      <td>
-
-
-                        <span
-
-                          className={
-                            `sa-field-status ${
-                               visit.status
-                            }`
-                          }
-
-                        >
-
-                          {
-                            visit.status
-                          }
-
-
-                        </span>
-
-
-                      </td>
-
-
-
-                    </tr>
-
-
-                  )
+                  }
                 )
               }
 

@@ -10,6 +10,7 @@ const {
 const {
 
   getSuperadminFieldVisits,
+  reviewSuperadminFieldVisit,
   getSuperadminLeaves,
   getSuperadminProjects,
   getSuperadminTasks,
@@ -211,6 +212,13 @@ router.get(
   "/field-visits",
   ...superadminOnly,
   getSuperadminFieldVisits
+);
+
+
+router.patch(
+  "/field-visits/:visitId/review",
+  ...superadminOnly,
+  reviewSuperadminFieldVisit
 );
 
 

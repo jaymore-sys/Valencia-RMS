@@ -545,3 +545,95 @@ width:100%;
 }
 
 }
+/* =========================================================
+   REVIEW ACTIONS / FEEDBACK
+========================================================= */
+
+.sa-field-alert {
+  margin: -10px 0 22px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sa-field-alert.success {
+  background: #ecfdf5;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.sa-field-alert.error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+}
+
+.sa-field-refresh:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+.sa-field-visit-type {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sa-field-visit-type small {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.sa-field-comment {
+  max-width: 260px;
+  white-space: normal;
+  line-height: 1.45;
+}
+
+.sa-field-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 185px;
+}
+
+.sa-field-action {
+  height: 36px;
+  padding: 0 12px;
+  border: none;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: .18s ease;
+}
+
+.sa-field-action:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.sa-field-action:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.sa-field-action.approve {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.sa-field-action.reject {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.sa-field-reviewed-text {
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}

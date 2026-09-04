@@ -244,8 +244,15 @@ const getSuperadminFieldVisits = async (
       INNER JOIN users u
         ON fv.employee_id = u.user_id
 
+      INNER JOIN roles r
+        ON r.role_id = u.role_id
+
       LEFT JOIN departments d
         ON u.department_id = d.department_id
+
+      WHERE LOWER(
+        COALESCE(r.role_name, '')
+      ) = 'admin'
 
       ORDER BY fv.created_at DESC
       `
@@ -307,6 +314,240 @@ const getSuperadminFieldVisits = async (
 
   }
 
+};
+
+
+
+/* =========================================================
+   SUPERADMIN - REVIEW ADMIN FIELD VISIT
+========================================================= */
+
+const reviewSuperadminFieldVisit = async (
+  req,
+  res
+) => {
+  try {
+    const reviewerId =
+      getLoggedInUserId(req);
+
+    if (!reviewerId) {
+      return res.status(401).json({
+        success: false,
+        message:
+          "Unauthorized. Superadmin user not found in token.",
+      });
+    }
+
+    const visitId = Number(
+      req.params.visitId
+    );
+
+    if (!visitId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Invalid field visit.",
+      });
+    }
+
+    const status = String(
+      req.body?.status || ""
+    )
+      .toLowerCase()
+      .trim();
+
+    const reviewRemark = String(
+      req.body?.review_remark ||
+        req.body?.remark ||
+        ""
+    ).trim();
+
+    if (
+      ![
+        "approved",
+        "rejected",
+      ].includes(status)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Status must be approved or rejected.",
+      });
+    }
+
+    /*
+      Superadmin may review ONLY visits
+      created by users whose current role
+      is Admin. Employee visits continue to
+      be reviewed by their department Admin.
+    */
+    const [visitRows] =
+      await db.query(
+        `
+        SELECT
+          fv.visit_id,
+          fv.employee_id,
+          fv.status,
+          u.full_name,
+          u.email,
+          r.role_name
+
+        FROM employee_field_visits fv
+
+        INNER JOIN users u
+          ON u.user_id =
+             fv.employee_id
+
+        INNER JOIN roles r
+          ON r.role_id =
+             u.role_id
+
+        WHERE fv.visit_id = ?
+
+          AND LOWER(
+            COALESCE(r.role_name, '')
+          ) = 'admin'
+
+        LIMIT 1
+        `,
+        [visitId]
+      );
+
+    if (!visitRows.length) {
+      return res.status(404).json({
+        success: false,
+        message:
+          "Admin field visit not found.",
+      });
+    }
+
+    const currentVisit =
+      visitRows[0];
+
+    if (
+      String(
+        currentVisit.status || ""
+      )
+        .toLowerCase()
+        .trim() !== "pending"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Only pending Admin field visits can be reviewed.",
+      });
+    }
+
+    await db.query(
+      `
+      UPDATE employee_field_visits
+
+      SET
+        status = ?,
+        reviewed_by = ?,
+        reviewed_at = NOW(),
+        review_remark = ?,
+        updated_at = NOW()
+
+      WHERE visit_id = ?
+      `,
+      [
+        status,
+        reviewerId,
+        reviewRemark || null,
+        visitId,
+      ]
+    );
+
+    const [updatedRows] =
+      await db.query(
+        `
+        SELECT
+          fv.visit_id,
+          fv.employee_id,
+
+          u.full_name,
+          u.email,
+          u.employee_code,
+
+          d.department_name,
+
+          fv.visit_type,
+
+          DATE_FORMAT(
+            fv.visit_date,
+            '%Y-%m-%d'
+          ) AS visit_date,
+
+          TIME_FORMAT(
+            fv.start_time,
+            '%H:%i'
+          ) AS start_time,
+
+          TIME_FORMAT(
+            fv.end_time,
+            '%H:%i'
+          ) AS end_time,
+
+          fv.location,
+          fv.comment,
+          fv.status,
+          fv.review_remark,
+
+          DATE_FORMAT(
+            fv.reviewed_at,
+            '%Y-%m-%d %H:%i:%s'
+          ) AS reviewed_at,
+
+          reviewer.full_name
+            AS reviewed_by_name
+
+        FROM employee_field_visits fv
+
+        INNER JOIN users u
+          ON u.user_id =
+             fv.employee_id
+
+        LEFT JOIN departments d
+          ON d.department_id =
+             u.department_id
+
+        LEFT JOIN users reviewer
+          ON reviewer.user_id =
+             fv.reviewed_by
+
+        WHERE fv.visit_id = ?
+
+        LIMIT 1
+        `,
+        [visitId]
+      );
+
+    return res.json({
+      success: true,
+      message:
+        status === "approved"
+          ? "Admin field visit approved successfully."
+          : "Admin field visit rejected successfully.",
+      visit:
+        updatedRows[0] || null,
+    });
+  } catch (error) {
+    console.error(
+      "Superadmin review field visit error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to review Admin field visit.",
+      error:
+        error.message,
+      sqlMessage:
+        error.sqlMessage || null,
+    });
+  }
 };
 
 
@@ -2133,6 +2374,7 @@ const getSuperadminLeaves = async(req,res)=>{
 module.exports = {
 
   getSuperadminFieldVisits,
+  reviewSuperadminFieldVisit,
 
   getAllProjects,
   getAllMainTasks,
