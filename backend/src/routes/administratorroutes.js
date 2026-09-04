@@ -3,6 +3,7 @@ const multer = require("multer");
 
 const authMiddleware = require("../middleware/authmiddleware");
 const { requireJayAdministrator } = require("../middleware/rolemiddleware");
+const employeeAttendanceController = require("../controllers/employeeattendancecontroller");
 
 const {
   getAdministratorOverview,
@@ -255,6 +256,13 @@ router.delete(
 /* =========================================================
    ATTENDANCE
 ========================================================= */
+
+router.get(
+  "/attendance/my",
+  authMiddleware,
+  requireJayAdministrator,
+  employeeAttendanceController.getEmployeeAttendance
+);
 
 router.get(
   "/attendance",

@@ -173,7 +173,7 @@ const AdministratorAttendance = () => {
       setMessage("");
 
       const [personalResponse, overallResponse] = await Promise.all([
-        api.get("/employee-attendance/my"),
+        api.get("/administrator/attendance/my"),
         api.get("/administrator/attendance"),
       ]);
 
