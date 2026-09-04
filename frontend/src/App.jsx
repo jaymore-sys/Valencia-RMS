@@ -109,6 +109,14 @@ const getStoredUser = () => {
    DEFAULT ROUTE BY ROLE
 ======================================================== */
 
+
+function FieldVisitReviewRedirect(){
+  const params = new URLSearchParams(window.location.pathname);
+  const token = window.location.pathname.split("/field-visit-review/")[1];
+  window.location.href = `/administrator/attendance?fieldVisitToken=${token}`;
+  return null;
+}
+
 const getDefaultRouteByRole = (
   roleName
 ) => {

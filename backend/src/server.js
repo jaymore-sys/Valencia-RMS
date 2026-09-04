@@ -362,11 +362,6 @@ app.use(
 leaveReviewRoutes
 );
 
-app.use(
-"/api/field-visit-review",
-fieldVisitReviewRoutes
-);
-
 
 
 

@@ -57,6 +57,7 @@ const AdminAttendance = () => {
   const [visitStatus, setVisitStatus] = useState("all");
   const [visitLoading, setVisitLoading] = useState(false);
   const [visitError, setVisitError] = useState("");
+  const [fieldVisitToken, setFieldVisitToken] = useState("");
   const [visitMessage, setVisitMessage] = useState("");
 
   const [showVisitModal, setShowVisitModal] = useState(false);
@@ -72,6 +73,15 @@ const AdminAttendance = () => {
     location: "",
     comment: "",
   });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("fieldVisitToken");
+    if (token) {
+      setFieldVisitToken(token);
+      setActiveTab("fieldVisits");
+    }
+  }, []);
+
   const fetchAttendance = async () => {
     try {
       setLoading(true);
