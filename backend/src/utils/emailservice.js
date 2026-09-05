@@ -483,13 +483,491 @@ Valencia RMS
     replyTo: adminEmail,
   });
 };
+/* =========================================================
+   MEETING EMAIL HELPERS
+========================================================= */
 
+const formatMeetingParticipants = (
+  participants = []
+) => {
+  if (
+    !Array.isArray(participants) ||
+    !participants.length
+  ) {
+    return "-";
+  }
+
+  return participants
+    .map(
+      (participant) =>
+        participant.full_name ||
+        participant.name ||
+        participant.email
+    )
+    .filter(Boolean)
+    .join(", ");
+};
+
+
+/* =========================================================
+   MEETING SCHEDULED
+========================================================= */
+
+const sendMeetingScheduledEmail = async ({
+  to,
+  participantName,
+  meetingTitle,
+  description,
+  meetingDate,
+  startTime,
+  endTime,
+  scheduledBy,
+  scheduledByEmail,
+  participants,
+}) => {
+  const participantList =
+    formatMeetingParticipants(
+      participants
+    );
+
+  const subject =
+    `Meeting Scheduled: ${cleanValue(
+      meetingTitle
+    )}`;
+
+  const text = `
+Hello ${cleanValue(participantName)},
+
+A meeting has been scheduled for you in Valencia RMS.
+
+Meeting: ${cleanValue(meetingTitle)}
+Date: ${cleanValue(meetingDate)}
+Time: ${cleanValue(startTime)} - ${cleanValue(endTime)}
+Scheduled By: ${cleanValue(scheduledBy)} (${cleanValue(scheduledByEmail)})
+Participants: ${cleanValue(participantList)}
+
+Description:
+${cleanValue(description)}
+
+Please check Valencia RMS for the meeting details.
+
+Regards,
+Valencia RMS
+`;
+
+  const html = `
+<div style="
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #111827;
+  max-width: 720px;
+">
+  <h2 style="
+    color: #ff5733;
+    margin: 0 0 18px;
+  ">
+    Meeting Scheduled
+  </h2>
+
+  <p>
+    Hello
+    <strong>
+      ${escapeHtml(
+        participantName ||
+        "Participant"
+      )}
+    </strong>,
+  </p>
+
+  <p>
+    A meeting has been scheduled for you
+    in Valencia RMS.
+  </p>
+
+  <table style="
+    width: 100%;
+    border-collapse: collapse;
+    margin: 18px 0;
+  ">
+    ${buildTableRow(
+      "Meeting",
+      meetingTitle
+    )}
+
+    ${buildTableRow(
+      "Date",
+      meetingDate
+    )}
+
+    ${buildTableRow(
+      "Start Time",
+      startTime
+    )}
+
+    ${buildTableRow(
+      "End Time",
+      endTime
+    )}
+
+    ${buildTableRow(
+      "Scheduled By",
+      `${cleanValue(
+        scheduledBy
+      )} (${cleanValue(
+        scheduledByEmail
+      )})`
+    )}
+
+    ${buildTableRow(
+      "Participants",
+      participantList
+    )}
+  </table>
+
+  <p>
+    <strong>Description:</strong>
+  </p>
+
+  <p>
+    ${escapeHtml(
+      description || "-"
+    )}
+  </p>
+
+  <p>
+    Please check Valencia RMS for
+    the meeting details.
+  </p>
+
+  <p style="margin-top:22px;">
+    Regards,<br/>
+    Valencia RMS
+  </p>
+</div>
+`;
+
+  return sendMail({
+    to,
+    subject,
+    text,
+    html,
+
+    replyTo:
+      scheduledByEmail ||
+      undefined,
+  });
+};
+
+
+/* =========================================================
+   MEETING UPDATED
+========================================================= */
+
+const sendMeetingUpdatedEmail = async ({
+  to,
+  participantName,
+  meetingTitle,
+  description,
+  meetingDate,
+  startTime,
+  endTime,
+  updatedBy,
+  updatedByEmail,
+  participants,
+}) => {
+  const participantList =
+    formatMeetingParticipants(
+      participants
+    );
+
+  const subject =
+    `Meeting Updated: ${cleanValue(
+      meetingTitle
+    )}`;
+
+  const text = `
+Hello ${cleanValue(participantName)},
+
+A meeting assigned to you has been updated in Valencia RMS.
+
+Meeting: ${cleanValue(meetingTitle)}
+Date: ${cleanValue(meetingDate)}
+Time: ${cleanValue(startTime)} - ${cleanValue(endTime)}
+Updated By: ${cleanValue(updatedBy)} (${cleanValue(updatedByEmail)})
+Participants: ${cleanValue(participantList)}
+
+Description:
+${cleanValue(description)}
+
+Please check Valencia RMS for the latest meeting details.
+
+Regards,
+Valencia RMS
+`;
+
+  const html = `
+<div style="
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #111827;
+  max-width: 720px;
+">
+  <h2 style="
+    color:#ff5733;
+    margin:0 0 18px;
+  ">
+    Meeting Updated
+  </h2>
+
+  <p>
+    Hello
+    <strong>
+      ${escapeHtml(
+        participantName ||
+        "Participant"
+      )}
+    </strong>,
+  </p>
+
+  <p>
+    A meeting assigned to you has
+    been updated in Valencia RMS.
+  </p>
+
+  <table style="
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+  ">
+    ${buildTableRow(
+      "Meeting",
+      meetingTitle
+    )}
+
+    ${buildTableRow(
+      "Date",
+      meetingDate
+    )}
+
+    ${buildTableRow(
+      "Start Time",
+      startTime
+    )}
+
+    ${buildTableRow(
+      "End Time",
+      endTime
+    )}
+
+    ${buildTableRow(
+      "Updated By",
+      `${cleanValue(
+        updatedBy
+      )} (${cleanValue(
+        updatedByEmail
+      )})`
+    )}
+
+    ${buildTableRow(
+      "Participants",
+      participantList
+    )}
+  </table>
+
+  <p>
+    <strong>Description:</strong>
+  </p>
+
+  <p>
+    ${escapeHtml(
+      description || "-"
+    )}
+  </p>
+
+  <p>
+    Please check Valencia RMS for
+    the latest meeting details.
+  </p>
+
+  <p style="margin-top:22px;">
+    Regards,<br/>
+    Valencia RMS
+  </p>
+</div>
+`;
+
+  return sendMail({
+    to,
+    subject,
+    text,
+    html,
+
+    replyTo:
+      updatedByEmail ||
+      undefined,
+  });
+};
+
+
+/* =========================================================
+   MEETING CANCELLED
+========================================================= */
+
+const sendMeetingCancelledEmail = async ({
+  to,
+  participantName,
+  meetingTitle,
+  description,
+  meetingDate,
+  startTime,
+  endTime,
+  cancelledBy,
+  cancelledByEmail,
+  participants,
+}) => {
+  const participantList =
+    formatMeetingParticipants(
+      participants
+    );
+
+  const subject =
+    `Meeting Cancelled: ${cleanValue(
+      meetingTitle
+    )}`;
+
+  const text = `
+Hello ${cleanValue(participantName)},
+
+The following meeting has been cancelled.
+
+Meeting: ${cleanValue(meetingTitle)}
+Date: ${cleanValue(meetingDate)}
+Time: ${cleanValue(startTime)} - ${cleanValue(endTime)}
+Cancelled By: ${cleanValue(cancelledBy)} (${cleanValue(cancelledByEmail)})
+Participants: ${cleanValue(participantList)}
+
+Description:
+${cleanValue(description)}
+
+This meeting is no longer scheduled.
+
+Regards,
+Valencia RMS
+`;
+
+  const html = `
+<div style="
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  color: #111827;
+  max-width: 720px;
+">
+  <h2 style="
+    color:#b42318;
+    margin:0 0 18px;
+  ">
+    Meeting Cancelled
+  </h2>
+
+  <p>
+    Hello
+    <strong>
+      ${escapeHtml(
+        participantName ||
+        "Participant"
+      )}
+    </strong>,
+  </p>
+
+  <p>
+    The following meeting has
+    been cancelled.
+  </p>
+
+  <table style="
+    width:100%;
+    border-collapse:collapse;
+    margin:18px 0;
+  ">
+    ${buildTableRow(
+      "Meeting",
+      meetingTitle
+    )}
+
+    ${buildTableRow(
+      "Date",
+      meetingDate
+    )}
+
+    ${buildTableRow(
+      "Start Time",
+      startTime
+    )}
+
+    ${buildTableRow(
+      "End Time",
+      endTime
+    )}
+
+    ${buildTableRow(
+      "Cancelled By",
+      `${cleanValue(
+        cancelledBy
+      )} (${cleanValue(
+        cancelledByEmail
+      )})`
+    )}
+
+    ${buildTableRow(
+      "Participants",
+      participantList
+    )}
+  </table>
+
+  <p>
+    <strong>Description:</strong>
+  </p>
+
+  <p>
+    ${escapeHtml(
+      description || "-"
+    )}
+  </p>
+
+  <p>
+    This meeting is no longer scheduled.
+  </p>
+
+  <p style="margin-top:22px;">
+    Regards,<br/>
+    Valencia RMS
+  </p>
+</div>
+`;
+
+  return sendMail({
+    to,
+    subject,
+    text,
+    html,
+
+    replyTo:
+      cancelledByEmail ||
+      undefined,
+  });
+};
 module.exports = {
   sendMail,
+
   sendProjectCreatedEmail,
   sendProjectAssignedEmail,
   sendMainTaskAssignedEmail,
   sendProjectUpdatedEmail,
+
   sendDeadlineReminderEmail,
   sendDeadlineMissedEmail,
+
+  sendMeetingScheduledEmail,
+  sendMeetingUpdatedEmail,
+  sendMeetingCancelledEmail,
 };

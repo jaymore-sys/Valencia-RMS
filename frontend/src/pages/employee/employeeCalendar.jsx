@@ -3,6 +3,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Plus,
+  Search,
   X,
   CalendarDays,
 } from "lucide-react";
@@ -123,6 +125,31 @@ const EmployeeCalendar = () => {
   const [selectedDate, setSelectedDate] = useState("");
 
   const [activeFilter, setActiveFilter] = useState("all");
+  const [employees, setEmployees] = useState([]);
+const [
+  participantSearch,
+  setParticipantSearch,
+] = useState("");
+const [showMeeting, setShowMeeting] =
+  useState(false);
+
+const [selectedEmployees, setSelectedEmployees] =
+  useState([]);
+
+const [savingMeeting, setSavingMeeting] =
+  useState(false);
+const [
+  meetingSuccess,
+  setMeetingSuccess,
+] = useState("");
+const [meetingForm, setMeetingForm] =
+  useState({
+    title: "",
+    description: "",
+    date: "",
+    start_time: "",
+    end_time: "",
+  });
 
 
   
@@ -161,10 +188,39 @@ const EmployeeCalendar = () => {
       setLoading(false);
     }
   };
+const loadEmployees = async () => {
+  try {
+    const response = await fetch(
+      `${API}/calendar/employees`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
 
+    const data =
+      await response.json();
+
+    if (data.success) {
+      setEmployees(
+        data.employees || []
+      );
+    } else {
+      console.error(
+        "Employee list error:",
+        data.message
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Employee loading error:",
+      error
+    );
+  }
+};
 
 useEffect(() => {
   loadCalendar();
+  loadEmployees();
 }, []);
 
   /* =========================================================
@@ -601,6 +657,266 @@ events.mini_tasks.forEach((item) => {
     );
   };
 
+  /* =========================================================
+   EMPLOYEE - SCHEDULE MEETING
+========================================================= */
+
+const openMeeting = (
+  date = ""
+) => {
+  setMeetingForm({
+    title: "",
+    description: "",
+
+    date:
+      date ||
+      selectedDate ||
+      todayString,
+
+    start_time: "",
+    end_time: "",
+  });
+
+  setSelectedEmployees([]);
+
+setParticipantSearch("");
+
+setShowMeeting(true);
+};
+
+const closeMeeting = () => {
+  if (savingMeeting) {
+    return;
+  }
+
+  setShowMeeting(false);
+
+setSelectedEmployees([]);
+
+setParticipantSearch("");
+};
+
+const toggleEmployee = (
+  employeeId
+) => {
+  setSelectedEmployees(
+    (previous) =>
+      previous.includes(
+        employeeId
+      )
+        ? previous.filter(
+            (id) =>
+              id !==
+              employeeId
+          )
+        : [
+            ...previous,
+            employeeId,
+          ]
+  );
+};
+
+const filteredEmployees =
+  useMemo(() => {
+    const query =
+      participantSearch
+        .trim()
+        .toLowerCase();
+
+    if (!query) {
+      return employees;
+    }
+
+    return employees.filter(
+      (employee) => {
+        const searchable =
+          [
+            employee.full_name,
+            employee.email,
+            employee.employee_code,
+            employee.designation,
+            employee.department_name,
+            employee.role_name,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+        return searchable.includes(
+          query
+        );
+      }
+    );
+  }, [
+    employees,
+    participantSearch,
+  ]);
+
+const allSelectableIds =
+  filteredEmployees
+    .map((employee) =>
+      Number(
+        employee.user_id ??
+          employee.id
+      )
+    )
+    .filter(
+      (id) =>
+        !Number.isNaN(id)
+    );
+
+const allSelected =
+  allSelectableIds.length > 0 &&
+  allSelectableIds.every(
+    (id) =>
+      selectedEmployees.includes(
+        id
+      )
+  );
+
+const toggleAllEmployees = () => {
+  if (allSelected) {
+    setSelectedEmployees([]);
+  } else {
+    setSelectedEmployees(
+      allSelectableIds
+    );
+  }
+};
+
+const createMeeting = async () => {
+  if (
+    !meetingForm.title.trim()
+  ) {
+    alert(
+      "Please enter the meeting title."
+    );
+
+    return;
+  }
+
+  if (!meetingForm.date) {
+    alert(
+      "Please select the meeting date."
+    );
+
+    return;
+  }
+
+  if (
+    !meetingForm.start_time
+  ) {
+    alert(
+      "Please select start time."
+    );
+
+    return;
+  }
+
+  if (
+    !meetingForm.end_time
+  ) {
+    alert(
+      "Please select end time."
+    );
+
+    return;
+  }
+
+  if (
+    meetingForm.end_time <=
+    meetingForm.start_time
+  ) {
+    alert(
+      "End time must be later than start time."
+    );
+
+    return;
+  }
+
+  if (
+    selectedEmployees.length ===
+    0
+  ) {
+    alert(
+      "Please select at least one person."
+    );
+
+    return;
+  }
+
+  try {
+    setSavingMeeting(true);
+
+    const response =
+      await fetch(
+        `${API}/calendar/meetings`,
+        {
+          method: "POST",
+
+          headers:
+            getAuthHeaders(),
+
+          body: JSON.stringify({
+            title:
+              meetingForm.title.trim(),
+
+            description:
+              meetingForm.description.trim(),
+
+            meeting_date:
+              meetingForm.date,
+
+            start_time:
+              meetingForm.start_time,
+
+            end_time:
+              meetingForm.end_time,
+
+            employee_ids:
+              selectedEmployees,
+          }),
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if (!data.success) {
+      alert(
+        data.message ||
+          "Unable to schedule meeting."
+      );
+
+      return;
+    }
+
+    setShowMeeting(false);
+
+    setSelectedEmployees([]);
+await loadCalendar();
+
+setMeetingSuccess(
+  "Meeting scheduled successfully."
+);
+
+setTimeout(() => {
+  setMeetingSuccess("");
+}, 3500);
+  } catch (error) {
+    console.error(
+      "Create employee meeting error:",
+      error
+    );
+
+    alert(
+      "Something went wrong while scheduling the meeting."
+    );
+  } finally {
+    setSavingMeeting(false);
+  }
+};
+
  
 
   const renderDetailSection = (
@@ -815,6 +1131,17 @@ events.mini_tasks.forEach((item) => {
               })}
             </span>
           </div>
+          <button
+  type="button"
+  className="admin-cal-schedule-main"
+  onClick={() =>
+    openMeeting()
+  }
+>
+  <Plus size={17} />
+
+  Schedule Meeting
+</button>
 
           
         </div>
@@ -1083,12 +1410,342 @@ events.mini_tasks.forEach((item) => {
             </aside>
           )}
         </div>
-      </div>
+            </div>
 
+      {/* =====================================================
+          EMPLOYEE - SCHEDULE MEETING MODAL
+      ===================================================== */}
+
+      {showMeeting && (
+        <div
+          className="admin-cal-modal-overlay"
+          onMouseDown={(event) => {
+            if (
+              event.target ===
+              event.currentTarget
+            ) {
+              closeMeeting();
+            }
+          }}
+        >
+          <div className="admin-cal-modal">
+            <div className="admin-cal-modal-header">
+              <h2>
+                Schedule Meeting
+              </h2>
+
+              <button
+                type="button"
+                onClick={
+                  closeMeeting
+                }
+              >
+                <X size={19} />
+              </button>
+            </div>
+
+            <div className="admin-cal-modal-content">
+
+              {/* MEETING TITLE */}
+
+              <div className="admin-cal-form-field">
+                <label>
+                  Meeting Title
+                  <span>*</span>
+                </label>
+
+                <input
+                  type="text"
+                  placeholder="Project Review Meeting"
+                  value={
+                    meetingForm.title
+                  }
+                  onChange={(event) =>
+                    setMeetingForm({
+                      ...meetingForm,
+
+                      title:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                />
+              </div>
+
+
+              {/* DESCRIPTION */}
+
+              <div className="admin-cal-form-field">
+                <label>
+                  Description / Notes
+                </label>
+
+                <textarea
+                  placeholder="Add meeting details or agenda."
+                  value={
+                    meetingForm.description
+                  }
+                  onChange={(event) =>
+                    setMeetingForm({
+                      ...meetingForm,
+
+                      description:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                />
+              </div>
+
+
+              {/* DATE */}
+
+              <div
+                className="
+                  admin-cal-form-field
+                  admin-cal-date-field
+                "
+              >
+                <label>
+                  Date
+                  <span>*</span>
+                </label>
+
+                <input
+                  type="date"
+                  value={
+                    meetingForm.date
+                  }
+                  onChange={(event) =>
+                    setMeetingForm({
+                      ...meetingForm,
+
+                      date:
+                        event
+                          .target
+                          .value,
+                    })
+                  }
+                />
+              </div>
+
+
+              {/* TIME */}
+
+              <div className="admin-cal-time-row">
+
+                <div className="admin-cal-form-field">
+                  <label>
+                    Start Time
+                    <span>*</span>
+                  </label>
+
+                  <input
+                    type="time"
+                    value={
+                      meetingForm.start_time
+                    }
+                    onChange={(event) =>
+                      setMeetingForm({
+                        ...meetingForm,
+
+                        start_time:
+                          event
+                            .target
+                            .value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="admin-cal-form-field">
+                  <label>
+                    End Time
+                    <span>*</span>
+                  </label>
+
+                  <input
+                    type="time"
+                    value={
+                      meetingForm.end_time
+                    }
+                    onChange={(event) =>
+                      setMeetingForm({
+                        ...meetingForm,
+
+                        end_time:
+                          event
+                            .target
+                            .value,
+                      })
+                    }
+                  />
+                </div>
+
+              </div>
+
+
+              {/* PARTICIPANTS */}
+
+              <div className="admin-cal-employee-block">
+
+               <div className="admin-cal-employee-heading">
+
+  <label>
+    Select Employees
+    <span>*</span>
+  </label>
+
+  <div className="admin-cal-employee-search">
+    <Search size={15} />
+
+    <input
+      type="text"
+      placeholder="Search employees or admins..."
+      value={
+        participantSearch
+      }
+      onChange={(event) =>
+        setParticipantSearch(
+          event.target.value
+        )
+      }
+    />
+  </div>
+
+  <button
+    type="button"
+    onClick={
+      toggleAllEmployees
+    }
+  >
+    {allSelected
+      ? "Clear All"
+      : "Select All"}
+  </button>
+
+</div>
+
+                <div className="admin-cal-employee-list">
+
+                  {filteredEmployees.map(
+  (employee) => {
+                      const rawId =
+                        employee.user_id ??
+                        employee.id;
+
+                      const employeeId =
+                        Number(rawId);
+
+                      return (
+                        <label
+                          className="admin-cal-employee-option"
+                          key={
+                            employeeId
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedEmployees.includes(
+                              employeeId
+                            )}
+                            onChange={() =>
+                              toggleEmployee(
+                                employeeId
+                              )
+                            }
+                          />
+
+                          <span>
+                            {employee.full_name ||
+                              employee.name ||
+                              employee.email}
+                          </span>
+                        </label>
+                      );
+                    }
+                  )}
+                  {filteredEmployees.length ===
+  0 && (
+  <div className="admin-cal-employee-empty">
+    No matching employees or admins found.
+  </div>
+)}
+
+                </div>
+              </div>
+
+            </div>
+
+
+            {/* FOOTER */}
+
+            <div className="admin-cal-modal-footer">
+
+              <button
+                type="button"
+                className="admin-cal-modal-cancel"
+                onClick={
+                  closeMeeting
+                }
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className="admin-cal-modal-save"
+                disabled={
+                  savingMeeting
+                }
+                onClick={
+                  createMeeting
+                }
+              >
+                {savingMeeting
+                  ? "Scheduling..."
+                  : "Schedule Meeting"}
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+      {meetingSuccess && (
+  <div className="calendar-success-toast">
+
+    <div className="calendar-success-icon">
+      ✓
+    </div>
+
+    <div className="calendar-success-content">
+      <strong>
+        Meeting Scheduled
+      </strong>
+
+      <p>
+        {meetingSuccess}
+      </p>
+    </div>
+
+    <button
+      type="button"
+      className="calendar-success-close"
+      onClick={() =>
+        setMeetingSuccess("")
+      }
+    >
+      ×
+    </button>
+
+  </div>
+)}
 
     </div>
-      </div>
-  );
+  </div>
+);
 };
 
 export default EmployeeCalendar;

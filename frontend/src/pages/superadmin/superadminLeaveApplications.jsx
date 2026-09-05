@@ -626,13 +626,13 @@ return (
         <div style={styles.toolbar}>
           <div>
             <h2 style={styles.sectionTitle}>
-              All Employee Leave Requests
-            </h2>
+  All Leave Requests
+</h2>
 
             <p style={styles.sectionSubtitle}>
-              Select a request to review
-              its complete details.
-            </p>
+  Employee requests are view-only.
+  Admin requests require Superadmin review.
+</p>
           </div>
 
           <div style={styles.filters}>
@@ -679,22 +679,29 @@ return (
             <table style={styles.table}>
               <thead>
                 <tr>
-                  <th
-                    style={
-                      styles.headCell
-                    }
-                  >
-                    Employee
-                  </th>
+                 <th
+  style={
+    styles.headCell
+  }
+>
+  Applicant
+</th>
 
-                  <th
-                    style={
-                      styles.headCell
-                    }
-                  >
-                    Department
-                  </th>
+<th
+  style={
+    styles.headCell
+  }
+>
+  Role
+</th>
 
+<th
+  style={
+    styles.headCell
+  }
+>
+  Department
+</th>
                   <th
                     style={
                       styles.headCell
@@ -762,32 +769,63 @@ return (
                       }
                     >
                       <td
-                        style={
-                          styles.cell
-                        }
-                      >
-                        <strong>
-                          {leave.employee_name ||
-                            "-"}
-                        </strong>
+  style={
+    styles.cell
+  }
+>
+  <strong>
+    {leave.employee_name ||
+      "-"}
+  </strong>
 
-                        <small
-                          style={
-                            styles.cellSmall
-                          }
-                        >
-                          {leave.employee_code ||
-                            "-"}
-                        </small>
-                      </td>
+  <small
+    style={
+      styles.cellSmall
+    }
+  >
+    {leave.employee_code ||
+      "-"}
+  </small>
+</td>
 
-                      <td
-                        style={
-                          styles.cell
-                        }
-                      >
-                        {leave.department_name || "-"}
-                      </td>
+<td
+  style={
+    styles.cell
+  }
+>
+  <span
+    style={{
+      ...styles.roleBadge,
+
+      ...(String(
+        leave.applicant_role ||
+          ""
+      ).toLowerCase() ===
+      "admin"
+        ? styles.adminRoleBadge
+        : styles.employeeRoleBadge),
+    }}
+  >
+    {String(
+      leave.applicant_role ||
+        "employee"
+    )
+      .charAt(0)
+      .toUpperCase() +
+      String(
+        leave.applicant_role ||
+          "employee"
+      ).slice(1)}
+  </span>
+</td>
+
+<td
+  style={
+    styles.cell
+  }
+>
+  {leave.department_name || "-"}
+</td>
 
                       <td
                         style={
@@ -982,19 +1020,30 @@ return (
                 </h3>
 
                 <p
-                  style={
-                    styles.employeeMeta
-                  }
-                >
-                  {selectedLeave.employee_code ||
-                    "-"}
-                  {" · "}
-                  {selectedLeave.designation ||
-                    "-"}
-                  {" · "}
-                  {selectedLeave.department_name ||
-                    "-"}
-                </p>
+  style={
+    styles.employeeMeta
+  }
+>
+  {String(
+    selectedLeave.applicant_role ||
+      "employee"
+  )
+    .charAt(0)
+    .toUpperCase() +
+    String(
+      selectedLeave.applicant_role ||
+        "employee"
+    ).slice(1)}
+  {" · "}
+  {selectedLeave.employee_code ||
+    "-"}
+  {" · "}
+  {selectedLeave.designation ||
+    "-"}
+  {" · "}
+  {selectedLeave.department_name ||
+    "-"}
+</p>
 
                 <p
                   style={
@@ -1197,7 +1246,14 @@ return (
             )}
 
             {selectedLeave.status ===
-            "pending" ? (
+  "pending" &&
+String(
+  selectedLeave.applicant_role ||
+    ""
+)
+  .trim()
+  .toLowerCase() ===
+  "admin" ? (
               <>
                 <label
                   style={
@@ -1205,8 +1261,8 @@ return (
                   }
                 >
                   <span>
-                    Admin Remark
-                  </span>
+  Superadmin Remark
+</span>
 
                   <textarea
                     value={
@@ -1271,47 +1327,142 @@ return (
                   </button>
                 </div>
               </>
-            ) : (
+            ) : selectedLeave.status ===
+                "pending" ? (
               <section
                 style={
-                  styles.reviewedBox
+                  styles.employeePendingBox
                 }
               >
-                <div>
-                  <span>
-                    Reviewed By
-                  </span>
+                <strong>
+                  Awaiting Department Admin Review
+                </strong>
 
-                  <strong>
-                    {selectedLeave.reviewed_by_name ||
-                      "-"}
-                  </strong>
-                </div>
-
-                <div>
-                  <span>
-                    Reviewed On
-                  </span>
-
-                  <strong>
-                    {formatDateTime(
-                      selectedLeave.reviewed_at
-                    )}
-                  </strong>
-                </div>
-
-                {selectedLeave.review_remark && (
-                  <div>
-                    <span>
-                      Admin Remark
-                    </span>
-
-                    <strong>
-                      {selectedLeave.review_remark}
-                    </strong>
-                  </div>
-                )}
+                <span>
+                  This employee leave
+                  request is visible to
+                  Superadmin for reference.
+                  Approval or rejection must
+                  be completed by the
+                  employee's Department Admin.
+                </span>
               </section>
+            ) : (
+              <section
+  style={
+    styles.reviewedBox
+  }
+>
+  <div
+    style={
+      styles.reviewedItem
+    }
+  >
+    <span
+      style={
+        styles.reviewedLabel
+      }
+    >
+      Reviewed By
+    </span>
+
+    <strong
+      style={
+        styles.reviewedValue
+      }
+    >
+      {selectedLeave.reviewed_by_name ||
+        "Not available"}
+    </strong>
+  </div>
+
+  <div
+    style={
+      styles.reviewedItem
+    }
+  >
+    <span
+      style={
+        styles.reviewedLabel
+      }
+    >
+      Reviewed On
+    </span>
+
+    <strong
+      style={
+        styles.reviewedValue
+      }
+    >
+      {formatDateTime(
+        selectedLeave.reviewed_at
+      )}
+    </strong>
+  </div>
+
+  <div
+    style={
+      styles.reviewedItem
+    }
+  >
+    <span
+      style={
+        styles.reviewedLabel
+      }
+    >
+      Reviewed As
+    </span>
+
+    <strong
+      style={
+        styles.reviewedValue
+      }
+    >
+      {String(
+        selectedLeave.applicant_role ||
+          ""
+      )
+        .trim()
+        .toLowerCase() ===
+      "admin"
+        ? "Superadmin Review"
+        : "Department Admin Review"}
+    </strong>
+  </div>
+
+  {selectedLeave.review_remark && (
+    <div
+      style={{
+        ...styles.reviewedItem,
+        ...styles.reviewedRemarkItem,
+      }}
+    >
+      <span
+        style={
+          styles.reviewedLabel
+        }
+      >
+        {String(
+          selectedLeave.applicant_role ||
+            ""
+        )
+          .trim()
+          .toLowerCase() ===
+        "admin"
+          ? "Superadmin Remark"
+          : "Admin Remark"}
+      </span>
+
+      <strong
+        style={
+          styles.reviewedValue
+        }
+      >
+        {selectedLeave.review_remark}
+      </strong>
+    </div>
+  )}
+</section>
             )}
           </div>
         </div>
@@ -1615,6 +1766,27 @@ const styles = {
     fontSize: "11px",
   },
 
+  roleBadge: {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  fontSize: "11px",
+  fontWeight: 900,
+  whiteSpace: "nowrap",
+},
+
+employeeRoleBadge: {
+  background: "#eff6ff",
+  color: "#1d4ed8",
+},
+
+adminRoleBadge: {
+  background: "#fff1eb",
+  color: "#ea4b28",
+},
+
   statusBadge: {
     display: "inline-flex",
     padding: "7px 10px",
@@ -1908,16 +2080,61 @@ const styles = {
   },
 
   reviewedBox: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(2, minmax(0, 1fr))",
-    gap: "10px",
-    background: "#f8fafc",
-    border:
-      "1px solid #e5e7eb",
-    borderRadius: "15px",
-    padding: "15px",
-  },
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(3, minmax(0, 1fr))",
+  gap: "12px",
+  background: "#f8fafc",
+  border:
+    "1px solid #e5e7eb",
+  borderRadius: "15px",
+  padding: "16px",
+},
+
+reviewedItem: {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: "5px",
+  minWidth: 0,
+  padding: "12px",
+  background: "#ffffff",
+  border:
+    "1px solid #e5e7eb",
+  borderRadius: "12px",
+},
+
+reviewedRemarkItem: {
+  gridColumn: "1 / -1",
+},
+
+reviewedLabel: {
+  color: "#64748b",
+  fontSize: "11px",
+  fontWeight: 800,
+},
+
+reviewedValue: {
+  color: "#111827",
+  fontSize: "13px",
+  fontWeight: 900,
+  lineHeight: 1.4,
+  overflowWrap: "anywhere",
+},
+
+employeePendingBox: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "6px",
+  padding: "15px",
+  background: "#fffbeb",
+  border:
+    "1px solid #fde68a",
+  borderRadius: "14px",
+  color: "#92400e",
+  fontSize: "13px",
+  lineHeight: 1.5,
+},
 
   confirmOverlay: {
     position: "fixed",

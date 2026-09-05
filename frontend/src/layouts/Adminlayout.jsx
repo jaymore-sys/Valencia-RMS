@@ -3,6 +3,7 @@ import {
   NavLink,
   Outlet,
   useNavigate,
+  useLocation,
 } from "react-router-dom";
 
 import {
@@ -35,6 +36,7 @@ const getStoredUser = () => {
 
 const AdminLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [sidebarCollapsed, setSidebarCollapsed] =
     useState(false);
@@ -214,9 +216,15 @@ const AdminLayout = () => {
         </div>
       </aside>
 
-      <main className="admin-main">
-        <Outlet />
-      </main>
+      <main
+  className={
+    location.pathname === "/admin/calendar"
+      ? "admin-main admin-main-calendar"
+      : "admin-main"
+  }
+>
+  <Outlet />
+</main>
     </div>
   );
 };

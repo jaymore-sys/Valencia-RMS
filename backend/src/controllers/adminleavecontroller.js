@@ -136,8 +136,9 @@ const getAdminLeaveApplications = async (
         ? requestedStatus
         : null;
 
-    const whereParts = [
+      const whereParts = [
       "employee.department_id = ?",
+      "LOWER(TRIM(employee_role.role_name)) = 'employee'",
     ];
 
     const values = [
@@ -209,9 +210,13 @@ const getAdminLeaveApplications = async (
 
         FROM leave_applications la
 
-        INNER JOIN users employee
+                INNER JOIN users employee
           ON employee.user_id =
             la.employee_id
+
+        INNER JOIN roles employee_role
+          ON employee_role.role_id =
+            employee.role_id
 
         LEFT JOIN departments d
           ON d.department_id =
@@ -275,14 +280,21 @@ const getAdminLeaveApplications = async (
             END
           ) AS rejected
 
-        FROM leave_applications la
+                FROM leave_applications la
 
         INNER JOIN users employee
           ON employee.user_id =
             la.employee_id
 
+        INNER JOIN roles employee_role
+          ON employee_role.role_id =
+            employee.role_id
+
         WHERE
           employee.department_id = ?
+
+          AND
+          LOWER(TRIM(employee_role.role_name)) = 'employee'
         `,
         [
           admin.department_id,
@@ -499,17 +511,24 @@ const reviewLeaveApplication = async (
 
           employee.department_id
 
-        FROM leave_applications la
+                FROM leave_applications la
 
         INNER JOIN users employee
           ON employee.user_id =
             la.employee_id
+
+        INNER JOIN roles employee_role
+          ON employee_role.role_id =
+            employee.role_id
 
         WHERE
           la.leave_id = ?
 
           AND
           employee.department_id = ?
+
+          AND
+          LOWER(TRIM(employee_role.role_name)) = 'employee'
 
         LIMIT 1
 

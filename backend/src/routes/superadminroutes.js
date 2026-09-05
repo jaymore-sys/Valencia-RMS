@@ -11,7 +11,10 @@ const {
 
   getSuperadminFieldVisits,
   reviewSuperadminFieldVisit,
+
   getSuperadminLeaves,
+  reviewSuperadminLeave,
+
   getSuperadminProjects,
   getSuperadminTasks,
   getSuperadminUsers,
@@ -198,8 +201,17 @@ router.patch(
 
 
 
-router.get("/leaves", ...superadminOnly, getSuperadminLeaves);
+router.get(
+  "/leaves",
+  ...superadminOnly,
+  getSuperadminLeaves
+);
 
+router.patch(
+  "/leaves/:leaveId/status",
+  ...superadminOnly,
+  reviewSuperadminLeave
+);
 
 /*
 =========================

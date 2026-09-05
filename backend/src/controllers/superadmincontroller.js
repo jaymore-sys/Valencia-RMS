@@ -1,5 +1,7 @@
 const db = require("../config/db");
-
+const {
+  buildLeaveBalances,
+} = require("../utils/leavepolicy");
 const mainTaskCondition = `(t.parent_task_id IS NULL OR t.parent_task_id = 0)`;
 
 const PROJECT_DIVISIONS = [
@@ -2346,31 +2348,620 @@ message:error.message
 };
 
 
-const getSuperadminLeaves = async(req,res)=>{
- try{
- const [applications]=await db.query(`SELECT
-        la.*,
+const getSuperadminLeaves = async (
+  req,
+  res
+) => {
+  try {
+    const [applications] =
+      await db.query(
+        `
+        SELECT
+          la.leave_id,
+          la.employee_id,
+          la.leave_type,
 
-        u.full_name AS employee_name,
-        u.employee_code,
-        u.email AS employee_email,
-        u.designation,
+          DATE_FORMAT(
+            la.start_date,
+            '%Y-%m-%d'
+          ) AS start_date,
 
-        d.department_name
+          DATE_FORMAT(
+            la.end_date,
+            '%Y-%m-%d'
+          ) AS end_date,
 
-      FROM leave_applications la
+          la.total_days,
+          la.duration_type,
+          la.half_day_session,
+          la.reason,
+          la.status,
+          la.review_remark,
+          la.reviewed_by,
 
-      LEFT JOIN users u
-        ON u.user_id = la.employee_id
+          DATE_FORMAT(
+            la.applied_at,
+            '%Y-%m-%d %H:%i:%s'
+          ) AS applied_at,
 
-      LEFT JOIN departments d
-        ON d.department_id = u.department_id
+          DATE_FORMAT(
+            la.reviewed_at,
+            '%Y-%m-%d %H:%i:%s'
+          ) AS reviewed_at,
 
-      ORDER BY la.applied_at DESC`);
- res.json({success:true,applications});
- }catch(error){res.status(500).json({success:false,message:error.message});}
+          u.full_name
+            AS employee_name,
+
+          u.employee_code,
+
+          u.email
+            AS employee_email,
+
+          u.designation,
+          u.department_id,
+
+          d.department_name,
+
+          r.role_name
+            AS applicant_role,
+
+          reviewer.full_name
+            AS reviewed_by_name,
+
+          reviewer.email
+            AS reviewed_by_email
+
+        FROM leave_applications la
+
+        LEFT JOIN users u
+          ON u.user_id =
+             la.employee_id
+
+        LEFT JOIN roles r
+          ON r.role_id =
+             u.role_id
+
+        LEFT JOIN departments d
+          ON d.department_id =
+             u.department_id
+
+        LEFT JOIN users reviewer
+          ON reviewer.user_id =
+             la.reviewed_by
+
+        ORDER BY
+          CASE
+            WHEN la.status = 'pending'
+            THEN 1
+
+            WHEN la.status = 'approved'
+            THEN 2
+
+            WHEN la.status = 'rejected'
+            THEN 3
+
+            ELSE 4
+          END,
+
+          la.applied_at DESC,
+          la.leave_id DESC
+        `
+      );
+
+    const normalized =
+      applications.map(
+        (application) => ({
+          ...application,
+
+          total_days:
+            Number(
+              application.total_days ||
+                0
+            ),
+
+          applicant_role:
+            String(
+              application.applicant_role ||
+                ""
+            )
+              .trim()
+              .toLowerCase(),
+
+          /*
+          Superadmin may take action
+          ONLY on Admin applications.
+          Employee applications remain
+          visible as read-only records.
+          */
+          can_superadmin_review:
+            String(
+              application.applicant_role ||
+                ""
+            )
+              .trim()
+              .toLowerCase() ===
+            "admin",
+        })
+      );
+
+    const summary = {
+      total:
+        normalized.length,
+
+      pending:
+        normalized.filter(
+          (item) =>
+            String(
+              item.status || ""
+            ).toLowerCase() ===
+            "pending"
+        ).length,
+
+      approved:
+        normalized.filter(
+          (item) =>
+            String(
+              item.status || ""
+            ).toLowerCase() ===
+            "approved"
+        ).length,
+
+      rejected:
+        normalized.filter(
+          (item) =>
+            String(
+              item.status || ""
+            ).toLowerCase() ===
+            "rejected"
+        ).length,
+    };
+
+    return res.json({
+      success: true,
+      summary,
+      applications:
+        normalized,
+    });
+  } catch (error) {
+    console.error(
+      "SUPERADMIN LEAVES ERROR:",
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          "Failed to fetch leave applications.",
+
+        error:
+          error.message,
+
+        sqlMessage:
+          error.sqlMessage ||
+          null,
+      });
+  }
 };
+/*
+=========================================================
+SUPERADMIN - REVIEW ADMIN LEAVE
+=========================================================
 
+Superadmin may approve/reject ONLY
+leave applications submitted by Admin users.
+
+Employee leave applications remain visible
+but continue to be reviewed by Department Admin.
+=========================================================
+*/
+
+const reviewSuperadminLeave = async (
+  req,
+  res
+) => {
+  let connection;
+
+  try {
+    const reviewerId =
+      getLoggedInUserId(req);
+
+    if (!reviewerId) {
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message:
+            "Unauthorized. Superadmin user not found in token.",
+        });
+    }
+
+    const leaveId =
+      Number(
+        req.params.leaveId
+      );
+
+    if (
+      !Number.isInteger(
+        leaveId
+      ) ||
+      leaveId <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Invalid leave application ID.",
+        });
+    }
+
+    let status =
+      String(
+        req.body?.status ||
+          req.body?.action ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+    const reviewRemark =
+      String(
+        req.body
+          ?.review_remark ||
+          req.body?.remark ||
+          ""
+      ).trim();
+
+    if (
+      status === "approve"
+    ) {
+      status =
+        "approved";
+    }
+
+    if (
+      status === "reject"
+    ) {
+      status =
+        "rejected";
+    }
+
+    if (
+      ![
+        "approved",
+        "rejected",
+      ].includes(status)
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Status must be approved or rejected.",
+        });
+    }
+
+    if (
+      status ===
+        "rejected" &&
+      !reviewRemark
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Please enter a reason before rejecting the leave application.",
+        });
+    }
+
+    connection =
+      await db.getConnection();
+
+    await connection
+      .beginTransaction();
+
+    /*
+    =====================================================
+    GET APPLICATION
+
+    Critical security condition:
+    applicant must currently have role = admin.
+    =====================================================
+    */
+
+    const [leaveRows] =
+      await connection.query(
+        `
+        SELECT
+          la.leave_id,
+          la.employee_id,
+          la.leave_type,
+          la.total_days,
+          la.reason,
+          la.status,
+          la.duration_type,
+          la.half_day_session,
+
+          DATE_FORMAT(
+            la.start_date,
+            '%Y-%m-%d'
+          ) AS start_date,
+
+          DATE_FORMAT(
+            la.end_date,
+            '%Y-%m-%d'
+          ) AS end_date,
+
+          u.full_name
+            AS employee_name,
+
+          u.email
+            AS employee_email,
+
+          u.employee_code,
+          u.designation,
+          u.department_id,
+
+          d.department_name,
+
+          r.role_name
+            AS applicant_role
+
+        FROM leave_applications la
+
+        INNER JOIN users u
+          ON u.user_id =
+             la.employee_id
+
+        INNER JOIN roles r
+          ON r.role_id =
+             u.role_id
+
+        LEFT JOIN departments d
+          ON d.department_id =
+             u.department_id
+
+        WHERE
+          la.leave_id = ?
+
+          AND LOWER(
+            TRIM(
+              COALESCE(
+                r.role_name,
+                ''
+              )
+            )
+          ) = 'admin'
+
+        LIMIT 1
+
+        FOR UPDATE
+        `,
+        [leaveId]
+      );
+
+    if (
+      !leaveRows.length
+    ) {
+      await connection
+        .rollback();
+
+      return res
+        .status(404)
+        .json({
+          success: false,
+
+          message:
+            "Admin leave application not found or this application cannot be reviewed by Superadmin.",
+        });
+    }
+
+    const leave =
+      leaveRows[0];
+
+    if (
+      String(
+        leave.status || ""
+      )
+        .trim()
+        .toLowerCase() !==
+      "pending"
+    ) {
+      await connection
+        .rollback();
+
+      return res
+        .status(400)
+        .json({
+          success: false,
+
+          message:
+            `This leave application is already ${leave.status}.`,
+        });
+    }
+
+    let remainingBalance =
+      null;
+
+    /*
+    =====================================================
+    VALIDATE ADMIN LEAVE BALANCE BEFORE APPROVAL
+    =====================================================
+    */
+
+    if (
+      status ===
+      "approved"
+    ) {
+      const leaveYear =
+        Number(
+          String(
+            leave.start_date ||
+              ""
+          ).slice(
+            0,
+            4
+          )
+        );
+
+      const balances =
+        await buildLeaveBalances(
+          connection,
+          leave.employee_id,
+          leaveYear,
+          {
+            excludeLeaveId:
+              leaveId,
+          }
+        );
+
+      const selectedBalance =
+        balances[
+          leave.leave_type
+        ];
+
+      if (
+        !selectedBalance
+      ) {
+        await connection
+          .rollback();
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Unable to calculate Admin leave balance.",
+          });
+      }
+
+      const available =
+        Number(
+          selectedBalance
+            .available ||
+            0
+        );
+
+      const requestedDays =
+        Number(
+          leave.total_days ||
+            0
+        );
+
+      if (
+        requestedDays >
+        available
+      ) {
+        await connection
+          .rollback();
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              `Cannot approve. Admin only has ${available} day(s) available for this leave type.`,
+          });
+      }
+
+      remainingBalance =
+        available -
+        requestedDays;
+    }
+
+    /*
+    =====================================================
+    UPDATE APPLICATION
+    =====================================================
+    */
+
+    await connection.query(
+      `
+      UPDATE leave_applications
+
+      SET
+        status = ?,
+        review_remark = ?,
+        reviewed_by = ?,
+        reviewed_at = NOW()
+
+      WHERE
+        leave_id = ?
+      `,
+      [
+        status,
+        reviewRemark ||
+          null,
+        reviewerId,
+        leaveId,
+      ]
+    );
+
+    await connection
+      .commit();
+
+    return res.json({
+      success: true,
+
+      message:
+        status ===
+        "approved"
+          ? "Admin leave approved successfully."
+          : "Admin leave rejected successfully.",
+
+      leave_id:
+        leaveId,
+
+      status,
+
+      review_remark:
+        reviewRemark,
+
+      remaining_balance:
+        remainingBalance,
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection
+          .rollback();
+      } catch {
+        // Ignore rollback error.
+      }
+    }
+
+    console.error(
+      "SUPERADMIN REVIEW ADMIN LEAVE ERROR:",
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          "Failed to review Admin leave application.",
+
+        error:
+          error.message,
+
+        sqlMessage:
+          error.sqlMessage ||
+          null,
+      });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
 module.exports = {
 
   getSuperadminFieldVisits,
@@ -2386,7 +2977,8 @@ module.exports = {
 
   getSuperadminProjectOptions,
 
-  getSuperadminOverview,
-  getSuperadminLeaves
+   getSuperadminOverview,
+  getSuperadminLeaves,
+  reviewSuperadminLeave
 
 };

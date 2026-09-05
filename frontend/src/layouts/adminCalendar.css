@@ -2185,3 +2185,213 @@
     max-width: none;
   }
 }
+/* =========================================================
+   MEETING PARTICIPANT SEARCH
+========================================================= */
+
+.admin-cal-employee-heading {
+  width: 100% !important;
+
+  display: grid !important;
+  grid-template-columns:
+    auto
+    minmax(180px, 1fr)
+    auto !important;
+
+  align-items: center !important;
+
+  gap: 14px !important;
+
+  margin-bottom: 10px !important;
+}
+
+.admin-cal-employee-heading label {
+  margin: 0 !important;
+
+  white-space: nowrap !important;
+}
+
+.admin-cal-employee-search {
+  width: 100% !important;
+  min-width: 0 !important;
+
+  height: 38px !important;
+
+  padding: 0 11px !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  gap: 8px !important;
+
+  background: #ffffff !important;
+
+  border:
+    1px solid #d7dde6 !important;
+
+  border-radius: 9px !important;
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.admin-cal-employee-search:focus-within {
+ 
+
+  box-shadow:
+    0 0 0 3px
+    rgba(
+      255,
+      87,
+      59,
+      0.09
+    ) !important;
+}
+
+.admin-cal-employee-search svg {
+  flex: 0 0 auto;
+
+  color: #98a2b3;
+}
+
+.admin-cal-employee-search input,
+.admin-cal-employee-search input:focus,
+.admin-cal-employee-search input:active {
+  width: 100% !important;
+  height: 100% !important;
+
+  min-width: 0 !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: none !important;
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  background:
+    transparent !important;
+
+  color: #344054 !important;
+
+  font-family: inherit !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.admin-cal-employee-search
+  input::placeholder {
+  color: #98a2b3 !important;
+}
+
+.admin-cal-employee-heading
+  > button {
+  white-space: nowrap !important;
+
+  margin: 0 !important;
+}
+
+.admin-cal-employee-empty {
+  grid-column: 1 / -1;
+
+  padding: 20px;
+
+  text-align: center;
+
+  color: #98a2b3;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   MEETING POPUP SEARCH
+========================================================= */
+
+.admin-cal-employee-heading {
+  width: 100% !important;
+
+  display: grid !important;
+
+  grid-template-columns:
+    auto
+    minmax(180px, 1fr)
+    auto !important;
+
+  align-items: center !important;
+
+  gap: 12px !important;
+
+  margin-bottom: 10px !important;
+}
+
+.admin-cal-employee-heading label {
+  margin: 0 !important;
+  white-space: nowrap !important;
+}
+
+.admin-cal-employee-search {
+  width: 100% !important;
+  height: 38px !important;
+
+  padding: 0 11px !important;
+
+  display: flex !important;
+  align-items: center !important;
+
+  gap: 8px !important;
+
+  border: 1px solid #d7dde6 !important;
+  border-radius: 9px !important;
+
+  background: #ffffff !important;
+}
+
+.admin-cal-employee-search:focus-within {
+  border-color: #ff8c76 !important;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(255, 87, 59, 0.09) !important;
+}
+
+.admin-cal-employee-search svg {
+  flex-shrink: 0;
+
+  color: #98a2b3;
+}
+
+.admin-cal-employee-search input,
+.admin-cal-employee-search input:focus {
+  width: 100% !important;
+  height: 100% !important;
+
+  margin: 0 !important;
+  padding: 0 !important;
+
+  border: none !important;
+  outline: none !important;
+
+  box-shadow: none !important;
+
+  background: transparent !important;
+
+  font-size: 11px !important;
+  font-weight: 700 !important;
+
+  color: #344054 !important;
+}
+
+.admin-cal-employee-search
+  input::placeholder {
+  color: #98a2b3 !important;
+}
+
+.admin-cal-employee-heading
+  > button {
+  margin: 0 !important;
+
+  white-space: nowrap !important;
+}

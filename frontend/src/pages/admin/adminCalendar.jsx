@@ -6,6 +6,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Search,
   X,
   CalendarDays,
 } from "lucide-react";
@@ -119,7 +120,10 @@ const AdminCalendar = () => {
   });
 
   const [employees, setEmployees] = useState([]);
-
+const [
+  employeeSearch,
+  setEmployeeSearch,
+] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
 
   const [activeFilter, setActiveFilter] = useState("all");
@@ -131,7 +135,10 @@ const AdminCalendar = () => {
   const [loading, setLoading] = useState(false);
 
   const [savingMeeting, setSavingMeeting] = useState(false);
-
+const [
+  meetingSuccess,
+  setMeetingSuccess,
+] = useState("");
   const [meetingForm, setMeetingForm] = useState({
     title: "",
     description: "",
@@ -633,7 +640,9 @@ const AdminCalendar = () => {
 
     setSelectedEmployees([]);
 
-    setShowMeeting(true);
+setEmployeeSearch("");
+
+setShowMeeting(true);
   };
 
   const closeMeeting = () => {
@@ -644,6 +653,7 @@ const AdminCalendar = () => {
     setEditingMeeting(null);
 
     setSelectedEmployees([]);
+    setEmployeeSearch("");
   };
 
   const toggleEmployee = (employeeId) => {
@@ -656,14 +666,52 @@ const AdminCalendar = () => {
     );
   };
 
-  const allSelectableIds = employees
+  const filteredEmployees = useMemo(() => {
+  const search =
+    employeeSearch
+      .trim()
+      .toLowerCase();
+
+  if (!search) {
+    return employees;
+  }
+
+  return employees.filter(
+    (employee) => {
+      const searchable = [
+        employee.full_name,
+        employee.email,
+        employee.employee_code,
+        employee.designation,
+        employee.department_name,
+        employee.role_name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchable.includes(
+        search
+      );
+    }
+  );
+}, [
+  employees,
+  employeeSearch,
+]);
+
+const allSelectableIds =
+  filteredEmployees
     .map((employee) =>
       Number(
         employee.user_id ??
         employee.id
       )
     )
-    .filter((id) => !Number.isNaN(id));
+    .filter(
+      (id) =>
+        !Number.isNaN(id)
+    );
 
   const allSelected =
     allSelectableIds.length > 0 &&
@@ -762,10 +810,18 @@ const AdminCalendar = () => {
         return;
       }
 
-      setShowMeeting(false);
-      setSelectedEmployees([]);
+     setShowMeeting(false);
+setSelectedEmployees([]);
 
-      await loadCalendar();
+await loadCalendar();
+
+setMeetingSuccess(
+  "Meeting scheduled successfully."
+);
+
+setTimeout(() => {
+  setMeetingSuccess("");
+}, 3500);
     } catch (error) {
       console.error(
         "Create meeting error:",
@@ -1043,22 +1099,7 @@ const AdminCalendar = () => {
   ========================================================= */
 
   return (
-    <div
-      className="admin-cal-page"
-      style={{
-  width: "100%",
-  maxWidth: "1320px",
-  margin: "0 auto",
-  padding: "0 18px",
-  boxSizing: "border-box",
-  height: "calc(100vh - 70px)",
-  display: "flex",
-  flexDirection: "column",
-  overflowY: "auto",
-  overflowX: "hidden",
-  transform: "translate(-15px, -125px)"
-}}
-    >
+   <div className="admin-cal-page">
       {/* ==================== TITLE ==================== */}
 
       <div className="admin-cal-title-row">
@@ -1593,26 +1634,43 @@ const AdminCalendar = () => {
 
               <div className="admin-cal-employee-block">
                 <div className="admin-cal-employee-heading">
-                  <label>
-                    Select Employees
-                    <span>*</span>
-                  </label>
 
-                  <button
-                    type="button"
-                    onClick={
-                      toggleAllEmployees
-                    }
-                  >
-                    {allSelected
-                      ? "Clear All"
-                      : "Select All"}
-                  </button>
-                </div>
+  <label>
+    Select Employees
+    <span>*</span>
+  </label>
+
+  <div className="admin-cal-employee-search">
+    <Search size={15} />
+
+    <input
+      type="text"
+      placeholder="Search employees or admins..."
+      value={employeeSearch}
+      onChange={(event) =>
+        setEmployeeSearch(
+          event.target.value
+        )
+      }
+    />
+  </div>
+
+  <button
+    type="button"
+    onClick={
+      toggleAllEmployees
+    }
+  >
+    {allSelected
+      ? "Clear All"
+      : "Select All"}
+  </button>
+
+</div>
 
                 <div className="admin-cal-employee-list">
-                  {employees.map(
-                    (employee) => {
+                  {filteredEmployees.map(
+  (employee) => {
                       const rawId =
                         employee.user_id ??
                         employee.id;
@@ -1736,6 +1794,35 @@ const AdminCalendar = () => {
             </div>
           </div>
         )}
+        {meetingSuccess && (
+  <div className="calendar-success-toast">
+
+    <div className="calendar-success-icon">
+      ✓
+    </div>
+
+    <div className="calendar-success-content">
+      <strong>
+        Meeting Scheduled
+      </strong>
+
+      <p>
+        {meetingSuccess}
+      </p>
+    </div>
+
+    <button
+      type="button"
+      className="calendar-success-close"
+      onClick={() =>
+        setMeetingSuccess("")
+      }
+    >
+      ×
+    </button>
+
+  </div>
+)}
     </div>
   );
 };

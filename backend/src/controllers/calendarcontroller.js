@@ -178,6 +178,7 @@ if (
           )
         ) IN (
           'employee',
+          'admin',
           'administrator'
         )
 
@@ -187,35 +188,47 @@ if (
         Logged-in Admin's department employees FIRST
         */
 
-        CASE
-          WHEN
-            LOWER(r.role_name) = 'employee'
-            AND u.department_id = ?
-          THEN 0
+       CASE
 
-          /*
-          All remaining company employees SECOND
-          */
+  /* Same department employees first */
 
-          WHEN
-            LOWER(r.role_name) = 'employee'
-          THEN 1
+  WHEN
+    LOWER(r.role_name) = 'employee'
+    AND u.department_id = ?
+  THEN 0
 
-          /*
-          Administrator LAST
-          */
+  /* Same department admins next */
 
-          WHEN
-            LOWER(r.role_name) = 'administrator'
-          THEN 2
+  WHEN
+    LOWER(r.role_name) = 'admin'
+    AND u.department_id = ?
+  THEN 1
 
-          ELSE 3
-        END,
+  /* Other employees */
 
+  WHEN
+    LOWER(r.role_name) = 'employee'
+  THEN 2
+
+  /* Other admins */
+
+  WHEN
+    LOWER(r.role_name) = 'admin'
+  THEN 3
+
+  /* Administrator */
+
+  WHEN
+    LOWER(r.role_name) = 'administrator'
+  THEN 4
+
+  ELSE 5
+
+END,
         d.department_name ASC,
         u.full_name ASC
       `,
-      [user.department_id]
+      [user.department_id,user.department_id]
     );
 
     return res.json({
@@ -375,6 +388,7 @@ if (
   )
 ) IN (
   'employee',
+  'admin',
   'administrator'
 )
 
@@ -401,6 +415,27 @@ if (
           "One or more selected employees are invalid.",
       });
     }
+
+    const usersWithoutEmail =
+  validEmployees.filter(
+    (person) =>
+      !String(
+        person.email || ""
+      ).trim()
+  );
+
+if (usersWithoutEmail.length) {
+  console.warn(
+    "Meeting participants without email:",
+    usersWithoutEmail.map(
+      (person) => ({
+        user_id: person.user_id,
+        name: person.full_name,
+        role: person.role_name,
+      })
+    )
+  );
+}
 
     await connection.beginTransaction();
 
@@ -505,75 +540,106 @@ if (
     ========================================================
     */
 
-    const participants =
-      validEmployees.map(
-        (employee) => ({
-          user_id:
-            employee.user_id,
+const participants =
+  validEmployees.map(
+    (person) => ({
+      user_id:
+        person.user_id,
 
-          full_name:
-            employee.full_name,
+      full_name:
+        person.full_name,
 
-          email:
-            employee.email,
-        })
+      email:
+        person.email,
+
+      role_name:
+        person.role_name,
+    })
+  );
+
+const emailRecipients =
+  validEmployees.filter(
+    (person) =>
+      String(
+        person.email || ""
+      ).trim()
+  );
+
+console.log(
+  "MEETING EMAIL RECIPIENTS:",
+  emailRecipients.map(
+    (person) => ({
+      name:
+        person.full_name,
+
+      email:
+        person.email,
+
+      role:
+        person.role_name,
+    })
+  )
+);
+
+for (
+  const person of
+    emailRecipients
+) {
+  const email =
+    String(
+      person.email
+    ).trim();
+
+  try {
+    const mailResult =
+      await sendMeetingScheduledEmail({
+        to: email,
+
+        participantName:
+          person.full_name,
+
+        meetingTitle:
+          cleanTitle,
+
+        description:
+          cleanDescription,
+
+        meetingDate:
+          meeting_date,
+
+        startTime:
+          start_time,
+
+        endTime:
+          end_time,
+
+        scheduledBy:
+          user.full_name,
+
+        scheduledByEmail:
+          user.email,
+
+        participants,
+      });
+
+    if (mailResult?.skipped) {
+      console.warn(
+        `Meeting email skipped for ${person.full_name} (${email}):`,
+        mailResult.message
       );
-
-    for (
-      const employee of
-        validEmployees
-    ) {
-      const email =
-        String(
-          employee.email || ""
-        ).trim();
-
-      if (!email) {
-        continue;
-      }
-
-      try {
-        await sendMeetingScheduledEmail({
-          to: email,
-
-          participantName:
-            employee.full_name,
-
-          meetingTitle:
-            cleanTitle,
-
-          description:
-            cleanDescription,
-
-          meetingDate:
-            meeting_date,
-
-          startTime:
-            start_time,
-
-          endTime:
-            end_time,
-
-          scheduledBy:
-            user.full_name,
-
-          scheduledByEmail:
-            user.email,
-
-          participants,
-        });
-
-        console.log(
-          `Meeting email sent to ${email}`
-        );
-
-      } catch (emailError) {
-        console.error(
-          `Meeting email failed for ${email}:`,
-          emailError
-        );
-      }
+    } else {
+      console.log(
+        `Meeting email sent to ${person.full_name} (${person.role_name}) - ${email}`
+      );
     }
+
+  } catch (emailError) {
+    console.error(
+      `Meeting email failed for ${person.full_name} (${person.role_name}) - ${email}:`,
+      emailError
+    );
+  }
+}
 
     return res
       .status(201)
@@ -1576,6 +1642,7 @@ WHERE id = ?
   )
 ) IN (
   'employee',
+  'admin',
   'administrator'
 )
       AND LOWER(
@@ -2398,9 +2465,24 @@ GROUP_CONCAT(
           me.employee_id
 
         WHERE
-          m.department_id = ?
+  (
+    m.department_id = ?
 
-        AND m.status = 'scheduled'
+    OR EXISTS (
+      SELECT 1
+
+      FROM meeting_employees selected_me
+
+      WHERE
+        selected_me.meeting_id = m.id
+
+        AND selected_me.employee_id = ?
+    )
+
+    OR m.created_by = ?
+  )
+
+AND m.status = 'scheduled'
 
         AND (
           m.meeting_date > CURDATE()
@@ -2420,7 +2502,11 @@ GROUP_CONCAT(
 
         LIMIT 3
         `,
-        [user.department_id]
+        [
+  user.department_id,
+  user.user_id,
+  user.user_id,
+]
       );
 
     } else {

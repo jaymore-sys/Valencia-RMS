@@ -374,7 +374,58 @@ const getDepartmentAdmins = async (
 
   return adminRows || [];
 };
+/*
+========================================================
+GET ACTIVE SUPERADMINS
 
+Admin personal leave applications
+must be reviewed by Superadmin.
+========================================================
+*/
+
+const getActiveSuperadmins = async () => {
+  const [superadminRows] =
+    await db.query(
+      `
+      SELECT DISTINCT
+        u.user_id,
+        u.full_name,
+        u.email,
+        u.department_id
+
+      FROM users u
+
+      INNER JOIN roles r
+        ON r.role_id =
+          u.role_id
+
+      WHERE
+        LOWER(
+          COALESCE(
+            r.role_name,
+            ''
+          )
+        ) = 'superadmin'
+
+        AND LOWER(
+          COALESCE(
+            u.status,
+            'active'
+          )
+        ) = 'active'
+
+        AND u.email IS NOT NULL
+
+        AND TRIM(u.email) != ''
+
+      ORDER BY
+        u.full_name ASC,
+        u.user_id ASC
+      `
+    );
+
+  return superadminRows || [];
+};
 /*
 ========================================================
 BUILD FINAL EMAIL RECIPIENTS
@@ -1209,13 +1260,16 @@ const applyEmployeeLeave =
       const [employeeRows] =
         await db.query(
           `
-          SELECT
+           SELECT
             u.user_id,
             u.full_name,
             u.email,
             u.department_id,
 
-            d.department_name
+            d.department_name,
+
+            r.role_name
+              AS applicant_role
 
           FROM users u
 
@@ -1223,6 +1277,9 @@ const applyEmployeeLeave =
             ON d.department_id =
               u.department_id
 
+          LEFT JOIN roles r
+            ON r.role_id =
+              u.role_id
           WHERE
             u.user_id = ?
 
@@ -1234,59 +1291,98 @@ const applyEmployeeLeave =
       const employee =
         employeeRows[0] ||
         {};
+              const applicantRole =
+        String(
+          employee.applicant_role ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const isAdminApplicant =
+        applicantRole ===
+        "admin";
 
       /*
       ======================================================
-      FIND ALL ACTIVE ADMINS
-      OF EMPLOYEE'S DEPARTMENT
+      FIND LEAVE REVIEWERS
+
+      Employee applicant:
+      → Department Admin(s)
+
+      Admin applicant:
+      → Superadmin(s)
       ======================================================
       */
 
       let departmentAdmins =
         [];
 
+      let superadmins =
+        [];
+
+      let reviewUsers =
+        [];
+
       try {
-        departmentAdmins =
-          await getDepartmentAdmins(
-            employee.department_id
-          );
+        if (isAdminApplicant) {
+          superadmins =
+            await getActiveSuperadmins();
+
+          reviewUsers =
+            superadmins;
+        } else {
+          departmentAdmins =
+            await getDepartmentAdmins(
+              employee.department_id
+            );
+
+          reviewUsers =
+            departmentAdmins;
+        }
       } catch (
-        adminError
+        reviewerError
       ) {
         console.error(
-          "Department Admin lookup failed:",
-          adminError.message
+          "Leave reviewer lookup failed:",
+          reviewerError.message
         );
 
         departmentAdmins =
           [];
+
+        superadmins =
+          [];
+
+        reviewUsers =
+          [];
       }
 
       /*
-      Keep first Admin for backwards
-      compatibility in API response.
+      Keep first reviewer for
+      backwards-compatible response
+      fields.
       */
 
       const admin =
-        departmentAdmins[0] ||
+        reviewUsers[0] ||
         {};
 
       /*
       ======================================================
       FINAL EMAIL RECIPIENTS
 
-      ALWAYS:
-      1. Manish
-      2. Rathika
+      Employee:
+      → Department Admin(s)
 
-      PLUS:
-      Active Admin(s) of employee's department.
+      Admin:
+      → Superadmin(s)
       ======================================================
       */
 
       const finalLeaveRecipients =
         buildLeaveRecipients(
-          departmentAdmins
+          reviewUsers
         );
 
       /*
@@ -1301,9 +1397,9 @@ const applyEmployeeLeave =
       };
 
       if (
-        finalLeaveRecipients.length >
-        0
-      ) {
+  finalLeaveRecipients.length >
+  0
+) {
         try {
           const leaveLabel =
             getLeaveLabel(
@@ -1324,10 +1420,12 @@ const applyEmployeeLeave =
               ? "Full Day"
               : `${totalDays} Full Days`;
 
-          const subject =
+                    const subject =
             `${leaveLabel} Application - ${
               employee.full_name ||
-              "Employee"
+              (isAdminApplicant
+                ? "Admin"
+                : "Employee")
             }`;
 
           const text = `
@@ -1335,8 +1433,8 @@ Dear Sir/Ma'am,
 
 A leave application has been submitted through Valencia RMS.
 
-Employee Name: ${employee.full_name || "-"}
-Employee Email: ${employee.email || "-"}
+${isAdminApplicant ? "Admin" : "Employee"} Name: ${employee.full_name || "-"}
+${isAdminApplicant ? "Admin" : "Employee"} Email: ${employee.email || "-"}
 Department: ${employee.department_name || "-"}
 
 Leave Type: ${leaveLabel}
@@ -1392,8 +1490,10 @@ Valencia RMS
                     border:1px solid #dddddd;
                   ">
                     <strong>
-                      Employee
-                    </strong>
+  ${isAdminApplicant
+    ? "Admin"
+    : "Employee"}
+</strong>
                   </td>
 
                   <td style="
@@ -1410,8 +1510,10 @@ Valencia RMS
                     border:1px solid #dddddd;
                   ">
                     <strong>
-                      Employee Email
-                    </strong>
+  ${isAdminApplicant
+    ? "Admin Email"
+    : "Employee Email"}
+</strong>
                   </td>
 
                   <td style="
@@ -1632,19 +1734,19 @@ Valencia RMS
               finalLeaveRecipients,
           };
         }
-      } else {
-        console.warn(
-          "Leave email skipped: no recipients found."
-        );
+           } else {
+  console.warn(
+    "Leave email skipped: no recipients found."
+  );
 
-        emailResult = {
-          sent: false,
-          skipped: true,
+  emailResult = {
+    sent: false,
+    skipped: true,
 
-          error:
-            "No leave email recipients found.",
-        };
-      }
+    error:
+      "No leave email recipients found.",
+  };
+}
 
       /*
       ======================================================
@@ -1702,6 +1804,22 @@ Valencia RMS
 
             admin_emails:
               departmentAdmins
+                .map(
+                  (item) =>
+                    item.email
+                )
+                .filter(Boolean),
+
+            applicant_role:
+              applicantRole,
+
+            approval_role:
+              isAdminApplicant
+                ? "superadmin"
+                : "admin",
+
+            reviewer_emails:
+              reviewUsers
                 .map(
                   (item) =>
                     item.email

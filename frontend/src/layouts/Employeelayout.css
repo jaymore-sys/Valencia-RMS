@@ -8,15 +8,42 @@
   width: 280px;
   background: #ffffff;
   border-right: 1px solid #e5e7eb;
+
   padding: 28px 22px;
+
   display: flex;
   flex-direction: column;
+
   position: fixed;
   left: 0;
   top: 0;
   bottom: 0;
+
+  height: 100vh;
+  box-sizing: border-box;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+.employee-sidebar::-webkit-scrollbar {
+  width: 5px;
 }
 
+.employee-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.employee-sidebar::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+.employee-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
 .employee-brand {
   display: flex;
   align-items: center;
@@ -2137,15 +2164,6 @@
   display: none !important;
 }
 
-/* Hide sidebar scrollbar without changing page content */
-.employee-sidebar {
-  scrollbar-width: none !important;
-}
-
-.employee-sidebar::-webkit-scrollbar {
-  width: 0 !important;
-  height: 0 !important;
-}
 
 /* MOBILE */
 @media (max-width: 900px) {
@@ -3464,4 +3482,55 @@
 .employee-dashboard-shell:not(.sidebar-collapsed) .employee-main {
   margin-left: 280px !important;
   width: calc(100% - 280px) !important;
+}
+/* =========================================================
+   EMPLOYEE SIDEBAR SCROLL - FINAL
+========================================================= */
+
+.employee-dashboard-shell .employee-sidebar {
+  height: 100vh !important;
+  max-height: 100vh !important;
+
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd5e1 transparent !important;
+}
+
+
+/* NAV MUST NOT BE SQUEEZED */
+.employee-dashboard-shell .employee-nav {
+  flex: 0 0 auto !important;
+  height: auto !important;
+  min-height: auto !important;
+
+  overflow: visible !important;
+}
+
+
+/* LOGOUT STAYS AT BOTTOM WHEN THERE IS SPACE */
+.employee-dashboard-shell .employee-sidebar-bottom,
+.employee-dashboard-shell .employee-sidebar-footer {
+  flex: 0 0 auto !important;
+  margin-top: auto !important;
+}
+
+
+/* SIDEBAR SCROLLBAR */
+.employee-dashboard-shell .employee-sidebar::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.employee-dashboard-shell .employee-sidebar::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.employee-dashboard-shell .employee-sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1 !important;
+  border-radius: 999px !important;
+}
+
+.employee-dashboard-shell .employee-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8 !important;
 }

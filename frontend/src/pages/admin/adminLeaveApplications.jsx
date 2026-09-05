@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 
 import api from "../../api/axios";
-
+import EmployeeLeaveApplications from "../employee/employeeLeaveApplications";
 const AdminLeaveApplications = () => {
   const [applications, setApplications] =
     useState([]);
@@ -28,6 +28,9 @@ const AdminLeaveApplications = () => {
 
   const [admin, setAdmin] =
     useState(null);
+
+  const [leaveView, setLeaveView] =
+    useState("department");
 
   const [filter, setFilter] =
     useState("all");
@@ -564,8 +567,71 @@ useEffect(() => {
 },[applications]);
 // END OPEN_LEAVE_AUTO_POPUP
 
+
+if (leaveView === "personal") {
+  return (
+    <div style={styles.page}>
+      <div style={styles.leaveViewRow}>
+        <div style={styles.leaveViewSwitch}>
+          <button
+            type="button"
+            style={styles.leaveViewBtn}
+            onClick={() =>
+              setLeaveView("department")
+            }
+          >
+            Department Requests
+          </button>
+
+          <button
+            type="button"
+            style={{
+              ...styles.leaveViewBtn,
+              ...styles.activeLeaveViewBtn,
+            }}
+            onClick={() =>
+              setLeaveView("personal")
+            }
+          >
+            Personal Leave
+          </button>
+        </div>
+      </div>
+
+      <EmployeeLeaveApplications />
+    </div>
+  );
+}
+
+
 return (
     <div style={styles.page}>
+      <div style={styles.leaveViewRow}>
+        <div style={styles.leaveViewSwitch}>
+          <button
+            type="button"
+            style={{
+              ...styles.leaveViewBtn,
+              ...styles.activeLeaveViewBtn,
+            }}
+            onClick={() =>
+              setLeaveView("department")
+            }
+          >
+            Department Requests
+          </button>
+
+          <button
+            type="button"
+            style={styles.leaveViewBtn}
+            onClick={() =>
+              setLeaveView("personal")
+            }
+          >
+            Personal Leave
+          </button>
+        </div>
+      </div>
       <div style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -1430,6 +1496,44 @@ const styles = {
   page: {
     width: "100%",
     paddingBottom: "40px",
+  },
+
+  leaveViewRow: {
+    width: "100%",
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginBottom: "18px",
+  },
+
+  leaveViewSwitch: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    padding: "4px",
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+    boxShadow:
+      "0 4px 12px rgba(15,23,42,0.04)",
+  },
+
+  leaveViewBtn: {
+    minHeight: "42px",
+    padding: "0 18px",
+    border: 0,
+    borderRadius: "10px",
+    background: "transparent",
+    color: "#64748b",
+    fontSize: "13px",
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+
+  activeLeaveViewBtn: {
+    background: "#ff5733",
+    color: "#ffffff",
   },
 
   header: {
