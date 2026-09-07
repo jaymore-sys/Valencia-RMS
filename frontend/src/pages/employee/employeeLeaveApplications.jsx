@@ -77,10 +77,10 @@ const LEAVE_CARDS = [
     description: "1.5 days credited monthly",
   },
   {
-    key: "festival",
-    title: "Holiday Leave",
-    description: "1 Holiday Leave in 2026 - Christmas",
-  },
+  key: "festival",
+  title: "Holiday Leave",
+  description: "Choose from available festival holidays",
+},
 ];
 
 const HISTORY_FILTERS = [
