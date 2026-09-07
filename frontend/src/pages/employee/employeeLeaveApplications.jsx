@@ -78,7 +78,7 @@ const LEAVE_CARDS = [
   },
   {
   key: "festival",
-  title: "Holiday Leave",
+  title: "Festival Leave",
   description: "Choose from available festival holidays",
 },
 ];
