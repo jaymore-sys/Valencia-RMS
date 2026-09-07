@@ -8,6 +8,9 @@ const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
 const MANISH_FIELD_VISIT_EMAIL =
   "manish@valencianutrition.com";
+
+const ATTENDANCE_SYSTEM_START_DATE =
+  "2026-04-01";  
 const OFFICE_START_MINUTES = 11 * 60; // 11:00 AM
 const OFFICE_END_MINUTES = 19 * 60 + 30; // 7:30 PM
 
@@ -30,7 +33,22 @@ const formatDateOnly = (value) => {
 
   return `${year}-${month}-${day}`;
 };
+const getEffectiveAttendanceStartDate = (
+  joiningDate
+) => {
+  const formattedJoiningDate =
+    formatDateOnly(joiningDate);
 
+  if (
+    formattedJoiningDate &&
+    formattedJoiningDate >
+      ATTENDANCE_SYSTEM_START_DATE
+  ) {
+    return formattedJoiningDate;
+  }
+
+  return ATTENDANCE_SYSTEM_START_DATE;
+};
 const parseDateOnly = (dateString) => {
   return new Date(`${dateString}T00:00:00`);
 };
@@ -330,13 +348,23 @@ const getLoggedInAdmin = async (
         u.phone,
         u.designation,
         u.department_id,
-        u.status,
-        r.role_name,
-        d.department_name
+u.status,
 
-      FROM users u
+DATE_FORMAT(
+  ep.joining_date,
+  '%Y-%m-%d'
+) AS joining_date,
 
-      LEFT JOIN roles r
+r.role_name,
+d.department_name
+
+FROM users u
+
+LEFT JOIN employee_profiles ep
+  ON ep.user_id =
+     u.user_id
+
+LEFT JOIN roles r
         ON r.role_id = u.role_id
 
       LEFT JOIN departments d
@@ -655,49 +683,59 @@ const getDepartmentAttendance = async (
     }
 
     const [users] =
-      await db.query(
-        `
-          SELECT
-            u.user_id,
-            u.employee_code,
-            u.full_name,
-            u.email,
-            u.phone,
-            u.designation,
-            u.department_id,
-            u.status,
-            r.role_name,
-            d.department_name
+  await db.query(
+    `
+      SELECT
+        u.user_id,
+        u.employee_code,
+        u.full_name,
+        u.email,
+        u.phone,
+        u.designation,
+        u.department_id,
+        u.status,
 
-          FROM users u
+        DATE_FORMAT(
+          ep.joining_date,
+          '%Y-%m-%d'
+        ) AS joining_date,
 
-          LEFT JOIN roles r
-            ON r.role_id =
-            u.role_id
+        r.role_name,
+        d.department_name
 
-          LEFT JOIN departments d
-            ON d.department_id =
-            u.department_id
+      FROM users u
 
-          WHERE
-            u.department_id = ?
+      LEFT JOIN employee_profiles ep
+        ON ep.user_id =
+           u.user_id
 
-          AND LOWER(
-            COALESCE(
-              u.status,
-              'active'
-            )
-          ) NOT IN (
-            'deleted'
-          )
+      LEFT JOIN roles r
+        ON r.role_id =
+           u.role_id
 
-          ORDER BY
-            u.full_name ASC
-        `,
-        [
-          admin.department_id,
-        ]
-      );
+      LEFT JOIN departments d
+        ON d.department_id =
+           u.department_id
+
+      WHERE
+        u.department_id = ?
+
+      AND LOWER(
+        COALESCE(
+          u.status,
+          'active'
+        )
+      ) NOT IN (
+        'deleted'
+      )
+
+      ORDER BY
+        u.full_name ASC
+    `,
+    [
+      admin.department_id,
+    ]
+  );
 
     const userIds =
       users.map(
@@ -735,41 +773,44 @@ const getDepartmentAttendance = async (
     }
 
     const [rangeRows] =
-      await db.query(
-        `
-          SELECT
-            MIN(a.attendance_date)
-              AS start_date,
+  await db.query(
+    `
+      SELECT
+        MAX(a.attendance_date)
+          AS end_date
 
-            MAX(a.attendance_date)
-              AS end_date
+      FROM attendance a
 
-          FROM attendance a
+      WHERE a.employee_id IN (
+        ${userIds
+          .map(() => "?")
+          .join(",")}
+      )
 
-          WHERE a.employee_id IN (
-            ${userIds
-              .map(() => "?")
-              .join(",")}
-          )
-        `,
-        userIds
-      );
+      AND a.attendance_date >= ?
 
-    const startDate =
-      formatDateOnly(
-        rangeRows[0]?.start_date
-      );
+      AND a.attendance_date <=
+          CURDATE()
+    `,
+    [
+      ...userIds,
+      ATTENDANCE_SYSTEM_START_DATE,
+    ]
+  );
 
-    const endDate =
-      formatDateOnly(
-        rangeRows[0]?.end_date
-      );
+const startDate =
+  ATTENDANCE_SYSTEM_START_DATE;
 
-    const workingDates =
-      buildWorkingDates(
-        startDate,
-        endDate
-      );
+const endDate =
+  formatDateOnly(
+    rangeRows[0]?.end_date
+  );
+
+const workingDates =
+  buildWorkingDates(
+    startDate,
+    endDate
+  );
 
     let attendanceRows = [];
 
@@ -816,47 +857,84 @@ const getDepartmentAttendance = async (
         rows;
     }
 
-    const summaries =
-      users.map(
-        (user) => {
-          const records =
-            attendanceRows.filter(
-              (record) =>
-                Number(
-                  record.employee_id
-                ) ===
+   const summaries =
+  users.map(
+    (user) => {
+      const userStartDate =
+        getEffectiveAttendanceStartDate(
+          user.joining_date
+        );
+
+      const records =
+        attendanceRows.filter(
+          (record) => {
+            const recordDate =
+              formatDateOnly(
+                record.attendance_date
+              );
+
+            return (
+              Number(
+                record.employee_id
+              ) ===
                 Number(
                   user.user_id
-                )
+                ) &&
+              recordDate &&
+              recordDate >=
+                userStartDate
             );
+          }
+        );
 
-          return buildUserAttendanceSummary(
-            {
-              user,
-              records,
-              workingDates,
-            }
-          );
-        }
-      );
+      const userWorkingDates =
+        workingDates.filter(
+          (date) =>
+            date >=
+            userStartDate
+        );
 
-    const myAttendance =
-      summaries.find(
-        (item) =>
-          Number(
-            item.user_id
-          ) ===
-          Number(
-            admin.user_id
-          )
-      ) ||
-      buildUserAttendanceSummary(
+      return buildUserAttendanceSummary(
         {
-          user: admin,
-          records: [],
-          workingDates,
+          user,
+          records,
+          workingDates:
+            userWorkingDates,
         }
       );
+    }
+  ); 
+
+    const adminStartDate =
+  getEffectiveAttendanceStartDate(
+    admin.joining_date
+  );
+
+const adminWorkingDates =
+  workingDates.filter(
+    (date) =>
+      date >=
+      adminStartDate
+  );
+
+const myAttendance =
+  summaries.find(
+    (item) =>
+      Number(
+        item.user_id
+      ) ===
+      Number(
+        admin.user_id
+      )
+  ) ||
+  buildUserAttendanceSummary(
+    {
+      user: admin,
+      records: [],
+      workingDates:
+        adminWorkingDates,
+    }
+  );
 
     const employeeSummary =
       summaries.filter(

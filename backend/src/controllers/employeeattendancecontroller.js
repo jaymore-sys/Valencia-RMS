@@ -8,6 +8,8 @@ const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
 const MANISH_FIELD_VISIT_EMAIL =
   "manish@valencianutrition.com";
+  const ATTENDANCE_SYSTEM_START_DATE =
+  "2026-04-01";
 const tableColumnsCache = {};
 
 const getTableColumns = async (tableName) => {
@@ -46,6 +48,22 @@ const formatDate = (dateValue) => {
   return `${year}-${month}-${day}`;
 };
 
+const getEffectiveAttendanceStartDate = (
+  joiningDate
+) => {
+  const formattedJoiningDate =
+    formatDate(joiningDate);
+
+  if (
+    formattedJoiningDate &&
+    formattedJoiningDate >
+      ATTENDANCE_SYSTEM_START_DATE
+  ) {
+    return formattedJoiningDate;
+  }
+
+  return ATTENDANCE_SYSTEM_START_DATE;
+};
 const getDayName = (dateString) => {
   const date = new Date(`${dateString}T00:00:00`);
   return date.toLocaleDateString("en-US", { weekday: "long" });
@@ -128,77 +146,162 @@ const formatWorkingHours = (totalMinutes) => {
 
   return `${remainingMinutes}m`;
 };
+const buildAttendanceWithGeneratedAbsents = (
+  attendanceRows,
+  employeeId,
+  startDate,
+  endDate
+) => {
+  if (
+    !startDate ||
+    !endDate ||
+    startDate > endDate
+  ) {
+    return [];
+  }
 
-const buildAttendanceWithGeneratedAbsents = (attendanceRows, employeeId) => {
-  if (!attendanceRows.length) return [];
+  const existingByDate =
+    new Map();
 
-  const existingByDate = new Map();
+  attendanceRows.forEach(
+    (row) => {
+      const attendanceDate =
+        formatDate(
+          row.attendance_date
+        );
 
-  attendanceRows.forEach((row) => {
-    const attendanceDate = formatDate(row.attendance_date);
-    existingByDate.set(attendanceDate, {
-      ...row,
-      attendance_date: attendanceDate,
-    });
-  });
+      if (!attendanceDate) {
+        return;
+      }
 
-  const sortedDates = [...existingByDate.keys()].filter(Boolean).sort();
-
-  if (!sortedDates.length) return [];
-
-  const startDate = sortedDates[0];
-  const endDate = sortedDates[sortedDates.length - 1];
+      existingByDate.set(
+        attendanceDate,
+        {
+          ...row,
+          attendance_date:
+            attendanceDate,
+        }
+      );
+    }
+  );
 
   const finalAttendance = [];
-  let currentDate = startDate;
 
-  while (currentDate <= endDate) {
+  let currentDate =
+    startDate;
+
+  while (
+    currentDate <= endDate
+  ) {
     if (!isSunday(currentDate)) {
-      const existingRow = existingByDate.get(currentDate);
+      const existingRow =
+        existingByDate.get(
+          currentDate
+        );
 
       if (existingRow) {
-        const checkIn = formatTime(existingRow.check_in_time);
-        const checkOut = formatTime(existingRow.check_out_time);
+        const checkIn =
+          formatTime(
+            existingRow.check_in_time
+          );
+
+        const checkOut =
+          formatTime(
+            existingRow.check_out_time
+          );
 
         const totalMinutes =
-          Number(existingRow.total_minutes || 0) ||
-          calculateMinutesFromTimes(checkIn, checkOut);
+          Number(
+            existingRow.total_minutes ||
+              0
+          ) ||
+          calculateMinutesFromTimes(
+            checkIn,
+            checkOut
+          );
 
         finalAttendance.push({
-          attendance_id: existingRow.attendance_id,
-          employee_id: existingRow.employee_id,
-          attendance_date: currentDate,
-          day_name: getDayName(currentDate),
-          check_in_time: checkIn,
-          check_out_time: checkOut,
-          total_minutes: totalMinutes,
-          working_hours: formatWorkingHours(totalMinutes),
-          status: normalizeStatus(existingRow.status),
-          remarks: existingRow.remarks || "-",
-          is_generated_absent: false,
+          attendance_id:
+            existingRow.attendance_id,
+
+          employee_id:
+            existingRow.employee_id,
+
+          attendance_date:
+            currentDate,
+
+          day_name:
+            getDayName(currentDate),
+
+          check_in_time:
+            checkIn,
+
+          check_out_time:
+            checkOut,
+
+          total_minutes:
+            totalMinutes,
+
+          working_hours:
+            formatWorkingHours(
+              totalMinutes
+            ),
+
+          status:
+            normalizeStatus(
+              existingRow.status
+            ),
+
+          remarks:
+            existingRow.remarks ||
+            "-",
+
+          is_generated_absent:
+            false,
         });
       } else {
         finalAttendance.push({
           attendance_id: null,
-          employee_id: employeeId,
-          attendance_date: currentDate,
-          day_name: getDayName(currentDate),
+
+          employee_id:
+            employeeId,
+
+          attendance_date:
+            currentDate,
+
+          day_name:
+            getDayName(currentDate),
+
           check_in_time: "-",
           check_out_time: "-",
+
           total_minutes: 0,
+
           working_hours: "-",
+
           status: "absent",
+
           remarks: "Absent",
-          is_generated_absent: true,
+
+          is_generated_absent:
+            true,
         });
       }
     }
 
-    currentDate = addOneDay(currentDate);
+    currentDate =
+      addOneDay(currentDate);
   }
 
-  return finalAttendance.sort((a, b) =>
-    String(b.attendance_date).localeCompare(String(a.attendance_date))
+  return finalAttendance.sort(
+    (a, b) =>
+      String(
+        b.attendance_date
+      ).localeCompare(
+        String(
+          a.attendance_date
+        )
+      )
   );
 };
 
@@ -249,40 +352,120 @@ const getEmployeeAttendance = async (req, res) => {
       : "NULL AS designation";
 
     const [profileRows] = await db.query(
-      `
-      SELECT
-        u.user_id,
-        u.full_name,
-        u.email,
-        ${selectEmployeeCode},
-        ${selectDesignation},
-        r.role_name,
-        d.department_name
-      FROM users u
-      LEFT JOIN roles r ON r.role_id = u.role_id
-      LEFT JOIN departments d ON d.department_id = u.department_id
-      WHERE u.user_id = ?
-      LIMIT 1
-      `,
-      [employeeId]
-    );
+  `
+  SELECT
+    u.user_id,
+    u.full_name,
+    u.email,
+    ${selectEmployeeCode},
+    ${selectDesignation},
 
-    const profile = profileRows[0] || {
-      user_id: employeeId,
-      full_name: req.user.full_name || "-",
-      email: req.user.email || "-",
-      employee_code: req.user.employee_code || "-",
-      designation: req.user.designation || "-",
-      role_name: req.user.role_name || "employee",
-      department_name: req.user.department_name || "-",
-    };
+    DATE_FORMAT(
+      ep.joining_date,
+      '%Y-%m-%d'
+    ) AS joining_date,
 
-    const [attendanceRows] = await db.query(
+    r.role_name,
+    d.department_name
+
+  FROM users u
+
+  LEFT JOIN employee_profiles ep
+    ON ep.user_id =
+       u.user_id
+
+  LEFT JOIN roles r
+    ON r.role_id =
+       u.role_id
+
+  LEFT JOIN departments d
+    ON d.department_id =
+       u.department_id
+
+  WHERE u.user_id = ?
+
+  LIMIT 1
+  `,
+  [employeeId]
+);
+
+   const profile =
+  profileRows[0] || {
+    user_id: employeeId,
+
+    full_name:
+      req.user.full_name || "-",
+
+    email:
+      req.user.email || "-",
+
+    employee_code:
+      req.user.employee_code || "-",
+
+    designation:
+      req.user.designation || "-",
+
+    joining_date: null,
+
+    role_name:
+      req.user.role_name ||
+      "employee",
+
+    department_name:
+      req.user.department_name ||
+      "-",
+  };
+
+  const attendanceStartDate =
+  getEffectiveAttendanceStartDate(
+    profile.joining_date
+  );
+
+  const [rangeRows] =
+  await db.query(
+    `
+    SELECT
+      DATE_FORMAT(
+        MAX(attendance_date),
+        '%Y-%m-%d'
+      ) AS end_date
+
+    FROM attendance
+
+    WHERE
+      attendance_date >= ?
+
+      AND attendance_date <=
+          CURDATE()
+    `,
+    [
+      ATTENDANCE_SYSTEM_START_DATE,
+    ]
+  );
+
+const attendanceEndDate =
+  rangeRows[0]?.end_date ||
+  null;
+
+   let attendanceRows = [];
+
+if (
+  attendanceEndDate &&
+  attendanceStartDate <=
+    attendanceEndDate
+) {
+  const [rows] =
+    await db.query(
       `
       SELECT
         attendance_id,
         employee_id,
-        DATE_FORMAT(attendance_date, '%Y-%m-%d') AS attendance_date,
+
+        DATE_FORMAT(
+          attendance_date,
+          '%Y-%m-%d'
+        ) AS attendance_date,
+
         check_in_time,
         check_out_time,
         total_minutes,
@@ -290,17 +473,34 @@ const getEmployeeAttendance = async (req, res) => {
         remarks,
         created_at,
         updated_at
+
       FROM attendance
+
       WHERE employee_id = ?
-      ORDER BY attendance_date DESC
+
+        AND attendance_date
+          BETWEEN ? AND ?
+
+      ORDER BY
+        attendance_date DESC
       `,
-      [employeeId]
+      [
+        employeeId,
+        attendanceStartDate,
+        attendanceEndDate,
+      ]
     );
 
-    const attendance = buildAttendanceWithGeneratedAbsents(
-      attendanceRows,
-      employeeId
-    );
+  attendanceRows = rows;
+}
+
+    const attendance =
+  buildAttendanceWithGeneratedAbsents(
+    attendanceRows,
+    employeeId,
+    attendanceStartDate,
+    attendanceEndDate
+  );
 
     const summary = getSummary(attendance);
 
