@@ -799,17 +799,17 @@ const buildHrAttendanceData = async (
       visitIds.map(() => "?").join(",");
 
     const [memberRows] = await db.query(
-      `
-      SELECT
-        visit_id,
-        employee_id
+  `
+  SELECT
+    field_visit_id AS visit_id,
+    employee_id
 
-      FROM field_visit_members
+  FROM field_visit_members
 
-      WHERE visit_id IN (${visitPlaceholders})
-      `,
-      visitIds
-    );
+  WHERE field_visit_id IN (${visitPlaceholders})
+  `,
+  visitIds
+);
 
     fieldVisitMembers = memberRows;
   }
