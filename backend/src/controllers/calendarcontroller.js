@@ -131,6 +131,7 @@ if (
   ![
     "admin",
     "employee",
+    "administrator",
   ].includes(roleName)
 ) {
   return res.status(403).json({
@@ -282,6 +283,7 @@ if (
   ![
     "admin",
     "employee",
+    "administrator"
   ].includes(roleName)
 ) {
   return res.status(403).json({

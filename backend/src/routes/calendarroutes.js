@@ -44,7 +44,8 @@ router.get(
   authMiddleware,
   requireRole(
     "admin",
-    "employee"
+    "employee",
+    "administrator"
   ),
   getMeetingEmployees
 );
@@ -54,7 +55,8 @@ router.post(
   authMiddleware,
   requireRole(
     "admin",
-    "employee"
+    "employee",
+    "administrator"
   ),
   createMeeting
 );

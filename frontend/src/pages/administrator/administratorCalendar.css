@@ -45,3 +45,908 @@
     padding: 14px 14px 22px !important;
   }
 }
+/* =========================================================
+   ADMINISTRATOR - SCHEDULE MEETING BUTTON
+========================================================= */
+
+.administrator-schedule-meeting-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  min-width: 230px;
+  height: 54px;
+
+  padding: 0 22px;
+
+  border: none;
+  border-radius: 16px;
+
+  background: #ff5733;
+  color: #ffffff;
+
+  font-size: 16px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  box-shadow: 0 10px 24px rgba(255, 87, 51, 0.18);
+
+  transition: all 0.2s ease;
+}
+
+.administrator-schedule-meeting-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(255, 87, 51, 0.25);
+}
+
+/* =========================================================
+   MODAL OVERLAY
+========================================================= */
+
+.administrator-meeting-modal-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 26px;
+
+  background: rgba(15, 23, 42, 0.38);
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+/* =========================================================
+   MODAL
+========================================================= */
+
+.administrator-meeting-modal {
+  width: min(700px, calc(100vw - 40px));
+
+  max-height: calc(100vh - 54px);
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+
+  border-radius: 20px;
+
+  overflow: hidden;
+
+  box-shadow:
+    0 30px 80px rgba(15, 23, 42, 0.25),
+    0 8px 24px rgba(15, 23, 42, 0.12);
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.administrator-meeting-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 24px 28px 20px;
+
+  border-bottom: 1px solid #e6eaf0;
+
+  flex-shrink: 0;
+}
+
+.administrator-meeting-modal-header h2 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 26px;
+  line-height: 1.2;
+
+  font-weight: 900;
+}
+
+.administrator-meeting-modal-header p {
+  margin: 6px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.administrator-meeting-close {
+  width: 38px;
+  height: 38px;
+
+  flex: 0 0 38px;
+
+  display: grid;
+  place-items: center;
+
+  padding: 0;
+
+  border: none;
+
+  border-radius: 10px;
+
+  background: transparent;
+  color: #64748b;
+
+  cursor: pointer;
+}
+
+.administrator-meeting-close {
+  width: 36px !important;
+  height: 36px !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: none !important;
+  border-radius: 8px !important;
+
+  background: transparent !important;
+  color: #64748b !important;
+
+  box-shadow: none !important;
+
+  cursor: pointer !important;
+
+  flex: 0 0 36px !important;
+}
+
+.administrator-meeting-close:hover {
+  background: #f8fafc !important;
+  color: #334155 !important;
+}
+
+.administrator-meeting-close svg {
+  width: 20px !important;
+  height: 20px !important;
+
+  stroke-width: 2 !important;
+}
+
+.administrator-meeting-close:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+.administrator-meeting-error {
+  margin: 18px 28px 0;
+
+  padding: 11px 14px;
+
+  border: 1px solid #fecaca;
+  border-radius: 10px;
+
+  background: #fef2f2;
+  color: #b42318;
+
+  font-size: 13px;
+  font-weight: 700;
+
+  flex-shrink: 0;
+}
+
+/* =========================================================
+   FORM BODY
+========================================================= */
+
+.administrator-meeting-form {
+  padding: 22px 28px 18px;
+
+  overflow-y: auto;
+
+  flex: 1;
+  min-height: 0;
+}
+
+.administrator-meeting-form::-webkit-scrollbar {
+  width: 5px;
+}
+
+.administrator-meeting-form::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 99px;
+}
+
+.administrator-meeting-form label {
+  display: block;
+
+  margin-bottom: 18px;
+}
+
+.administrator-meeting-form label > span {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.administrator-meeting-form input[type="text"],
+.administrator-meeting-form input[type="date"],
+.administrator-meeting-form input[type="time"],
+.administrator-meeting-form textarea {
+  width: 100%;
+
+  box-sizing: border-box;
+
+  border: 1px solid #cfd8e5;
+  border-radius: 12px;
+
+  background: #ffffff;
+  color: #172033;
+
+  font-family: inherit;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.administrator-meeting-form input[type="text"],
+.administrator-meeting-form input[type="date"],
+.administrator-meeting-form input[type="time"] {
+  height: 54px;
+
+  padding: 0 15px;
+}
+
+.administrator-meeting-form textarea {
+  height: 102px;
+
+  min-height: 102px;
+  max-height: 150px;
+
+  resize: vertical;
+
+  padding: 14px 15px;
+
+  line-height: 1.5;
+}
+
+.administrator-meeting-form input:focus,
+.administrator-meeting-form textarea:focus {
+  border-color: #ff5733;
+
+  box-shadow: 0 0 0 3px rgba(255, 87, 51, 0.08);
+}
+
+.administrator-meeting-form input::placeholder,
+.administrator-meeting-form textarea::placeholder {
+  color: #a3afbf;
+  font-weight: 600;
+}
+
+/* =========================================================
+   DATE / TIME GRID
+========================================================= */
+
+.administrator-meeting-date-grid {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  column-gap: 18px;
+  row-gap: 0;
+}
+
+.administrator-meeting-date-grid > label:first-child {
+  grid-column: 1 / 2;
+}
+
+.administrator-meeting-date-grid > label:nth-child(2) {
+  grid-column: 1 / 2;
+}
+
+.administrator-meeting-date-grid > label:nth-child(3) {
+  grid-column: 2 / 3;
+}
+
+/* =========================================================
+   PARTICIPANTS
+========================================================= */
+
+.administrator-meeting-participants {
+  margin-top: 2px;
+}
+
+.administrator-meeting-participants-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 14px;
+
+  margin-bottom: 12px;
+}
+
+.administrator-meeting-participants-title > div {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+
+  color: #334155;
+}
+
+.administrator-meeting-participants-title strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.administrator-meeting-participants-title > span {
+  color: #ff5733;
+
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.administrator-meeting-loading {
+  padding: 18px;
+
+  border: 1px solid #d9e0ea;
+  border-radius: 12px;
+
+  color: #64748b;
+
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* =========================================================
+   EMPLOYEE LIST
+========================================================= */
+
+.administrator-meeting-employee-list {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 0;
+
+  max-height: 190px;
+
+  overflow-y: auto;
+
+  border: 1px solid #d9e0ea;
+  border-radius: 12px;
+
+  background: #ffffff;
+
+  padding: 8px 10px;
+}
+
+.administrator-meeting-employee-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.administrator-meeting-employee-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 99px;
+}
+
+.administrator-meeting-employee {
+  display: flex !important;
+  align-items: center;
+
+  gap: 12px;
+
+  min-height: 54px;
+
+  margin: 0 !important;
+
+  padding: 8px 10px;
+
+  border-radius: 8px;
+
+  cursor: pointer;
+}
+
+.administrator-meeting-employee:hover {
+  background: #f8fafc;
+}
+
+.administrator-meeting-employee.selected {
+  background: #fff6f3;
+}
+
+.administrator-meeting-employee input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+
+  flex: 0 0 20px;
+
+  margin: 0;
+
+  accent-color: #ff5733;
+
+  cursor: pointer;
+}
+
+.administrator-meeting-employee > div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.administrator-meeting-employee strong {
+  color: #334155;
+
+  font-size: 13px;
+  font-weight: 800;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.administrator-meeting-employee span {
+  margin: 0 !important;
+
+  color: #94a3b8 !important;
+
+  font-size: 11px !important;
+  font-weight: 600 !important;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.administrator-meeting-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 12px;
+
+  padding: 18px 28px 20px;
+
+  border-top: 1px solid #e6eaf0;
+
+  background: #ffffff;
+
+  flex-shrink: 0;
+}
+
+.administrator-meeting-cancel,
+.administrator-meeting-submit {
+  height: 48px;
+
+  padding: 0 22px;
+
+  border-radius: 12px;
+
+  font-size: 13px;
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.administrator-meeting-cancel {
+  border: 1px solid #cfd8e5;
+
+  background: #ffffff;
+  color: #334155;
+}
+
+.administrator-meeting-cancel:hover {
+  background: #f8fafc;
+}
+
+.administrator-meeting-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  min-width: 180px;
+
+  border: none;
+
+  background: #ff5733;
+  color: #ffffff;
+
+  box-shadow: 0 8px 18px rgba(255, 87, 51, 0.18);
+}
+
+.administrator-meeting-submit:hover {
+  background: #f04c2b;
+}
+
+.administrator-meeting-cancel:disabled,
+.administrator-meeting-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 760px) {
+  .administrator-meeting-modal-overlay {
+    padding: 14px;
+  }
+
+  .administrator-meeting-modal {
+    width: 100%;
+    max-height: calc(100vh - 28px);
+  }
+
+  .administrator-meeting-modal-header,
+  .administrator-meeting-form,
+  .administrator-meeting-actions {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .administrator-meeting-date-grid,
+  .administrator-meeting-employee-list {
+    grid-template-columns: 1fr;
+  }
+
+  .administrator-meeting-date-grid > label:first-child,
+  .administrator-meeting-date-grid > label:nth-child(2),
+  .administrator-meeting-date-grid > label:nth-child(3) {
+    grid-column: 1;
+  }
+
+  .administrator-meeting-actions {
+    flex-direction: column-reverse;
+  }
+
+  .administrator-meeting-cancel,
+  .administrator-meeting-submit {
+    width: 100%;
+  }
+}
+.administrator-meeting-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(15, 23, 42, 0.38);
+
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+
+.administrator-meeting-modal {
+  width: 700px;
+  max-width: calc(100vw - 40px);
+
+  max-height: calc(100vh - 34px);
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+
+  border-radius: 18px;
+
+  overflow: hidden;
+
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
+}
+
+.administrator-meeting-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 28px;
+
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.administrator-meeting-modal-header h2 {
+  margin: 0;
+
+  font-size: 27px;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.administrator-meeting-close {
+  width: 36px;
+  height: 36px;
+
+  display: grid;
+  place-items: center;
+
+  border: 0;
+  background: transparent;
+
+  color: #64748b;
+
+  cursor: pointer;
+}
+
+.administrator-meeting-form {
+  padding: 22px 28px 18px;
+
+  overflow-y: auto;
+
+  flex: 1;
+  min-height: 0;
+}
+
+.administrator-meeting-form label {
+  display: block;
+  margin-bottom: 18px;
+}
+
+.administrator-meeting-form label > span {
+  display: block;
+
+  margin-bottom: 8px;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.administrator-meeting-form input[type="text"],
+.administrator-meeting-form input[type="date"],
+.administrator-meeting-form input[type="time"],
+.administrator-meeting-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+
+  border: 1px solid #cfd8e5;
+  border-radius: 12px;
+
+  background: #ffffff;
+  color: #172033;
+
+  font-family: inherit;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  outline: none;
+}
+
+.administrator-meeting-form input[type="text"],
+.administrator-meeting-form input[type="date"],
+.administrator-meeting-form input[type="time"] {
+  height: 54px;
+  padding: 0 15px;
+}
+
+.administrator-meeting-form textarea {
+  height: 102px;
+  resize: none;
+
+  padding: 14px 15px;
+}
+
+.administrator-meeting-date-grid {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 0 18px;
+}
+
+.administrator-meeting-date-grid > label:first-child {
+  grid-column: 1 / 2;
+}
+
+.administrator-meeting-date-grid > label:nth-child(2) {
+  grid-column: 1 / 2;
+}
+
+.administrator-meeting-date-grid > label:nth-child(3) {
+  grid-column: 2 / 3;
+}
+
+.administrator-meeting-select-row {
+  display: grid;
+
+  grid-template-columns: auto 1fr auto;
+
+  align-items: center;
+
+  gap: 14px;
+
+  margin-bottom: 12px;
+}
+
+.administrator-meeting-select-label {
+  margin: 0 !important;
+
+  color: #334155;
+
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.administrator-meeting-select-label span {
+  display: inline !important;
+
+  margin: 0 0 0 3px !important;
+
+  color: #ff5733 !important;
+}
+
+.administrator-meeting-search-wrap input {
+  height: 48px !important;
+
+  padding: 0 14px !important;
+}
+
+.administrator-meeting-select-all {
+  border: 0;
+
+  background: transparent;
+
+  color: #ff5733;
+
+  font-size: 13px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  white-space: nowrap;
+}
+
+.administrator-meeting-employee-list {
+  display: grid;
+
+  grid-template-columns: 1fr 1fr;
+
+  gap: 0 24px;
+
+  max-height: 150px;
+
+  overflow-y: auto;
+
+  border: 1px solid #d9e0ea;
+  border-radius: 12px;
+
+  padding: 8px 12px;
+
+  background: #ffffff;
+}
+
+.administrator-meeting-employee {
+  display: flex !important;
+  align-items: center;
+
+  gap: 12px;
+
+  min-height: 54px;
+
+  margin: 0 !important;
+
+  padding: 7px 8px;
+}
+
+.administrator-meeting-employee input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+
+  margin: 0;
+
+  accent-color: #ff5733;
+}
+
+.administrator-meeting-employee > div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.administrator-meeting-employee strong {
+  font-size: 13px;
+  font-weight: 800;
+
+  color: #334155;
+}
+
+.administrator-meeting-employee span {
+  margin: 0 !important;
+
+  font-size: 11px !important;
+  font-weight: 600 !important;
+
+  color: #94a3b8 !important;
+}
+
+.administrator-meeting-actions {
+  display: flex;
+  justify-content: flex-end;
+
+  gap: 12px;
+
+  padding: 18px 28px;
+
+  border-top: 1px solid #e5e7eb;
+
+  background: #ffffff;
+}
+
+.administrator-meeting-cancel,
+.administrator-meeting-submit {
+  height: 48px;
+
+  padding: 0 22px;
+
+  border-radius: 12px;
+
+  font-size: 13px;
+  font-weight: 800;
+
+  cursor: pointer;
+}
+
+.administrator-meeting-cancel {
+  border: 1px solid #cfd8e5;
+
+  background: #ffffff;
+  color: #334155;
+}
+
+.administrator-meeting-submit {
+  min-width: 180px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  border: 0;
+
+  background: #ff5733;
+  color: #ffffff;
+}
+
