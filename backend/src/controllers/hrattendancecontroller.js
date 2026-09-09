@@ -694,7 +694,7 @@ const buildHrAttendanceData = async (
       la.leave_id,
       la.employee_id,
       la.leave_type,
-      la.subject,
+     
 
       DATE_FORMAT(
         la.start_date,
@@ -786,34 +786,49 @@ const buildHrAttendanceData = async (
   /* =======================================================
      FIELD VISIT MEMBERS
   ======================================================= */
+const visitIds =
+  fieldVisitRows
+    .map((visit) => Number(visit.visit_id))
+    .filter(Boolean);
 
-  const visitIds =
-    fieldVisitRows
-      .map((visit) => Number(visit.visit_id))
-      .filter(Boolean);
+let fieldVisitMembers = [];
 
-  let fieldVisitMembers = [];
+if (visitIds.length) {
+  const [memberColumns] = await db.query(
+    `SHOW COLUMNS FROM field_visit_members`
+  );
 
-  if (visitIds.length) {
+  const columnNames = memberColumns.map((column) =>
+    String(column.Field || "").toLowerCase()
+  );
+
+  let visitForeignKey = null;
+
+  if (columnNames.includes("field_visit_id")) {
+    visitForeignKey = "field_visit_id";
+  } else if (columnNames.includes("visit_id")) {
+    visitForeignKey = "visit_id";
+  }
+
+  if (visitForeignKey) {
     const visitPlaceholders =
       visitIds.map(() => "?").join(",");
 
     const [memberRows] = await db.query(
-  `
-  SELECT
-    field_visit_id AS visit_id,
-    employee_id
-
-  FROM field_visit_members
-
-  WHERE field_visit_id IN (${visitPlaceholders})
-  `,
-  visitIds
-);
+      `
+      SELECT
+        ${visitForeignKey} AS visit_id,
+        employee_id
+      FROM field_visit_members
+      WHERE ${visitForeignKey} IN (${visitPlaceholders})
+      `,
+      visitIds
+    );
 
     fieldVisitMembers = memberRows;
   }
-
+}
+  
   /* =======================================================
      MAP ATTENDANCE
   ======================================================= */
@@ -1081,9 +1096,8 @@ const buildHrAttendanceData = async (
         source = "rms_leave";
 
         detail =
-          leave.reason ||
-          leave.subject ||
-          leaveType;
+  leave.reason ||
+  leaveType;
 
         approvedByName =
           leave.reviewed_by_name || null;
@@ -1315,9 +1329,7 @@ const buildHrAttendanceData = async (
           leaveSession,
 
         leave_reason:
-          leave?.reason ||
-          leave?.subject ||
-          null,
+  leave?.reason || null,
 
         field_visit_id:
           fieldVisit?.visit_id || null,
