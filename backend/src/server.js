@@ -8,7 +8,9 @@ const authRoutes = require("./routes/authroutes");
 
 const administratorRoutes = require("./routes/administratorroutes");
 const adminRoutes = require("./routes/adminroutes");
-
+const administratorLeaveRoutes = require(
+  "./routes/administratorleaveroutes"
+);
 const adminProjectRoutes = require("./routes/adminprojectroutes");
 const administratorProjectRoutes = require("./routes/administratorprojectroutes");
 
@@ -151,7 +153,10 @@ app.use(
   express.json()
 );
 
-
+app.use(
+  "/api/administrator-leaves",
+  administratorLeaveRoutes
+);
 
 
 

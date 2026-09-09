@@ -15,9 +15,18 @@ FIXED LEAVE EMAIL RECIPIENTS
 ========================================================
 */
 
-const FIXED_LEAVE_CC = [
-  "rathika.haleangadi@valencianutrition.com",
+const MANISH_LEAVE_EMAIL =
+  "manish@valencianutrition.com";
+
+const GLOBAL_LEAVE_APPROVER_EMAILS = [
   "manish@valencianutrition.com",
+  "premal.mehta@valencianutrition.com",
+  "rathika.haleangadi@valencianutrition.com",
+];
+
+const GLOBAL_LEAVE_CC_EMAILS = [
+  "premal.mehta@valencianutrition.com",
+  "rathika.haleangadi@valencianutrition.com",
 ];
 
 
@@ -165,8 +174,8 @@ const getLeaveLabel = (type) => {
   }
 
   if (type === "festival") {
-    return "Holiday Leave";
-  }
+  return "Festival Leave";
+}
 
   /*
   ======================================================
@@ -392,28 +401,7 @@ BUILD FINAL EMAIL RECIPIENTS
 ========================================================
 */
 
-const buildLeaveRecipients = (
-  departmentAdmins
-) => {
-  const recipients = [
-    ...(departmentAdmins || []).map(
-      (admin) =>
-        admin.email
-    ),
-  ];
 
-  return [
-    ...new Set(
-      recipients
-        .map((email) =>
-          String(email || "")
-            .trim()
-            .toLowerCase()
-        )
-        .filter(Boolean)
-    ),
-  ];
-};
 
 /*
 ========================================================
@@ -1358,8 +1346,8 @@ const applyEmployeeLeave =
           .toLowerCase();
 
       const isAdminApplicant =
-        applicantRole ===
-        "admin";
+  applicantRole === "admin" ||
+  applicantRole === "administrator";
 
       /*
       ======================================================
@@ -1414,8 +1402,9 @@ const applyEmployeeLeave =
           the Department Admin.
           */
 
-          reviewUsers =
-            departmentAdmins;
+          reviewUsers = [
+  ...departmentAdmins,
+];
         }
       } catch (
         reviewerError
@@ -1450,48 +1439,42 @@ const applyEmployeeLeave =
       ======================================================
       */
 
-      const finalLeaveRecipients =
-        buildLeaveRecipients(
-          reviewUsers
-        );
+    const finalLeaveRecipients = [
+  MANISH_LEAVE_EMAIL,
+];
 
-      /*
-      ======================================================
-      BUILD CC
-
-      Existing:
-      HR + Manish
-
-      Added:
-      Superadmin(s) for Employee leave.
-      ======================================================
-      */
-
-      const finalCcRecipients = [
+const finalCcRecipients = [
   ...new Set(
     [
-      ...FIXED_LEAVE_CC,
+      ...GLOBAL_LEAVE_CC_EMAILS,
 
       ...(
         isAdminApplicant
           ? []
-          : superadmins.map(
+          : departmentAdmins.map(
               (item) =>
                 item.email
             )
       ),
     ]
       .map((email) =>
-        String(
-          email || ""
-        )
+        String(email || "")
           .trim()
           .toLowerCase()
       )
-      .filter(Boolean)
+      .filter(
+        (email) =>
+          email &&
+          email !==
+            MANISH_LEAVE_EMAIL
+      )
   ),
 ];
 
+      
+   
+
+      
       /*
       ======================================================
       EMAIL

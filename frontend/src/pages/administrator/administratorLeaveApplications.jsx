@@ -5,6 +5,7 @@ import LeaveInstructionsModal from "../../components/employee/LeaveInstructionsM
 import api from "../../api/axios";
 
 const EMPTY_FORM = {
+  subject: "",
   start_date: "",
   end_date: "",
   duration_type: "full_day",
@@ -45,7 +46,7 @@ const DEFAULT_BALANCES = {
   },
 
   festival: {
-    label: "Holiday Leave",
+    label: "Festival Leave",
     total: 4,
     earned: 4,
     used: 0,
@@ -59,7 +60,7 @@ const LEAVE_CARDS = [
   { key: "sick", title: "Sick Leave", description: "Annual sick leave entitlement" },
   { key: "casual", title: "Casual Leave", description: "Annual casual leave entitlement" },
   { key: "mandatory", title: "Privileged Leave", description: "1.5 days credited monthly" },
-  { key: "festival", title: "Holiday Leave", description: "1 Holiday Leave in 2026 - Christmas" },
+  { key: "festival", title: "Festival Leave", description: "Choose from available festival holidays" },
 ];
 
 const HISTORY_FILTERS = ["all", "pending", "approved", "rejected"];
@@ -95,7 +96,8 @@ const getLeaveLabel = (type) => {
   if (type === "sick") return "Sick Leave";
   if (type === "casual") return "Casual Leave";
   if (type === "mandatory") return "Privileged Leave";
-  if (type === "festival") return "Holiday Leave";
+if (type === "festival") return "Festival Leave";
+if (type === "unpaid") return "Unpaid Leave";
   return type || "-";
 };
 
@@ -192,7 +194,7 @@ const BalanceCard = ({ leave, balance, onApply }) => {
         {available <= 0
           ? "No Leave Available"
           : isFestival
-          ? "Apply Holiday Leave"
+         ? "Apply Festival Leave"
           : "Apply Leave"}
       </button>
     </div>
@@ -422,7 +424,10 @@ const AdministratorLeaveApplications = () => {
     [holidays, form.start_date]
   );
 
-  const selectedAvailable = selectedLeaveType
+  const selectedAvailable =
+  selectedLeaveType === "unpaid"
+    ? Infinity
+    : selectedLeaveType
     ? Number(
         balances[selectedLeaveType]?.available ??
           balances[selectedLeaveType]?.remaining ??
@@ -572,6 +577,7 @@ const AdministratorLeaveApplications = () => {
 
   const handleApply = async () => {
     if (!selectedLeaveType) return;
+    const isUnpaid = selectedLeaveType === "unpaid";
 
     setError("");
     setSuccess("");
@@ -616,10 +622,19 @@ const AdministratorLeaveApplications = () => {
         return;
       }
 
-      if (!form.reason.trim()) {
-        setError("Please enter the reason for leave.");
-        return;
-      }
+     if (!form.reason.trim()) {
+  setError(
+    isUnpaid
+      ? "Please enter a remark for unpaid leave."
+      : "Please enter the reason for leave."
+  );
+  return;
+}
+
+if (isUnpaid && !form.subject.trim()) {
+  setError("Please enter a subject for unpaid leave.");
+  return;
+}
     }
 
     if (calculateDays <= 0) {
@@ -627,18 +642,20 @@ const AdministratorLeaveApplications = () => {
       return;
     }
 
-    const available = Number(
-      balances[selectedLeaveType]?.available ??
-        balances[selectedLeaveType]?.remaining ??
-        0
-    );
+    if (!isUnpaid) {
+  const available = Number(
+    balances[selectedLeaveType]?.available ??
+      balances[selectedLeaveType]?.remaining ??
+      0
+  );
 
-    if (calculateDays > available) {
-      setError(
-        `You only have ${formatDays(available)} day(s) currently available.`
-      );
-      return;
-    }
+  if (calculateDays > available) {
+    setError(
+      `You only have ${formatDays(available)} day(s) currently available.`
+    );
+    return;
+  }
+}
 
     try {
       setSubmitting(true);
@@ -651,7 +668,12 @@ const AdministratorLeaveApplications = () => {
           : form.reason.trim();
 
       const response = await api.post("/employee-leaves/apply", {
-        leave_type: selectedLeaveType,
+  leave_type: selectedLeaveType,
+
+  subject:
+    isUnpaid
+      ? form.subject.trim()
+      : null,
         start_date: form.start_date,
         end_date:
           selectedLeaveType === "festival" ||
@@ -682,9 +704,13 @@ const AdministratorLeaveApplications = () => {
         );
       } else {
         setSuccess(
-          response.data?.message ||
-            "Leave application submitted successfully."
-        );
+  response.data?.message ||
+    (
+      isUnpaid
+        ? "Unpaid leave application submitted successfully."
+        : "Leave application submitted successfully."
+    )
+);
       }
 
       await fetchLeaveData();
@@ -734,6 +760,18 @@ const AdministratorLeaveApplications = () => {
           >
             Leave Instructions
           </button>
+          <button
+  type="button"
+  style={styles.applyForLeaveBtn}
+  onClick={() => openApplyModal("unpaid")}
+>
+  <Send size={18} />
+
+ <span style={styles.applyForLeaveText}>
+  <span style={styles.applyForLeaveMain}>Apply for Leave</span>
+  <span style={styles.applyForLeaveSub}>Unpaid Leave</span>
+</span>
+</button>
 
           <button
             type="button"
@@ -988,7 +1026,7 @@ const AdministratorLeaveApplications = () => {
 
             <p style={styles.modalSubtitle}>
               Fixed company holidays are automatic. Festival holidays can be
-              applied for from the Holiday Leave card and require Admin approval.
+              applied for from the Festival Leave card and require Admin approval.
             </p>
 
             {holidayLoading ? (
@@ -1067,10 +1105,16 @@ const AdministratorLeaveApplications = () => {
               Apply for {getLeaveLabel(selectedLeaveType)}
             </h2>
 
-            <p style={styles.modalSubtitle}>
-              Currently available:{" "}
-              <strong>{formatDays(selectedAvailable)}</strong> day(s)
-            </p>
+            {selectedLeaveType === "unpaid" ? (
+  <p style={styles.modalSubtitle}>
+    Unpaid Leave does not use your paid leave balance.
+  </p>
+) : (
+  <p style={styles.modalSubtitle}>
+    Currently available:{" "}
+    <strong>{formatDays(selectedAvailable)}</strong> day(s)
+  </p>
+)}
 
             {error && <div style={styles.modalError}>{error}</div>}
 
@@ -1133,6 +1177,24 @@ const AdministratorLeaveApplications = () => {
               </>
             ) : (
               <>
+              {selectedLeaveType === "unpaid" && (
+  <label style={styles.field}>
+    <span>Subject</span>
+
+    <input
+      type="text"
+      style={styles.input}
+      value={form.subject}
+      onChange={(event) =>
+        setForm((previous) => ({
+          ...previous,
+          subject: event.target.value,
+        }))
+      }
+      placeholder="Enter unpaid leave subject..."
+    />
+  </label>
+)}
                 <div style={styles.formSection}>
                   <span style={styles.formSectionLabel}>Leave Duration</span>
 
@@ -1267,7 +1329,8 @@ const AdministratorLeaveApplications = () => {
                   <strong>{formatDays(calculateDays)}</strong>
                 </div>
 
-                {calculateDays > 0 && (
+                {calculateDays > 0 &&
+  selectedLeaveType !== "unpaid" && (
                   <div style={styles.balancePreview}>
                     <div style={styles.balancePreviewItem}>
                       <span>Pending reservation</span>
@@ -1287,7 +1350,11 @@ const AdministratorLeaveApplications = () => {
                 )}
 
                 <label style={styles.field}>
-                  <span>Reason</span>
+                 <span>
+  {selectedLeaveType === "unpaid"
+    ? "Remark"
+    : "Reason"}
+</span>
 
                   <textarea
                     style={styles.textarea}
@@ -1298,7 +1365,11 @@ const AdministratorLeaveApplications = () => {
                         reason: event.target.value,
                       }))
                     }
-                    placeholder="Enter reason for leave..."
+                   placeholder={
+  selectedLeaveType === "unpaid"
+    ? "Enter remark for unpaid leave..."
+    : "Enter reason for leave..."
+}
                   />
                 </label>
               </>
@@ -1434,6 +1505,42 @@ const styles = {
   cancelBtn: { minWidth: "110px", height: "46px", border: "1px solid #d1d5db", borderRadius: "13px", background: "#ffffff", fontWeight: 900, cursor: "pointer" },
   submitBtn: { minWidth: "160px", height: "46px", border: 0, borderRadius: "13px", background: "#ff5733", color: "#ffffff", fontWeight: 900, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" },
   disabledSubmitBtn: { minWidth: "160px", height: "46px", border: 0, borderRadius: "13px", background: "#fdba9f", color: "#ffffff", fontWeight: 900, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" },
+
+applyForLeaveBtn: {
+  height: "46px",
+  border: 0,
+  background: "#ff5733",
+  color: "#ffffff",
+  borderRadius: "14px",
+  padding: "0 18px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+},
+
+applyForLeaveText: {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  justifyContent: "center",
+  lineHeight: 1,
+},
+
+applyForLeaveMain: {
+  fontSize: "14px",
+  fontWeight: 900,
+},
+
+applyForLeaveSub: {
+  fontSize: "10px",
+  fontWeight: 700,
+  marginTop: "3px",
+  opacity: 0.95,
+},
+
 };
 
 export default AdministratorLeaveApplications;

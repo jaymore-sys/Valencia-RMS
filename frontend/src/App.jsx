@@ -97,8 +97,8 @@ const getStoredUser = () => {
   try {
     return JSON.parse(
       sessionStorage.getItem("user") ||
-        localStorage.getItem("user") ||
-        "{}"
+      localStorage.getItem("user") ||
+      "{}"
     );
   } catch {
     return {};
@@ -110,7 +110,7 @@ const getStoredUser = () => {
 ======================================================== */
 
 
-function FieldVisitReviewRedirect(){
+function FieldVisitReviewRedirect() {
   const token = window.location.pathname.split("/field-visit-review/")[1];
 
   const target = `/admin/attendance?tab=fieldVisits&fieldVisitToken=${token}`;
@@ -242,6 +242,60 @@ const HrProtectedRoute = ({
 
   return children;
 };
+const LEAVE_REVIEWER_EMAILS = [
+  "manish@valencianutrition.com",
+  "premal.mehta@valencianutrition.com",
+  "rathika.haleangadi@valencianutrition.com",
+];
+
+const LeaveReviewerProtectedRoute = ({
+  children,
+}) => {
+  const token =
+    sessionStorage.getItem("token") ||
+    localStorage.getItem("token");
+
+  const user = getStoredUser();
+
+  const roleName = String(
+    user?.role_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const email = String(
+    user?.email || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (!token) {
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
+  }
+
+  const allowed =
+    roleName === "admin" ||
+    LEAVE_REVIEWER_EMAILS.includes(email);
+
+  if (!allowed) {
+    return (
+      <Navigate
+        to={getDefaultRouteByRole(
+          roleName
+        )}
+        replace
+      />
+    );
+  }
+
+  return children;
+};
+
 /* ========================================================
    APP
 ======================================================== */
@@ -429,13 +483,13 @@ const App = () => {
         />
 
         <Route
-  path="hr-attendance"
-  element={
-    <HrProtectedRoute>
-      <HrAttendance />
-    </HrProtectedRoute>
-  }
-/>
+          path="hr-attendance"
+          element={
+            <HrProtectedRoute>
+              <HrAttendance />
+            </HrProtectedRoute>
+          }
+        />
         <Route
           path="leave-applications"
           element={
@@ -531,112 +585,112 @@ const App = () => {
     SUPERADMIN
 =================================================== */}
 
-<Route
-  path="/superadmin"
-  element={
-    <ProtectedRoute
-      allowedRoles={[
-        "superadmin",
-      ]}
-    >
-      <SuperadminLayout />
-    </ProtectedRoute>
-  }
->
+      <Route
+        path="/superadmin"
+        element={
+          <ProtectedRoute
+            allowedRoles={[
+              "superadmin",
+            ]}
+          >
+            <SuperadminLayout />
+          </ProtectedRoute>
+        }
+      >
 
-  {/* DEFAULT */}
+        {/* DEFAULT */}
 
-  <Route
-    index
-    element={
-      <Navigate
-        to="/superadmin/overview"
-        replace
-      />
-    }
-  />
-
-
-  {/* OVERVIEW */}
-
-  <Route
-    path="overview"
-    element={
-      <SuperadminOverview />
-    }
-  />
+        <Route
+          index
+          element={
+            <Navigate
+              to="/superadmin/overview"
+              replace
+            />
+          }
+        />
 
 
-  {/* PROJECTS */}
+        {/* OVERVIEW */}
 
-  <Route
-    path="projects"
-    element={
-      <SuperadminProjects />
-    }
-  />
-
-
-  {/* TASKS */}
-
-  <Route
-    path="tasks"
-    element={
-      <SuperadminTasks />
-    }
-  />
+        <Route
+          path="overview"
+          element={
+            <SuperadminOverview />
+          }
+        />
 
 
-  {/* USERS */}
+        {/* PROJECTS */}
 
-  <Route
-    path="users"
-    element={
-      <SuperadminUsers />
-    }
-  />
-
-
-  {/* CALENDAR */}
-
-  <Route
-    path="calendar"
-    element={
-      <SuperadminCalendar />
-    }
-  />
+        <Route
+          path="projects"
+          element={
+            <SuperadminProjects />
+          }
+        />
 
 
-  {/* ATTENDANCE */}
+        {/* TASKS */}
 
-  <Route
-    path="attendance"
-    element={
-      <SuperadminAttendance />
-    }
-  />
-
-
-  {/* LEAVE APPLICATIONS */}
-
-  <Route
-    path="leave-applications"
-    element={
-      <SuperadminLeaveApplications />
-    }
-  />
+        <Route
+          path="tasks"
+          element={
+            <SuperadminTasks />
+          }
+        />
 
 
-  {/* FIELD VISITS */}
+        {/* USERS */}
 
-  <Route
-    path="field-visits"
-    element={
-      <SuperadminFieldVisits />
-    }
-  />
+        <Route
+          path="users"
+          element={
+            <SuperadminUsers />
+          }
+        />
 
-</Route>
+
+        {/* CALENDAR */}
+
+        <Route
+          path="calendar"
+          element={
+            <SuperadminCalendar />
+          }
+        />
+
+
+        {/* ATTENDANCE */}
+
+        <Route
+          path="attendance"
+          element={
+            <SuperadminAttendance />
+          }
+        />
+
+
+        {/* LEAVE APPLICATIONS */}
+
+        <Route
+          path="leave-applications"
+          element={
+            <SuperadminLeaveApplications />
+          }
+        />
+
+
+        {/* FIELD VISITS */}
+
+        <Route
+          path="field-visits"
+          element={
+            <SuperadminFieldVisits />
+          }
+        />
+
+      </Route>
 
 
       <Route
@@ -647,6 +701,14 @@ const App = () => {
       <Route
         path="/leave-review/:token"
         element={<LeaveReview />}
+      />
+      <Route
+        path="/leave-approvals"
+        element={
+          <LeaveReviewerProtectedRoute>
+            <AdminLeaveApplications />
+          </LeaveReviewerProtectedRoute>
+        }
       />
 
       {/* ===================================================

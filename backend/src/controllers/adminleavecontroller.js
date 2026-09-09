@@ -4,6 +4,11 @@ const {
   buildLeaveBalances,
 } = require("../utils/leavepolicy");
 
+const GLOBAL_LEAVE_APPROVER_EMAILS = [
+  "manish@valencianutrition.com",
+  "premal.mehta@valencianutrition.com",
+  "rathika.haleangadi@valencianutrition.com",
+];
 const getLeaveLabel = (type) => {
   if (type === "sick") {
     return "Sick Leave";
@@ -18,7 +23,7 @@ const getLeaveLabel = (type) => {
   }
 
   if (type === "festival") {
-    return "Holiday Leave";
+    return "Festival Leave";
   }
 
   return "Leave";
@@ -38,10 +43,12 @@ const getLoggedInAdmin = async (userId) => {
     FROM users u
 
     LEFT JOIN departments d
-      ON d.department_id = u.department_id
+      ON d.department_id =
+         u.department_id
 
     LEFT JOIN roles r
-      ON r.role_id = u.role_id
+      ON r.role_id =
+         u.role_id
 
     WHERE u.user_id = ?
 
@@ -54,28 +61,51 @@ const getLoggedInAdmin = async (userId) => {
     return {
       error: {
         status: 404,
-        message: "Admin account not found.",
+        message:
+          "Reviewer account not found.",
       },
     };
   }
 
   const admin = rows[0];
 
+  const email = String(
+    admin.email || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const roleName = String(
+    admin.role_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isGlobalApprover =
+    GLOBAL_LEAVE_APPROVER_EMAILS.includes(
+      email
+    );
+
+  const isDepartmentAdmin =
+    roleName === "admin";
+
   if (
-    String(admin.role_name || "")
-      .trim()
-      .toLowerCase() !== "admin"
+    !isGlobalApprover &&
+    !isDepartmentAdmin
   ) {
     return {
       error: {
         status: 403,
         message:
-          "Only Admin can review leave applications.",
+          "You are not authorized to review leave applications.",
       },
     };
   }
 
-  if (!admin.department_id) {
+  if (
+    !isGlobalApprover &&
+    !admin.department_id
+  ) {
     return {
       error: {
         status: 400,
@@ -86,7 +116,12 @@ const getLoggedInAdmin = async (userId) => {
   }
 
   return {
-    admin,
+    admin: {
+      ...admin,
+
+      is_global_leave_approver:
+        isGlobalApprover,
+    },
   };
 };
 
@@ -137,13 +172,32 @@ const getAdminLeaveApplications = async (
         : null;
 
       const whereParts = [
-      "employee.department_id = ?",
-      "LOWER(TRIM(employee_role.role_name)) = 'employee'",
-    ];
+  `
+  LOWER(
+    TRIM(
+      employee_role.role_name
+    )
+  ) IN (
+  'employee',
+  'admin',
+  'administrator'
+)
+  `,
+];
 
-    const values = [
-      admin.department_id,
-    ];
+const values = [];
+
+if (
+  !admin.is_global_leave_approver
+) {
+  whereParts.push(
+    "employee.department_id = ?"
+  );
+
+  values.push(
+    admin.department_id
+  );
+}
 
     if (statusFilter) {
       whereParts.push(
@@ -250,56 +304,82 @@ const getAdminLeaveApplications = async (
         values
       );
 
-    const [summaryRows] =
-      await db.query(
-        `
-        SELECT
-          COUNT(*) AS total,
+      const summaryWhereParts = [
+  `
+  LOWER(
+    TRIM(
+      employee_role.role_name
+    )
+  ) IN (
+    'employee',
+    'administrator'
+  )
+  `,
+];
 
-          SUM(
-            CASE
-              WHEN la.status = 'pending'
-              THEN 1
-              ELSE 0
-            END
-          ) AS pending,
+const summaryValues = [];
 
-          SUM(
-            CASE
-              WHEN la.status = 'approved'
-              THEN 1
-              ELSE 0
-            END
-          ) AS approved,
+if (
+  !admin.is_global_leave_approver
+) {
+  summaryWhereParts.push(
+    "employee.department_id = ?"
+  );
 
-          SUM(
-            CASE
-              WHEN la.status = 'rejected'
-              THEN 1
-              ELSE 0
-            END
-          ) AS rejected
+  summaryValues.push(
+    admin.department_id
+  );
+}
 
-                FROM leave_applications la
+const [summaryRows] =
+  await db.query(
+    `
+    SELECT
+      COUNT(*) AS total,
 
-        INNER JOIN users employee
-          ON employee.user_id =
-            la.employee_id
+      SUM(
+        CASE
+          WHEN la.status = 'pending'
+          THEN 1
+          ELSE 0
+        END
+      ) AS pending,
 
-        INNER JOIN roles employee_role
-          ON employee_role.role_id =
-            employee.role_id
+      SUM(
+        CASE
+          WHEN la.status = 'approved'
+          THEN 1
+          ELSE 0
+        END
+      ) AS approved,
 
-        WHERE
-          employee.department_id = ?
+      SUM(
+        CASE
+          WHEN la.status = 'rejected'
+          THEN 1
+          ELSE 0
+        END
+      ) AS rejected
 
-          AND
-          LOWER(TRIM(employee_role.role_name)) = 'employee'
-        `,
-        [
-          admin.department_id,
-        ]
-      );
+    FROM leave_applications la
+
+    INNER JOIN users employee
+      ON employee.user_id =
+         la.employee_id
+
+    INNER JOIN roles employee_role
+      ON employee_role.role_id =
+         employee.role_id
+
+    WHERE
+      ${summaryWhereParts.join(
+        " AND "
+      )}
+    `,
+    summaryValues
+  );
+
+
 
     const summary =
       summaryRows[0] || {};
@@ -479,66 +559,97 @@ const reviewLeaveApplication = async (
     await connection
       .beginTransaction();
 
-    const [leaveRows] =
-      await connection.query(
-        `
-        SELECT
-          la.leave_id,
-          la.employee_id,
-          la.leave_type,
-          la.total_days,
-          la.reason,
-          la.status,
+      const leaveWhereParts = [
+  "la.leave_id = ?",
 
-          la.duration_type,
-          la.half_day_session,
+  `
+  LOWER(
+    TRIM(
+      employee_role.role_name
+    )
+  ) IN (
+    'employee',
+    'administrator'
+  )
+  `,
+];
 
-          DATE_FORMAT(
-            la.start_date,
-            '%Y-%m-%d'
-          ) AS start_date,
+const leaveValues = [
+  leaveId,
+];
 
-          DATE_FORMAT(
-            la.end_date,
-            '%Y-%m-%d'
-          ) AS end_date,
+if (
+  !admin.is_global_leave_approver
+) {
+  leaveWhereParts.push(
+    "employee.department_id = ?"
+  );
 
-          employee.full_name
-            AS employee_name,
+  leaveValues.push(
+    admin.department_id
+  );
+}
 
-          employee.email
-            AS employee_email,
+const [leaveRows] =
+  await connection.query(
+    `
+    SELECT
+      la.leave_id,
+      la.employee_id,
+      la.leave_type,
+      la.total_days,
+      la.reason,
+      la.status,
 
-          employee.department_id
+      la.duration_type,
+      la.half_day_session,
 
-                FROM leave_applications la
+      DATE_FORMAT(
+        la.start_date,
+        '%Y-%m-%d'
+      ) AS start_date,
 
-        INNER JOIN users employee
-          ON employee.user_id =
-            la.employee_id
+      DATE_FORMAT(
+        la.end_date,
+        '%Y-%m-%d'
+      ) AS end_date,
 
-        INNER JOIN roles employee_role
-          ON employee_role.role_id =
-            employee.role_id
+      employee.full_name
+        AS employee_name,
 
-        WHERE
-          la.leave_id = ?
+      employee.email
+        AS employee_email,
 
-          AND
-          employee.department_id = ?
+      employee.department_id,
 
-          AND
-          LOWER(TRIM(employee_role.role_name)) = 'employee'
+      d.department_name
 
-        LIMIT 1
+    FROM leave_applications la
 
-        FOR UPDATE
-        `,
-        [
-          leaveId,
-          admin.department_id,
-        ]
-      );
+    INNER JOIN users employee
+      ON employee.user_id =
+         la.employee_id
+
+    INNER JOIN roles employee_role
+      ON employee_role.role_id =
+         employee.role_id
+
+    LEFT JOIN departments d
+      ON d.department_id =
+         employee.department_id
+
+    WHERE
+      ${leaveWhereParts.join(
+        " AND "
+      )}
+
+    LIMIT 1
+
+    FOR UPDATE
+    `,
+    leaveValues
+  );
+
 
     if (
       !leaveRows.length
@@ -558,6 +669,19 @@ const reviewLeaveApplication = async (
 
     const leave =
       leaveRows[0];
+
+      if (
+  Number(leave.employee_id) ===
+  Number(admin.user_id)
+) {
+  await connection.rollback();
+
+  return res.status(403).json({
+    success: false,
+    message:
+      "You cannot approve or reject your own leave application.",
+  });
+}
 
     if (
       String(
@@ -589,8 +713,8 @@ const reviewLeaveApplication = async (
     ====================================================
     */
     if (
-  status ===
-  "approved"
+  status === "approved" &&
+  leave.leave_type !== "unpaid"
 ) {
   const leaveYear =
     Number(
