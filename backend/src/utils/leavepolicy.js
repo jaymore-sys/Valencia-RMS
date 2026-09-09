@@ -51,12 +51,12 @@ YEARLY POLICY
 Sep-Dec
 Sick = 2
 Casual = 2
-Holiday = 1
+Festival = 2
 
 2027 onward:
 Sick = 7
 Casual = 7
-Holiday = 4
+Festival = 4
 
 Privileged never resets.
 ========================================================
@@ -74,7 +74,7 @@ const getAnnualEntitlements = (
     return {
       sick: 2,
       casual: 2,
-      festival: 1,
+      festival: 2,
     };
   }
 

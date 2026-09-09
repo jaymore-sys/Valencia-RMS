@@ -10,6 +10,7 @@ import {
   FolderKanban,
   LogOut,
   User,
+  UsersRound
 } from "lucide-react";
 
 import "./Employeelayout.css";
@@ -23,6 +24,16 @@ const EmployeeLayout = () => {
   const user = JSON.parse(
     sessionStorage.getItem("user") || "{}"
   );
+
+  const HR_EMAILS = [
+  "rathika.haleangadi@valencianutrition.com",
+];
+
+const isHR = HR_EMAILS.includes(
+  String(user?.email || "")
+    .trim()
+    .toLowerCase()
+);
 
   const logout = () => {
   sessionStorage.clear();
@@ -140,6 +151,19 @@ const EmployeeLayout = () => {
             <CalendarCheck size={20} />
             <span>Attendance</span>
           </NavLink>
+
+          {isHR && (
+  <NavLink
+    to="/employee/hr-attendance"
+    className={({ isActive }) =>
+      isActive ? "active" : ""
+    }
+    title="HR Attendance"
+  >
+    <UsersRound size={20} />
+    <span>HR Attendance</span>
+  </NavLink>
+)}
 
           <NavLink
             to="/employee/leave-applications"

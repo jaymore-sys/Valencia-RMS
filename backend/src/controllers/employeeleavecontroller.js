@@ -12,11 +12,6 @@ const {
 /*
 ========================================================
 FIXED LEAVE EMAIL RECIPIENTS
-
-Temporary testing recipient:
-- jay.more@valencianutrition.com
-
-Will be restored after email approval testing.
 ========================================================
 */
 
@@ -24,6 +19,7 @@ const FIXED_LEAVE_CC = [
   "rathika.haleangadi@valencianutrition.com",
   "manish@valencianutrition.com",
 ];
+
 
 /*
 ========================================================
@@ -92,6 +88,7 @@ const HOLIDAYS_2026 = [
     type: "optional",
   },
 ];
+
 /*
 ========================================================
 HELPERS
@@ -136,6 +133,21 @@ const normalizeLeaveType = (value) => {
     return "festival";
   }
 
+  /*
+  ======================================================
+  NEW: UNPAID LEAVE / LWP
+  ======================================================
+  */
+
+  if (
+    type === "unpaid" ||
+    type === "unpaid_leave" ||
+    type === "lwp" ||
+    type === "leave_without_pay"
+  ) {
+    return "unpaid";
+  }
+
   return "";
 };
 
@@ -154,6 +166,16 @@ const getLeaveLabel = (type) => {
 
   if (type === "festival") {
     return "Holiday Leave";
+  }
+
+  /*
+  ======================================================
+  NEW: UNPAID LEAVE LABEL
+  ======================================================
+  */
+
+  if (type === "unpaid") {
+    return "Unpaid Leave (LWP)";
   }
 
   return "Leave";
@@ -258,15 +280,6 @@ const getLeaveColumns = async () => {
 /*
 ========================================================
 GET DEPARTMENT ADMINS
-
-Important:
-There is NO hard-coded Premal logic.
-
-Whichever active user has:
-role_name = admin
-AND same department_id as employee
-
-will receive the leave email.
 ========================================================
 */
 
@@ -322,12 +335,10 @@ const getDepartmentAdmins = async (
 
   return adminRows || [];
 };
+
 /*
 ========================================================
 GET ACTIVE SUPERADMINS
-
-Admin personal leave applications
-must be reviewed by Superadmin.
 ========================================================
 */
 
@@ -374,6 +385,7 @@ const getActiveSuperadmins = async () => {
 
   return superadminRows || [];
 };
+
 /*
 ========================================================
 BUILD FINAL EMAIL RECIPIENTS
@@ -469,6 +481,13 @@ const getEmployeeLeaveSummary =
           ? "la.review_remark"
           : "NULL AS review_remark";
 
+      const subjectSelect =
+        columns.has(
+          "subject"
+        )
+          ? "la.subject"
+          : "NULL AS subject";
+
       const [applications] =
         await db.query(
           `
@@ -476,6 +495,8 @@ const getEmployeeLeaveSummary =
             la.leave_id,
             la.employee_id,
             la.leave_type,
+
+            ${subjectSelect},
 
             DATE_FORMAT(
               la.start_date,
@@ -626,6 +647,19 @@ const applyEmployeeLeave =
           req.body.leave_type
         );
 
+      /*
+      ======================================================
+      NEW: SUBJECT
+      Used mainly for Unpaid Leave.
+      ======================================================
+      */
+
+      const subject =
+        String(
+          req.body.subject ||
+            ""
+        ).trim();
+
       const durationType =
         String(
           req.body
@@ -678,6 +712,39 @@ const applyEmployeeLeave =
 
             message:
               "Please select a valid leave type.",
+          });
+      }
+
+      /*
+      ======================================================
+      NEW: SUBJECT REQUIRED FOR UNPAID
+      ======================================================
+      */
+
+      if (
+        leaveType === "unpaid" &&
+        !subject
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Please enter the subject for unpaid leave.",
+          });
+      }
+
+      if (
+        subject.length > 255
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Leave subject cannot exceed 255 characters.",
           });
       }
 
@@ -903,7 +970,7 @@ const applyEmployeeLeave =
       }
 
       /*
-      Reason required except
+      Reason / Remark required except
       Holiday Leave.
       */
 
@@ -918,7 +985,10 @@ const applyEmployeeLeave =
             success: false,
 
             message:
-              "Please enter the reason for leave.",
+              leaveType ===
+              "unpaid"
+                ? "Please enter a remark for unpaid leave."
+                : "Please enter the reason for leave.",
           });
       }
 
@@ -976,54 +1046,65 @@ const applyEmployeeLeave =
         );
 
       /*
-      ------------------------------
+      ======================================================
       BALANCE VALIDATION
-      ------------------------------
+
+      IMPORTANT:
+      Unpaid Leave has NO balance.
+      Existing leave balance logic is
+      completely unchanged for all
+      other leave types.
+      ======================================================
       */
 
-      const balances =
-        await buildLeaveBalances(
-          db,
-          employeeId,
-          leaveYear
-        );
-
-      const selectedBalance =
-        balances[
-          leaveType
-        ];
-
       if (
-        !selectedBalance
+        leaveType !==
+        "unpaid"
       ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
+        const balances =
+          await buildLeaveBalances(
+            db,
+            employeeId,
+            leaveYear
+          );
 
-            message:
-              "Unable to calculate leave balance.",
-          });
-      }
+        const selectedBalance =
+          balances[
+            leaveType
+          ];
 
-      if (
-        totalDays >
-        Number(
-          selectedBalance
-            .available ||
-            0
-        )
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
+        if (
+          !selectedBalance
+        ) {
+          return res
+            .status(400)
+            .json({
+              success: false,
 
-            message:
-              `You only have ${selectedBalance.available} ${getLeaveLabel(
-                leaveType
-              )} day(s) available.`,
-          });
+              message:
+                "Unable to calculate leave balance.",
+            });
+        }
+
+        if (
+          totalDays >
+          Number(
+            selectedBalance
+              .available ||
+              0
+          )
+        ) {
+          return res
+            .status(400)
+            .json({
+              success: false,
+
+              message:
+                `You only have ${selectedBalance.available} ${getLeaveLabel(
+                  leaveType
+                )} day(s) available.`,
+            });
+        }
       }
 
       /*
@@ -1105,6 +1186,29 @@ const applyEmployeeLeave =
         "pending",
       ];
 
+      /*
+      ======================================================
+      NEW: SAVE SUBJECT
+      ======================================================
+      */
+
+      if (
+        columns.has(
+          "subject"
+        )
+      ) {
+        insertColumns.push(
+          "subject"
+        );
+
+        insertValues.push(
+          leaveType ===
+            "unpaid"
+            ? subject
+            : null
+        );
+      }
+
       if (
         columns.has(
           "duration_type"
@@ -1175,7 +1279,9 @@ const applyEmployeeLeave =
       */
 
       const reviewToken =
-        crypto.randomBytes(32).toString("hex");
+        crypto
+          .randomBytes(32)
+          .toString("hex");
 
       await db.query(
         `
@@ -1189,15 +1295,17 @@ const applyEmployeeLeave =
         (
           ?,
           ?,
-          DATE_ADD(NOW(), INTERVAL 30 DAY)
+          DATE_ADD(
+            NOW(),
+            INTERVAL 30 DAY
+          )
         )
         `,
         [
           result.insertId,
-          reviewToken
+          reviewToken,
         ]
       );
-
 
       /*
       ------------------------------
@@ -1208,7 +1316,7 @@ const applyEmployeeLeave =
       const [employeeRows] =
         await db.query(
           `
-           SELECT
+          SELECT
             u.user_id,
             u.full_name,
             u.email,
@@ -1228,6 +1336,7 @@ const applyEmployeeLeave =
           LEFT JOIN roles r
             ON r.role_id =
               u.role_id
+
           WHERE
             u.user_id = ?
 
@@ -1239,7 +1348,8 @@ const applyEmployeeLeave =
       const employee =
         employeeRows[0] ||
         {};
-              const applicantRole =
+
+      const applicantRole =
         String(
           employee.applicant_role ||
             ""
@@ -1255,11 +1365,14 @@ const applyEmployeeLeave =
       ======================================================
       FIND LEAVE REVIEWERS
 
-      Employee applicant:
+      Employee:
       → Department Admin(s)
 
-      Admin applicant:
+      Admin:
       → Superadmin(s)
+
+      Superadmin is additionally
+      copied on Employee leave email.
       ======================================================
       */
 
@@ -1273,7 +1386,9 @@ const applyEmployeeLeave =
         [];
 
       try {
-        if (isAdminApplicant) {
+        if (
+          isAdminApplicant
+        ) {
           superadmins =
             await getActiveSuperadmins();
 
@@ -1284,6 +1399,20 @@ const applyEmployeeLeave =
             await getDepartmentAdmins(
               employee.department_id
             );
+
+          /*
+          NEW:
+          Superadmin also receives
+          Employee leave notification.
+          */
+
+          superadmins =
+            await getActiveSuperadmins();
+
+          /*
+          Existing approval owner remains
+          the Department Admin.
+          */
 
           reviewUsers =
             departmentAdmins;
@@ -1308,8 +1437,7 @@ const applyEmployeeLeave =
 
       /*
       Keep first reviewer for
-      backwards-compatible response
-      fields.
+      backwards compatibility.
       */
 
       const admin =
@@ -1319,12 +1447,6 @@ const applyEmployeeLeave =
       /*
       ======================================================
       FINAL EMAIL RECIPIENTS
-
-      Employee:
-      → Department Admin(s)
-
-      Admin:
-      → Superadmin(s)
       ======================================================
       */
 
@@ -1332,6 +1454,43 @@ const applyEmployeeLeave =
         buildLeaveRecipients(
           reviewUsers
         );
+
+      /*
+      ======================================================
+      BUILD CC
+
+      Existing:
+      HR + Manish
+
+      Added:
+      Superadmin(s) for Employee leave.
+      ======================================================
+      */
+
+      const finalCcRecipients = [
+  ...new Set(
+    [
+      ...FIXED_LEAVE_CC,
+
+      ...(
+        isAdminApplicant
+          ? []
+          : superadmins.map(
+              (item) =>
+                item.email
+            )
+      ),
+    ]
+      .map((email) =>
+        String(
+          email || ""
+        )
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+  ),
+];
 
       /*
       ======================================================
@@ -1345,9 +1504,9 @@ const applyEmployeeLeave =
       };
 
       if (
-  finalLeaveRecipients.length >
-  0
-) {
+        finalLeaveRecipients.length >
+        0
+      ) {
         try {
           const leaveLabel =
             getLeaveLabel(
@@ -1368,7 +1527,7 @@ const applyEmployeeLeave =
               ? "Full Day"
               : `${totalDays} Full Days`;
 
-                    const subject =
+          const emailSubject =
             `${leaveLabel} Application - ${
               employee.full_name ||
               (isAdminApplicant
@@ -1386,12 +1545,21 @@ ${isAdminApplicant ? "Admin" : "Employee"} Email: ${employee.email || "-"}
 Department: ${employee.department_name || "-"}
 
 Leave Type: ${leaveLabel}
+${
+  leaveType === "unpaid"
+    ? `Subject: ${subject}`
+    : ""
+}
 From Date: ${startDate}
 To Date: ${endDate}
 Duration: ${durationLabel}
 Leave Days: ${totalDays}
 
-Reason:
+${
+  leaveType === "unpaid"
+    ? "Remark"
+    : "Reason"
+}:
 ${finalReason}
 
 The leave application is currently Pending and requires your review.
@@ -1438,17 +1606,22 @@ Valencia RMS
                     border:1px solid #dddddd;
                   ">
                     <strong>
-  ${isAdminApplicant
-    ? "Admin"
-    : "Employee"}
-</strong>
+                      ${
+                        isAdminApplicant
+                          ? "Admin"
+                          : "Employee"
+                      }
+                    </strong>
                   </td>
 
                   <td style="
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    ${employee.full_name || "-"}
+                    ${
+                      employee.full_name ||
+                      "-"
+                    }
                   </td>
                 </tr>
 
@@ -1458,17 +1631,22 @@ Valencia RMS
                     border:1px solid #dddddd;
                   ">
                     <strong>
-  ${isAdminApplicant
-    ? "Admin Email"
-    : "Employee Email"}
-</strong>
+                      ${
+                        isAdminApplicant
+                          ? "Admin Email"
+                          : "Employee Email"
+                      }
+                    </strong>
                   </td>
 
                   <td style="
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    ${employee.email || "-"}
+                    ${
+                      employee.email ||
+                      "-"
+                    }
                   </td>
                 </tr>
 
@@ -1486,7 +1664,10 @@ Valencia RMS
                     padding:8px;
                     border:1px solid #dddddd;
                   ">
-                    ${employee.department_name || "-"}
+                    ${
+                      employee.department_name ||
+                      "-"
+                    }
                   </td>
                 </tr>
 
@@ -1507,6 +1688,31 @@ Valencia RMS
                     ${leaveLabel}
                   </td>
                 </tr>
+
+                ${
+                  leaveType ===
+                  "unpaid"
+                    ? `
+                <tr>
+                  <td style="
+                    padding:8px;
+                    border:1px solid #dddddd;
+                  ">
+                    <strong>
+                      Subject
+                    </strong>
+                  </td>
+
+                  <td style="
+                    padding:8px;
+                    border:1px solid #dddddd;
+                  ">
+                    ${subject}
+                  </td>
+                </tr>
+                `
+                    : ""
+                }
 
                 <tr>
                   <td style="
@@ -1586,7 +1792,12 @@ Valencia RMS
                     border:1px solid #dddddd;
                   ">
                     <strong>
-                      Reason
+                      ${
+                        leaveType ===
+                        "unpaid"
+                          ? "Remark"
+                          : "Reason"
+                      }
                     </strong>
                   </td>
 
@@ -1599,19 +1810,42 @@ Valencia RMS
                 </tr>
               </table>
 
-              <p>This application is currently <strong>Pending</strong> and requires review.</p>
+              <p>
+                This application is currently
+                <strong>Pending</strong>
+                and requires review.
+              </p>
 
-              <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+              <table
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+                style="margin:20px 0;"
+              >
                 <tr>
-                  <td style="background:#ff5733;border-radius:8px;text-align:center;">
-                    <a href="https://myvol.in/leave-review/${reviewToken}"
-                       style="display:inline-block;padding:12px 24px;color:#ffffff;text-decoration:none;font-weight:bold;font-family:Arial,sans-serif;">
-                       Review Leave Request
+                  <td
+                    style="
+                      background:#ff5733;
+                      border-radius:8px;
+                      text-align:center;
+                    "
+                  >
+                    <a
+                      href="https://myvol.in/leave-review/${reviewToken}"
+                      style="
+                        display:inline-block;
+                        padding:12px 24px;
+                        color:#ffffff;
+                        text-decoration:none;
+                        font-weight:bold;
+                        font-family:Arial,sans-serif;
+                      "
+                    >
+                      Review Leave Request
                     </a>
                   </td>
                 </tr>
               </table>
-
 
               <p>
                 Regards,<br />
@@ -1626,9 +1860,10 @@ Valencia RMS
                 finalLeaveRecipients,
 
               cc:
-                FIXED_LEAVE_CC,
+                finalCcRecipients,
 
-              subject,
+              subject:
+                emailSubject,
 
               text,
 
@@ -1657,6 +1892,9 @@ Valencia RMS
 
             recipients:
               finalLeaveRecipients,
+
+            cc:
+              finalCcRecipients,
           };
         } catch (
           emailError
@@ -1665,11 +1903,6 @@ Valencia RMS
             "Leave application email failed:",
             emailError
           );
-
-          /*
-          Email failure must never
-          cancel leave application.
-          */
 
           emailResult = {
             sent: false,
@@ -1680,21 +1913,24 @@ Valencia RMS
 
             recipients:
               finalLeaveRecipients,
+
+            cc:
+              finalCcRecipients,
           };
         }
-           } else {
-  console.warn(
-    "Leave email skipped: no recipients found."
-  );
+      } else {
+        console.warn(
+          "Leave email skipped: no recipients found."
+        );
 
-  emailResult = {
-    sent: false,
-    skipped: true,
+        emailResult = {
+          sent: false,
+          skipped: true,
 
-    error:
-      "No leave email recipients found.",
-  };
-}
+          error:
+            "No leave email recipients found.",
+        };
+      }
 
       /*
       ======================================================
@@ -1708,7 +1944,10 @@ Valencia RMS
           success: true,
 
           message:
-            "Leave application submitted successfully.",
+            leaveType ===
+            "unpaid"
+              ? "Unpaid leave application submitted successfully."
+              : "Leave application submitted successfully.",
 
           application: {
             leave_id:
@@ -1732,11 +1971,6 @@ Valencia RMS
             department_name:
               employee.department_name ||
               "",
-
-            /*
-            Existing fields retained
-            for frontend compatibility.
-            */
 
             admin_id:
               admin.user_id ||
@@ -1781,6 +2015,16 @@ Valencia RMS
               getLeaveLabel(
                 leaveType
               ),
+
+            /*
+            NEW
+            */
+
+            subject:
+              leaveType ===
+                "unpaid"
+                ? subject
+                : null,
 
             start_date:
               startDate,
@@ -1997,10 +2241,6 @@ const toggleEmployeeOptionalHoliday =
           });
       }
 
-      /*
-      Sunday is already weekly off.
-      */
-
       const holidayDay =
         new Date(
           `${holidayDate}T00:00:00`
@@ -2039,11 +2279,6 @@ const toggleEmployeeOptionalHoliday =
             holidayDate,
           ]
         );
-
-      /*
-      Already selected:
-      remove it.
-      */
 
       if (
         existingRows.length >

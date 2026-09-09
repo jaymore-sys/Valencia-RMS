@@ -25,8 +25,8 @@ const employeeTaskRoutes = require("./routes/employeetaskroutes");
 const employeeProfileRoutes = require("./routes/employeeprofileroutes");
 const employeeAttendanceRoutes = require("./routes/employeeattendanceroutes");
 const employeeLeaveRoutes = require("./routes/employeeleaveroutes");
-
-
+const hrAttendanceRoutes =
+  require("./routes/hrattendanceroutes");
 const superadminRoutes = require("./routes/superadminroutes");
 
 
@@ -349,7 +349,10 @@ app.use(
 "/api/employee-attendance",
 employeeAttendanceRoutes
 );
-
+app.use(
+  "/api/hr-attendance",
+  hrAttendanceRoutes
+);
 
 
 app.use(

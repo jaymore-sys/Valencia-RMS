@@ -49,21 +49,36 @@ const formatDate = (dateValue) => {
 };
 
 const getEffectiveAttendanceStartDate = (
-  joiningDate
+  joiningDate,
+  importedStartDate
 ) => {
+  const formattedImportedStartDate =
+    formatDate(
+      importedStartDate
+    );
+
+  if (
+    !formattedImportedStartDate
+  ) {
+    return null;
+  }
+
   const formattedJoiningDate =
-    formatDate(joiningDate);
+    formatDate(
+      joiningDate
+    );
 
   if (
     formattedJoiningDate &&
     formattedJoiningDate >
-      ATTENDANCE_SYSTEM_START_DATE
+      formattedImportedStartDate
   ) {
     return formattedJoiningDate;
   }
 
-  return ATTENDANCE_SYSTEM_START_DATE;
+  return formattedImportedStartDate;
 };
+
 const getDayName = (dateString) => {
   const date = new Date(`${dateString}T00:00:00`);
   return date.toLocaleDateString("en-US", { weekday: "long" });
@@ -304,211 +319,314 @@ const buildAttendanceWithGeneratedAbsents = (
       )
   );
 };
-
 const getSummary = (attendanceRows) => {
-  const totalRecords = attendanceRows.length;
+  const totalRecords =
+    attendanceRows.length;
 
-  const present = attendanceRows.filter(
-    (row) => normalizeStatus(row.status) === "present"
-  ).length;
+  const present =
+    attendanceRows.filter(
+      (row) =>
+        normalizeStatus(
+          row.status
+        ) === "present"
+    ).length;
 
-  const absent = attendanceRows.filter(
-    (row) => normalizeStatus(row.status) === "absent"
-  ).length;
+  const absent =
+    attendanceRows.filter(
+      (row) =>
+        normalizeStatus(
+          row.status
+        ) === "absent"
+    ).length;
 
-  const late = attendanceRows.filter(
-    (row) => normalizeStatus(row.status) === "late"
-  ).length;
+  const late =
+    attendanceRows.filter(
+      (row) =>
+        normalizeStatus(
+          row.status
+        ) === "late"
+    ).length;
 
-  const leave = attendanceRows.filter(
-    (row) => normalizeStatus(row.status) === "leave"
-  ).length;
+  const leave =
+    attendanceRows.filter(
+      (row) =>
+        normalizeStatus(
+          row.status
+        ) === "leave"
+    ).length;
 
   const attendancePercentage =
-    totalRecords > 0 ? Math.round(((present + late) / totalRecords) * 100) : 0;
+    totalRecords > 0
+      ? Math.round(
+          (
+            (present + late) /
+            totalRecords
+          ) * 100
+        )
+      : 0;
 
   return {
-    total_records: totalRecords,
+    total_records:
+      totalRecords,
+
     present,
+
     absent,
+
     late,
+
     leave,
-    attendance_percentage: attendancePercentage,
+
+    attendance_percentage:
+      attendancePercentage,
   };
 };
-
-const getEmployeeAttendance = async (req, res) => {
+const getEmployeeAttendance = async (
+  req,
+  res
+) => {
   try {
-    const employeeId = req.user.user_id;
+    const employeeId =
+      req.user.user_id;
 
-    const userColumns = await getTableColumns("users");
+    const userColumns =
+      await getTableColumns(
+        "users"
+      );
 
-    const selectEmployeeCode = hasColumn(userColumns, "employee_code")
-      ? "u.employee_code"
-      : "u.user_id AS employee_code";
+    const selectEmployeeCode =
+      hasColumn(
+        userColumns,
+        "employee_code"
+      )
+        ? "u.employee_code"
+        : "u.user_id AS employee_code";
 
-    const selectDesignation = hasColumn(userColumns, "designation")
-      ? "u.designation"
-      : "NULL AS designation";
+    const selectDesignation =
+      hasColumn(
+        userColumns,
+        "designation"
+      )
+        ? "u.designation"
+        : "NULL AS designation";
 
-    const [profileRows] = await db.query(
-  `
-  SELECT
-    u.user_id,
-    u.full_name,
-    u.email,
-    ${selectEmployeeCode},
-    ${selectDesignation},
+    const [profileRows] =
+      await db.query(
+        `
+        SELECT
+          u.user_id,
+          u.full_name,
+          u.email,
+          ${selectEmployeeCode},
+          ${selectDesignation},
 
-    DATE_FORMAT(
-      ep.joining_date,
-      '%Y-%m-%d'
-    ) AS joining_date,
+          DATE_FORMAT(
+            ep.joining_date,
+            '%Y-%m-%d'
+          ) AS joining_date,
 
-    r.role_name,
-    d.department_name
+          r.role_name,
+          d.department_name
 
-  FROM users u
+        FROM users u
 
-  LEFT JOIN employee_profiles ep
-    ON ep.user_id =
-       u.user_id
+        LEFT JOIN employee_profiles ep
+          ON ep.user_id =
+             u.user_id
 
-  LEFT JOIN roles r
-    ON r.role_id =
-       u.role_id
+        LEFT JOIN roles r
+          ON r.role_id =
+             u.role_id
 
-  LEFT JOIN departments d
-    ON d.department_id =
-       u.department_id
+        LEFT JOIN departments d
+          ON d.department_id =
+             u.department_id
 
-  WHERE u.user_id = ?
+        WHERE u.user_id = ?
 
-  LIMIT 1
-  `,
-  [employeeId]
-);
+        LIMIT 1
+        `,
+        [employeeId]
+      );
 
-   const profile =
-  profileRows[0] || {
-    user_id: employeeId,
 
-    full_name:
-      req.user.full_name || "-",
+    const profile =
+      profileRows[0] || {
+        user_id:
+          employeeId,
 
-    email:
-      req.user.email || "-",
+        full_name:
+          req.user.full_name ||
+          "-",
 
-    employee_code:
-      req.user.employee_code || "-",
+        email:
+          req.user.email ||
+          "-",
 
-    designation:
-      req.user.designation || "-",
+        employee_code:
+          req.user.employee_code ||
+          "-",
 
-    joining_date: null,
+        designation:
+          req.user.designation ||
+          "-",
 
-    role_name:
-      req.user.role_name ||
-      "employee",
+        joining_date:
+          null,
 
-    department_name:
-      req.user.department_name ||
-      "-",
-  };
+        role_name:
+          req.user.role_name ||
+          "employee",
 
-  const attendanceStartDate =
-  getEffectiveAttendanceStartDate(
-    profile.joining_date
-  );
+        department_name:
+          req.user.department_name ||
+          "-",
+      };
 
-  const [rangeRows] =
-  await db.query(
-    `
-    SELECT
-      DATE_FORMAT(
-        MAX(attendance_date),
-        '%Y-%m-%d'
-      ) AS end_date
 
-    FROM attendance
+    /*
+      GLOBAL IMPORTED ATTENDANCE RANGE
 
-    WHERE
-      attendance_date >= ?
+      We never calculate before:
+      01-Apr-2026.
 
-      AND attendance_date <=
-          CURDATE()
-    `,
-    [
-      ATTENDANCE_SYSTEM_START_DATE,
-    ]
-  );
+      But if the current database only has
+      attendance imported from a later date,
+      such as 01-Jun-2026, calculation starts
+      from that imported start date.
+    */
+    const [rangeRows] =
+      await db.query(
+        `
+        SELECT
+          DATE_FORMAT(
+            MIN(attendance_date),
+            '%Y-%m-%d'
+          ) AS start_date,
 
-const attendanceEndDate =
-  rangeRows[0]?.end_date ||
-  null;
+          DATE_FORMAT(
+            MAX(attendance_date),
+            '%Y-%m-%d'
+          ) AS end_date
 
-   let attendanceRows = [];
+        FROM attendance
 
-if (
-  attendanceEndDate &&
-  attendanceStartDate <=
-    attendanceEndDate
-) {
-  const [rows] =
-    await db.query(
-      `
-      SELECT
-        attendance_id,
-        employee_id,
+        WHERE
+          attendance_date >= ?
 
-        DATE_FORMAT(
-          attendance_date,
-          '%Y-%m-%d'
-        ) AS attendance_date,
+          AND attendance_date <=
+              CURDATE()
+        `,
+        [
+          ATTENDANCE_SYSTEM_START_DATE,
+        ]
+      );
 
-        check_in_time,
-        check_out_time,
-        total_minutes,
-        status,
-        remarks,
-        created_at,
-        updated_at
 
-      FROM attendance
+    const importedStartDate =
+      rangeRows[0]
+        ?.start_date ||
+      null;
 
-      WHERE employee_id = ?
 
-        AND attendance_date
-          BETWEEN ? AND ?
+    const attendanceEndDate =
+      rangeRows[0]
+        ?.end_date ||
+      null;
 
-      ORDER BY
-        attendance_date DESC
-      `,
-      [
-        employeeId,
-        attendanceStartDate,
-        attendanceEndDate,
-      ]
-    );
 
-  attendanceRows = rows;
-}
+    /*
+      FINAL START DATE
+
+      Existing / older employee:
+      → first imported attendance date
+
+      Employee with a joining date
+      later than imported attendance:
+      → joining date
+    */
+    const attendanceStartDate =
+      getEffectiveAttendanceStartDate(
+        profile.joining_date,
+        importedStartDate
+      );
+
+
+    let attendanceRows = [];
+
+
+    if (
+      attendanceStartDate &&
+      attendanceEndDate &&
+      attendanceStartDate <=
+        attendanceEndDate
+    ) {
+      const [rows] =
+        await db.query(
+          `
+          SELECT
+            attendance_id,
+            employee_id,
+
+            DATE_FORMAT(
+              attendance_date,
+              '%Y-%m-%d'
+            ) AS attendance_date,
+
+            check_in_time,
+            check_out_time,
+            total_minutes,
+            status,
+            remarks,
+            created_at,
+            updated_at
+
+          FROM attendance
+
+          WHERE employee_id = ?
+
+            AND attendance_date
+              BETWEEN ? AND ?
+
+          ORDER BY
+            attendance_date DESC
+          `,
+          [
+            employeeId,
+            attendanceStartDate,
+            attendanceEndDate,
+          ]
+        );
+
+      attendanceRows =
+        rows;
+    }
+
 
     const attendance =
-  buildAttendanceWithGeneratedAbsents(
-    attendanceRows,
-    employeeId,
-    attendanceStartDate,
-    attendanceEndDate
-  );
+      buildAttendanceWithGeneratedAbsents(
+        attendanceRows,
+        employeeId,
+        attendanceStartDate,
+        attendanceEndDate
+      );
 
-    const summary = getSummary(attendance);
+
+    const summary =
+      getSummary(
+        attendance
+      );
+
 
     return res.json({
       success: true,
+
       profile,
+
       summary,
+
       attendance,
+
       data: {
         profile,
         summary,
@@ -516,13 +634,22 @@ if (
       },
     });
   } catch (error) {
-    console.error("Employee attendance fetch error:", error);
+    console.error(
+      "Employee attendance fetch error:",
+      error
+    );
 
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch employee attendance.",
-      error: error.message,
-    });
+    return res
+      .status(500)
+      .json({
+        success: false,
+
+        message:
+          "Failed to fetch employee attendance.",
+
+        error:
+          error.message,
+      });
   }
 };
 

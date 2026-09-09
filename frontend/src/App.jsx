@@ -47,7 +47,7 @@ import EmployeeProfile from "./pages/employee/employeeProfile";
 import EmployeeAttendance from "./pages/employee/employeeAttendance";
 
 import EmployeeLeaveApplications from "./pages/employee/employeeLeaveApplications";
-
+import HrAttendance from "./pages/employee/hrAttendance";
 /* ================= ADMIN ================= */
 
 import AdminLayout from "./layouts/Adminlayout";
@@ -210,7 +210,38 @@ const ProtectedRoute = ({
 
   return children;
 };
+const HR_EMAILS = [
+  "rathika.haleangadi@valencianutrition.com",
+];
 
+const HrProtectedRoute = ({
+  children,
+}) => {
+  const user =
+    getStoredUser();
+
+  const email =
+    String(
+      user?.email || ""
+    )
+      .trim()
+      .toLowerCase();
+
+  if (
+    !HR_EMAILS.includes(
+      email
+    )
+  ) {
+    return (
+      <Navigate
+        to="/employee/overview"
+        replace
+      />
+    );
+  }
+
+  return children;
+};
 /* ========================================================
    APP
 ======================================================== */
@@ -353,6 +384,8 @@ const App = () => {
           }
         />
 
+
+
         <Route
           path="overview"
           element={
@@ -395,6 +428,14 @@ const App = () => {
           }
         />
 
+        <Route
+  path="hr-attendance"
+  element={
+    <HrProtectedRoute>
+      <HrAttendance />
+    </HrProtectedRoute>
+  }
+/>
         <Route
           path="leave-applications"
           element={

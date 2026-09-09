@@ -10,6 +10,7 @@ import LeaveInstructionsModal from "../../components/employee/LeaveInstructionsM
 import api from "../../api/axios";
 
 const EMPTY_FORM = {
+  subject: "",
   start_date: "",
   end_date: "",
   duration_type: "full_day",
@@ -50,7 +51,7 @@ const DEFAULT_BALANCES = {
   },
 
   festival: {
-    label: "Holiday Leave",
+    label: "Festival Leave",
     total: 4,
     earned: 4,
     used: 0,
@@ -145,8 +146,12 @@ const getLeaveLabel = (type) => {
   }
 
   if (type === "festival") {
-    return "Holiday Leave";
+    return "Festival Leave";
   }
+
+  if (type === "unpaid") {
+  return "Unpaid Leave ";
+}
 
   return type || "-";
 };
@@ -366,7 +371,7 @@ const BalanceCard = ({
         {available <= 0
           ? "No Leave Available"
           : isFestival
-          ? "Apply Holiday Leave"
+          ? "Apply Festival Leave"
           : "Apply Leave"}
       </button>
     </div>
@@ -1025,251 +1030,319 @@ const EmployeeLeaveApplications =
       setError("");
     };
 
-    const handleApply =
-      async () => {
-        if (!selectedLeaveType) {
-          return;
-        }
+   const handleApply = async () => {
+  if (!selectedLeaveType) {
+    return;
+  }
 
-        setError("");
-        setSuccess("");
+  setError("");
+  setSuccess("");
 
-        if (!form.start_date) {
-          setError(
+  const isUnpaid =
+    selectedLeaveType === "unpaid";
+
+  /*
+  ========================================
+  SUBJECT - UNPAID ONLY
+  ========================================
+  */
+
+  if (
+    isUnpaid &&
+    !form.subject.trim()
+  ) {
+    setError(
+      "Please enter the subject for unpaid leave."
+    );
+
+    return;
+  }
+
+  /*
+  ========================================
+  START DATE
+  ========================================
+  */
+
+  if (!form.start_date) {
+    setError(
+      selectedLeaveType ===
+        "festival"
+        ? "Please select a festival holiday."
+        : "Please select the leave date."
+    );
+
+    return;
+  }
+
+  if (
+    form.start_date <
+    minimumLeaveDate
+  ) {
+    setError(
+      "Leave must be applied for at least 1 day in advance."
+    );
+
+    return;
+  }
+
+  /*
+  ========================================
+  FESTIVAL LEAVE
+  ========================================
+  */
+
+  if (
+    selectedLeaveType ===
+    "festival"
+  ) {
+    if (!selectedFestival) {
+      setError(
+        "Please select an eligible festival holiday."
+      );
+
+      return;
+    }
+  } else {
+    /*
+    ======================================
+    NORMAL / UNPAID FULL DAY
+    ======================================
+    */
+
+    if (
+      form.duration_type ===
+      "full_day"
+    ) {
+      if (!form.end_date) {
+        setError(
+          "Please select the end date."
+        );
+
+        return;
+      }
+
+      if (
+        form.end_date <
+        form.start_date
+      ) {
+        setError(
+          "Leave end date cannot be before start date."
+        );
+
+        return;
+      }
+    }
+
+    /*
+    ======================================
+    HALF DAY
+    ======================================
+    */
+
+    if (
+      form.duration_type ===
+        "half_day" &&
+      ![
+        "first_half",
+        "second_half",
+      ].includes(
+        form.half_day_session
+      )
+    ) {
+      setError(
+        "Please select First Half or Second Half."
+      );
+
+      return;
+    }
+
+    /*
+    ======================================
+    REASON / REMARK
+    ======================================
+    */
+
+    if (
+      !form.reason.trim()
+    ) {
+      setError(
+        isUnpaid
+          ? "Please enter a remark for unpaid leave."
+          : "Please enter the reason for leave."
+      );
+
+      return;
+    }
+  }
+
+  /*
+  ========================================
+  DAYS
+  ========================================
+  */
+
+  if (
+    calculateDays <= 0
+  ) {
+    setError(
+      "Unable to calculate leave days."
+    );
+
+    return;
+  }
+
+  /*
+  ========================================
+  BALANCE CHECK
+
+  IMPORTANT:
+  UNPAID LEAVE SKIPS THIS COMPLETELY
+  ========================================
+  */
+
+  if (!isUnpaid) {
+    const currentAvailable =
+      Number(
+        balances[
+          selectedLeaveType
+        ]?.available ??
+          balances[
+            selectedLeaveType
+          ]?.remaining ??
+          0
+      );
+
+    if (
+      calculateDays >
+      currentAvailable
+    ) {
+      setError(
+        `You only have ${formatDays(
+          currentAvailable
+        )} day(s) currently available.`
+      );
+
+      return;
+    }
+  }
+
+  /*
+  ========================================
+  SUBMIT
+  ========================================
+  */
+
+  try {
+    setSubmitting(true);
+
+    const reason =
+      selectedLeaveType ===
+      "festival"
+        ? `Festival: ${
+            selectedFestival.name
+          }${
+            form.reason.trim()
+              ? ` - ${form.reason.trim()}`
+              : ""
+          }`
+        : form.reason.trim();
+
+    const response =
+      await api.post(
+        "/employee-leaves/apply",
+        {
+          leave_type:
+            selectedLeaveType,
+
+          subject:
+            isUnpaid
+              ? form.subject.trim()
+              : null,
+
+          start_date:
+            form.start_date,
+
+          end_date:
             selectedLeaveType ===
-              "festival"
-              ? "Please select a festival holiday."
-              : "Please select the leave date."
-          );
-
-          return;
-        }
-
-        if (
-          form.start_date <
-          minimumLeaveDate
-        ) {
-          setError(
-            "Leave must be applied for at least 1 day in advance."
-          );
-
-          return;
-        }
-
-        if (
-          selectedLeaveType ===
-          "festival"
-        ) {
-          if (
-            !selectedFestival
-          ) {
-            setError(
-              "Please select an eligible festival holiday."
-            );
-
-            return;
-          }
-        } else {
-          if (
+              "festival" ||
             form.duration_type ===
-            "full_day"
-          ) {
-            if (
-              !form.end_date
-            ) {
-              setError(
-                "Please select the end date."
-              );
+              "half_day"
+              ? form.start_date
+              : form.end_date,
 
-              return;
-            }
-
-            if (
-              form.end_date <
-              form.start_date
-            ) {
-              setError(
-                "Leave end date cannot be before start date."
-              );
-
-              return;
-            }
-          }
-
-          if (
-            form.duration_type ===
-              "half_day" &&
-            ![
-              "first_half",
-              "second_half",
-            ].includes(
-              form.half_day_session
-            )
-          ) {
-            setError(
-              "Please select First Half or Second Half."
-            );
-
-            return;
-          }
-
-          if (
-            !form.reason.trim()
-          ) {
-            setError(
-              "Please enter the reason for leave."
-            );
-
-            return;
-          }
-        }
-
-        if (
-          calculateDays <= 0
-        ) {
-          setError(
-            "Unable to calculate leave days."
-          );
-
-          return;
-        }
-
-        const available =
-          Number(
-            balances[
-              selectedLeaveType
-            ]?.available ??
-              balances[
-                selectedLeaveType
-              ]?.remaining ??
-              0
-          );
-
-        if (
-          calculateDays >
-          available
-        ) {
-          setError(
-            `You only have ${formatDays(
-              available
-            )} day(s) currently available.`
-          );
-
-          return;
-        }
-
-        try {
-          setSubmitting(true);
-
-          const reason =
+          duration_type:
             selectedLeaveType ===
             "festival"
-              ? `Festival: ${
-                  selectedFestival.name
-                }${
-                  form.reason.trim()
-                    ? ` - ${form.reason.trim()}`
-                    : ""
-                }`
-              : form.reason.trim();
+              ? "full_day"
+              : form.duration_type,
 
-          const response =
-            await api.post(
-              "/employee-leaves/apply",
-              {
-                leave_type:
-                  selectedLeaveType,
+          half_day_session:
+            selectedLeaveType !==
+              "festival" &&
+            form.duration_type ===
+              "half_day"
+              ? form.half_day_session
+              : null,
 
-                start_date:
-                  form.start_date,
-
-                end_date:
-                  selectedLeaveType ===
-                    "festival" ||
-                  form.duration_type ===
-                    "half_day"
-                    ? form.start_date
-                    : form.end_date,
-
-                duration_type:
-                  selectedLeaveType ===
-                  "festival"
-                    ? "full_day"
-                    : form.duration_type,
-
-                half_day_session:
-                  selectedLeaveType !==
-                    "festival" &&
-                  form.duration_type ===
-                    "half_day"
-                    ? form.half_day_session
-                    : null,
-
-                reason,
-              }
-            );
-
-          const email =
-            response.data?.email;
-
-          if (
-            email?.sent ===
-              false &&
-            email?.skipped ===
-              false
-          ) {
-            setSuccess(
-              "Leave submitted successfully, but email notification could not be sent."
-            );
-          } else if (
-            email?.sent ===
-              false &&
-            email?.skipped ===
-              true
-          ) {
-            setSuccess(
-              "Leave submitted successfully. Email notification was skipped."
-            );
-          } else {
-            setSuccess(
-              response.data
-                ?.message ||
-                "Leave application submitted successfully."
-            );
-          }
-
-          await fetchLeaveData();
-
-          setSelectedLeaveType(
-            null
-          );
-
-          resetForm();
-        } catch (err) {
-          if (
-            !err?.response ||
-            err.response.status >=
-              500
-          ) {
-            console.error(
-              "Apply employee leave error:",
-              err
-            );
-          }
-
-          setError(
-            err?.response?.data
-              ?.sqlMessage ||
-              err?.response?.data
-                ?.error ||
-              err?.response?.data
-                ?.message ||
-              "Failed to submit leave application."
-          );
-        } finally {
-          setSubmitting(false);
+          reason,
         }
-      };
+      );
+
+    const email =
+      response.data?.email;
+
+    if (
+      email?.sent === false &&
+      email?.skipped === false
+    ) {
+      setSuccess(
+        "Leave submitted successfully, but email notification could not be sent."
+      );
+    } else if (
+      email?.sent === false &&
+      email?.skipped === true
+    ) {
+      setSuccess(
+        "Leave submitted successfully. Email notification was skipped."
+      );
+    } else {
+      setSuccess(
+        response.data?.message ||
+          (
+            isUnpaid
+              ? "Unpaid leave application submitted successfully."
+              : "Leave application submitted successfully."
+          )
+      );
+    }
+
+    await fetchLeaveData();
+
+    setSelectedLeaveType(
+      null
+    );
+
+    resetForm();
+  } catch (err) {
+    console.error(
+      "Apply employee leave error:",
+      err
+    );
+
+    setError(
+      err?.response?.data
+        ?.sqlMessage ||
+        err?.response?.data
+          ?.error ||
+        err?.response?.data
+          ?.message ||
+        "Failed to submit leave application."
+    ); 
+  } finally {
+    setSubmitting(false);
+  }
+};
 
     return (
       <div style={styles.page}>
@@ -1333,6 +1406,32 @@ const EmployeeLeaveApplications =
             </button>
 
             <button
+  type="button"
+  style={
+    styles.unpaidLeaveBtn
+  }
+  onClick={() =>
+    openApplyModal("unpaid")
+  }
+>
+  <Send size={17} />
+
+  <span
+    style={
+      styles.unpaidLeaveBtnText
+    }
+  >
+    <strong>
+      Apply for Leave
+    </strong>
+
+    <small>
+      Unpaid Leave
+    </small>
+  </span>
+</button>
+
+            <button
               type="button"
               style={
                 styles.refreshBtn
@@ -1340,6 +1439,7 @@ const EmployeeLeaveApplications =
               onClick={refreshAll}
               disabled={loading}
             >
+
               <RefreshCw
                 size={18}
               />
@@ -1529,7 +1629,7 @@ const EmployeeLeaveApplications =
                 automatic. Festival
                 holidays can be
                 applied for from the
-                Holiday Leave card
+                Festival Leave card
                 and require Admin
                 approval.
               </p>
@@ -1749,19 +1849,31 @@ const EmployeeLeaveApplications =
               </h2>
 
               <p
-                style={
-                  styles.modalSubtitle
-                }
-              >
-                Currently
-                available:{" "}
-                <strong>
-                  {formatDays(
-                    selectedAvailable
-                  )}
-                </strong>{" "}
-                day(s)
-              </p>
+  style={
+    styles.modalSubtitle
+  }
+>
+  {selectedLeaveType ===
+  "unpaid" ? (
+    <>
+      Leave Without Pay.
+      This request will not
+      use your available
+      leave balance.
+    </>
+  ) : (
+    <>
+      Currently
+      available:{" "}
+      <strong>
+        {formatDays(
+          selectedAvailable
+        )}
+      </strong>{" "}
+      day(s)
+    </>
+  )}
+</p>
 
               {error && (
                 <div
@@ -1914,12 +2026,52 @@ const EmployeeLeaveApplications =
                   </label>
                 </>
               ) : (
-                <>
-                  <div
-                    style={
-                      styles.formSection
-                    }
-                  >
+  <>
+    {selectedLeaveType ===
+      "unpaid" && (
+      <label
+        style={
+          styles.field
+        }
+      >
+        <span>
+          Subject
+        </span>
+
+        <input
+          type="text"
+          maxLength={255}
+          style={
+            styles.input
+          }
+          value={
+            form.subject
+          }
+          onChange={(
+            event
+          ) =>
+            setForm(
+              (
+                previous
+              ) => ({
+                ...previous,
+
+                subject:
+                  event.target
+                    .value,
+              })
+            )
+          }
+          placeholder="e.g. Personal Leave"
+        />
+      </label>
+    )}
+
+    <div
+      style={
+        styles.formSection
+      }
+    >
                     <span
                       style={
                         styles.formSectionLabel
@@ -2165,7 +2317,9 @@ const EmployeeLeaveApplications =
                   </div>
 
                   {calculateDays >
-                    0 && (
+  0 &&
+  selectedLeaveType !==
+    "unpaid" && (
                     <div
                       style={
                         styles.balancePreview
@@ -2220,8 +2374,11 @@ const EmployeeLeaveApplications =
                     }
                   >
                     <span>
-                      Reason
-                    </span>
+  {selectedLeaveType ===
+  "unpaid"
+    ? "Remark"
+    : "Reason"}
+</span>
 
                     <textarea
                       style={
@@ -2246,7 +2403,12 @@ const EmployeeLeaveApplications =
                           })
                         )
                       }
-                      placeholder="Enter reason for leave..."
+                     placeholder={
+  selectedLeaveType ===
+  "unpaid"
+    ? "Enter remark for unpaid leave..."
+    : "Enter reason for leave..."
+}
                     />
                   </label>
                 </>
@@ -2289,8 +2451,11 @@ const EmployeeLeaveApplications =
                   <Send size={18} />
 
                   {submitting
-                    ? "Submitting..."
-                    : "Submit Leave"}
+  ? "Submitting..."
+  : selectedLeaveType ===
+    "unpaid"
+  ? "Send Request"
+  : "Submit Leave"}
                 </button>
               </div>
             </div>
@@ -2373,6 +2538,39 @@ const styles = {
 
     whiteSpace: "nowrap",
   },
+
+  unpaidLeaveBtn: {
+  minHeight: "52px",
+
+  border: 0,
+
+  background: "#ff5733",
+  color: "#ffffff",
+
+  borderRadius: "14px",
+
+  padding: "6px 16px",
+
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+
+  gap: "9px",
+
+  cursor: "pointer",
+
+  whiteSpace: "nowrap",
+},
+
+unpaidLeaveBtnText: {
+  display: "flex",
+
+  flexDirection: "column",
+
+  alignItems: "flex-start",
+
+  lineHeight: 1.15,
+},
 
   refreshBtn: {
     height: "46px",
