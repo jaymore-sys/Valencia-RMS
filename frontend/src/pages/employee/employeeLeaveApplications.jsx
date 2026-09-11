@@ -78,10 +78,10 @@ const LEAVE_CARDS = [
     description: "1.5 days credited monthly",
   },
   {
-  key: "festival",
-  title: "Festival Leave",
-  description: "Choose from available festival holidays",
-},
+    key: "festival",
+    title: "Festival Leave",
+    description: "Choose from available festival holidays",
+  },
 ];
 
 const HISTORY_FILTERS = [
@@ -164,8 +164,8 @@ const getLeaveLabel = (type) => {
   }
 
   if (type === "unpaid") {
-  return "Unpaid Leave ";
-}
+    return "Unpaid Leave ";
+  }
 
   return type || "-";
 };
@@ -217,8 +217,8 @@ const BalanceCard = ({
 
   const available = Number(
     balance.available ??
-      balance.remaining ??
-      0
+    balance.remaining ??
+    0
   );
 
   const used = Number(
@@ -232,17 +232,17 @@ const BalanceCard = ({
   const total = isPrivileged
     ? Number(balance.earned || 0)
     : Number(
-        balance.total ||
-          balance.earned ||
-          0
-      );
+      balance.total ||
+      balance.earned ||
+      0
+    );
 
   const progress =
     total > 0
       ? Math.min(
-          100,
-          (available / total) * 100
-        )
+        100,
+        (available / total) * 100
+      )
       : 0;
 
   return (
@@ -385,8 +385,8 @@ const BalanceCard = ({
         {available <= 0
           ? "No Leave Available"
           : isFestival
-          ? "Apply Festival Leave"
-          : "Apply Leave"}
+            ? "Apply Festival Leave"
+            : "Apply Leave"}
       </button>
     </div>
   );
@@ -478,7 +478,7 @@ const HistoryTable = ({
             (application) => {
               const status = String(
                 application.status ||
-                  "pending"
+                "pending"
               ).toLowerCase();
 
               return (
@@ -528,7 +528,7 @@ const HistoryTable = ({
                     <span
                       style={
                         application.duration_type ===
-                        "half_day"
+                          "half_day"
                           ? styles.halfDayBadge
                           : styles.fullDayBadge
                       }
@@ -568,12 +568,12 @@ const HistoryTable = ({
                         ...styles.statusBadge,
 
                         ...(status ===
-                        "approved"
+                          "approved"
                           ? styles.approvedBadge
                           : status ===
                             "rejected"
-                          ? styles.rejectedBadge
-                          : styles.pendingBadge),
+                            ? styles.rejectedBadge
+                            : styles.pendingBadge),
                       }}
                     >
                       {status
@@ -591,10 +591,10 @@ const HistoryTable = ({
                   >
                     {application.applied_at
                       ? formatDisplayDate(
-                          String(
-                            application.applied_at
-                          ).slice(0, 10)
-                        )
+                        String(
+                          application.applied_at
+                        ).slice(0, 10)
+                      )
                       : "-"}
                   </td>
                 </tr>
@@ -667,16 +667,16 @@ const EmployeeLeaveApplications =
 
     const minimumLeaveDate =
       getTomorrowDate() >
-      POLICY_START_DATE
+        POLICY_START_DATE
         ? getTomorrowDate()
         : POLICY_START_DATE;
 
     const selectedMinimumLeaveDate =
-  selectedLeaveType === "sick"
-    ? getTodayDate() > POLICY_START_DATE
-      ? getTodayDate()
-      : POLICY_START_DATE
-    : minimumLeaveDate;
+      selectedLeaveType === "sick"
+        ? getTodayDate() > POLICY_START_DATE
+          ? getTodayDate()
+          : POLICY_START_DATE
+        : minimumLeaveDate;
 
     const calculateDays =
       useMemo(() => {
@@ -729,10 +729,10 @@ const EmployeeLeaveApplications =
           Math.floor(
             (end.getTime() -
               start.getTime()) /
-              (1000 *
-                60 *
-                60 *
-                24)
+            (1000 *
+              60 *
+              60 *
+              24)
           ) + 1
         );
       }, [
@@ -770,21 +770,21 @@ const EmployeeLeaveApplications =
               .filter(
                 (application) =>
                   application.leave_type ===
-                    "festival" &&
+                  "festival" &&
                   [
                     "pending",
                     "approved",
                   ].includes(
                     String(
                       application.status ||
-                        ""
+                      ""
                     ).toLowerCase()
                   )
               )
               .map((application) =>
                 String(
                   application.start_date ||
-                    ""
+                  ""
                 ).slice(0, 10)
               )
           ),
@@ -803,7 +803,7 @@ const EmployeeLeaveApplications =
               if (
                 !date ||
                 holiday.type !==
-                  "optional"
+                "optional"
               ) {
                 return false;
               }
@@ -849,11 +849,11 @@ const EmployeeLeaveApplications =
           holidays.find(
             (holiday) =>
               holiday.type ===
-                "optional" &&
+              "optional" &&
               String(
                 holiday.date || ""
               ).slice(0, 10) ===
-                form.start_date
+              form.start_date
           ) || null,
         [
           holidays,
@@ -864,14 +864,14 @@ const EmployeeLeaveApplications =
     const selectedAvailable =
       selectedLeaveType
         ? Number(
-            balances[
-              selectedLeaveType
-            ]?.available ??
-              balances[
-                selectedLeaveType
-              ]?.remaining ??
-              0
-          )
+          balances[
+            selectedLeaveType
+          ]?.available ??
+          balances[
+            selectedLeaveType
+          ]?.remaining ??
+          0
+        )
         : 0;
 
     const fetchLeaveData =
@@ -911,7 +911,7 @@ const EmployeeLeaveApplications =
                 ?.applications
             )
               ? response.data
-                  .applications
+                .applications
               : []
           );
         } catch (err) {
@@ -923,11 +923,11 @@ const EmployeeLeaveApplications =
           setError(
             err?.response?.data
               ?.sqlMessage ||
-              err?.response?.data
-                ?.error ||
-              err?.response?.data
-                ?.message ||
-              "Failed to load leave information."
+            err?.response?.data
+              ?.error ||
+            err?.response?.data
+              ?.message ||
+            "Failed to load leave information."
           );
         } finally {
           setLoading(false);
@@ -949,7 +949,7 @@ const EmployeeLeaveApplications =
               response.data?.holidays
             )
               ? response.data
-                  .holidays
+                .holidays
               : []
           );
         } catch (err) {
@@ -1014,15 +1014,15 @@ const EmployeeLeaveApplications =
 
         end_date:
           durationType ===
-          "half_day"
+            "half_day"
             ? previous.start_date
             : previous.end_date,
 
         half_day_session:
           durationType ===
-          "half_day"
+            "half_day"
             ? previous.half_day_session ||
-              "first_half"
+            "first_half"
             : "first_half",
       }));
 
@@ -1051,321 +1051,335 @@ const EmployeeLeaveApplications =
       setError("");
     };
 
-   const handleApply = async () => {
-  if (!selectedLeaveType) {
-    return;
-  }
+    const handleApply = async () => {
+      if (!selectedLeaveType) {
+        return;
+      }
 
-  setError("");
-  setSuccess("");
+      setError("");
+      setSuccess("");
 
-  const isUnpaid =
-    selectedLeaveType === "unpaid";
+      const isUnpaid =
+        selectedLeaveType === "unpaid";
 
-  /*
-  ========================================
-  SUBJECT - UNPAID ONLY
-  ========================================
-  */
+      /*
+      ========================================
+      SUBJECT - UNPAID ONLY
+      ========================================
+      */
 
-  if (
-    isUnpaid &&
-    !form.subject.trim()
-  ) {
-    setError(
-      "Please enter the subject for unpaid leave."
-    );
-
-    return;
-  }
-
-  /*
-  ========================================
-  START DATE
-  ========================================
-  */
-
-  if (!form.start_date) {
-    setError(
-      selectedLeaveType ===
-        "festival"
-        ? "Please select a festival holiday."
-        : "Please select the leave date."
-    );
-
-    return;
-  }
-
-  if (
-  form.start_date <
-  selectedMinimumLeaveDate
-) {
-  setError(
-    selectedLeaveType === "sick"
-      ? "Sick Leave can be applied from today onwards."
-      : "Leave must be applied for at least 1 day in advance."
-  );
-
-  return;
-}
-
-  /*
-  ========================================
-  FESTIVAL LEAVE
-  ========================================
-  */
-
-  if (
-    selectedLeaveType ===
-    "festival"
-  ) {
-    if (!selectedFestival) {
-      setError(
-        "Please select an eligible festival holiday."
-      );
-
-      return;
-    }
-  } else {
-    /*
-    ======================================
-    NORMAL / UNPAID FULL DAY
-    ======================================
-    */
-
-    if (
-      form.duration_type ===
-      "full_day"
-    ) {
-      if (!form.end_date) {
+      if (
+        isUnpaid &&
+        !form.subject.trim()
+      ) {
         setError(
-          "Please select the end date."
+          "Please enter the subject for unpaid leave."
+        );
+
+        return;
+      }
+
+      /*
+      ========================================
+      START DATE
+      ========================================
+      */
+
+      if (!form.start_date) {
+        setError(
+          selectedLeaveType ===
+            "festival"
+            ? "Please select a festival holiday."
+            : "Please select the leave date."
         );
 
         return;
       }
 
       if (
-        form.end_date <
-        form.start_date
+        form.start_date <
+        selectedMinimumLeaveDate
       ) {
         setError(
-          "Leave end date cannot be before start date."
+          selectedLeaveType === "sick"
+            ? "Sick Leave can be applied from today onwards."
+            : "Leave must be applied for at least 1 day in advance."
         );
 
         return;
       }
-    }
 
-    /*
-    ======================================
-    HALF DAY
-    ======================================
-    */
+      /*
+      ========================================
+      FESTIVAL LEAVE
+      ========================================
+      */
 
-    if (
-      form.duration_type ===
-        "half_day" &&
-      ![
-        "first_half",
-        "second_half",
-      ].includes(
-        form.half_day_session
-      )
-    ) {
-      setError(
-        "Please select First Half or Second Half."
-      );
+      if (
+        selectedLeaveType ===
+        "festival"
+      ) {
+        if (!selectedFestival) {
+          setError(
+            "Please select an eligible festival holiday."
+          );
 
-      return;
-    }
+          return;
+        }
+      } else {
+        /*
+        ======================================
+        NORMAL / UNPAID FULL DAY
+        ======================================
+        */
 
-    /*
-    ======================================
-    REASON / REMARK
-    ======================================
-    */
+        if (
+          form.duration_type ===
+          "full_day"
+        ) {
+          if (!form.end_date) {
+            setError(
+              "Please select the end date."
+            );
 
-    if (
-      !form.reason.trim()
-    ) {
-      setError(
-        isUnpaid
-          ? "Please enter a remark for unpaid leave."
-          : "Please enter the reason for leave."
-      );
+            return;
+          }
 
-      return;
-    }
-  }
+          if (
+            form.end_date <
+            form.start_date
+          ) {
+            setError(
+              "Leave end date cannot be before start date."
+            );
 
-  /*
-  ========================================
-  DAYS
-  ========================================
-  */
+            return;
+          }
+        }
 
-  if (
-    calculateDays <= 0
-  ) {
-    setError(
-      "Unable to calculate leave days."
-    );
+        /*
+        ======================================
+        HALF DAY
+        ======================================
+        */
 
-    return;
-  }
+        if (
+          form.duration_type ===
+          "half_day" &&
+          ![
+            "first_half",
+            "second_half",
+          ].includes(
+            form.half_day_session
+          )
+        ) {
+          setError(
+            "Please select First Half or Second Half."
+          );
 
-  /*
-  ========================================
-  BALANCE CHECK
+          return;
+        }
 
-  IMPORTANT:
-  UNPAID LEAVE SKIPS THIS COMPLETELY
-  ========================================
-  */
+        /*
+        ======================================
+        REASON / REMARK
+        ======================================
+        */
 
-  if (!isUnpaid) {
-    const currentAvailable =
-      Number(
-        balances[
-          selectedLeaveType
-        ]?.available ??
-          balances[
-            selectedLeaveType
-          ]?.remaining ??
-          0
-      );
+        if (
+          !form.reason.trim()
+        ) {
+          setError(
+            isUnpaid
+              ? "Please enter a remark for unpaid leave."
+              : "Please enter the reason for leave."
+          );
 
-    if (
-      calculateDays >
-      currentAvailable
-    ) {
-      setError(
-        `You only have ${formatDays(
+          return;
+        }
+      }
+
+      /*
+      ========================================
+      DAYS
+      ========================================
+      */
+
+      if (
+        calculateDays <= 0
+      ) {
+        setError(
+          "Unable to calculate leave days."
+        );
+
+        return;
+      }
+
+      /*
+      ========================================
+      BALANCE CHECK
+    
+      IMPORTANT:
+      UNPAID LEAVE SKIPS THIS COMPLETELY
+      ========================================
+      */
+
+      if (!isUnpaid) {
+        const currentAvailable =
+          Number(
+            balances[
+              selectedLeaveType
+            ]?.available ??
+            balances[
+              selectedLeaveType
+            ]?.remaining ??
+            0
+          );
+
+        if (
+          calculateDays >
           currentAvailable
-        )} day(s) currently available.`
-      );
+        ) {
+          setError(
+            `You only have ${formatDays(
+              currentAvailable
+            )} day(s) currently available.`
+          );
 
-      return;
-    }
-  }
+          return;
+        }
+      }
 
-  /*
-  ========================================
-  SUBMIT
-  ========================================
-  */
+      /*
+      ========================================
+      SUBMIT
+      ========================================
+      */
 
-  try {
-    setSubmitting(true);
+      try {
+        setSubmitting(true);
 
-    const reason =
-      selectedLeaveType ===
-      "festival"
-        ? `Festival: ${
-            selectedFestival.name
-          }${
-            form.reason.trim()
+        const reason =
+          selectedLeaveType ===
+            "festival"
+            ? `Festival: ${selectedFestival.name
+            }${form.reason.trim()
               ? ` - ${form.reason.trim()}`
               : ""
-          }`
-        : form.reason.trim();
+            }`
+            : form.reason.trim();
 
-    const response =
-      await api.post(
-        "/employee-leaves/apply",
-        {
-          leave_type:
-            selectedLeaveType,
+        const response =
+          await api.post(
+            "/employee-leaves/apply",
+            {
+              leave_type:
+                selectedLeaveType,
 
-          subject:
-            isUnpaid
-              ? form.subject.trim()
-              : null,
+              subject:
+                isUnpaid
+                  ? form.subject.trim()
+                  : null,
 
-          start_date:
-            form.start_date,
+              start_date:
+                form.start_date,
 
-          end_date:
-            selectedLeaveType ===
-              "festival" ||
-            form.duration_type ===
-              "half_day"
-              ? form.start_date
-              : form.end_date,
+              end_date:
+                selectedLeaveType ===
+                  "festival" ||
+                  form.duration_type ===
+                  "half_day"
+                  ? form.start_date
+                  : form.end_date,
 
-          duration_type:
-            selectedLeaveType ===
-            "festival"
-              ? "full_day"
-              : form.duration_type,
+              duration_type:
+                selectedLeaveType ===
+                  "festival"
+                  ? "full_day"
+                  : form.duration_type,
 
-          half_day_session:
-            selectedLeaveType !==
-              "festival" &&
-            form.duration_type ===
-              "half_day"
-              ? form.half_day_session
-              : null,
+              half_day_session:
+                selectedLeaveType !==
+                  "festival" &&
+                  form.duration_type ===
+                  "half_day"
+                  ? form.half_day_session
+                  : null,
 
-          reason,
+              reason,
+            }
+          );
+
+        const email =
+          response.data?.email;
+
+        if (
+          email?.sent === false &&
+          email?.skipped === false
+        ) {
+          setSuccess(
+            "Leave submitted successfully, but email notification could not be sent."
+          );
+        } else if (
+          email?.sent === false &&
+          email?.skipped === true
+        ) {
+          setSuccess(
+            "Leave submitted successfully. Email notification was skipped."
+          );
+        } else {
+          setSuccess(
+            response.data?.message ||
+            (
+              isUnpaid
+                ? "Unpaid leave application submitted successfully."
+                : "Leave application submitted successfully."
+            )
+          );
         }
-      );
 
-    const email =
-      response.data?.email;
+        await fetchLeaveData();
 
-    if (
-      email?.sent === false &&
-      email?.skipped === false
-    ) {
-      setSuccess(
-        "Leave submitted successfully, but email notification could not be sent."
-      );
-    } else if (
-      email?.sent === false &&
-      email?.skipped === true
-    ) {
-      setSuccess(
-        "Leave submitted successfully. Email notification was skipped."
-      );
-    } else {
-      setSuccess(
-        response.data?.message ||
-          (
-            isUnpaid
-              ? "Unpaid leave application submitted successfully."
-              : "Leave application submitted successfully."
-          )
-      );
-    }
+        setSelectedLeaveType(
+          null
+        );
 
-    await fetchLeaveData();
+        resetForm();
+      } catch (err) {
+        console.error(
+          "Apply employee leave error:",
+          err
+        );
 
-    setSelectedLeaveType(
-      null
-    );
+        setError(
+          err?.response?.data
+            ?.sqlMessage ||
+          err?.response?.data
+            ?.error ||
+          err?.response?.data
+            ?.message ||
+          "Failed to submit leave application."
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    };
 
-    resetForm();
-  } catch (err) {
-    console.error(
-      "Apply employee leave error:",
-      err
-    );
+    const casualAvailable = Number(
+  balances.casual?.available ??
+  balances.casual?.remaining ??
+  0
+);
 
-    setError(
-      err?.response?.data
-        ?.sqlMessage ||
-        err?.response?.data
-          ?.error ||
-        err?.response?.data
-          ?.message ||
-        "Failed to submit leave application."
-    ); 
-  } finally {
-    setSubmitting(false);
-  }
-};
+const privilegedAvailable = Number(
+  balances.mandatory?.available ??
+  balances.mandatory?.remaining ??
+  0
+);
+
+const canApplyUnpaidLeave =
+  casualAvailable <= 0 &&
+  privilegedAvailable <= 0;
 
     return (
       <div style={styles.page}>
@@ -1430,12 +1444,18 @@ const EmployeeLeaveApplications =
 
             <button
   type="button"
-  style={
-    styles.unpaidLeaveBtn
-  }
-  onClick={() =>
-    openApplyModal("unpaid")
-  }
+  disabled={!canApplyUnpaidLeave}
+  style={{
+    ...styles.unpaidLeaveBtn,
+    ...(!canApplyUnpaidLeave
+      ? styles.disabledUnpaidLeaveBtn
+      : {}),
+  }}
+  onClick={() => {
+    if (!canApplyUnpaidLeave) return;
+
+    openApplyModal("unpaid");
+  }}
 >
   <Send size={17} />
 
@@ -1505,7 +1525,7 @@ const EmployeeLeaveApplications =
                 leave={leave}
                 balance={
                   balances[
-                    leave.key
+                  leave.key
                   ] || {}
                 }
                 onApply={
@@ -1573,7 +1593,7 @@ const EmployeeLeaveApplications =
                     key={filter}
                     style={
                       historyFilter ===
-                      filter
+                        filter
                         ? styles.activeHistoryFilter
                         : styles.historyFilterBtn
                     }
@@ -1742,7 +1762,7 @@ const EmployeeLeaveApplications =
                           const date =
                             String(
                               holiday.date ||
-                                ""
+                              ""
                             ).slice(
                               0,
                               10
@@ -1754,22 +1774,22 @@ const EmployeeLeaveApplications =
                                 application
                               ) =>
                                 application.leave_type ===
-                                  "festival" &&
+                                "festival" &&
                                 String(
                                   application.start_date ||
-                                    ""
+                                  ""
                                 ).slice(
                                   0,
                                   10
                                 ) ===
-                                  date &&
+                                date &&
                                 [
                                   "pending",
                                   "approved",
                                 ].includes(
                                   String(
                                     application.status ||
-                                      ""
+                                    ""
                                   ).toLowerCase()
                                 )
                             );
@@ -1798,19 +1818,19 @@ const EmployeeLeaveApplications =
                               <small>
                                 {statusApplication
                                   ? String(
-                                      statusApplication.status ||
-                                        "pending"
+                                    statusApplication.status ||
+                                    "pending"
+                                  )
+                                    .charAt(
+                                      0
                                     )
-                                      .charAt(
-                                        0
-                                      )
-                                      .toUpperCase() +
-                                    String(
-                                      statusApplication.status ||
-                                        "pending"
-                                    ).slice(
-                                      1
-                                    )
+                                    .toUpperCase() +
+                                  String(
+                                    statusApplication.status ||
+                                    "pending"
+                                  ).slice(
+                                    1
+                                  )
                                   : "Available"}
                               </small>
                             </div>
@@ -1872,31 +1892,31 @@ const EmployeeLeaveApplications =
               </h2>
 
               <p
-  style={
-    styles.modalSubtitle
-  }
->
-  {selectedLeaveType ===
-  "unpaid" ? (
-    <>
-      Leave Without Pay.
-      This request will not
-      use your available
-      leave balance.
-    </>
-  ) : (
-    <>
-      Currently
-      available:{" "}
-      <strong>
-        {formatDays(
-          selectedAvailable
-        )}
-      </strong>{" "}
-      day(s)
-    </>
-  )}
-</p>
+                style={
+                  styles.modalSubtitle
+                }
+              >
+                {selectedLeaveType ===
+                  "unpaid" ? (
+                  <>
+                    Leave Without Pay.
+                    This request will not
+                    use your available
+                    leave balance.
+                  </>
+                ) : (
+                  <>
+                    Currently
+                    available:{" "}
+                    <strong>
+                      {formatDays(
+                        selectedAvailable
+                      )}
+                    </strong>{" "}
+                    day(s)
+                  </>
+                )}
+              </p>
 
               {error && (
                 <div
@@ -1909,7 +1929,7 @@ const EmployeeLeaveApplications =
               )}
 
               {selectedLeaveType ===
-              "festival" ? (
+                "festival" ? (
                 <>
                   <label
                     style={
@@ -1970,7 +1990,7 @@ const EmployeeLeaveApplications =
 
                   {!holidayLoading &&
                     eligibleFestivalHolidays.length ===
-                      0 && (
+                    0 && (
                       <div
                         style={
                           styles.festivalInfo
@@ -2049,52 +2069,52 @@ const EmployeeLeaveApplications =
                   </label>
                 </>
               ) : (
-  <>
-    {selectedLeaveType ===
-      "unpaid" && (
-      <label
-        style={
-          styles.field
-        }
-      >
-        <span>
-          Subject
-        </span>
+                <>
+                  {selectedLeaveType ===
+                    "unpaid" && (
+                      <label
+                        style={
+                          styles.field
+                        }
+                      >
+                        <span>
+                          Subject
+                        </span>
 
-        <input
-          type="text"
-          maxLength={255}
-          style={
-            styles.input
-          }
-          value={
-            form.subject
-          }
-          onChange={(
-            event
-          ) =>
-            setForm(
-              (
-                previous
-              ) => ({
-                ...previous,
+                        <input
+                          type="text"
+                          maxLength={255}
+                          style={
+                            styles.input
+                          }
+                          value={
+                            form.subject
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setForm(
+                              (
+                                previous
+                              ) => ({
+                                ...previous,
 
-                subject:
-                  event.target
-                    .value,
-              })
-            )
-          }
-          placeholder="e.g. Personal Leave"
-        />
-      </label>
-    )}
+                                subject:
+                                  event.target
+                                    .value,
+                              })
+                            )
+                          }
+                          placeholder="e.g. Personal Leave"
+                        />
+                      </label>
+                    )}
 
-    <div
-      style={
-        styles.formSection
-      }
-    >
+                  <div
+                    style={
+                      styles.formSection
+                    }
+                  >
                     <span
                       style={
                         styles.formSectionLabel
@@ -2112,7 +2132,7 @@ const EmployeeLeaveApplications =
                         type="button"
                         style={
                           form.duration_type ===
-                          "full_day"
+                            "full_day"
                             ? styles.activeOptionBtn
                             : styles.optionBtn
                         }
@@ -2129,7 +2149,7 @@ const EmployeeLeaveApplications =
                         type="button"
                         style={
                           form.duration_type ===
-                          "half_day"
+                            "half_day"
                             ? styles.activeOptionBtn
                             : styles.optionBtn
                         }
@@ -2146,80 +2166,80 @@ const EmployeeLeaveApplications =
 
                   {form.duration_type ===
                     "half_day" && (
-                    <div
-                      style={
-                        styles.formSection
-                      }
-                    >
-                      <span
-                        style={
-                          styles.formSectionLabel
-                        }
-                      >
-                        Half-Day
-                        Session
-                      </span>
-
                       <div
                         style={
-                          styles.optionGrid
+                          styles.formSection
                         }
                       >
-                        <button
-                          type="button"
+                        <span
                           style={
-                            form.half_day_session ===
-                            "first_half"
-                              ? styles.activeOptionBtn
-                              : styles.optionBtn
-                          }
-                          onClick={() =>
-                            setForm(
-                              (
-                                previous
-                              ) => ({
-                                ...previous,
-
-                                half_day_session:
-                                  "first_half",
-                              })
-                            )
+                            styles.formSectionLabel
                           }
                         >
-                          First Half
-                        </button>
+                          Half-Day
+                          Session
+                        </span>
 
-                        <button
-                          type="button"
+                        <div
                           style={
-                            form.half_day_session ===
-                            "second_half"
-                              ? styles.activeOptionBtn
-                              : styles.optionBtn
-                          }
-                          onClick={() =>
-                            setForm(
-                              (
-                                previous
-                              ) => ({
-                                ...previous,
-
-                                half_day_session:
-                                  "second_half",
-                              })
-                            )
+                            styles.optionGrid
                           }
                         >
-                          Second Half
-                        </button>
+                          <button
+                            type="button"
+                            style={
+                              form.half_day_session ===
+                                "first_half"
+                                ? styles.activeOptionBtn
+                                : styles.optionBtn
+                            }
+                            onClick={() =>
+                              setForm(
+                                (
+                                  previous
+                                ) => ({
+                                  ...previous,
+
+                                  half_day_session:
+                                    "first_half",
+                                })
+                              )
+                            }
+                          >
+                            First Half
+                          </button>
+
+                          <button
+                            type="button"
+                            style={
+                              form.half_day_session ===
+                                "second_half"
+                                ? styles.activeOptionBtn
+                                : styles.optionBtn
+                            }
+                            onClick={() =>
+                              setForm(
+                                (
+                                  previous
+                                ) => ({
+                                  ...previous,
+
+                                  half_day_session:
+                                    "second_half",
+                                })
+                              )
+                            }
+                          >
+                            Second Half
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <div
                     style={
                       form.duration_type ===
-                      "half_day"
+                        "half_day"
                         ? styles.singleDateGrid
                         : styles.formGrid
                     }
@@ -2231,7 +2251,7 @@ const EmployeeLeaveApplications =
                     >
                       <span>
                         {form.duration_type ===
-                        "half_day"
+                          "half_day"
                           ? "Leave Date"
                           : "From Date"}
                       </span>
@@ -2239,8 +2259,8 @@ const EmployeeLeaveApplications =
                       <input
                         type="date"
                         min={
-  selectedMinimumLeaveDate
-}
+                          selectedMinimumLeaveDate
+                        }
                         style={
                           styles.input
                         }
@@ -2266,13 +2286,13 @@ const EmployeeLeaveApplications =
 
                               end_date:
                                 previous.duration_type ===
-                                "half_day"
+                                  "half_day"
                                   ? value
                                   : previous.end_date &&
                                     previous.end_date <
-                                      value
-                                  ? ""
-                                  : previous.end_date,
+                                    value
+                                    ? ""
+                                    : previous.end_date,
                             })
                           );
                         }}
@@ -2281,46 +2301,46 @@ const EmployeeLeaveApplications =
 
                     {form.duration_type ===
                       "full_day" && (
-                      <label
-                        style={
-                          styles.field
-                        }
-                      >
-                        <span>
-                          To Date
-                        </span>
-
-                        <input
-                          type="date"
-                          min={
-  form.start_date ||
-  selectedMinimumLeaveDate
-}
+                        <label
                           style={
-                            styles.input
+                            styles.field
                           }
-                          value={
-                            form.end_date
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setForm(
-                              (
-                                previous
-                              ) => ({
-                                ...previous,
+                        >
+                          <span>
+                            To Date
+                          </span>
 
-                                end_date:
-                                  event
-                                    .target
-                                    .value,
-                              })
-                            )
-                          }
-                        />
-                      </label>
-                    )}
+                          <input
+                            type="date"
+                            min={
+                              form.start_date ||
+                              selectedMinimumLeaveDate
+                            }
+                            style={
+                              styles.input
+                            }
+                            value={
+                              form.end_date
+                            }
+                            onChange={(
+                              event
+                            ) =>
+                              setForm(
+                                (
+                                  previous
+                                ) => ({
+                                  ...previous,
+
+                                  end_date:
+                                    event
+                                      .target
+                                      .value,
+                                })
+                              )
+                            }
+                          />
+                        </label>
+                      )}
                   </div>
 
                   <div
@@ -2340,56 +2360,56 @@ const EmployeeLeaveApplications =
                   </div>
 
                   {calculateDays >
-  0 &&
-  selectedLeaveType !==
-    "unpaid" && (
-                    <div
-                      style={
-                        styles.balancePreview
-                      }
-                    >
+                    0 &&
+                    selectedLeaveType !==
+                    "unpaid" && (
                       <div
                         style={
-                          styles.balancePreviewItem
+                          styles.balancePreview
                         }
                       >
-                        <span>
-                          Pending
-                          reservation
-                        </span>
+                        <div
+                          style={
+                            styles.balancePreviewItem
+                          }
+                        >
+                          <span>
+                            Pending
+                            reservation
+                          </span>
 
-                        <strong>
-                          {formatDays(
-                            calculateDays
-                          )}{" "}
-                          day(s)
-                        </strong>
-                      </div>
+                          <strong>
+                            {formatDays(
+                              calculateDays
+                            )}{" "}
+                            day(s)
+                          </strong>
+                        </div>
 
-                      <div
-                        style={
-                          styles.balancePreviewItem
-                        }
-                      >
-                        <span>
-                          Available
-                          after
-                          submission
-                        </span>
+                        <div
+                          style={
+                            styles.balancePreviewItem
+                          }
+                        >
+                          <span>
+                            Available
+                            after
+                            submission
+                          </span>
 
-                        <strong>
-                          {formatDays(
-                            Math.max(
-                              0,
-                              selectedAvailable -
+                          <strong>
+                            {formatDays(
+                              Math.max(
+                                0,
+                                selectedAvailable -
                                 calculateDays
-                            )
-                          )}{" "}
-                          day(s)
-                        </strong>
+                              )
+                            )}{" "}
+                            day(s)
+                          </strong>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   <label
                     style={
@@ -2397,11 +2417,11 @@ const EmployeeLeaveApplications =
                     }
                   >
                     <span>
-  {selectedLeaveType ===
-  "unpaid"
-    ? "Remark"
-    : "Reason"}
-</span>
+                      {selectedLeaveType ===
+                        "unpaid"
+                        ? "Remark"
+                        : "Reason"}
+                    </span>
 
                     <textarea
                       style={
@@ -2426,12 +2446,12 @@ const EmployeeLeaveApplications =
                           })
                         )
                       }
-                     placeholder={
-  selectedLeaveType ===
-  "unpaid"
-    ? "Enter remark for unpaid leave..."
-    : "Enter reason for leave..."
-}
+                      placeholder={
+                        selectedLeaveType ===
+                          "unpaid"
+                          ? "Enter remark for unpaid leave..."
+                          : "Enter reason for leave..."
+                      }
                     />
                   </label>
                 </>
@@ -2474,11 +2494,11 @@ const EmployeeLeaveApplications =
                   <Send size={18} />
 
                   {submitting
-  ? "Submitting..."
-  : selectedLeaveType ===
-    "unpaid"
-  ? "Send Request"
-  : "Submit Leave"}
+                    ? "Submitting..."
+                    : selectedLeaveType ===
+                      "unpaid"
+                      ? "Send Request"
+                      : "Submit Leave"}
                 </button>
               </div>
             </div>
@@ -2563,37 +2583,37 @@ const styles = {
   },
 
   unpaidLeaveBtn: {
-  minHeight: "52px",
+    minHeight: "52px",
 
-  border: 0,
+    border: 0,
 
-  background: "#ff5733",
-  color: "#ffffff",
+    background: "#ff5733",
+    color: "#ffffff",
 
-  borderRadius: "14px",
+    borderRadius: "14px",
 
-  padding: "6px 16px",
+    padding: "6px 16px",
 
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
 
-  gap: "9px",
+    gap: "9px",
 
-  cursor: "pointer",
+    cursor: "pointer",
 
-  whiteSpace: "nowrap",
-},
+    whiteSpace: "nowrap",
+  },
 
-unpaidLeaveBtnText: {
-  display: "flex",
+  unpaidLeaveBtnText: {
+    display: "flex",
 
-  flexDirection: "column",
+    flexDirection: "column",
 
-  alignItems: "flex-start",
+    alignItems: "flex-start",
 
-  lineHeight: 1.15,
-},
+    lineHeight: 1.15,
+  },
 
   refreshBtn: {
     height: "46px",
@@ -2642,8 +2662,8 @@ unpaidLeaveBtnText: {
   leaveCard: {
     width: "100%",
 
-   height: "385px",
-minHeight: "385px",
+    height: "385px",
+    minHeight: "385px",
 
     boxSizing: "border-box",
 
@@ -2894,51 +2914,51 @@ minHeight: "385px",
   },
 
   cardInfo: {
-  display: "flex",
-  flexDirection: "column",
-  alignItems: "flex-start",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
 
-  gap: "4px",
+    gap: "4px",
 
-  color: "#64748b",
+    color: "#64748b",
 
-  fontSize: "11.5px",
-  lineHeight: 1.3,
+    fontSize: "11.5px",
+    lineHeight: 1.3,
 
-  marginBottom: "6px",
-},
+    marginBottom: "6px",
+  },
 
   applyBtn: {
-  width: "100%",
+    width: "100%",
 
-  height: "44px",
-  minHeight: "44px",
+    height: "44px",
+    minHeight: "44px",
 
-  flexShrink: 0,
+    flexShrink: 0,
 
-  border: 0,
-  borderRadius: "14px",
+    border: 0,
+    borderRadius: "14px",
 
-  background: "#ff5733",
-  color: "#ffffff",
+    background: "#ff5733",
+    color: "#ffffff",
 
-  fontSize: "14px",
-  fontWeight: 900,
+    fontSize: "14px",
+    fontWeight: 900,
 
-  cursor: "pointer",
+    cursor: "pointer",
 
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
 
-  gap: "8px",
+    gap: "8px",
 
-  marginTop: "auto",
+    marginTop: "auto",
 
-  padding: "0 10px",
+    padding: "0 10px",
 
-  boxSizing: "border-box",
-},
+    boxSizing: "border-box",
+  },
 
   disabledApplyBtn: {
     opacity: 0.48,
@@ -3769,6 +3789,11 @@ minHeight: "385px",
 
     gap: "8px",
   },
+  disabledUnpaidLeaveBtn: {
+  opacity: 0.45,
+  cursor: "not-allowed",
+  background: "#ff8f7c",
+},
 };
 
 export default EmployeeLeaveApplications;
