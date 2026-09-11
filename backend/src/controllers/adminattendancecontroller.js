@@ -1195,50 +1195,61 @@ const getDepartmentFieldVisits = async (req,res)=>{
     }
 
 
-    const [visits] = await db.query(`
-      SELECT
+   const [visits] = await db.query(
+  `
+  SELECT
 
-      fv.*,
+    fv.*,
 
-      creator.full_name AS full_name,
-      creator.employee_code,
+    creator.full_name AS full_name,
+    creator.employee_code,
 
-      GROUP_CONCAT(
-        DISTINCT members.full_name
+    (
+      SELECT GROUP_CONCAT(
+        DISTINCT member_user.full_name
+        ORDER BY member_user.full_name
         SEPARATOR ', '
-      ) AS team_members
+      )
 
-      FROM employee_field_visits fv
+      FROM field_visit_members member_link
 
-      LEFT JOIN users creator
-        ON creator.user_id = fv.employee_id
+      INNER JOIN users member_user
+        ON member_user.user_id =
+           member_link.employee_id
 
-      LEFT JOIN roles creator_role
-        ON creator_role.role_id = creator.role_id
+      WHERE member_link.visit_id =
+            fv.visit_id
 
+    ) AS team_members
 
-      LEFT JOIN field_visit_members fvm
-        ON fvm.visit_id = fv.visit_id
+  FROM employee_field_visits fv
 
+  LEFT JOIN users creator
+    ON creator.user_id =
+       fv.employee_id
 
-      LEFT JOIN users members
-        ON members.user_id = fvm.employee_id
+  LEFT JOIN roles creator_role
+    ON creator_role.role_id =
+       creator.role_id
 
+  WHERE
+    creator.department_id = ?
 
-      WHERE creator.department_id = ?
+    AND LOWER(
+      COALESCE(
+        creator_role.role_name,
+        ''
+      )
+    ) = 'employee'
 
-        AND LOWER(
-          COALESCE(creator_role.role_name, '')
-        ) = 'employee'
-
-      GROUP BY fv.visit_id
-
-      ORDER BY fv.visit_date DESC
-
-    `,
-    [
-      admin.department_id
-    ]);
+  ORDER BY
+    fv.visit_date DESC,
+    fv.visit_id DESC
+  `,
+  [
+    admin.department_id
+  ]
+);
 
 
     visits.forEach((visit)=>{
@@ -2047,57 +2058,62 @@ if(error){
 
 
 const [visits] = await db.query(
-`
-SELECT
+  `
+  SELECT
 
-fv.*,
+    fv.*,
 
-creator.full_name,
+    creator.full_name,
 
-GROUP_CONCAT(
- DISTINCT members.full_name
- SEPARATOR ', '
-) AS team_members
+    (
+      SELECT GROUP_CONCAT(
+        DISTINCT member_user.full_name
+        ORDER BY member_user.full_name
+        SEPARATOR ', '
+      )
 
+      FROM field_visit_members member_link
 
-FROM employee_field_visits fv
+      INNER JOIN users member_user
+        ON member_user.user_id =
+           member_link.employee_id
 
+      WHERE member_link.visit_id =
+            fv.visit_id
 
-LEFT JOIN users creator
-ON creator.user_id = fv.employee_id
+    ) AS team_members
 
+  FROM employee_field_visits fv
 
-LEFT JOIN field_visit_members fvm
-ON fvm.visit_id = fv.visit_id
+  LEFT JOIN users creator
+    ON creator.user_id =
+       fv.employee_id
 
+  WHERE
+    (
+      fv.employee_id = ?
 
-LEFT JOIN users members
-ON members.user_id = fvm.employee_id
+      OR EXISTS (
+        SELECT 1
 
+        FROM field_visit_members fvm2
 
-WHERE 
-(
-  fv.employee_id = ?
+        WHERE
+          fvm2.visit_id =
+            fv.visit_id
 
-  OR EXISTS (
-    SELECT 1
-    FROM field_visit_members fvm2
-    WHERE 
-      fvm2.visit_id = fv.visit_id
-      AND fvm2.employee_id = ?
-  )
-)
+          AND fvm2.employee_id = ?
+      )
+    )
 
-GROUP BY fv.visit_id
-
-
-ORDER BY fv.visit_date DESC
-
-`,
-[
- admin.user_id,
- admin.user_id
-]
+  ORDER BY
+    fv.visit_date DESC,
+    fv.visit_id DESC
+  `,
+  [
+    admin.user_id,
+    admin.user_id
+  ]
 );
 
 
