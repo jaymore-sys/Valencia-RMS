@@ -75,7 +75,15 @@ const getTomorrowDate = () => {
 
   return `${year}-${month}-${day}`;
 };
+const getTodayDate = () => {
+  const date = new Date();
 
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+};
 const formatDisplayDate = (value) => {
   if (!value) return "-";
 
@@ -311,6 +319,12 @@ const AdministratorLeaveApplications = () => {
       ? getTomorrowDate()
       : POLICY_START_DATE;
 
+const selectedMinimumLeaveDate =
+  selectedLeaveType === "sick"
+    ? getTodayDate() > POLICY_START_DATE
+      ? getTodayDate()
+      : POLICY_START_DATE
+    : minimumLeaveDate;
   const calculateDays = useMemo(() => {
     if (
       selectedLeaveType === "festival"
@@ -591,10 +605,14 @@ const AdministratorLeaveApplications = () => {
       return;
     }
 
-    if (form.start_date < minimumLeaveDate) {
-      setError("Leave must be applied for at least 1 day in advance.");
-      return;
-    }
+   if (form.start_date < selectedMinimumLeaveDate) {
+  setError(
+    selectedLeaveType === "sick"
+      ? "Sick Leave can be applied from today onwards."
+      : "Leave must be applied for at least 1 day in advance."
+  );
+  return;
+}
 
     if (selectedLeaveType === "festival") {
       if (!selectedFestival) {
@@ -1283,7 +1301,7 @@ if (isUnpaid && !form.subject.trim()) {
 
                     <input
                       type="date"
-                      min={minimumLeaveDate}
+                      min={selectedMinimumLeaveDate}
                       style={styles.input}
                       value={form.start_date}
                       onChange={(event) => {
@@ -1310,7 +1328,7 @@ if (isUnpaid && !form.subject.trim()) {
 
                       <input
                         type="date"
-                        min={form.start_date || minimumLeaveDate}
+                        min={form.start_date || selectedMinimumLeaveDate}
                         style={styles.input}
                         value={form.end_date}
                         onChange={(event) =>
