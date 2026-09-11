@@ -1427,13 +1427,6 @@ const applyEmployeeLeave =
       const admin =
         reviewUsers[0] ||
         {};
-
-      /*
-      ======================================================
-      FINAL EMAIL RECIPIENTS
-      ======================================================
-      */
-
       const finalLeaveRecipients = [
   ...new Set(
     (
@@ -1443,6 +1436,7 @@ const applyEmployeeLeave =
           ]
         : [
             PREMAL_LEAVE_EMAIL,
+
             ...departmentAdmins.map(
               (item) =>
                 item.email
@@ -1454,9 +1448,18 @@ const applyEmployeeLeave =
           .trim()
           .toLowerCase()
       )
-      .filter(Boolean)
+      .filter(
+        (email) =>
+          email &&
+          (
+            isAdminApplicant ||
+            email !==
+              MANISH_LEAVE_EMAIL
+          )
+      )
   ),
 ];
+
 
 const finalCcRecipients = [
   ...new Set(
@@ -1479,16 +1482,15 @@ const finalCcRecipients = [
           email &&
           !finalLeaveRecipients.includes(
             email
+          ) &&
+          (
+            isAdminApplicant ||
+            email !==
+              MANISH_LEAVE_EMAIL
           )
       )
   ),
 ];
-
-
-      
-   
-
-      
       /*
       ======================================================
       EMAIL
