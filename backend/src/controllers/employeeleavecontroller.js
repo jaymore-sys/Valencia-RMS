@@ -32,28 +32,14 @@ const RATHIKA_LEAVE_EMAIL =
 */
 
 const HOLIDAYS_2026 = [
+  // =========================
+  // FIXED COMPANY HOLIDAYS
+  // =========================
+
   {
     date: "2026-01-26",
     name: "Republic Day",
     type: "fixed",
-  },
-
-  {
-    date: "2026-03-03",
-    name: "Holi",
-    type: "optional",
-  },
-
-  {
-    date: "2026-03-19",
-    name: "Gudhi Padwa",
-    type: "optional",
-  },
-
-  {
-    date: "2026-03-21",
-    name: "Ramzan Eid",
-    type: "optional",
   },
 
   {
@@ -69,26 +55,97 @@ const HOLIDAYS_2026 = [
   },
 
   {
+    date: "2026-10-02",
+    name: "Mahatma Gandhi Jayanti",
+    type: "fixed",
+  },
+
+  // =========================
+  // OPTIONAL FESTIVAL LEAVES
+  // EMPLOYEE CAN TAKE ANY 2
+  // =========================
+
+  {
+    date: "2026-09-04",
+    name: "Krishna Janmashtami",
+    type: "optional",
+  },
+
+  {
+    date: "2026-09-08",
+    name: "Paryushana Parvarambha",
+    type: "optional",
+  },
+
+  {
     date: "2026-09-14",
     name: "Ganesh Chaturthi",
     type: "optional",
   },
 
   {
-    date: "2026-10-02",
-    name: "Mahatma Gandhi Jayanti",
-    type: "fixed",
+    date: "2026-09-15",
+    name: "Samvatsari Parva",
+    type: "optional",
+  },
+
+  {
+    date: "2026-09-25",
+    name: "Anant Chaturdashi / Ganesh Visarjan",
+    type: "optional",
+  },
+
+  {
+    date: "2026-10-11",
+    name: "Sharad Navratri",
+    type: "optional",
+  },
+
+  {
+    date: "2026-10-20",
+    name: "Dussehra / Vijayadashami",
+    type: "optional",
+  },
+
+  {
+    date: "2026-10-25",
+    name: "Sharad Purnima",
+    type: "optional",
+  },
+
+  {
+    date: "2026-10-29",
+    name: "Karva Chauth",
+    type: "optional",
+  },
+
+  {
+    date: "2026-11-06",
+    name: "Dhanteras",
+    type: "optional",
   },
 
   {
     date: "2026-11-08",
-    name: "Diwali - Laxmi Pujan",
+    name: "Diwali / Deepavali",
+    type: "optional",
+  },
+
+  {
+    date: "2026-11-11",
+    name: "Bhai Dooj",
+    type: "optional",
+  },
+
+  {
+    date: "2026-11-15",
+    name: "Chhath Puja",
     type: "optional",
   },
 
   {
     date: "2026-12-25",
-    name: "Christmas",
+    name: "Christmas Day",
     type: "optional",
   },
 ];
@@ -2144,7 +2201,7 @@ const getEmployeeHolidayCalendar =
 
         year: 2026,
 
-        max_optional: 4,
+        max_optional: 2,
 
         selected_count:
           selectedRows.length,
@@ -2240,24 +2297,7 @@ const toggleEmployeeOptionalHoliday =
           });
       }
 
-      const holidayDay =
-        new Date(
-          `${holidayDate}T00:00:00`
-        ).getDay();
-
-      if (
-        holidayDay === 0
-      ) {
-        return res
-          .status(400)
-          .json({
-            success: false,
-
-            message:
-              "This festival falls on Sunday, which is already a weekly off.",
-          });
-      }
-
+      
       const [existingRows] =
         await db.query(
           `
@@ -2332,7 +2372,7 @@ const toggleEmployeeOptionalHoliday =
         );
 
       if (
-        selectedCount >= 4
+        selectedCount >= 2
       ) {
         return res
           .status(400)
@@ -2340,7 +2380,7 @@ const toggleEmployeeOptionalHoliday =
             success: false,
 
             message:
-              "You have already selected all 4 optional holidays.",
+             "You have already selected your 2 optional festival holidays for 2026.",
           });
       }
 

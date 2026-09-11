@@ -2941,3 +2941,52 @@
  background:#def7e8;
  color:#218a4c;
 }
+.superadmin-cal-employee-heading {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.superadmin-cal-employee-heading label {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.superadmin-cal-employee-search {
+  height: 38px;
+  min-width: 0;
+  border: 1px solid #d9e0ea;
+  border-radius: 10px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  color: #94a3b8;
+}
+
+.superadmin-cal-employee-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.superadmin-cal-employee-search input::placeholder {
+  color: #94a3b8;
+}
+
+.superadmin-cal-employee-heading > button {
+  border: 0;
+  background: transparent;
+  color: #ff5733;
+  font-weight: 900;
+  cursor: pointer;
+  white-space: nowrap;
+}

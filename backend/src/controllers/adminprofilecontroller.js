@@ -151,13 +151,21 @@ const getAdminProfile = async (req, res) => {
 
     const admin = rows[0];
 
-    const roleName = String(admin.role_name || "").toLowerCase().trim();
+    const roleName = String(
+  admin.role_name || ""
+)
+  .toLowerCase()
+  .trim();
 
-    if (roleName !== "admin") {
-      return res.status(403).json({
-        message: "Access denied. Admin role required.",
-      });
-    }
+if (
+  roleName !== "admin" &&
+  roleName !== "superadmin"
+) {
+  return res.status(403).json({
+    message:
+      "Access denied. Admin or Superadmin role required.",
+  });
+}
 
     return res.status(200).json({
       admin: {

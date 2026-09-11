@@ -12,6 +12,7 @@ import {
   Trash2,
   X,
   CalendarDays,
+    Search,
 } from "lucide-react";
 
 import api from "../../api/axios";
@@ -219,6 +220,11 @@ const SuperadminCalendar = () => {
     selectedEmployees,
     setSelectedEmployees,
   ] = useState([]);
+
+  const [
+  participantSearch,
+  setParticipantSearch,
+] = useState("");
 
   const [
     loading,
@@ -1012,9 +1018,8 @@ const SuperadminCalendar = () => {
       end_time: "",
     });
 
-    setSelectedEmployees(
-      []
-    );
+    setSelectedEmployees([]);
+    setParticipantSearch("");
 
     setShowMeeting(true);
   };
@@ -1036,9 +1041,8 @@ const SuperadminCalendar = () => {
       null
     );
 
-    setSelectedEmployees(
-      []
-    );
+    setSelectedEmployees([]);
+    setParticipantSearch("");
   };
 
   /* =========================================================
@@ -1065,8 +1069,35 @@ const SuperadminCalendar = () => {
     );
   };
 
+  const filteredEmployees = useMemo(() => {
+  const query = participantSearch
+    .trim()
+    .toLowerCase();
+
+  if (!query) {
+    return employees;
+  }
+
+  return employees.filter((employee) => {
+    const searchable = [
+      employee.full_name,
+      employee.name,
+      employee.email,
+      employee.employee_code,
+      employee.designation,
+      employee.department_name,
+      employee.role_name,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    return searchable.includes(query);
+  });
+}, [employees, participantSearch]);
+
   const allSelectableIds =
-    employees
+  filteredEmployees
       .map((employee) =>
         Number(
           employee.user_id ??
@@ -2512,24 +2543,38 @@ const SuperadminCalendar = () => {
               ================================================= */}
 
               <div className="superadmin-cal-employee-block">
-                <div className="superadmin-cal-employee-heading">
-                  <label>
-                    Select
-                    Participants
-                    <span>*</span>
-                  </label>
+               <div className="superadmin-cal-employee-heading">
 
-                  <button
-                    type="button"
-                    onClick={
-                      toggleAllEmployees
-                    }
-                  >
-                    {allSelected
-                      ? "Clear All"
-                      : "Select All"}
-                  </button>
-                </div>
+  <label>
+    Select Employees
+    <span>*</span>
+  </label>
+
+  <div className="superadmin-cal-employee-search">
+    <Search size={15} />
+
+    <input
+      type="text"
+      placeholder="Search employees or admins..."
+      value={participantSearch}
+      onChange={(event) =>
+        setParticipantSearch(
+          event.target.value
+        )
+      }
+    />
+  </div>
+
+  <button
+    type="button"
+    onClick={toggleAllEmployees}
+  >
+    {allSelected
+      ? "Clear All"
+      : "Select All"}
+  </button>
+
+</div>
 
                 <div className="superadmin-cal-employee-list">
                   {employeesLoading ? (
@@ -2549,8 +2594,8 @@ const SuperadminCalendar = () => {
                       organization
                       users...
                     </div>
-                  ) : employees.length ===
-                    0 ? (
+                  ) : filteredEmployees.length === 0 
+                  ? (
                     <div
                       style={{
                         padding:
@@ -2567,7 +2612,7 @@ const SuperadminCalendar = () => {
                       available.
                     </div>
                   ) : (
-                    employees.map(
+                    filteredEmployees.map(
                       (
                         employee
                       ) => {

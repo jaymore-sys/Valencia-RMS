@@ -51,14 +51,14 @@ const DEFAULT_BALANCES = {
   },
 
   festival: {
-    label: "Festival Leave",
-    total: 4,
-    earned: 4,
-    used: 0,
-    pending: 0,
-    available: 4,
-    remaining: 4,
-  },
+  label: "Festival Leave",
+  total: 2,
+  earned: 2,
+  used: 0,
+  pending: 0,
+  available: 2,
+  remaining: 2,
+},
 };
 
 const LEAVE_CARDS = [
@@ -661,6 +661,11 @@ const EmployeeLeaveApplications =
       showHolidayCalendar,
       setShowHolidayCalendar,
     ] = useState(false);
+const [
+  festivalDropdownOpen,
+  setFestivalDropdownOpen,
+] = useState(false);
+
 
     const POLICY_START_DATE =
       "2026-09-01";
@@ -823,11 +828,7 @@ const EmployeeLeaveApplications =
                 return false;
               }
 
-              return (
-                new Date(
-                  `${date}T00:00:00`
-                ).getDay() !== 0
-              );
+              return true;
             })
             .sort((a, b) =>
               String(
@@ -993,15 +994,17 @@ const EmployeeLeaveApplications =
       setSuccess("");
     };
 
-    const closeApplyModal = () => {
-      if (submitting) return;
+   const closeApplyModal = () => {
+  if (submitting) return;
 
-      setSelectedLeaveType(null);
+  setSelectedLeaveType(null);
 
-      resetForm();
+  setFestivalDropdownOpen(false);
 
-      setError("");
-    };
+  resetForm();
+
+  setError("");
+};
 
     const handleDurationChange = (
       durationType
@@ -1030,27 +1033,24 @@ const EmployeeLeaveApplications =
     };
 
     const handleFestivalChange = (
-      holidayDate
-    ) => {
-      setForm((previous) => ({
-        ...previous,
+  holidayDate
+) => {
+  setForm((previous) => ({
+    ...previous,
 
-        start_date:
-          holidayDate,
+    start_date: holidayDate,
 
-        end_date:
-          holidayDate,
+    end_date: holidayDate,
 
-        duration_type:
-          "full_day",
+    duration_type: "full_day",
 
-        half_day_session:
-          "first_half",
-      }));
+    half_day_session: "first_half",
+  }));
 
-      setError("");
-    };
+  setFestivalDropdownOpen(false);
 
+  setError("");
+};
     const handleApply = async () => {
       if (!selectedLeaveType) {
         return;
@@ -1931,62 +1931,113 @@ const canApplyUnpaidLeave =
               {selectedLeaveType ===
                 "festival" ? (
                 <>
-                  <label
-                    style={
-                      styles.field
+                <label style={styles.field}>
+  <span>
+    Festival Holiday
+  </span>
+
+  <div
+    style={
+      styles.festivalDropdownWrapper
+    }
+  >
+    <button
+      type="button"
+      style={
+        styles.festivalDropdownTrigger
+      }
+      onClick={() =>
+        setFestivalDropdownOpen(
+          (previous) => !previous
+        )
+      }
+      disabled={holidayLoading}
+    >
+      <span>
+        {holidayLoading
+          ? "Loading holidays..."
+          : selectedFestival
+            ? `${formatDisplayDate(
+                selectedFestival.date
+              )} - ${selectedFestival.name}`
+            : "Select a festival holiday"}
+      </span>
+
+      <span
+        style={{
+          ...styles.festivalDropdownArrow,
+          transform:
+            festivalDropdownOpen
+              ? "rotate(180deg)"
+              : "rotate(0deg)",
+        }}
+      >
+        ▼
+      </span>
+    </button>
+
+    {festivalDropdownOpen &&
+      !holidayLoading && (
+        <div
+          style={
+            styles.festivalDropdownMenu
+          }
+        >
+          {eligibleFestivalHolidays.length ===
+          0 ? (
+            <div
+              style={
+                styles.festivalDropdownEmpty
+              }
+            >
+              No eligible festival
+              holidays available.
+            </div>
+          ) : (
+            eligibleFestivalHolidays.map(
+              (holiday) => {
+                const isSelected =
+                  form.start_date ===
+                  holiday.date;
+
+                return (
+                  <button
+                    key={holiday.date}
+                    type="button"
+                    style={{
+                      ...styles.festivalDropdownOption,
+                      ...(isSelected
+                        ? styles.festivalDropdownOptionActive
+                        : {}),
+                    }}
+                    onClick={() =>
+                      handleFestivalChange(
+                        holiday.date
+                      )
                     }
                   >
-                    <span>
-                      Festival Holiday
-                    </span>
-
-                    <select
+                    <span
                       style={
-                        styles.input
-                      }
-                      value={
-                        form.start_date
-                      }
-                      onChange={(
-                        event
-                      ) =>
-                        handleFestivalChange(
-                          event.target
-                            .value
-                        )
-                      }
-                      disabled={
-                        holidayLoading
+                        styles.festivalDropdownDate
                       }
                     >
-                      <option value="">
-                        {holidayLoading
-                          ? "Loading holidays..."
-                          : "Select a festival holiday"}
-                      </option>
-
-                      {eligibleFestivalHolidays.map(
-                        (holiday) => (
-                          <option
-                            key={
-                              holiday.date
-                            }
-                            value={
-                              holiday.date
-                            }
-                          >
-                            {formatDisplayDate(
-                              holiday.date
-                            )}{" "}
-                            -{" "}
-                            {
-                              holiday.name
-                            }
-                          </option>
-                        )
+                      {formatDisplayDate(
+                        holiday.date
                       )}
-                    </select>
-                  </label>
+                    </span>
+
+                    <span>
+                      {holiday.name}
+                    </span>
+                  </button>
+                );
+              }
+            )
+          )}
+        </div>
+      )}
+  </div>
+</label>
 
                   {!holidayLoading &&
                     eligibleFestivalHolidays.length ===
@@ -3794,6 +3845,131 @@ const styles = {
   cursor: "not-allowed",
   background: "#ff8f7c",
 },
+
+festivalDropdownWrapper: {
+  width: "100%",
+  position: "relative",
+},
+
+festivalDropdownTrigger: {
+  width: "100%",
+  height: "48px",
+
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+
+  gap: "12px",
+
+  border: "1px solid #d1d5db",
+  borderRadius: "13px",
+
+  background: "#ffffff",
+  color: "#111827",
+
+  padding: "0 14px",
+
+  boxSizing: "border-box",
+
+  fontFamily: "inherit",
+  fontSize: "14px",
+
+  textAlign: "left",
+
+  cursor: "pointer",
+},
+
+festivalDropdownArrow: {
+  flexShrink: 0,
+
+  color: "#475569",
+
+  fontSize: "11px",
+
+  transition:
+    "transform 0.2s ease",
+},
+
+festivalDropdownMenu: {
+  position: "absolute",
+
+  top: "54px",
+  left: 0,
+  right: 0,
+
+  zIndex: 100,
+
+  maxHeight: "240px",
+  overflowY: "auto",
+
+  background: "#ffffff",
+
+  border: "1px solid #d1d5db",
+  borderRadius: "13px",
+
+  padding: "6px",
+
+  boxSizing: "border-box",
+
+  boxShadow:
+    "0 14px 35px rgba(15,23,42,0.14)",
+},
+
+festivalDropdownOption: {
+  width: "100%",
+
+  minHeight: "44px",
+
+  display: "grid",
+
+  gridTemplateColumns:
+    "115px minmax(0, 1fr)",
+
+  alignItems: "center",
+
+  gap: "12px",
+
+  padding: "9px 11px",
+
+  border: 0,
+  borderRadius: "9px",
+
+  background: "#ffffff",
+  color: "#111827",
+
+  fontFamily: "inherit",
+  fontSize: "14px",
+
+  textAlign: "left",
+
+  cursor: "pointer",
+},
+
+festivalDropdownOptionActive: {
+  background: "#fff1eb",
+  color: "#ff5733",
+  fontWeight: 800,
+},
+
+festivalDropdownDate: {
+  color: "#475569",
+  fontWeight: 700,
+  whiteSpace: "nowrap",
+},
+
+festivalDropdownEmpty: {
+  padding: "18px 14px",
+
+  color: "#64748b",
+
+  fontSize: "13px",
+  fontWeight: 700,
+
+  textAlign: "center",
+},
+
+
+
 };
 
 export default EmployeeLeaveApplications;
