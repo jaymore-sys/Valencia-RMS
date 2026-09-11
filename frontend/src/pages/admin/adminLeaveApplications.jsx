@@ -113,7 +113,7 @@ const AdminLeaveApplications = () => {
   if (type === "sick") return "Sick Leave";
   if (type === "casual") return "Casual Leave";
   if (type === "mandatory") return "Privileged Leave";
-  if (type === "festival") return "Holiday Leave";
+  if (type === "festival") return "Festival Leave";
 
   return type || "-";
 };
@@ -145,6 +145,27 @@ const AdminLeaveApplications = () => {
 
     return "Full Day";
   };
+  const getStatusLabel = (leave) => {
+  const status = String(
+    leave?.status || "pending"
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    status === "pending" &&
+    Number(
+      leave?.escalated_for_approval
+    ) === 1
+  ) {
+    return "Pending – Escalated";
+  }
+
+  return (
+    status.charAt(0).toUpperCase() +
+    status.slice(1)
+  );
+};
 
   const fetchLeaves = async () => {
     try {
@@ -156,6 +177,7 @@ const AdminLeaveApplications = () => {
           "/admin-leaves"
         );
 
+    
       setApplications(
         Array.isArray(
           response.data
@@ -262,29 +284,72 @@ const AdminLeaveApplications = () => {
 
       const leaveType =
         selectedLeave.leave_type;
+        if (
+  leaveType === "unpaid"
+) {
+  return null;
+}
 
-      const leaveYear =
-        Number(
-          String(
-            selectedLeave.start_date ||
-              ""
-          ).slice(0, 4)
-        ) ||
-        new Date().getFullYear();
+       
 
-      let earned;
+   const leaveYear =
+  Number(
+    String(
+      selectedLeave.start_date ||
+        ""
+    ).slice(0, 4)
+  ) ||
+  new Date().getFullYear();
 
-      if (leaveType === "mandatory") {
-        earned = Math.min(
-          18,
-          (new Date().getMonth() + 1) * 1.5
-        );
-      } else if (leaveType === "festival") {
-        earned = 4;
-      } else {
-        earned = 7;
-      }
+const currentYear =
+  new Date().getFullYear();
 
+const currentMonth =
+  new Date().getMonth() + 1;
+
+let earned = 0;
+
+if (leaveType === "sick") {
+  earned =
+    leaveYear >= 2027
+      ? 7
+      : 2;
+} else if (leaveType === "casual") {
+  earned =
+    leaveYear >= 2027
+      ? 7
+      : 2;
+} else if (leaveType === "festival") {
+  earned =
+    leaveYear >= 2027
+      ? 4
+      : 2;
+} else if (leaveType === "mandatory") {
+  if (leaveYear === 2026) {
+    const monthsEarned =
+      currentYear > 2026
+        ? 4
+        : Math.max(
+            0,
+            currentMonth - 8
+          );
+
+    earned = Math.min(
+      6,
+      monthsEarned * 1.5
+    );
+  } else {
+    const monthsEarned =
+      leaveYear < currentYear
+        ? 12
+        : currentMonth;
+
+    earned = Math.min(
+      18,
+      monthsEarned * 1.5
+    );
+  }
+}
       const matching =
         applications.filter(
           (application) =>
@@ -451,26 +516,41 @@ const AdminLeaveApplications = () => {
         setReviewing(true);
         setModalError("");
 
-        const response =
-          await api.patch(
-            `/admin-leaves/${selectedLeave.leave_id}/status`,
-            {
-              status:
-                confirmation,
+       let response;
 
-              review_remark:
-                reviewRemark.trim(),
-            }
-          );
+if (
+  confirmation ===
+  "further_approval"
+) {
+  response =
+    await api.patch(
+      `/admin-leaves/${selectedLeave.leave_id}/further-approval`
+    );
+} else {
+  response =
+    await api.patch(
+      `/admin-leaves/${selectedLeave.leave_id}/status`,
+      {
+        status:
+          confirmation,
 
+        review_remark:
+          reviewRemark.trim(),
+      }
+    );
+}
         setSuccess(
-          response.data?.message ||
-            (confirmation ===
-            "approved"
-              ? "Leave approved successfully."
-              : "Leave rejected successfully.")
-        );
-
+  response.data?.message ||
+    (
+      confirmation ===
+      "approved"
+        ? "Leave approved successfully."
+        : confirmation ===
+          "rejected"
+        ? "Leave rejected successfully."
+        : "Leave escalated successfully."
+    )
+);
         setConfirmation(null);
         setSelectedLeave(null);
         setReviewRemark("");
@@ -919,16 +999,7 @@ return (
                               : styles.pendingBadge),
                           }}
                         >
-                          {String(
-                            leave.status ||
-                              "pending"
-                          )
-                            .charAt(0)
-                            .toUpperCase() +
-                            String(
-                              leave.status ||
-                                "pending"
-                            ).slice(1)}
+                          {getStatusLabel(leave)}
                         </span>
                       </td>
 
@@ -1006,16 +1077,9 @@ return (
                     : styles.pendingBadge),
                 }}
               >
-                {String(
-                  selectedLeave.status ||
-                    "pending"
-                )
-                  .charAt(0)
-                  .toUpperCase() +
-                  String(
-                    selectedLeave.status ||
-                      "pending"
-                  ).slice(1)}
+                {getStatusLabel(
+  selectedLeave
+)}
               </span>
             </div>
 
@@ -1145,12 +1209,14 @@ return (
                 }
               >
                 <h3
-                  style={
-                    styles.balanceTitle
-                  }
-                >
-                  Leave Balance
-                </h3>
+  style={
+    styles.balanceTitle
+  }
+>
+  {selectedLeave.leave_type === "festival"
+    ? "Festival Leave Balance"
+    : "Leave Balance"}
+</h3>
 
                 <div
                   style={
@@ -1259,122 +1325,214 @@ return (
             )}
 
             {selectedLeave.status ===
-            "pending" ? (
-              <>
-                <label
-                  style={
-                    styles.remarkField
-                  }
-                >
-                  <span>
-                    Admin Remark
-                  </span>
+  "pending" ? (
+  Number(
+    selectedLeave
+      .escalated_for_approval
+  ) === 1 ? (
+    <section
+      style={
+        styles.reviewedBox
+      }
+    >
+      <div>
+        <span>Status</span>
 
-                  <textarea
-                    value={
-                      reviewRemark
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setReviewRemark(
-                        event.target
-                          .value
-                      )
-                    }
-                    placeholder="Required when rejecting. Optional when approving."
-                    disabled={
-                      reviewing
-                    }
-                  />
-                </label>
+        <strong>
+          Pending – Escalated
+        </strong>
+      </div>
 
-                <div
-                  style={
-                    styles.actions
-                  }
-                >
-                  <button
-                    type="button"
-                    style={
-                      styles.rejectBtn
-                    }
-                    onClick={() =>
-                      requestReview(
-                        "rejected"
-                      )
-                    }
-                    disabled={
-                      reviewing
-                    }
-                  >
-                    <XCircle
-                      size={18}
-                    />
-                    Reject
-                  </button>
+      <div>
+        <span>
+          Forwarded On
+        </span>
 
-                  <button
-                    type="button"
-                    style={
-                      styles.approveBtn
-                    }
-                    onClick={() =>
-                      requestReview(
-                        "approved"
-                      )
-                    }
-                    disabled={
-                      reviewing
-                    }
-                  >
-                    <Check size={18} />
-                    Approve
-                  </button>
-                </div>
-              </>
-            ) : (
-              <section
-                style={
-                  styles.reviewedBox
-                }
-              >
-                <div>
-                  <span>
-                    Reviewed By
-                  </span>
+        <strong>
+          {formatDateTime(
+            selectedLeave
+              .escalated_at
+          )}
+        </strong>
+      </div>
+    </section>
+  ) : !(
+  admin?.can_review_leave ||
+  String(
+    admin?.email || ""
+  )
+    .trim()
+    .toLowerCase() ===
+    "premal.mehta@valencianutrition.com"
+) ? (
+    <section
+      style={
+        styles.reviewedBox
+      }
+    >
+      <div>
+        <span>Access</span>
 
-                  <strong>
-                    {selectedLeave.reviewed_by_name ||
-                      "-"}
-                  </strong>
-                </div>
+        <strong>
+          View Only
+        </strong>
+      </div>
+    </section>
+  ) : (
+    <>
+      <label
+        style={
+          styles.remarkField
+        }
+      >
+        <span>
+          Admin Remark
+        </span>
 
-                <div>
-                  <span>
-                    Reviewed On
-                  </span>
+        <textarea
+          value={
+            reviewRemark
+          }
+          onChange={(
+            event
+          ) =>
+            setReviewRemark(
+              event.target.value
+            )
+          }
+          placeholder="Required when rejecting. Optional when approving."
+          disabled={
+            reviewing
+          }
+        />
+      </label>
 
-                  <strong>
-                    {formatDateTime(
-                      selectedLeave.reviewed_at
-                    )}
-                  </strong>
-                </div>
+      <div
+  style={
+    styles.actions
+  }
+>
+  <button
+    type="button"
+    style={
+      styles.approveBtn
+    }
+    onClick={() =>
+      requestReview(
+        "approved"
+      )
+    }
+    disabled={
+      reviewing
+    }
+  >
+    <Check size={18} />
+    Approve
+  </button>
 
-                {selectedLeave.review_remark && (
-                  <div>
-                    <span>
-                      Admin Remark
-                    </span>
+  <button
+    type="button"
+    style={
+      styles.rejectBtn
+    }
+    onClick={() =>
+      requestReview(
+        "rejected"
+      )
+    }
+    disabled={
+      reviewing
+    }
+  >
+    <XCircle
+      size={18}
+    />
+    Reject
+  </button>
 
-                    <strong>
-                      {selectedLeave.review_remark}
-                    </strong>
-                  </div>
-                )}
-              </section>
-            )}
+  {String(
+  admin?.role_name || ""
+)
+  .trim()
+  .toLowerCase() ===
+  "admin" &&
+![
+  "rathika.haleangadi@valencianutrition.com",
+  "premal.mehta@valencianutrition.com",
+].includes(
+  String(
+    admin?.email || ""
+  )
+    .trim()
+    .toLowerCase()
+)
+  && (
+      <button
+        type="button"
+        style={
+          styles.furtherBtn
+        }
+        onClick={() =>
+          requestReview(
+            "further_approval"
+          )
+        }
+        disabled={
+          reviewing
+        }
+      >
+        Escalate
+      </button>
+    )}
+</div>
+    </>
+  )
+) : (
+  <section
+    style={
+      styles.reviewedBox
+    }
+  >
+    <div>
+      <span>
+        Reviewed By :  
+      </span>
+
+      <strong>
+        {selectedLeave
+           .reviewed_by_name ||
+          "-"}
+      </strong>
+    </div>
+
+    <div>
+      <span>
+        Reviewed On : 
+      </span>
+
+      <strong>
+        {formatDateTime(
+          selectedLeave
+            .reviewed_at
+        )}
+      </strong>
+    </div>
+
+    {selectedLeave
+      .review_remark && (
+      <div>
+        <span>
+          Admin Remark : 
+        </span>
+
+        <strong>
+          {selectedLeave
+            .review_remark}
+        </strong>
+      </div>
+    )}
+  </section>
+)}
           </div>
         </div>
       )}
@@ -1393,9 +1551,12 @@ return (
             >
               <h3>
                 {confirmation ===
-                "approved"
-                  ? "Approve Leave?"
-                  : "Reject Leave?"}
+"approved"
+  ? "Approve Leave?"
+  : confirmation ===
+    "rejected"
+  ? "Reject Leave?"
+  : "Escalate this leave request?"}
               </h3>
 
               <p>
@@ -1465,11 +1626,14 @@ return (
                 <button
                   type="button"
                   style={
-                    confirmation ===
-                    "approved"
-                      ? styles.confirmApproveBtn
-                      : styles.confirmRejectBtn
-                  }
+  confirmation ===
+  "approved"
+    ? styles.confirmApproveBtn
+    : confirmation ===
+      "rejected"
+    ? styles.confirmRejectBtn
+    : styles.confirmFurtherBtn
+}
                   onClick={
                     confirmReview
                   }
@@ -1478,11 +1642,14 @@ return (
                   }
                 >
                   {reviewing
-                    ? "Processing..."
-                    : confirmation ===
-                      "approved"
-                    ? "Yes, Approve"
-                    : "Yes, Reject"}
+  ? "Processing..."
+  : confirmation ===
+    "approved"
+  ? "Yes, Approve"
+  : confirmation ===
+    "rejected"
+  ? "Yes, Reject"
+  : "Yes, Send"}
                 </button>
               </div>
             </div>
@@ -1993,6 +2160,20 @@ const styles = {
     gap: "7px",
   },
 
+  furtherBtn: {
+  minHeight: "44px",
+  padding: "0 18px",
+  border: 0,
+  borderRadius: "12px",
+  background: "#f59e0b",
+  color: "#ffffff",
+  fontWeight: 900,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  gap: "7px",
+},
+
   approveBtn: {
     minHeight: "44px",
     padding: "0 18px",
@@ -2092,6 +2273,16 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
+  confirmFurtherBtn: {
+  minHeight: "42px",
+  padding: "0 16px",
+  border: 0,
+  borderRadius: "11px",
+  background: "#f59e0b",
+  color: "#ffffff",
+  fontWeight: 900,
+  cursor: "pointer",
+},
 };
 
 export default AdminLeaveApplications;

@@ -45,13 +45,10 @@ const {
 
 const router = express.Router();
 
-
-
 const superadminOnly = [
   authMiddleware,
   requireRole("superadmin")
 ];
-
 
 
 
@@ -195,10 +192,6 @@ router.patch(
   ...superadminOnly,
   cancelSuperadminMeeting
 );
-
-
-
-
 
 
 router.get(

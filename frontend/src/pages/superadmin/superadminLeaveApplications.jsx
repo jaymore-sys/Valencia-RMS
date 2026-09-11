@@ -109,7 +109,7 @@ const SuperadminLeaveApplications = () => {
   if (type === "sick") return "Sick Leave";
   if (type === "casual") return "Casual Leave";
   if (type === "mandatory") return "Privileged Leave";
-  if (type === "festival") return "Holiday Leave";
+  if (type === "festival") return "Festival Leave";
 
   return type || "-";
 };
@@ -252,29 +252,72 @@ const SuperadminLeaveApplications = () => {
         );
 
       const leaveType =
-        selectedLeave.leave_type;
+  selectedLeave.leave_type;
 
-      const leaveYear =
-        Number(
-          String(
-            selectedLeave.start_date ||
-              ""
-          ).slice(0, 4)
-        ) ||
-        new Date().getFullYear();
+if (
+  leaveType === "unpaid"
+) {
+  return null;
+}
 
-      let earned;
+const leaveYear =
+  Number(
+    String(
+      selectedLeave.start_date ||
+        ""
+    ).slice(0, 4)
+  ) ||
+  new Date().getFullYear();
 
-      if (leaveType === "mandatory") {
-        earned = Math.min(
-          18,
-          (new Date().getMonth() + 1) * 1.5
-        );
-      } else if (leaveType === "festival") {
-        earned = 4;
-      } else {
-        earned = 7;
-      }
+const currentYear =
+  new Date().getFullYear();
+
+const currentMonth =
+  new Date().getMonth() + 1;
+
+let earned = 0;
+
+if (leaveType === "sick") {
+  earned =
+    leaveYear >= 2027
+      ? 7
+      : 2;
+} else if (leaveType === "casual") {
+  earned =
+    leaveYear >= 2027
+      ? 7
+      : 2;
+} else if (leaveType === "festival") {
+  earned =
+    leaveYear >= 2027
+      ? 4
+      : 2;
+} else if (leaveType === "mandatory") {
+  if (leaveYear === 2026) {
+    const monthsEarned =
+      currentYear > 2026
+        ? 4
+        : Math.max(
+            0,
+            currentMonth - 8
+          );
+
+    earned = Math.min(
+      6,
+      monthsEarned * 1.5
+    );
+  } else {
+    const monthsEarned =
+      leaveYear < currentYear
+        ? 12
+        : currentMonth;
+
+    earned = Math.min(
+      18,
+      monthsEarned * 1.5
+    );
+  }
+}
 
       const matching =
         applications.filter(
@@ -1247,199 +1290,194 @@ return (
 
             {selectedLeave.status ===
   "pending" &&
-String(
-  selectedLeave.applicant_role ||
-    ""
-)
-  .trim()
-  .toLowerCase() ===
-  "admin" ? (
-              <>
-                <label
-                  style={
-                    styles.remarkField
-                  }
-                >
-                  <span>
-  Superadmin Remark
-</span>
+(
+  String(
+    selectedLeave.applicant_role ||
+      ""
+  )
+    .trim()
+    .toLowerCase() ===
+    "admin" ||
 
-                  <textarea
-                    value={
-                      reviewRemark
-                    }
-                    onChange={(
-                      event
-                    ) =>
-                      setReviewRemark(
-                        event.target
-                          .value
-                      )
-                    }
-                    placeholder="Required when rejecting. Optional when approving."
-                    disabled={
-                      reviewing
-                    }
-                  />
-                </label>
-
-                <div
-                  style={
-                    styles.actions
-                  }
-                >
-                  <button
-                    type="button"
-                    style={
-                      styles.rejectBtn
-                    }
-                    onClick={() =>
-                      requestReview(
-                        "rejected"
-                      )
-                    }
-                    disabled={
-                      reviewing
-                    }
-                  >
-                    <XCircle
-                      size={18}
-                    />
-                    Reject
-                  </button>
-
-                  <button
-                    type="button"
-                    style={
-                      styles.approveBtn
-                    }
-                    onClick={() =>
-                      requestReview(
-                        "approved"
-                      )
-                    }
-                    disabled={
-                      reviewing
-                    }
-                  >
-                    <Check size={18} />
-                    Approve
-                  </button>
-                </div>
-              </>
-            ) : selectedLeave.status ===
-                "pending" ? (
-              <section
-                style={
-                  styles.employeePendingBox
-                }
-              >
-                <strong>
-                  Awaiting Department Admin Review
-                </strong>
-
-                <span>
-                  This employee leave
-                  request is visible to
-                  Superadmin for reference.
-                  Approval or rejection must
-                  be completed by the
-                  employee's Department Admin.
-                </span>
-              </section>
-            ) : (
-              <section
-  style={
-    styles.reviewedBox
-  }
->
-  <div
-    style={
-      styles.reviewedItem
-    }
-  >
-    <span
-      style={
-        styles.reviewedLabel
-      }
-    >
-      Reviewed By
-    </span>
-
-    <strong
-      style={
-        styles.reviewedValue
-      }
-    >
-      {selectedLeave.reviewed_by_name ||
-        "Not available"}
-    </strong>
-  </div>
-
-  <div
-    style={
-      styles.reviewedItem
-    }
-  >
-    <span
-      style={
-        styles.reviewedLabel
-      }
-    >
-      Reviewed On
-    </span>
-
-    <strong
-      style={
-        styles.reviewedValue
-      }
-    >
-      {formatDateTime(
-        selectedLeave.reviewed_at
-      )}
-    </strong>
-  </div>
-
-  <div
-    style={
-      styles.reviewedItem
-    }
-  >
-    <span
-      style={
-        styles.reviewedLabel
-      }
-    >
-      Reviewed As
-    </span>
-
-    <strong
-      style={
-        styles.reviewedValue
-      }
-    >
-      {String(
+  (
+    [
+      "employee",
+      "administrator",
+    ].includes(
+      String(
         selectedLeave.applicant_role ||
           ""
       )
         .trim()
-        .toLowerCase() ===
-      "admin"
-        ? "Superadmin Review"
-        : "Department Admin Review"}
-    </strong>
-  </div>
+        .toLowerCase()
+    ) &&
+    Number(
+      selectedLeave
+        .escalated_for_approval
+    ) === 1
+  )
+) ? (
+  <>
+    <label
+      style={
+        styles.remarkField
+      }
+    >
+      <span>
+        Superadmin Remark
+      </span>
 
-  {selectedLeave.review_remark && (
+      <textarea
+        value={
+          reviewRemark
+        }
+        onChange={(
+          event
+        ) =>
+          setReviewRemark(
+            event.target.value
+          )
+        }
+        placeholder="Required when rejecting. Optional when approving."
+        disabled={
+          reviewing
+        }
+      />
+    </label>
+
     <div
-      style={{
-        ...styles.reviewedItem,
-        ...styles.reviewedRemarkItem,
-      }}
+      style={
+        styles.actions
+      }
+    >
+      <button
+        type="button"
+        style={
+          styles.approveBtn
+        }
+        onClick={() =>
+          requestReview(
+            "approved"
+          )
+        }
+        disabled={
+          reviewing
+        }
+      >
+        <Check size={18} />
+        Approve
+      </button>
+
+      <button
+        type="button"
+        style={
+          styles.rejectBtn
+        }
+        onClick={() =>
+          requestReview(
+            "rejected"
+          )
+        }
+        disabled={
+          reviewing
+        }
+      >
+        <XCircle
+          size={18}
+        />
+        Reject
+      </button>
+    </div>
+  </>
+) : selectedLeave.status ===
+    "pending" ? (
+  <section
+    style={
+      styles.employeePendingBox
+    }
+  >
+    <strong>
+      Awaiting Department Admin Review
+    </strong>
+
+    <span>
+      This employee leave request is
+      visible to Superadmin for
+      reference. Approval or rejection
+      becomes available only after the
+      Department Admin escalates the
+      request.
+    </span>
+  </section>
+) : (
+  <section
+    style={
+      styles.reviewedBox
+    }
+  >
+    <div
+      style={
+        styles.reviewedItem
+      }
     >
       <span
         style={
           styles.reviewedLabel
+        }
+      >
+        Reviewed By
+      </span>
+
+      <strong
+        style={
+          styles.reviewedValue
+        }
+      >
+        {selectedLeave.reviewed_by_name ||
+          "Not available"}
+      </strong>
+    </div>
+
+    <div
+      style={
+        styles.reviewedItem
+      }
+    >
+      <span
+        style={
+          styles.reviewedLabel
+        }
+      >
+        Reviewed On
+      </span>
+
+      <strong
+        style={
+          styles.reviewedValue
+        }
+      >
+        {formatDateTime(
+          selectedLeave.reviewed_at
+        )}
+      </strong>
+    </div>
+
+    <div
+      style={
+        styles.reviewedItem
+      }
+    >
+      <span
+        style={
+          styles.reviewedLabel
+        }
+      >
+        Reviewed As
+      </span>
+
+      <strong
+        style={
+          styles.reviewedValue
         }
       >
         {String(
@@ -1449,21 +1487,56 @@ String(
           .trim()
           .toLowerCase() ===
         "admin"
-          ? "Superadmin Remark"
-          : "Admin Remark"}
-      </span>
-
-      <strong
-        style={
-          styles.reviewedValue
-        }
-      >
-        {selectedLeave.review_remark}
+          ? "Superadmin Review"
+          : Number(
+              selectedLeave
+                .escalated_for_approval
+            ) === 1
+          ? "Superadmin Review"
+          : "Department Admin Review"}
       </strong>
     </div>
-  )}
-</section>
-            )}
+
+    {selectedLeave.review_remark && (
+      <div
+        style={{
+          ...styles.reviewedItem,
+          ...styles.reviewedRemarkItem,
+        }}
+      >
+        <span
+          style={
+            styles.reviewedLabel
+          }
+        >
+          {String(
+            selectedLeave.applicant_role ||
+              ""
+          )
+            .trim()
+            .toLowerCase() ===
+            "admin" ||
+          Number(
+            selectedLeave
+              .escalated_for_approval
+          ) === 1
+            ? "Superadmin Remark"
+            : "Admin Remark"}
+        </span>
+
+        <strong
+          style={
+            styles.reviewedValue
+          }
+        >
+          {selectedLeave.review_remark}
+        </strong>
+      </div>
+    )}
+  </section>
+)}
+              
+          
           </div>
         </div>
       )}

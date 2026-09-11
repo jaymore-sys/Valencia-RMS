@@ -1,13 +1,27 @@
+const crypto = require("crypto");
 const db = require("../config/db");
+
 const { sendMail } = require("../utils/emailservice");
 const {
   buildLeaveBalances,
 } = require("../utils/leavepolicy");
 
+const PREMAL_LEAVE_EMAIL =
+  "premal.mehta@valencianutrition.com";
+
+const RATHIKA_LEAVE_EMAIL =
+  "rathika.haleangadi@valencianutrition.com";
+
+const MANISH_LEAVE_EMAIL =
+  "manish@valencianutrition.com";
+
 const GLOBAL_LEAVE_APPROVER_EMAILS = [
-  "manish@valencianutrition.com",
-  "premal.mehta@valencianutrition.com",
-  "rathika.haleangadi@valencianutrition.com",
+  PREMAL_LEAVE_EMAIL,
+];
+
+const GLOBAL_LEAVE_VIEWER_EMAILS = [
+  PREMAL_LEAVE_EMAIL,
+  RATHIKA_LEAVE_EMAIL,
 ];
 const getLeaveLabel = (type) => {
   if (type === "sick") {
@@ -81,18 +95,23 @@ const getLoggedInAdmin = async (userId) => {
     .trim()
     .toLowerCase();
 
-  const isGlobalApprover =
-    GLOBAL_LEAVE_APPROVER_EMAILS.includes(
-      email
-    );
+ const isGlobalApprover =
+  GLOBAL_LEAVE_APPROVER_EMAILS.includes(
+    email
+  );
 
-  const isDepartmentAdmin =
-    roleName === "admin";
+const isGlobalViewer =
+  GLOBAL_LEAVE_VIEWER_EMAILS.includes(
+    email
+  );
 
-  if (
-    !isGlobalApprover &&
-    !isDepartmentAdmin
-  ) {
+const isDepartmentAdmin =
+  roleName === "admin";
+
+if (
+  !isGlobalViewer &&
+  !isDepartmentAdmin
+) {
     return {
       error: {
         status: 403,
@@ -103,9 +122,9 @@ const getLoggedInAdmin = async (userId) => {
   }
 
   if (
-    !isGlobalApprover &&
-    !admin.department_id
-  ) {
+  !isGlobalViewer &&
+  !admin.department_id
+) {
     return {
       error: {
         status: 400,
@@ -115,14 +134,24 @@ const getLoggedInAdmin = async (userId) => {
     };
   }
 
-  return {
-    admin: {
-      ...admin,
+ return {
+  admin: {
+    ...admin,
 
-      is_global_leave_approver:
-        isGlobalApprover,
-    },
-  };
+    is_global_leave_approver:
+      isGlobalApprover,
+
+    is_global_leave_viewer:
+      isGlobalViewer,
+
+    can_review_leave:
+  isGlobalApprover ||
+  (
+    isDepartmentAdmin &&
+    email !== RATHIKA_LEAVE_EMAIL
+  ),
+  },
+};
 };
 
 /*
@@ -179,7 +208,6 @@ const getAdminLeaveApplications = async (
     )
   ) IN (
   'employee',
-  'admin',
   'administrator'
 )
   `,
@@ -188,7 +216,7 @@ const getAdminLeaveApplications = async (
 const values = [];
 
 if (
-  !admin.is_global_leave_approver
+  !admin.is_global_leave_viewer
 ) {
   whereParts.push(
     "employee.department_id = ?"
@@ -231,13 +259,21 @@ if (
           la.half_day_session,
 
           la.reason,
-          la.status,
-          la.review_remark,
+la.status,
+la.review_remark,
 
-          DATE_FORMAT(
-            la.applied_at,
-            '%Y-%m-%d %H:%i:%s'
-          ) AS applied_at,
+la.escalated_for_approval,
+la.escalated_by,
+
+DATE_FORMAT(
+  la.escalated_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS escalated_at,
+
+DATE_FORMAT(
+  la.applied_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS applied_at,
 
           DATE_FORMAT(
             la.reviewed_at,
@@ -320,7 +356,7 @@ if (
 const summaryValues = [];
 
 if (
-  !admin.is_global_leave_approver
+  !admin.is_global_leave_viewer
 ) {
   summaryWhereParts.push(
     "employee.department_id = ?"
@@ -539,22 +575,31 @@ const reviewLeaveApplication = async (
         });
     }
 
+    
+
     const { admin, error } =
       await getLoggedInAdmin(
         adminUserId
       );
+      if (error) {
+  return res
+    .status(error.status)
+    .json({
+      success: false,
+      message:
+        error.message,
+    });
+}
 
-    if (error) {
-      return res
-        .status(
-          error.status
-        )
-        .json({
-          success: false,
-          message:
-            error.message,
-        });
-    }
+    if (!admin.can_review_leave) {
+  return res
+    .status(403)
+    .json({
+      success: false,
+      message:
+        "You have view-only access to leave applications.",
+    });
+}
 
     await connection
       .beginTransaction();
@@ -598,10 +643,11 @@ const [leaveRows] =
       la.employee_id,
       la.leave_type,
       la.total_days,
-      la.reason,
-      la.status,
+     la.reason,
+la.status,
+la.escalated_for_approval,
 
-      la.duration_type,
+la.duration_type,
       la.half_day_session,
 
       DATE_FORMAT(
@@ -669,6 +715,21 @@ const [leaveRows] =
 
     const leave =
       leaveRows[0];
+      if (
+  Number(
+    leave.escalated_for_approval
+  ) === 1
+) {
+  await connection.rollback();
+
+  return res
+    .status(403)
+    .json({
+      success: false,
+      message:
+        "This leave application has been escalated and must now be reviewed by the Superadmin.",
+    });
+}
 
       if (
   Number(leave.employee_id) ===
@@ -900,7 +961,693 @@ const [leaveRows] =
   }
 };
 
+const furtherApproveLeaveApplication = async (
+  req,
+  res
+) => {
+  let connection;
+
+  try {
+    connection =
+      await db.getConnection();
+
+    const adminUserId =
+      req.user.user_id;
+
+    const leaveId =
+      Number(
+        req.params.leaveId
+      );
+
+    if (
+      !Number.isFinite(
+        leaveId
+      ) ||
+      leaveId <= 0
+    ) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "Invalid leave application ID.",
+        });
+    }
+
+    const { admin, error } =
+      await getLoggedInAdmin(
+        adminUserId
+      );
+
+    if (error) {
+      return res
+        .status(error.status)
+        .json({
+          success: false,
+          message:
+            error.message,
+        });
+    }
+
+    /*
+    Only actual Department Admins
+    can send a leave for
+    Further Approval.
+    */
+
+    const roleName = String(
+      admin.role_name || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const adminEmail = String(
+  admin.email || ""
+)
+  .trim()
+  .toLowerCase();
+
+if (
+  roleName !== "admin" ||
+  adminEmail === RATHIKA_LEAVE_EMAIL
+) {
+  return res
+    .status(403)
+    .json({
+      success: false,
+      message:
+        "Only the employee's Department Admin can escalate this leave application.",
+    });
+}
+
+    await connection
+      .beginTransaction();
+
+    const [leaveRows] =
+      await connection.query(
+        `
+        SELECT
+          la.leave_id,
+          la.employee_id,
+          la.leave_type,
+          la.total_days,
+          la.reason,
+          la.status,
+
+          la.escalated_for_approval,
+
+          DATE_FORMAT(
+            la.start_date,
+            '%Y-%m-%d'
+          ) AS start_date,
+
+          DATE_FORMAT(
+            la.end_date,
+            '%Y-%m-%d'
+          ) AS end_date,
+
+          employee.full_name
+            AS employee_name,
+
+         employee.email
+  AS employee_email,
+
+employee.department_id
+  AS employee_department_id,
+
+d.department_name,
+
+          employee_role.role_name
+            AS applicant_role
+
+        FROM leave_applications la
+
+        INNER JOIN users employee
+          ON employee.user_id =
+             la.employee_id
+
+        INNER JOIN roles employee_role
+          ON employee_role.role_id =
+             employee.role_id
+
+        LEFT JOIN departments d
+          ON d.department_id =
+             employee.department_id
+
+        WHERE
+          la.leave_id = ?
+
+          AND employee.department_id = ?
+
+          AND LOWER(
+            TRIM(
+              employee_role.role_name
+            )
+          ) IN (
+            'employee',
+            'administrator'
+          )
+
+        LIMIT 1
+
+        FOR UPDATE
+        `,
+        [
+          leaveId,
+          admin.department_id,
+        ]
+      );
+
+    if (!leaveRows.length) {
+      await connection.rollback();
+
+      return res
+        .status(404)
+        .json({
+          success: false,
+          message:
+            "Leave application not found.",
+        });
+    }
+
+    const leave =
+      leaveRows[0];
+
+    if (
+      String(
+        leave.status || ""
+      )
+        .trim()
+        .toLowerCase() !==
+      "pending"
+    ) {
+      await connection.rollback();
+
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            `This leave application is already ${leave.status}.`,
+        });
+    }
+
+    if (
+      Number(
+        leave.escalated_for_approval
+      ) === 1
+    ) {
+      await connection.rollback();
+
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message:
+            "This leave application has already been escalated.",
+        });
+    }
+
+    /*
+    Mark as escalated.
+    Status remains pending.
+    */
+
+    await connection.query(
+      `
+      UPDATE leave_applications
+
+      SET
+        escalated_for_approval = 1,
+        escalated_by = ?,
+        escalated_at = NOW()
+
+      WHERE leave_id = ?
+      `,
+      [
+        admin.user_id,
+        leaveId,
+      ]
+    );
+
+    /*
+    Create fresh review token
+    for Manish.
+    */
+
+    const reviewToken =
+      crypto
+        .randomBytes(32)
+        .toString("hex");
+
+    await connection.query(
+      `
+      INSERT INTO leave_review_tokens
+      (
+        leave_id,
+        token,
+        expires_at
+      )
+      VALUES
+      (
+        ?,
+        ?,
+        DATE_ADD(
+          NOW(),
+          INTERVAL 30 DAY
+        )
+      )
+      `,
+      [
+        leaveId,
+        reviewToken,
+      ]
+    );
+
+    /*
+    Get all other Admins
+    allocated to same department.
+    */
+
+    const [adminRows] =
+      await connection.query(
+        `
+        SELECT DISTINCT
+          u.email
+
+        FROM users u
+
+        INNER JOIN roles r
+          ON r.role_id =
+             u.role_id
+
+        WHERE
+          u.department_id = ?
+
+          AND LOWER(
+            TRIM(
+              r.role_name
+            )
+          ) = 'admin'
+
+          AND LOWER(
+            COALESCE(
+              u.status,
+              'active'
+            )
+          ) = 'active'
+
+          AND u.email IS NOT NULL
+
+          AND TRIM(
+            u.email
+          ) != ''
+        `,
+        [
+  leave.employee_department_id,
+]
+      );
+
+    const otherAdminEmails =
+      adminRows
+        .map(
+          (item) =>
+            String(
+              item.email || ""
+            )
+              .trim()
+              .toLowerCase()
+        )
+        .filter(Boolean);
+
+    const ccRecipients = [
+      ...new Set(
+        [
+          PREMAL_LEAVE_EMAIL,
+          RATHIKA_LEAVE_EMAIL,
+          ...otherAdminEmails,
+        ].filter(
+          (email) =>
+            email !==
+            MANISH_LEAVE_EMAIL
+        )
+      ),
+    ];
+
+    const leaveLabel =
+      getLeaveLabel(
+        leave.leave_type
+      );
+
+    const emailSubject =
+      `Escalated Leave Request - ${leaveLabel} - ${leave.employee_name}`;
+
+    const reviewUrl =
+      `https://myvol.in/leave-review/${reviewToken}`;
+
+    const text = `
+Dear Sir,
+
+A leave application has been escalated through Valencia RMS and requires your review.
+
+Employee Name: ${leave.employee_name || "-"}
+Employee Email: ${leave.employee_email || "-"}
+Department: ${leave.department_name || "-"}
+
+Leave Type: ${leaveLabel}
+From Date: ${leave.start_date}
+To Date: ${leave.end_date}
+Leave Days: ${leave.total_days}
+
+Reason:
+${leave.reason || "-"}
+
+The leave application is currently Pending and requires your review.
+
+Review Leave Request:
+${reviewUrl}
+
+Regards,
+Valencia RMS
+`;
+
+    const html = `
+      <div style="
+        font-family:Arial,sans-serif;
+        line-height:1.6;
+        color:#111827;
+      ">
+
+        <h2 style="
+          color:#ff5733;
+          margin-bottom:8px;
+        ">
+          Escalated Leave Request
+        </h2>
+
+        <p>
+          Dear Sir,
+        </p>
+
+        <p>
+          A leave application has been
+<strong>escalated</strong>
+through Valencia RMS and requires your review.
+        </p>
+
+        <table style="
+          border-collapse:collapse;
+          width:100%;
+          max-width:650px;
+        ">
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>Employee</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.employee_name || "-"}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>Email</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.employee_email || "-"}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>Department</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.department_name || "-"}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>Leave Type</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leaveLabel}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>From</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.start_date}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>To</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.end_date}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>Leave Days</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.total_days}
+            </td>
+          </tr>
+
+          <tr>
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              <strong>Reason</strong>
+            </td>
+
+            <td style="
+              padding:8px;
+              border:1px solid #dddddd;
+            ">
+              ${leave.reason || "-"}
+            </td>
+          </tr>
+
+        </table>
+
+        <p>
+          This application is currently
+          <strong>Pending – Escalated</strong>.
+        </p>
+
+        <table
+          cellpadding="0"
+          cellspacing="0"
+          border="0"
+          style="margin:20px 0;"
+        >
+          <tr>
+            <td style="
+              background:#ff5733;
+              border-radius:8px;
+              text-align:center;
+            ">
+              <a
+                href="${reviewUrl}"
+                style="
+                  display:inline-block;
+                  padding:12px 24px;
+                  color:#ffffff;
+                  text-decoration:none;
+                  font-weight:bold;
+                  font-family:Arial,sans-serif;
+                "
+              >
+                Review Leave Request
+              </a>
+            </td>
+          </tr>
+        </table>
+
+        <p>
+          Regards,<br />
+          Valencia RMS
+        </p>
+      </div>
+    `;
+
+    await connection.commit();
+
+    let emailResult = {
+      sent: false,
+      skipped: false,
+    };
+
+    try {
+      const mailResponse =
+        await sendMail({
+          to: [
+            MANISH_LEAVE_EMAIL,
+          ],
+
+          cc:
+            ccRecipients,
+
+          subject:
+            emailSubject,
+
+          text,
+
+          html,
+
+          replyTo:
+            leave.employee_email ||
+            undefined,
+        });
+
+      emailResult = {
+        sent:
+          !mailResponse?.skipped,
+
+        skipped:
+          Boolean(
+            mailResponse?.skipped
+          ),
+
+        messageId:
+          mailResponse?.messageId ||
+          null,
+
+        recipients: [
+          MANISH_LEAVE_EMAIL,
+        ],
+
+        cc:
+          ccRecipients,
+      };
+    } catch (emailError) {
+      console.error(
+        "Further approval email failed:",
+        emailError
+      );
+
+      emailResult = {
+        sent: false,
+        skipped: false,
+        error:
+          emailError.message,
+      };
+    }
+
+    return res.json({
+      success: true,
+
+      message:
+        "Leave application escalated successfully.",
+
+      leave_id:
+        leaveId,
+
+      status:
+        "pending",
+
+      escalated_for_approval:
+        true,
+
+      email:
+        emailResult,
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // Ignore rollback error.
+      }
+    }
+
+    console.error(
+      "Further approval error:",
+      error
+    );
+
+    return res
+      .status(500)
+      .json({
+        success: false,
+        message:
+          "Failed to escalate leave application.",
+        error:
+          error.message,
+        sqlMessage:
+          error.sqlMessage ||
+          null,
+      });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
+
 module.exports = {
   getAdminLeaveApplications,
   reviewLeaveApplication,
+   furtherApproveLeaveApplication,
 };

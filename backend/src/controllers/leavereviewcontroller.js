@@ -3,7 +3,6 @@ const db = require("../config/db");
 const GLOBAL_LEAVE_APPROVER_EMAILS = [
   "manish@valencianutrition.com",
   "premal.mehta@valencianutrition.com",
-  "rathika.haleangadi@valencianutrition.com",
 ];
 
 const getLeaveReview = async (req, res) => {

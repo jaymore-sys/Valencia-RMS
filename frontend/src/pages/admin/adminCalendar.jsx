@@ -199,10 +199,7 @@ const [
       const data = await response.json();
 
       if (data.success) {
-        console.log(
-          "Calendar selectable users:",
-          data.employees
-        );
+        
 
         setEmployees(data.employees || []);
       }

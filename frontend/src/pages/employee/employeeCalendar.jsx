@@ -171,7 +171,7 @@ const [meetingForm, setMeetingForm] =
 
       const data = await response.json();
 
-      console.log("EMPLOYEE CALENDAR DATA:", data);
+      
 
       if (data.success) {
         setEvents({

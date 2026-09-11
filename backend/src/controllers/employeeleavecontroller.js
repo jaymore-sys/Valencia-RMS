@@ -18,16 +18,11 @@ FIXED LEAVE EMAIL RECIPIENTS
 const MANISH_LEAVE_EMAIL =
   "manish@valencianutrition.com";
 
-const GLOBAL_LEAVE_APPROVER_EMAILS = [
-  "manish@valencianutrition.com",
-  "premal.mehta@valencianutrition.com",
-  "rathika.haleangadi@valencianutrition.com",
-];
+const PREMAL_LEAVE_EMAIL =
+  "premal.mehta@valencianutrition.com";
 
-const GLOBAL_LEAVE_CC_EMAILS = [
-  "premal.mehta@valencianutrition.com",
-  "rathika.haleangadi@valencianutrition.com",
-];
+const RATHIKA_LEAVE_EMAIL =
+  "rathika.haleangadi@valencianutrition.com";
 
 
 /*
@@ -1346,8 +1341,8 @@ const applyEmployeeLeave =
           .toLowerCase();
 
       const isAdminApplicant =
-  applicantRole === "admin" ||
-  applicantRole === "administrator";
+  applicantRole === "admin";
+
 
       /*
       ======================================================
@@ -1439,23 +1434,40 @@ const applyEmployeeLeave =
       ======================================================
       */
 
-    const finalLeaveRecipients = [
-  MANISH_LEAVE_EMAIL,
+      const finalLeaveRecipients = [
+  ...new Set(
+    (
+      isAdminApplicant
+        ? [
+            MANISH_LEAVE_EMAIL,
+          ]
+        : [
+            PREMAL_LEAVE_EMAIL,
+            ...departmentAdmins.map(
+              (item) =>
+                item.email
+            ),
+          ]
+    )
+      .map((email) =>
+        String(email || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+  ),
 ];
 
 const finalCcRecipients = [
   ...new Set(
     [
-      ...GLOBAL_LEAVE_CC_EMAILS,
+      RATHIKA_LEAVE_EMAIL,
 
-      ...(
-        isAdminApplicant
-          ? []
-          : departmentAdmins.map(
-              (item) =>
-                item.email
-            )
-      ),
+      ...(isAdminApplicant
+        ? [
+            PREMAL_LEAVE_EMAIL,
+          ]
+        : []),
     ]
       .map((email) =>
         String(email || "")
@@ -1465,11 +1477,13 @@ const finalCcRecipients = [
       .filter(
         (email) =>
           email &&
-          email !==
-            MANISH_LEAVE_EMAIL
+          !finalLeaveRecipients.includes(
+            email
+          )
       )
   ),
 ];
+
 
       
    

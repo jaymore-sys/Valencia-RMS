@@ -155,10 +155,7 @@ const AdminAttendance = () => {
         "/admin-attendance/field-visits/my"
       );
 
-      console.log(
-  "MY VISITS RESPONSE",
-  response.data
-);
+     
 
 setMyVisits(
   Array.isArray(response.data?.visits)

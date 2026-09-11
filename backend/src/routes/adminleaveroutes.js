@@ -7,6 +7,7 @@ const authMiddleware = require(
 const {
   getAdminLeaveApplications,
   reviewLeaveApplication,
+  furtherApproveLeaveApplication,
 } = require(
   "../controllers/adminleavecontroller"
 );
@@ -15,29 +16,33 @@ const router = express.Router();
 
 /*
 ========================================================
-LEAVE REVIEW ACCESS
+LEAVE VIEW ACCESS
 
-Allowed:
+Can VIEW:
 1. Normal Admin
-2. Rathika
-3. Premal
-4. Manish
+2. Premal
+3. Rathika
 
-Department restrictions for normal Admins
-are enforced inside adminleavecontroller.js.
+Rathika = VIEW ONLY
 
-Rathika, Premal and Manish are global
-leave approvers.
+Manish does not use this Admin route
+for normal Employee / Administrator leave.
 ========================================================
 */
 
-const GLOBAL_LEAVE_APPROVER_EMAILS = [
-  "manish@valencianutrition.com",
-  "premal.mehta@valencianutrition.com",
-  "rathika.haleangadi@valencianutrition.com",
-];
+const PREMAL_LEAVE_EMAIL =
+  "premal.mehta@valencianutrition.com";
 
-const allowLeaveReviewer = (
+const RATHIKA_LEAVE_EMAIL =
+  "rathika.haleangadi@valencianutrition.com";
+
+/*
+========================================================
+VIEW ACCESS
+========================================================
+*/
+
+const allowLeaveViewer = (
   req,
   res,
   next
@@ -57,14 +62,18 @@ const allowLeaveReviewer = (
   const isAdmin =
     roleName === "admin";
 
-  const isGlobalApprover =
-    GLOBAL_LEAVE_APPROVER_EMAILS.includes(
-      email
-    );
+  const isPremal =
+    email ===
+    PREMAL_LEAVE_EMAIL;
+
+  const isRathika =
+    email ===
+    RATHIKA_LEAVE_EMAIL;
 
   if (
     !isAdmin &&
-    !isGlobalApprover
+    !isPremal &&
+    !isRathika
   ) {
     return res
       .status(403)
@@ -80,6 +89,96 @@ const allowLeaveReviewer = (
 
 /*
 ========================================================
+APPROVE / REJECT ACCESS
+
+Can ACT:
+1. Normal Admin
+2. Premal
+
+Rathika = NO ACTION
+========================================================
+*/
+
+const allowLeaveApprover = (
+  req,
+  res,
+  next
+) => {
+  const roleName = String(
+    req.user?.role_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const email = String(
+    req.user?.email || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const isAdmin =
+    roleName === "admin";
+
+  const isPremal =
+    email ===
+    PREMAL_LEAVE_EMAIL;
+
+  if (
+    !isAdmin &&
+    !isPremal
+  ) {
+    return res
+      .status(403)
+      .json({
+        success: false,
+        message:
+          "You are not authorized to review leave applications.",
+      });
+  }
+
+  next();
+};
+
+/*
+========================================================
+FURTHER APPROVAL ACCESS
+
+Only Department Admin initiates
+Further Approval.
+
+Final department validation is also
+handled inside adminleavecontroller.js.
+========================================================
+*/
+
+const allowDepartmentAdmin = (
+  req,
+  res,
+  next
+) => {
+  const roleName = String(
+    req.user?.role_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    roleName !== "admin"
+  ) {
+    return res
+      .status(403)
+      .json({
+        success: false,
+        message:
+          "Only a Department Admin can send a leave application for Further Approval.",
+      });
+  }
+
+  next();
+};
+
+/*
+========================================================
 GET LEAVE APPLICATIONS
 ========================================================
 */
@@ -87,14 +186,14 @@ GET LEAVE APPLICATIONS
 router.get(
   "/",
   authMiddleware,
-  allowLeaveReviewer,
+  allowLeaveViewer,
   getAdminLeaveApplications
 );
 
 router.get(
   "/applications",
   authMiddleware,
-  allowLeaveReviewer,
+  allowLeaveViewer,
   getAdminLeaveApplications
 );
 
@@ -107,8 +206,21 @@ APPROVE / REJECT
 router.patch(
   "/:leaveId/status",
   authMiddleware,
-  allowLeaveReviewer,
+  allowLeaveApprover,
   reviewLeaveApplication
+);
+
+/*
+========================================================
+FURTHER APPROVAL
+========================================================
+*/
+
+router.patch(
+  "/:leaveId/further-approval",
+  authMiddleware,
+  allowDepartmentAdmin,
+  furtherApproveLeaveApplication
 );
 
 module.exports = router;

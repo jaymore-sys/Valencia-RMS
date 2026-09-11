@@ -5,7 +5,51 @@ const XLSX = require("xlsx");
 const HR_EMAILS = [
   "rathika.haleangadi@valencianutrition.com",
 ];
+/* =========================================================
+   FIELD VISIT SCHEMA CACHE
+========================================================= */
 
+let fieldVisitMemberForeignKeyCache = null;
+let fieldVisitMemberForeignKeyChecked = false;
+
+const getFieldVisitMemberForeignKey = async () => {
+  if (fieldVisitMemberForeignKeyChecked) {
+    return fieldVisitMemberForeignKeyCache;
+  }
+
+  const [memberColumns] = await db.query(
+    `SHOW COLUMNS FROM field_visit_members`
+  );
+
+  const columnNames = memberColumns.map(
+    (column) =>
+      String(column.Field || "")
+        .trim()
+        .toLowerCase()
+  );
+
+  if (
+    columnNames.includes(
+      "field_visit_id"
+    )
+  ) {
+    fieldVisitMemberForeignKeyCache =
+      "field_visit_id";
+  } else if (
+    columnNames.includes("visit_id")
+  ) {
+    fieldVisitMemberForeignKeyCache =
+      "visit_id";
+  } else {
+    fieldVisitMemberForeignKeyCache =
+      null;
+  }
+
+  fieldVisitMemberForeignKeyChecked =
+    true;
+
+  return fieldVisitMemberForeignKeyCache;
+};
 const FIXED_HOLIDAYS = {
   "01-26": "Republic Day",
   "05-01": "Maharashtra Day",
@@ -687,14 +731,24 @@ const buildHrAttendanceData = async (
   /* =======================================================
      APPROVED LEAVES
   ======================================================= */
+  /* =======================================================
+   LEAVE APPLICATIONS
 
-  const [leaveRows] = await db.query(
+   IMPORTANT:
+   - approvedLeaveRows affects attendance
+   - allLeaveRows is for HR visibility/review
+======================================================= */
+
+const [
+  approvedLeaveResult,
+  allLeaveResult,
+] = await Promise.all([
+  db.query(
     `
     SELECT
       la.leave_id,
       la.employee_id,
       la.leave_type,
-     
 
       DATE_FORMAT(
         la.start_date,
@@ -715,33 +769,185 @@ const buildHrAttendanceData = async (
       la.reviewed_by,
 
       DATE_FORMAT(
+        la.applied_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS applied_at,
+
+      DATE_FORMAT(
         la.reviewed_at,
         '%Y-%m-%d %H:%i:%s'
       ) AS reviewed_at,
 
-      reviewer.full_name AS reviewed_by_name,
-      reviewer.email AS reviewed_by_email
+      reviewer.full_name
+        AS reviewed_by_name,
+
+      reviewer.email
+        AS reviewed_by_email
 
     FROM leave_applications la
 
     LEFT JOIN users reviewer
-      ON reviewer.user_id = la.reviewed_by
+      ON reviewer.user_id =
+        la.reviewed_by
 
-    WHERE LOWER(la.status) = 'approved'
+    WHERE
+      la.employee_id IN (${placeholders})
+
+      AND LOWER(
+        TRIM(la.status)
+      ) = 'approved'
+
       AND la.start_date <= ?
+
       AND la.end_date >= ?
     `,
     [
+      ...userIds,
       toDate,
       fromDate,
     ]
-  );
+  ),
+
+  db.query(
+    `
+    SELECT
+      la.leave_id,
+      la.employee_id,
+      la.leave_type,
+
+      DATE_FORMAT(
+        la.start_date,
+        '%Y-%m-%d'
+      ) AS start_date,
+
+      DATE_FORMAT(
+        la.end_date,
+        '%Y-%m-%d'
+      ) AS end_date,
+
+      la.total_days,
+      la.duration_type,
+      la.half_day_session,
+      la.reason,
+      la.status,
+      la.review_remark,
+      la.reviewed_by,
+
+      DATE_FORMAT(
+        la.applied_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS applied_at,
+
+      DATE_FORMAT(
+        la.reviewed_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS reviewed_at,
+
+      employee.full_name
+        AS employee_name,
+
+      employee.email
+        AS employee_email,
+
+      employee.employee_code,
+
+      employee.designation,
+
+      employee.department_id,
+
+      department.department_name,
+
+      role.role_name,
+
+      reviewer.full_name
+        AS reviewed_by_name,
+
+      reviewer.email
+        AS reviewed_by_email
+
+    FROM leave_applications la
+
+    INNER JOIN users employee
+      ON employee.user_id =
+        la.employee_id
+
+    LEFT JOIN departments department
+      ON department.department_id =
+        employee.department_id
+
+    LEFT JOIN roles role
+      ON role.role_id =
+        employee.role_id
+
+    LEFT JOIN users reviewer
+      ON reviewer.user_id =
+        la.reviewed_by
+
+    WHERE
+      la.employee_id IN (${placeholders})
+
+      AND la.start_date <= ?
+
+      AND la.end_date >= ?
+
+      AND LOWER(
+        TRIM(la.status)
+      ) IN (
+        'pending',
+        'approved',
+        'rejected'
+      )
+
+    ORDER BY
+
+      CASE
+        WHEN LOWER(TRIM(la.status)) =
+          'pending'
+          THEN 1
+
+        WHEN LOWER(TRIM(la.status)) =
+          'approved'
+          THEN 2
+
+        WHEN LOWER(TRIM(la.status)) =
+          'rejected'
+          THEN 3
+
+        ELSE 4
+      END,
+
+      la.applied_at DESC,
+
+      la.leave_id DESC
+    `,
+    [
+      ...userIds,
+      toDate,
+      fromDate,
+    ]
+  ),
+]);
+
+const approvedLeaveRows =
+  approvedLeaveResult[0] || [];
+
+const allLeaveRows =
+  allLeaveResult[0] || [];
+
+/*
+  Keep this alias because the existing
+  attendance-building logic below already
+  uses leaveRows.
+*/
+
+const leaveRows =
+  approvedLeaveRows;
 
   /* =======================================================
      APPROVED FIELD VISITS
   ======================================================= */
-
-  const [fieldVisitRows] = await db.query(
+const [fieldVisitRows] =
+  await db.query(
     `
     SELECT
       fv.visit_id,
@@ -766,16 +972,28 @@ const buildHrAttendanceData = async (
         '%Y-%m-%d %H:%i:%s'
       ) AS reviewed_at,
 
-      reviewer.full_name AS reviewed_by_name,
-      reviewer.email AS reviewed_by_email
+      reviewer.full_name
+        AS reviewed_by_name,
+
+      reviewer.email
+        AS reviewed_by_email
 
     FROM employee_field_visits fv
 
     LEFT JOIN users reviewer
-      ON reviewer.user_id = fv.reviewed_by
+      ON reviewer.user_id =
+        fv.reviewed_by
 
-    WHERE LOWER(fv.status) = 'approved'
-      AND fv.visit_date BETWEEN ? AND ?
+    WHERE
+      LOWER(
+        TRIM(fv.status)
+      ) = 'approved'
+
+      AND fv.visit_date
+        BETWEEN ? AND ?
+
+    ORDER BY
+      fv.visit_date DESC
     `,
     [
       fromDate,
@@ -784,51 +1002,87 @@ const buildHrAttendanceData = async (
   );
 
   /* =======================================================
-     FIELD VISIT MEMBERS
-  ======================================================= */
+   FIELD VISIT MEMBERS
+======================================================= */
+
 const visitIds =
   fieldVisitRows
-    .map((visit) => Number(visit.visit_id))
+    .map(
+      (visit) =>
+        Number(visit.visit_id)
+    )
     .filter(Boolean);
 
 let fieldVisitMembers = [];
 
 if (visitIds.length) {
-  const [memberColumns] = await db.query(
-    `SHOW COLUMNS FROM field_visit_members`
-  );
-
-  const columnNames = memberColumns.map((column) =>
-    String(column.Field || "").toLowerCase()
-  );
-
-  let visitForeignKey = null;
-
-  if (columnNames.includes("field_visit_id")) {
-    visitForeignKey = "field_visit_id";
-  } else if (columnNames.includes("visit_id")) {
-    visitForeignKey = "visit_id";
-  }
+  const visitForeignKey =
+    await getFieldVisitMemberForeignKey();
 
   if (visitForeignKey) {
     const visitPlaceholders =
-      visitIds.map(() => "?").join(",");
-
-    const [memberRows] = await db.query(
-      `
-      SELECT
-        ${visitForeignKey} AS visit_id,
-        employee_id
-      FROM field_visit_members
-      WHERE ${visitForeignKey} IN (${visitPlaceholders})
-      `,
       visitIds
-    );
+        .map(() => "?")
+        .join(",");
 
-    fieldVisitMembers = memberRows;
+    const [memberRows] =
+      await db.query(
+        `
+        SELECT
+          ${visitForeignKey}
+            AS visit_id,
+
+          employee_id
+
+        FROM field_visit_members
+
+        WHERE
+          ${visitForeignKey}
+          IN (${visitPlaceholders})
+        `,
+        visitIds
+      );
+
+    fieldVisitMembers =
+      memberRows;
   }
 }
-  
+
+/*
+  Build this once.
+
+  Previously every visit filtered the complete
+  fieldVisitMembers array again.
+*/
+
+const fieldVisitMembersMap =
+  new Map();
+
+fieldVisitMembers.forEach(
+  (member) => {
+    const visitId =
+      Number(member.visit_id);
+
+    if (
+      !fieldVisitMembersMap.has(
+        visitId
+      )
+    ) {
+      fieldVisitMembersMap.set(
+        visitId,
+        []
+      );
+    }
+
+    fieldVisitMembersMap
+      .get(visitId)
+      .push(
+        Number(
+          member.employee_id
+        )
+      );
+  }
+);
   /* =======================================================
      MAP ATTENDANCE
   ======================================================= */

@@ -1,4 +1,41 @@
 const db = require("../config/db");
+
+const { sendMail } =
+  require("../utils/emailservice");
+
+const PREMAL_LEAVE_EMAIL =
+  "premal.mehta@valencianutrition.com";
+
+const RATHIKA_LEAVE_EMAIL =
+  "rathika.haleangadi@valencianutrition.com";
+
+const MANISH_LEAVE_EMAIL =
+  "manish@valencianutrition.com";
+
+const getLeaveLabel = (type) => {
+  if (type === "sick") {
+    return "Sick Leave";
+  }
+
+  if (type === "casual") {
+    return "Casual Leave";
+  }
+
+  if (type === "mandatory") {
+    return "Privileged Leave";
+  }
+
+  if (type === "festival") {
+    return "Festival Leave";
+  }
+
+  if (type === "unpaid") {
+    return "Unpaid Leave";
+  }
+
+  return type || "Leave";
+};
+
 const {
   buildLeaveBalances,
 } = require("../utils/leavepolicy");
@@ -2308,7 +2345,46 @@ const getSuperadminUsers = async(req,res)=>{
     });
   }
 };
+const getSuperadminUserById = async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
 
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID.",
+      });
+    }
+
+    const users = await getAllUsersBase();
+
+    const user = users.find(
+      (item) => Number(item.user_id) === userId
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error(
+      "SUPERADMIN USER DETAILS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
 const getSuperadminProjectOptions = async(req,res)=>{
 
 try{
@@ -2375,9 +2451,17 @@ const getSuperadminLeaves = async (
           la.duration_type,
           la.half_day_session,
           la.reason,
-          la.status,
-          la.review_remark,
-          la.reviewed_by,
+la.status,
+la.review_remark,
+la.reviewed_by,
+
+la.escalated_for_approval,
+la.escalated_by,
+
+DATE_FORMAT(
+  la.escalated_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS escalated_at,
 
           DATE_FORMAT(
             la.applied_at,
@@ -2474,13 +2558,30 @@ const getSuperadminLeaves = async (
           visible as read-only records.
           */
           can_superadmin_review:
-            String(
-              application.applicant_role ||
-                ""
-            )
-              .trim()
-              .toLowerCase() ===
-            "admin",
+  (
+    String(
+      application.applicant_role ||
+        ""
+    )
+      .trim()
+      .toLowerCase() === "admin"
+  ) ||
+  (
+    [
+      "employee",
+      "administrator",
+    ].includes(
+      String(
+        application.applicant_role ||
+          ""
+      )
+        .trim()
+        .toLowerCase()
+    ) &&
+    Number(
+      application.escalated_for_approval
+    ) === 1
+  ),
         })
       );
 
@@ -2545,18 +2646,6 @@ const getSuperadminLeaves = async (
       });
   }
 };
-/*
-=========================================================
-SUPERADMIN - REVIEW ADMIN LEAVE
-=========================================================
-
-Superadmin may approve/reject ONLY
-leave applications submitted by Admin users.
-
-Employee leave applications remain visible
-but continue to be reviewed by Department Admin.
-=========================================================
-*/
 
 const reviewSuperadminLeave = async (
   req,
@@ -2682,9 +2771,10 @@ const reviewSuperadminLeave = async (
           la.leave_type,
           la.total_days,
           la.reason,
-          la.status,
-          la.duration_type,
-          la.half_day_session,
+la.status,
+la.escalated_for_approval,
+la.duration_type,
+la.half_day_session,
 
           DATE_FORMAT(
             la.start_date,
@@ -2727,15 +2817,37 @@ const reviewSuperadminLeave = async (
 
         WHERE
           la.leave_id = ?
+          AND (
+  LOWER(
+    TRIM(
+      COALESCE(
+        r.role_name,
+        ''
+      )
+    )
+  ) = 'admin'
 
-          AND LOWER(
-            TRIM(
-              COALESCE(
-                r.role_name,
-                ''
-              )
-            )
-          ) = 'admin'
+  OR
+
+  (
+    LOWER(
+      TRIM(
+        COALESCE(
+          r.role_name,
+          ''
+        )
+      )
+    ) IN (
+      'employee',
+      'administrator'
+    )
+
+    AND COALESCE(
+      la.escalated_for_approval,
+      0
+    ) = 1
+  )
+)
 
         LIMIT 1
 
@@ -2755,8 +2867,8 @@ const reviewSuperadminLeave = async (
         .json({
           success: false,
 
-          message:
-            "Admin leave application not found or this application cannot be reviewed by Superadmin.",
+         message:
+  "Leave application not found or this application cannot be reviewed by Superadmin.",
         });
     }
 
@@ -2794,9 +2906,9 @@ const reviewSuperadminLeave = async (
     */
 
     if (
-      status ===
-      "approved"
-    ) {
+  status === "approved" &&
+  leave.leave_type !== "unpaid"
+) {
       const leaveYear =
         Number(
           String(
@@ -2825,20 +2937,20 @@ const reviewSuperadminLeave = async (
         ];
 
       if (
-        !selectedBalance
-      ) {
-        await connection
-          .rollback();
+  !selectedBalance
+) {
+  await connection
+    .rollback();
 
-        return res
-          .status(400)
-          .json({
-            success: false,
+  return res
+    .status(400)
+    .json({
+      success: false,
 
-            message:
-              "Unable to calculate Admin leave balance.",
-          });
-      }
+      message:
+        "Cannot approve. Leave balance information is not available for this leave type.",
+    });
+}
 
       const available =
         Number(
@@ -2904,27 +3016,436 @@ const reviewSuperadminLeave = async (
     );
 
     await connection
-      .commit();
+  .commit();
 
-    return res.json({
+/*
+=====================================================
+FINAL LEAVE RESULT EMAIL
+=====================================================
+*/
+
+let emailResult = {
+  sent: false,
+  skipped: false,
+};
+
+try {
+  const [reviewerRows] =
+    await db.query(
+      `
+      SELECT
+        full_name,
+        email
+      FROM users
+      WHERE user_id = ?
+      LIMIT 1
+      `,
+      [reviewerId]
+    );
+
+  const reviewer =
+    reviewerRows[0] || {};
+
+  const reviewerName =
+    reviewer.full_name ||
+    "Manish Turakhia";
+
+  /*
+  Get all Department Admins
+  for this employee.
+  */
+  const [departmentAdmins] =
+    await db.query(
+      `
+      SELECT DISTINCT
+        u.email
+      FROM users u
+
+      INNER JOIN roles r
+        ON r.role_id = u.role_id
+
+      WHERE u.department_id = ?
+
+        AND LOWER(
+          TRIM(
+            COALESCE(
+              r.role_name,
+              ''
+            )
+          )
+        ) = 'admin'
+
+        AND LOWER(
+          COALESCE(
+            u.status,
+            'active'
+          )
+        ) = 'active'
+
+        AND u.email IS NOT NULL
+
+        AND TRIM(u.email) != ''
+      `,
+      [
+        leave.department_id,
+      ]
+    );
+
+  const departmentAdminEmails =
+    departmentAdmins
+      .map((item) =>
+        String(
+          item.email || ""
+        )
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean);
+
+  const ccRecipients = [
+    ...new Set(
+      [
+        MANISH_LEAVE_EMAIL,
+        PREMAL_LEAVE_EMAIL,
+        RATHIKA_LEAVE_EMAIL,
+        ...departmentAdminEmails,
+      ]
+        .map((email) =>
+          String(email || "")
+            .trim()
+            .toLowerCase()
+        )
+        .filter(
+          (email) =>
+            email &&
+            email !==
+              String(
+                leave.employee_email ||
+                  ""
+              )
+                .trim()
+                .toLowerCase()
+        )
+    ),
+  ];
+
+  const leaveLabel =
+    getLeaveLabel(
+      leave.leave_type
+    );
+
+  const finalStatusLabel =
+    status === "approved"
+      ? "APPROVED"
+      : "REJECTED";
+
+  const emailSubject =
+    status === "approved"
+      ? `Leave Approved - ${leave.employee_name} | Reviewed by ${reviewerName}`
+      : `Leave Rejected - ${leave.employee_name} | Reviewed by ${reviewerName}`;
+
+  const text = `
+Dear Team,
+
+The following leave request has been ${status} by ${reviewerName}.
+
+Employee: ${leave.employee_name || "-"}
+Employee Email: ${leave.employee_email || "-"}
+Department: ${leave.department_name || "-"}
+
+Leave Type: ${leaveLabel}
+From Date: ${leave.start_date || "-"}
+To Date: ${leave.end_date || "-"}
+Total Days: ${leave.total_days || "-"}
+
+Final Status: ${finalStatusLabel}
+Reviewed By: ${reviewerName}
+Review Remark: ${reviewRemark || "-"}
+
+This is the final decision on the leave request.
+
+Regards,
+Valencia RMS
+`;
+
+  const html = `
+    <div style="
+      font-family:Arial,sans-serif;
+      line-height:1.6;
+      color:#111827;
+      max-width:700px;
+    ">
+
+      <h2 style="
+        margin-bottom:8px;
+        color:${
+          status === "approved"
+            ? "#16a34a"
+            : "#dc2626"
+        };
+      ">
+        Leave ${status === "approved"
+          ? "Approved"
+          : "Rejected"}
+      </h2>
+
+      <p>
+        Dear Team,
+      </p>
+
+      <p>
+        The following leave request has been
+        <strong>
+          ${status}
+        </strong>
+        by
+        <strong>
+          ${reviewerName}
+        </strong>.
+      </p>
+
+      <table style="
+        width:100%;
+        border-collapse:collapse;
+        margin:18px 0;
+      ">
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>Employee</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${leave.employee_name || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>Department</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${leave.department_name || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>Leave Type</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${leaveLabel}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>From</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${leave.start_date || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>To</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${leave.end_date || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>Total Days</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${leave.total_days || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>Final Status</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+            font-weight:bold;
+          ">
+            ${finalStatusLabel}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>Reviewed By</strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${reviewerName}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            <strong>
+              ${
+                status === "rejected"
+                  ? "Reason for Rejection"
+                  : "Review Remark"
+              }
+            </strong>
+          </td>
+
+          <td style="
+            border:1px solid #dddddd;
+            padding:8px;
+          ">
+            ${reviewRemark || "-"}
+          </td>
+        </tr>
+
+      </table>
+
+      <p>
+        This is the final decision on the
+        leave request.
+      </p>
+
+      <p>
+        Regards,<br />
+        Valencia RMS
+      </p>
+
+    </div>
+  `;
+
+  const mailResponse =
+    await sendMail({
+      to: [
+        leave.employee_email,
+      ],
+
+      cc:
+        ccRecipients,
+
+      subject:
+        emailSubject,
+
+      text,
+
+      html,
+    });
+
+  emailResult = {
+    sent:
+      !mailResponse?.skipped,
+
+    skipped:
+      Boolean(
+        mailResponse?.skipped
+      ),
+
+    messageId:
+      mailResponse?.messageId ||
+      null,
+
+    recipients: [
+      leave.employee_email,
+    ],
+
+    cc:
+      ccRecipients,
+  };
+} catch (emailError) {
+  console.error(
+    "Final leave result email failed:",
+    emailError
+  );
+
+  emailResult = {
+    sent: false,
+    skipped: false,
+    error:
+      emailError.message,
+  };
+}
+
+return res.json({
       success: true,
 
       message:
-        status ===
-        "approved"
-          ? "Admin leave approved successfully."
-          : "Admin leave rejected successfully.",
+        status === "approved"
+          ? "Leave approved successfully."
+          : "Leave rejected successfully.",
 
-      leave_id:
-        leaveId,
+      leave_id: leaveId,
 
       status,
 
-      review_remark:
-        reviewRemark,
+      review_remark: reviewRemark,
 
       remaining_balance:
-        remainingBalance,
+    remainingBalance,
+
+    email:
+    emailResult,
     });
   } catch (error) {
     if (connection) {
@@ -2947,7 +3468,7 @@ const reviewSuperadminLeave = async (
         success: false,
 
         message:
-          "Failed to review Admin leave application.",
+         "Failed to review leave application.",
 
         error:
           error.message,
@@ -2979,6 +3500,7 @@ module.exports = {
 
    getSuperadminOverview,
   getSuperadminLeaves,
-  reviewSuperadminLeave
+  reviewSuperadminLeave,
+  getSuperadminUserById
 
 };

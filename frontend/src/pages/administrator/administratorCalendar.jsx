@@ -239,10 +239,7 @@ const AdministratorCalendar = () => {
       const data =
         await response.json();
 
-      console.log(
-        "ADMINISTRATOR CALENDAR DATA:",
-        data
-      );
+      
 
       if (data.success) {
         setEvents({
