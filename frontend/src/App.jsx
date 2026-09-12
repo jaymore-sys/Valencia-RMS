@@ -299,6 +299,42 @@ const LeaveReviewerProtectedRoute = ({
 /* ========================================================
    APP
 ======================================================== */
+const LeaveApprovalsRedirect = () => {
+  const user = getStoredUser();
+
+  const roleName = String(
+    user?.role_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const queryString =
+    window.location.search || "";
+
+  /*
+    Department Admin:
+    Open the existing Admin Leave page
+    inside the normal AdminLayout.
+  */
+  if (roleName === "admin") {
+    return (
+      <Navigate
+        to={`/admin/leave-applications${queryString}`}
+        replace
+      />
+    );
+  }
+
+  /*
+    Premal / Rathika special access:
+    Keep existing special reviewer page.
+  */
+  return (
+    <LeaveReviewerProtectedRoute>
+      <AdminLeaveApplications />
+    </LeaveReviewerProtectedRoute>
+  );
+};
 
 const App = () => {
   return (
@@ -703,13 +739,9 @@ const App = () => {
         element={<LeaveReview />}
       />
       <Route
-        path="/leave-approvals"
-        element={
-          <LeaveReviewerProtectedRoute>
-            <AdminLeaveApplications />
-          </LeaveReviewerProtectedRoute>
-        }
-      />
+  path="/leave-approvals"
+  element={<LeaveApprovalsRedirect />}
+/>
 
       {/* ===================================================
           FALLBACK
