@@ -1450,40 +1450,31 @@ return (
     Reject
   </button>
 
-  {String(
+{String(
   admin?.role_name || ""
 )
   .trim()
-  .toLowerCase() ===
-  "admin" &&
-![
-  "rathika.haleangadi@valencianutrition.com",
-  "premal.mehta@valencianutrition.com",
-].includes(
-  String(
-    admin?.email || ""
-  )
-    .trim()
-    .toLowerCase()
+  .toLowerCase() === "admin" &&
+String(
+  admin?.email || ""
 )
-  && (
-      <button
-        type="button"
-        style={
-          styles.furtherBtn
-        }
-        onClick={() =>
-          requestReview(
-            "further_approval"
-          )
-        }
-        disabled={
-          reviewing
-        }
-      >
-        Escalate
-      </button>
-    )}
+  .trim()
+  .toLowerCase() !==
+  "rathika.haleangadi@valencianutrition.com" &&
+(
+  <button
+    type="button"
+    style={styles.furtherBtn}
+    onClick={() =>
+      requestReview(
+        "further_approval"
+      )
+    }
+    disabled={reviewing}
+  >
+    Escalate
+  </button>
+)}
 </div>
     </>
   )
