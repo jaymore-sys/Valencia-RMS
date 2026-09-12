@@ -15,9 +15,6 @@ FIXED LEAVE EMAIL RECIPIENTS
 ========================================================
 */
 
-const MANISH_LEAVE_EMAIL =
-  "manish@valencianutrition.com";
-
 const PREMAL_LEAVE_EMAIL =
   "premal.mehta@valencianutrition.com";
 
@@ -1484,50 +1481,33 @@ const applyEmployeeLeave =
       const admin =
         reviewUsers[0] ||
         {};
-      const finalLeaveRecipients = [
+     const finalLeaveRecipients = [
   ...new Set(
-    (
-      isAdminApplicant
-        ? [
-            MANISH_LEAVE_EMAIL,
-          ]
-        : [
-            PREMAL_LEAVE_EMAIL,
+    [
+      PREMAL_LEAVE_EMAIL,
 
-            ...departmentAdmins.map(
+      ...(
+        isAdminApplicant
+          ? []
+          : departmentAdmins.map(
               (item) =>
                 item.email
-            ),
-          ]
-    )
+            )
+      ),
+    ]
       .map((email) =>
         String(email || "")
           .trim()
           .toLowerCase()
       )
-      .filter(
-        (email) =>
-          email &&
-          (
-            isAdminApplicant ||
-            email !==
-              MANISH_LEAVE_EMAIL
-          )
-      )
+      .filter(Boolean)
   ),
 ];
-
 
 const finalCcRecipients = [
   ...new Set(
     [
       RATHIKA_LEAVE_EMAIL,
-
-      ...(isAdminApplicant
-        ? [
-            PREMAL_LEAVE_EMAIL,
-          ]
-        : []),
     ]
       .map((email) =>
         String(email || "")
@@ -1539,11 +1519,6 @@ const finalCcRecipients = [
           email &&
           !finalLeaveRecipients.includes(
             email
-          ) &&
-          (
-            isAdminApplicant ||
-            email !==
-              MANISH_LEAVE_EMAIL
           )
       )
   ),

@@ -12,8 +12,7 @@ const PREMAL_LEAVE_EMAIL =
 const RATHIKA_LEAVE_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
 
-const MANISH_LEAVE_EMAIL =
-  "manish@valencianutrition.com";
+
 
 const GLOBAL_LEAVE_APPROVER_EMAILS = [
   PREMAL_LEAVE_EMAIL,
@@ -1192,7 +1191,7 @@ d.department_name,
 
     /*
     Create fresh review token
-    for Manish.
+for escalated leave review.
     */
 
     const reviewToken =
@@ -1280,19 +1279,34 @@ d.department_name,
         )
         .filter(Boolean);
 
-    const ccRecipients = [
-      ...new Set(
-        [
-          PREMAL_LEAVE_EMAIL,
-          RATHIKA_LEAVE_EMAIL,
-          ...otherAdminEmails,
-        ].filter(
-          (email) =>
-            email !==
-            MANISH_LEAVE_EMAIL
-        )
-      ),
-    ];
+        const toRecipients = [
+  ...new Set(
+    [
+      PREMAL_LEAVE_EMAIL,
+      ...otherAdminEmails,
+    ]
+      .map((email) =>
+        String(email || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+  ),
+];
+
+const ccRecipients = [
+  RATHIKA_LEAVE_EMAIL,
+].filter(
+  (email) =>
+    email &&
+    !toRecipients.includes(
+      String(email)
+        .trim()
+        .toLowerCase()
+    )
+);
+
+  
 
     const leaveLabel =
       getLeaveLabel(
@@ -1542,12 +1556,11 @@ through Valencia RMS and requires your review.
     try {
       const mailResponse =
         await sendMail({
-          to: [
-            MANISH_LEAVE_EMAIL,
-          ],
+          to:
+  toRecipients,
 
-          cc:
-            ccRecipients,
+cc:
+  ccRecipients,
 
           subject:
             emailSubject,
@@ -1574,9 +1587,8 @@ through Valencia RMS and requires your review.
           mailResponse?.messageId ||
           null,
 
-        recipients: [
-          MANISH_LEAVE_EMAIL,
-        ],
+        recipients:
+  toRecipients,
 
         cc:
           ccRecipients,
