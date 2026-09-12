@@ -199,24 +199,32 @@ const getAdminLeaveApplications = async (
         ? requestedStatus
         : null;
 
-      const whereParts = [
-  `
-  LOWER(
-    TRIM(
-      employee_role.role_name
-    )
-  ) IN (
-  'employee',
-  'administrator'
-)
-  `,
-];
-
+   const whereParts = [];
 const values = [];
 
 if (
-  !admin.is_global_leave_viewer
+  admin.is_global_leave_viewer
 ) {
+  whereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) IN (
+      'employee',
+      'admin',
+      'administrator'
+    )
+  `);
+} else {
+  whereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) = 'employee'
+  `);
+
   whereParts.push(
     "employee.department_id = ?"
   );
@@ -224,7 +232,8 @@ if (
   values.push(
     admin.department_id
   );
-}
+} 
+
 
     if (statusFilter) {
       whereParts.push(
@@ -291,11 +300,17 @@ DATE_FORMAT(
 
           d.department_name,
 
-          reviewer.full_name
-            AS reviewed_by_name,
+         reviewer.full_name
+  AS reviewed_by_name,
 
-          reviewer.email
-            AS reviewed_by_email
+reviewer.email
+  AS reviewed_by_email,
+
+escalator.full_name
+  AS escalated_by_name,
+
+escalator.email
+  AS escalated_by_email
 
         FROM leave_applications la
 
@@ -312,8 +327,12 @@ DATE_FORMAT(
             employee.department_id
 
         LEFT JOIN users reviewer
-          ON reviewer.user_id =
-            la.reviewed_by
+  ON reviewer.user_id =
+    la.reviewed_by
+
+        LEFT JOIN users escalator
+  ON escalator.user_id =
+    la.escalated_by
 
         WHERE ${whereParts.join(
           " AND "
@@ -339,24 +358,32 @@ DATE_FORMAT(
         values
       );
 
-      const summaryWhereParts = [
-  `
-  LOWER(
-    TRIM(
-      employee_role.role_name
-    )
-  ) IN (
-    'employee',
-    'administrator'
-  )
-  `,
-];
-
+     const summaryWhereParts = [];
 const summaryValues = [];
 
 if (
-  !admin.is_global_leave_viewer
+  admin.is_global_leave_viewer
 ) {
+  summaryWhereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) IN (
+      'employee',
+      'admin',
+      'administrator'
+    )
+  `);
+} else {
+  summaryWhereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) = 'employee'
+  `);
+
   summaryWhereParts.push(
     "employee.department_id = ?"
   );
@@ -603,19 +630,8 @@ const reviewLeaveApplication = async (
     await connection
       .beginTransaction();
 
-      const leaveWhereParts = [
+    const leaveWhereParts = [
   "la.leave_id = ?",
-
-  `
-  LOWER(
-    TRIM(
-      employee_role.role_name
-    )
-  ) IN (
-    'employee',
-    'administrator'
-  )
-  `,
 ];
 
 const leaveValues = [
@@ -623,8 +639,28 @@ const leaveValues = [
 ];
 
 if (
-  !admin.is_global_leave_approver
+  admin.is_global_leave_approver
 ) {
+  leaveWhereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) IN (
+      'employee',
+      'admin',
+      'administrator'
+    )
+  `);
+} else {
+  leaveWhereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) = 'employee'
+  `);
+
   leaveWhereParts.push(
     "employee.department_id = ?"
   );
@@ -632,7 +668,9 @@ if (
   leaveValues.push(
     admin.department_id
   );
-}
+} 
+
+
 
 const [leaveRows] =
   await connection.query(
@@ -880,25 +918,197 @@ la.duration_type,
     await connection
       .commit();
 
-    /*
-    ====================================================
-    EMAIL TEMPORARILY DISABLED
-    ====================================================
+    
+    let emailResult = {
+  sent: false,
+  skipped: false,
+};
 
-    The previous version required:
-    ../emailservice
+try {
+  const reviewerName =
+    admin.full_name ||
+    "Valencia RMS";
 
-    That file is currently missing,
-    so email sending is disabled
-    to prevent the entire backend
-    from crashing.
-    */
-    const emailResult = {
-      sent: false,
-      skipped: true,
-      message:
-        "Email service is temporarily disabled.",
-    };
+  const leaveLabel =
+    getLeaveLabel(
+      leave.leave_type
+    );
+
+  const finalStatusLabel =
+    status === "approved"
+      ? "APPROVED"
+      : "REJECTED";
+
+  const emailSubject =
+    status === "approved"
+      ? `Leave Approved - ${leave.employee_name}`
+      : `Leave Rejected - ${leave.employee_name}`;
+
+  const text = `
+Dear ${leave.employee_name || "Employee"},
+
+Your leave request has been ${status}.
+
+Leave Type: ${leaveLabel}
+From Date: ${leave.start_date || "-"}
+To Date: ${leave.end_date || "-"}
+Total Days: ${leave.total_days || "-"}
+
+Final Status: ${finalStatusLabel}
+Reviewed By: ${reviewerName}
+Review Remark: ${reviewRemark || "-"}
+
+Regards,
+Valencia RMS
+`;
+
+  const html = `
+    <div style="
+      font-family:Arial,sans-serif;
+      line-height:1.6;
+      color:#111827;
+      max-width:700px;
+    ">
+      <h2>
+        Leave ${
+          status === "approved"
+            ? "Approved"
+            : "Rejected"
+        }
+      </h2>
+
+      <p>
+        Dear ${leave.employee_name || "Employee"},
+      </p>
+
+      <p>
+        Your leave request has been
+        <strong>${status}</strong>.
+      </p>
+
+      <table style="
+        width:100%;
+        border-collapse:collapse;
+        margin:18px 0;
+      ">
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>Leave Type</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${leaveLabel}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>From</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${leave.start_date || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>To</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${leave.end_date || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>Total Days</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${leave.total_days || "-"}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>Final Status</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${finalStatusLabel}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>Reviewed By</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${reviewerName}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border:1px solid #ddd;padding:8px;">
+            <strong>Review Remark</strong>
+          </td>
+          <td style="border:1px solid #ddd;padding:8px;">
+            ${reviewRemark || "-"}
+          </td>
+        </tr>
+      </table>
+
+      <p>
+        Regards,<br />
+        Valencia RMS
+      </p>
+    </div>
+  `;
+
+  const mailResponse =
+    await sendMail({
+      to: [
+        leave.employee_email,
+      ],
+
+      subject:
+        emailSubject,
+
+      text,
+
+      html,
+    });
+
+  emailResult = {
+    sent:
+      !mailResponse?.skipped,
+
+    skipped:
+      Boolean(
+        mailResponse?.skipped
+      ),
+
+    messageId:
+      mailResponse?.messageId ||
+      null,
+
+    recipients: [
+      leave.employee_email,
+    ],
+
+    cc: [],
+  };
+} catch (emailError) {
+  console.error(
+    "Leave result email failed:",
+    emailError
+  );
+
+  emailResult = {
+    sent: false,
+    skipped: false,
+    error:
+      emailError.message,
+  };
+}
+   
 
     return res.json({
       success: true,
@@ -1026,21 +1236,65 @@ const furtherApproveLeaveApplication = async (
   .trim()
   .toLowerCase();
 
-if (
-  roleName !== "admin" ||
-  adminEmail === RATHIKA_LEAVE_EMAIL
+  if (
+  !admin.is_global_leave_approver &&
+  (
+    roleName !== "admin" ||
+    adminEmail === RATHIKA_LEAVE_EMAIL
+  )
 ) {
   return res
     .status(403)
     .json({
       success: false,
       message:
-        "Only the employee's Department Admin can escalate this leave application.",
+        "You are not authorized to escalate this leave application.",
     });
 }
 
-    await connection
-      .beginTransaction();
+ await connection
+  .beginTransaction();
+
+
+    const escalationWhereParts = [
+  "la.leave_id = ?",
+];
+
+const escalationValues = [
+  leaveId,
+];
+
+if (
+  admin.is_global_leave_approver
+) {
+  escalationWhereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) IN (
+      'employee',
+      'admin',
+      'administrator'
+    )
+  `);
+} else {
+  escalationWhereParts.push(`
+    LOWER(
+      TRIM(
+        employee_role.role_name
+      )
+    ) = 'employee'
+  `);
+
+  escalationWhereParts.push(
+    "employee.department_id = ?"
+  );
+
+  escalationValues.push(
+    admin.department_id
+  );
+}
 
     const [leaveRows] =
       await connection.query(
@@ -1093,29 +1347,18 @@ d.department_name,
           ON d.department_id =
              employee.department_id
 
-        WHERE
-          la.leave_id = ?
-
-          AND employee.department_id = ?
-
-          AND LOWER(
-            TRIM(
-              employee_role.role_name
-            )
-          ) IN (
-            'employee',
-            'administrator'
-          )
+       WHERE
+  ${escalationWhereParts.join(
+    " AND "
+  )}
 
         LIMIT 1
 
         FOR UPDATE
         `,
-        [
-          leaveId,
-          admin.department_id,
-        ]
+        escalationValues
       );
+
 
     if (!leaveRows.length) {
       await connection.rollback();
@@ -1279,11 +1522,22 @@ for escalated leave review.
         )
         .filter(Boolean);
 
-        const toRecipients = [
+     const applicantRole = String(
+  leave.applicant_role || ""
+)
+  .trim()
+  .toLowerCase();
+
+const toRecipients = [
   ...new Set(
     [
       PREMAL_LEAVE_EMAIL,
-      ...otherAdminEmails,
+
+      ...(
+        applicantRole === "employee"
+          ? otherAdminEmails
+          : []
+      ),
     ]
       .map((email) =>
         String(email || "")
@@ -1292,7 +1546,7 @@ for escalated leave review.
       )
       .filter(Boolean)
   ),
-];
+]; 
 
 const ccRecipients = [
   RATHIKA_LEAVE_EMAIL,

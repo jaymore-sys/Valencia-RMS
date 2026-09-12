@@ -677,11 +677,15 @@ const [
         : POLICY_START_DATE;
 
     const selectedMinimumLeaveDate =
-      selectedLeaveType === "sick"
-        ? getTodayDate() > POLICY_START_DATE
-          ? getTodayDate()
-          : POLICY_START_DATE
-        : minimumLeaveDate;
+  selectedLeaveType === "sick" ||
+  (
+    selectedLeaveType === "mandatory" &&
+    form.duration_type === "half_day"
+  )
+    ? getTodayDate() > POLICY_START_DATE
+      ? getTodayDate()
+      : POLICY_START_DATE
+    : minimumLeaveDate;
 
     const calculateDays =
       useMemo(() => {
@@ -1097,17 +1101,20 @@ const [
       }
 
       if (
-        form.start_date <
-        selectedMinimumLeaveDate
-      ) {
-        setError(
-          selectedLeaveType === "sick"
-            ? "Sick Leave can be applied from today onwards."
-            : "Leave must be applied for at least 1 day in advance."
-        );
+  form.start_date <
+  selectedMinimumLeaveDate
+) {
+  setError(
+    selectedLeaveType === "sick"
+      ? "Sick Leave can be applied from today onwards."
+      : selectedLeaveType === "mandatory" &&
+        form.duration_type === "half_day"
+        ? "Half-day Privileged Leave can be applied from today onwards."
+        : "Leave must be applied for at least 1 day in advance."
+  );
 
-        return;
-      }
+  return;
+}
 
       /*
       ========================================

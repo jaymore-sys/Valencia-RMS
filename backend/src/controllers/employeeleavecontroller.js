@@ -315,7 +315,24 @@ const getIndiaToday = () => {
 
   return `${values.year}-${values.month}-${values.day}`;
 };
+const getIndiaTomorrow = () => {
+  const today = getIndiaToday();
 
+  const [year, month, day] =
+    today.split("-").map(Number);
+
+  const date = new Date(
+    Date.UTC(year, month - 1, day)
+  );
+
+  date.setUTCDate(
+    date.getUTCDate() + 1
+  );
+
+  return date
+    .toISOString()
+    .slice(0, 10);
+};
 /*
 ========================================================
 GET ACTUAL DATABASE COLUMNS
@@ -845,6 +862,41 @@ const applyEmployeeLeave =
               "The new Leave policy starts from 01-09-2026.",
           });
       }
+
+      /*
+======================================================
+PRIVILEGED LEAVE DATE RULE
+
+Half Day  → Today onwards
+Full Day  → Minimum 1 day in advance
+======================================================
+*/
+
+if (leaveType === "mandatory") {
+  const today =
+    getIndiaToday();
+
+  const minimumPrivilegedDate =
+    durationType === "half_day"
+      ? today
+      : getIndiaTomorrow();
+
+  if (
+    startDate <
+    minimumPrivilegedDate
+  ) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          durationType === "half_day"
+            ? "Half-day Privileged Leave can be applied from today onwards."
+            : "Full-day Privileged Leave must be applied for at least 1 day in advance.",
+      });
+  }
+}
 
       /*
       ------------------------------
@@ -1394,9 +1446,8 @@ const applyEmployeeLeave =
           .trim()
           .toLowerCase();
 
-      const isAdminApplicant =
+    const isAdminApplicant =
   applicantRole === "admin";
-
 
       /*
       ======================================================

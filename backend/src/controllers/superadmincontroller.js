@@ -3,15 +3,6 @@ const db = require("../config/db");
 const { sendMail } =
   require("../utils/emailservice");
 
-const PREMAL_LEAVE_EMAIL =
-  "premal.mehta@valencianutrition.com";
-
-const RATHIKA_LEAVE_EMAIL =
-  "rathika.haleangadi@valencianutrition.com";
-
-const MANISH_LEAVE_EMAIL =
-  "manish@valencianutrition.com";
-
 const getLeaveLabel = (type) => {
   if (type === "sick") {
     return "Sick Leave";
@@ -2551,36 +2542,18 @@ DATE_FORMAT(
               .trim()
               .toLowerCase(),
 
-          /*
-          Superadmin may take action
-          ONLY on Admin applications.
-          Employee applications remain
-          visible as read-only records.
-          */
-          can_superadmin_review:
-  (
+         can_superadmin_review:
+  [
+    "employee",
+    "admin",
+    "administrator",
+  ].includes(
     String(
       application.applicant_role ||
         ""
     )
       .trim()
-      .toLowerCase() === "admin"
-  ) ||
-  (
-    [
-      "employee",
-      "administrator",
-    ].includes(
-      String(
-        application.applicant_role ||
-          ""
-      )
-        .trim()
-        .toLowerCase()
-    ) &&
-    Number(
-      application.escalated_for_approval
-    ) === 1
+      .toLowerCase()
   ),
         })
       );
@@ -2816,39 +2789,20 @@ la.half_day_session,
              u.department_id
 
         WHERE
-          la.leave_id = ?
-          AND (
-  LOWER(
+  la.leave_id = ?
+
+  AND LOWER(
     TRIM(
       COALESCE(
         r.role_name,
         ''
       )
     )
-  ) = 'admin'
-
-  OR
-
-  (
-    LOWER(
-      TRIM(
-        COALESCE(
-          r.role_name,
-          ''
-        )
-      )
-    ) IN (
-      'employee',
-      'administrator'
-    )
-
-    AND COALESCE(
-      la.escalated_for_approval,
-      0
-    ) = 1
+  ) IN (
+    'employee',
+    'admin',
+    'administrator'
   )
-)
-
         LIMIT 1
 
         FOR UPDATE
@@ -3050,84 +3004,8 @@ try {
     reviewer.full_name ||
     "Manish Turakhia";
 
-  /*
-  Get all Department Admins
-  for this employee.
-  */
-  const [departmentAdmins] =
-    await db.query(
-      `
-      SELECT DISTINCT
-        u.email
-      FROM users u
 
-      INNER JOIN roles r
-        ON r.role_id = u.role_id
 
-      WHERE u.department_id = ?
-
-        AND LOWER(
-          TRIM(
-            COALESCE(
-              r.role_name,
-              ''
-            )
-          )
-        ) = 'admin'
-
-        AND LOWER(
-          COALESCE(
-            u.status,
-            'active'
-          )
-        ) = 'active'
-
-        AND u.email IS NOT NULL
-
-        AND TRIM(u.email) != ''
-      `,
-      [
-        leave.department_id,
-      ]
-    );
-
-  const departmentAdminEmails =
-    departmentAdmins
-      .map((item) =>
-        String(
-          item.email || ""
-        )
-          .trim()
-          .toLowerCase()
-      )
-      .filter(Boolean);
-
-  const ccRecipients = [
-    ...new Set(
-      [
-        MANISH_LEAVE_EMAIL,
-        PREMAL_LEAVE_EMAIL,
-        RATHIKA_LEAVE_EMAIL,
-        ...departmentAdminEmails,
-      ]
-        .map((email) =>
-          String(email || "")
-            .trim()
-            .toLowerCase()
-        )
-        .filter(
-          (email) =>
-            email &&
-            email !==
-              String(
-                leave.employee_email ||
-                  ""
-              )
-                .trim()
-                .toLowerCase()
-        )
-    ),
-  ];
 
   const leaveLabel =
     getLeaveLabel(
@@ -3376,22 +3254,19 @@ Valencia RMS
     </div>
   `;
 
-  const mailResponse =
-    await sendMail({
-      to: [
-        leave.employee_email,
-      ],
+ const mailResponse =
+  await sendMail({
+    to: [
+      leave.employee_email,
+    ],
 
-      cc:
-        ccRecipients,
+    subject:
+      emailSubject,
 
-      subject:
-        emailSubject,
+    text,
 
-      text,
-
-      html,
-    });
+    html,
+  });
 
   emailResult = {
     sent:
@@ -3407,11 +3282,10 @@ Valencia RMS
       null,
 
     recipients: [
-      leave.employee_email,
-    ],
+  leave.employee_email,
+],
 
-    cc:
-      ccRecipients,
+cc: [],
   };
 } catch (emailError) {
   console.error(

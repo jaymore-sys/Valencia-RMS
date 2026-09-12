@@ -1330,32 +1330,44 @@ return (
     selectedLeave
       .escalated_for_approval
   ) === 1 ? (
-    <section
-      style={
-        styles.reviewedBox
-      }
-    >
-      <div>
-        <span>Status</span>
+  <section
+  style={
+    styles.reviewedBox
+  }
+>
+  <div>
+    <span>Status</span>
 
-        <strong>
-          Pending – Escalated
-        </strong>
-      </div>
+    <strong>
+      Pending – Escalated
+    </strong>
+  </div>
 
-      <div>
-        <span>
-          Forwarded On
-        </span>
+  <div>
+    <span>
+      Forwarded By
+    </span>
 
-        <strong>
-          {formatDateTime(
-            selectedLeave
-              .escalated_at
-          )}
-        </strong>
-      </div>
-    </section>
+    <strong>
+      {selectedLeave
+        .escalated_by_name ||
+        "-"}
+    </strong>
+  </div>
+
+  <div>
+    <span>
+      Forwarded On
+    </span>
+
+    <strong>
+      {formatDateTime(
+        selectedLeave
+          .escalated_at
+      )}
+    </strong>
+  </div>
+</section>  
   ) : !(
   admin?.can_review_leave ||
   String(
@@ -1450,18 +1462,22 @@ return (
     Reject
   </button>
 
-{String(
-  admin?.role_name || ""
-)
-  .trim()
-  .toLowerCase() === "admin" &&
-String(
-  admin?.email || ""
-)
-  .trim()
-  .toLowerCase() !==
-  "rathika.haleangadi@valencianutrition.com" &&
-(
+{(
+  admin?.is_global_leave_approver ||
+  (
+    String(
+      admin?.role_name || ""
+    )
+      .trim()
+      .toLowerCase() === "admin" &&
+    String(
+      admin?.email || ""
+    )
+      .trim()
+      .toLowerCase() !==
+      "rathika.haleangadi@valencianutrition.com"
+  )
+) && (
   <button
     type="button"
     style={styles.furtherBtn}
