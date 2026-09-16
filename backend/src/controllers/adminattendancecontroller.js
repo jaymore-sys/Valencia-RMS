@@ -738,9 +738,35 @@ const getDepartmentAttendance = async (
              u.department_id
 
         WHERE
-          u.department_id = ?
+  (
+    EXISTS (
+      SELECT 1
+      FROM user_departments employee_ud
+      WHERE employee_ud.user_id = u.user_id
+        AND employee_ud.department_id IN (
+          SELECT admin_ud.department_id
+          FROM user_departments admin_ud
+          WHERE admin_ud.user_id = ?
+        )
+    )
 
-          AND LOWER(
+    OR u.department_id IN (
+      SELECT admin_ud.department_id
+      FROM user_departments admin_ud
+      WHERE admin_ud.user_id = ?
+    )
+
+    OR EXISTS (
+      SELECT 1
+      FROM user_departments employee_ud
+      WHERE employee_ud.user_id = u.user_id
+        AND employee_ud.department_id = ?
+    )
+
+    OR u.department_id = ?
+  )
+
+  AND LOWER(
             COALESCE(
               u.status,
               'active'
@@ -753,7 +779,10 @@ const getDepartmentAttendance = async (
           u.full_name ASC
         `,
         [
-          admin.department_id,
+           admin.user_id,
+  admin.user_id,
+  admin.department_id,
+  admin.department_id,
         ]
       );
 
@@ -1233,9 +1262,35 @@ const getDepartmentFieldVisits = async (req,res)=>{
        creator.role_id
 
   WHERE
-    creator.department_id = ?
+  (
+    EXISTS (
+      SELECT 1
+      FROM user_departments creator_ud
+      WHERE creator_ud.user_id = creator.user_id
+        AND creator_ud.department_id IN (
+          SELECT admin_ud.department_id
+          FROM user_departments admin_ud
+          WHERE admin_ud.user_id = ?
+        )
+    )
 
-    AND LOWER(
+    OR creator.department_id IN (
+      SELECT admin_ud.department_id
+      FROM user_departments admin_ud
+      WHERE admin_ud.user_id = ?
+    )
+
+    OR EXISTS (
+      SELECT 1
+      FROM user_departments creator_ud
+      WHERE creator_ud.user_id = creator.user_id
+        AND creator_ud.department_id = ?
+    )
+
+    OR creator.department_id = ?
+  )
+
+  AND LOWER(
       COALESCE(
         creator_role.role_name,
         ''
@@ -1247,7 +1302,10 @@ const getDepartmentFieldVisits = async (req,res)=>{
     fv.visit_id DESC
   `,
   [
-    admin.department_id
+    admin.user_id,
+  admin.user_id,
+  admin.department_id,
+  admin.department_id,
   ]
 );
 
@@ -1406,7 +1464,33 @@ const reviewFieldVisit = async (req, res) => {
         WHERE
           fv.visit_id = ?
 
-          AND employee.department_id = ?
+          AND (
+  EXISTS (
+    SELECT 1
+    FROM user_departments employee_ud
+    WHERE employee_ud.user_id = employee.user_id
+      AND employee_ud.department_id IN (
+        SELECT admin_ud.department_id
+        FROM user_departments admin_ud
+        WHERE admin_ud.user_id = ?
+      )
+  )
+
+  OR employee.department_id IN (
+    SELECT admin_ud.department_id
+    FROM user_departments admin_ud
+    WHERE admin_ud.user_id = ?
+  )
+
+  OR EXISTS (
+    SELECT 1
+    FROM user_departments employee_ud
+    WHERE employee_ud.user_id = employee.user_id
+      AND employee_ud.department_id = ?
+  )
+
+  OR employee.department_id = ?
+)
 
           AND employee.user_id <> ?
 
@@ -1417,10 +1501,13 @@ const reviewFieldVisit = async (req, res) => {
         LIMIT 1
         `,
         [
-          visitId,
-          admin.department_id,
-          admin.user_id,
-        ]
+  visitId,
+  admin.user_id,
+  admin.user_id,
+  admin.department_id,
+  admin.department_id,
+  admin.user_id,
+]
       );
 
     if (!visitRows.length) {

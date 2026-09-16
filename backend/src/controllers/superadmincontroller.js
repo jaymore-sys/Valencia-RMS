@@ -2448,6 +2448,7 @@ la.reviewed_by,
 
 la.escalated_for_approval,
 la.escalated_by,
+la.escalation_remark,
 
 DATE_FORMAT(
   la.escalated_at,
@@ -2484,7 +2485,13 @@ DATE_FORMAT(
             AS reviewed_by_name,
 
           reviewer.email
-            AS reviewed_by_email
+  AS reviewed_by_email,
+
+escalator.full_name
+  AS escalated_by_name,
+
+escalator.email
+  AS escalated_by_email
 
         FROM leave_applications la
 
@@ -2503,6 +2510,11 @@ DATE_FORMAT(
         LEFT JOIN users reviewer
           ON reviewer.user_id =
              la.reviewed_by
+
+
+        LEFT JOIN users escalator
+          ON escalator.user_id =
+             la.escalated_by
 
         ORDER BY
           CASE

@@ -1463,20 +1463,18 @@ return (
   </button>
 
 {(
-  admin?.is_global_leave_approver ||
-  (
-    String(
-      admin?.role_name || ""
-    )
-      .trim()
-      .toLowerCase() === "admin" &&
-    String(
-      admin?.email || ""
-    )
-      .trim()
-      .toLowerCase() !==
-      "rathika.haleangadi@valencianutrition.com"
+  String(
+    admin?.role_name || ""
   )
+    .trim()
+    .toLowerCase() === "admin" &&
+  !admin?.is_global_leave_approver &&
+  String(
+    admin?.email || ""
+  )
+    .trim()
+    .toLowerCase() !==
+    "rathika.haleangadi@valencianutrition.com"
 ) && (
   <button
     type="button"

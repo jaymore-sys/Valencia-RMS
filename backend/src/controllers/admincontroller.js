@@ -159,18 +159,44 @@ const getAdminDepartmentUsers = async (req, res) => {
       });
     }
 
-    const adminDepartmentId = adminUser.department_id;
-    const adminDepartmentName = adminUser.department_name;
+    const [adminDepartments] = await db.query(
+      `
+      SELECT DISTINCT
+        d.department_id,
+        d.department_name
+      FROM departments d
+      INNER JOIN user_departments ud
+        ON ud.department_id = d.department_id
+      WHERE ud.user_id = ?
 
-    if (!adminDepartmentId) {
+      UNION
+
+      SELECT
+        d.department_id,
+        d.department_name
+      FROM departments d
+      WHERE d.department_id = ?
+      `,
+      [adminUser.user_id, adminUser.department_id]
+    );
+
+    if (!adminDepartments.length) {
       return res.status(400).json({
         message: "Admin department is not assigned.",
       });
     }
 
+    const adminDepartmentIds = adminDepartments.map(
+      (department) => Number(department.department_id)
+    );
+
+    const placeholders = adminDepartmentIds
+      .map(() => "?")
+      .join(", ");
+
     const [users] = await db.query(
       `
-      SELECT 
+      SELECT DISTINCT
         u.user_id AS id,
         u.user_id,
         u.employee_code,
@@ -181,21 +207,61 @@ const getAdminDepartmentUsers = async (req, res) => {
         u.department_id,
         u.role_id,
         r.role_name,
-        d.department_name
+
+        COALESCE(
+          GROUP_CONCAT(
+            DISTINCT d.department_name
+            ORDER BY d.department_name
+            SEPARATOR ', '
+          ),
+          primary_department.department_name
+        ) AS department_name
+
       FROM users u
-      LEFT JOIN roles r 
+
+      LEFT JOIN roles r
         ON u.role_id = r.role_id
-      LEFT JOIN departments d 
-        ON u.department_id = d.department_id
-      WHERE u.department_id = ?
+
+      LEFT JOIN user_departments ud
+        ON ud.user_id = u.user_id
+
+      LEFT JOIN departments d
+        ON d.department_id = ud.department_id
+
+      LEFT JOIN departments primary_department
+        ON primary_department.department_id = u.department_id
+
+      WHERE
+        ud.department_id IN (${placeholders})
+        OR u.department_id IN (${placeholders})
+
+      GROUP BY
+        u.user_id,
+        u.employee_code,
+        u.full_name,
+        u.email,
+        u.phone,
+        u.designation,
+        u.department_id,
+        u.role_id,
+        r.role_name,
+        primary_department.department_name
+
       ORDER BY u.full_name ASC
       `,
-      [adminDepartmentId]
+      [...adminDepartmentIds, ...adminDepartmentIds]
     );
 
     return res.status(200).json({
-      department_id: adminDepartmentId,
-      department: adminDepartmentName,
+      department_ids: adminDepartmentIds,
+
+      departments: adminDepartments,
+
+      department:
+        adminDepartments
+          .map((department) => department.department_name)
+          .join(", "),
+
       total: users.length,
       users,
     });
@@ -608,25 +674,62 @@ const getAdminUserTimeSummary = async (req, res) => {
     Admin can only view employees from own department.
     --------------------------------------------------
     */
-    const [employeeRows] = await db.query(
-      `
-      SELECT
-        u.user_id,
-        u.employee_code,
-        u.full_name,
-        u.email,
-        u.designation,
-        u.department_id,
-        d.department_name
-      FROM users u
-      LEFT JOIN departments d
-        ON d.department_id = u.department_id
-      WHERE u.user_id = ?
-        AND u.department_id = ?
-      LIMIT 1
-      `,
-      [employeeId, adminUser.department_id]
-    );
+   const [employeeRows] = await db.query(
+  `
+    SELECT DISTINCT
+      u.user_id,
+      u.employee_code,
+      u.full_name,
+      u.email,
+      u.designation,
+      u.department_id,
+      primary_department.department_name
+
+    FROM users u
+
+    LEFT JOIN departments primary_department
+      ON primary_department.department_id = u.department_id
+
+    WHERE u.user_id = ?
+
+      AND (
+        EXISTS (
+          SELECT 1
+          FROM user_departments employee_ud
+          WHERE employee_ud.user_id = u.user_id
+            AND employee_ud.department_id IN (
+              SELECT admin_ud.department_id
+              FROM user_departments admin_ud
+              WHERE admin_ud.user_id = ?
+            )
+        )
+
+        OR u.department_id IN (
+          SELECT admin_ud.department_id
+          FROM user_departments admin_ud
+          WHERE admin_ud.user_id = ?
+        )
+
+        OR EXISTS (
+          SELECT 1
+          FROM user_departments employee_ud
+          WHERE employee_ud.user_id = u.user_id
+            AND employee_ud.department_id = ?
+        )
+
+        OR u.department_id = ?
+      )
+
+    LIMIT 1
+  `,
+  [
+    employeeId,
+    adminUser.user_id,
+    adminUser.user_id,
+    adminUser.department_id,
+    adminUser.department_id,
+  ]
+);
 
     if (!employeeRows.length) {
       return res.status(404).json({

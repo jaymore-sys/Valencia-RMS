@@ -359,107 +359,89 @@ GET DEPARTMENT ADMINS
 */
 
 const getDepartmentAdmins = async (
-  departmentId
+  employeeId,
+  legacyDepartmentId
 ) => {
-  if (!departmentId) {
+  if (!employeeId) {
     return [];
   }
 
   const [adminRows] =
     await db.query(
       `
-      SELECT DISTINCT
-        a.user_id,
-        a.full_name,
-        a.email,
-        a.department_id
+        SELECT DISTINCT
+          a.user_id,
+          a.full_name,
+          a.email,
+          a.department_id
 
-      FROM users a
+        FROM users a
 
-      INNER JOIN roles r
-        ON r.role_id =
-          a.role_id
+        INNER JOIN roles r
+          ON r.role_id = a.role_id
 
-      WHERE
-        a.department_id = ?
+        WHERE
+          LOWER(
+            COALESCE(
+              r.role_name,
+              ''
+            )
+          ) = 'admin'
 
-        AND LOWER(
-          COALESCE(
-            r.role_name,
-            ''
+          AND LOWER(
+            COALESCE(
+              a.status,
+              'active'
+            )
+          ) = 'active'
+
+          AND a.email IS NOT NULL
+
+          AND TRIM(a.email) != ''
+
+          AND (
+            EXISTS (
+              SELECT 1
+              FROM user_departments admin_ud
+              WHERE admin_ud.user_id = a.user_id
+                AND admin_ud.department_id IN (
+                  SELECT employee_ud.department_id
+                  FROM user_departments employee_ud
+                  WHERE employee_ud.user_id = ?
+                )
+            )
+
+            OR a.department_id IN (
+              SELECT employee_ud.department_id
+              FROM user_departments employee_ud
+              WHERE employee_ud.user_id = ?
+            )
+
+            OR EXISTS (
+              SELECT 1
+              FROM user_departments admin_ud
+              WHERE admin_ud.user_id = a.user_id
+                AND admin_ud.department_id = ?
+            )
+
+            OR a.department_id = ?
           )
-        ) = 'admin'
 
-        AND LOWER(
-          COALESCE(
-            a.status,
-            'active'
-          )
-        ) = 'active'
-
-        AND a.email IS NOT NULL
-
-        AND TRIM(a.email) != ''
-
-      ORDER BY
-        a.full_name ASC,
-        a.user_id ASC
+        ORDER BY
+          a.full_name ASC,
+          a.user_id ASC
       `,
-      [departmentId]
+      [
+        employeeId,
+        employeeId,
+        legacyDepartmentId,
+        legacyDepartmentId,
+      ]
     );
 
   return adminRows || [];
 };
 
-/*
-========================================================
-GET ACTIVE SUPERADMINS
-========================================================
-*/
-
-const getActiveSuperadmins = async () => {
-  const [superadminRows] =
-    await db.query(
-      `
-      SELECT DISTINCT
-        u.user_id,
-        u.full_name,
-        u.email,
-        u.department_id
-
-      FROM users u
-
-      INNER JOIN roles r
-        ON r.role_id =
-          u.role_id
-
-      WHERE
-        LOWER(
-          COALESCE(
-            r.role_name,
-            ''
-          )
-        ) = 'superadmin'
-
-        AND LOWER(
-          COALESCE(
-            u.status,
-            'active'
-          )
-        ) = 'active'
-
-        AND u.email IS NOT NULL
-
-        AND TRIM(u.email) != ''
-
-      ORDER BY
-        u.full_name ASC,
-        u.user_id ASC
-      `
-    );
-
-  return superadminRows || [];
-};
 
 /*
 ========================================================
@@ -1448,81 +1430,46 @@ if (leaveType === "mandatory") {
 
     const isAdminApplicant =
   applicantRole === "admin";
+  /*
+======================================================
+FIND LEAVE REVIEWERS
 
-      /*
-      ======================================================
-      FIND LEAVE REVIEWERS
+Employee / Administrator:
+→ Relevant Department Admin(s)
 
-      Employee:
-      → Department Admin(s)
+Admin:
+→ Premal handles through global leave approval access.
 
-      Admin:
-      → Superadmin(s)
+Manish / Superadmin receives NO leave email.
+======================================================
+*/
 
-      Superadmin is additionally
-      copied on Employee leave email.
-      ======================================================
-      */
+let departmentAdmins = [];
 
-      let departmentAdmins =
-        [];
+let reviewUsers = [];
 
-      let superadmins =
-        [];
+try {
+  if (!isAdminApplicant) {
+    departmentAdmins =
+      await getDepartmentAdmins(
+        employeeId,
+        employee.department_id
+      );
 
-      let reviewUsers =
-        [];
+    reviewUsers = [
+      ...departmentAdmins,
+    ];
+  }
+} catch (reviewerError) {
+  console.error(
+    "Leave reviewer lookup failed:",
+    reviewerError.message
+  );
 
-      try {
-        if (
-          isAdminApplicant
-        ) {
-          superadmins =
-            await getActiveSuperadmins();
-
-          reviewUsers =
-            superadmins;
-        } else {
-          departmentAdmins =
-            await getDepartmentAdmins(
-              employee.department_id
-            );
-
-          /*
-          NEW:
-          Superadmin also receives
-          Employee leave notification.
-          */
-
-          superadmins =
-            await getActiveSuperadmins();
-
-          /*
-          Existing approval owner remains
-          the Department Admin.
-          */
-
-          reviewUsers = [
-  ...departmentAdmins,
-];
-        }
-      } catch (
-        reviewerError
-      ) {
-        console.error(
-          "Leave reviewer lookup failed:",
-          reviewerError.message
-        );
-
-        departmentAdmins =
-          [];
-
-        superadmins =
-          [];
-
-        reviewUsers =
-          [];
-      }
+  departmentAdmins = [];
+  reviewUsers = [];
+}
+      
 
       /*
       Keep first reviewer for

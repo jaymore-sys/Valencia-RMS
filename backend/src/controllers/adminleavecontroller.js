@@ -216,7 +216,8 @@ if (
       'administrator'
     )
   `);
-} else {
+
+  } else {
   whereParts.push(`
     LOWER(
       TRIM(
@@ -225,14 +226,44 @@ if (
     ) = 'employee'
   `);
 
-  whereParts.push(
-    "employee.department_id = ?"
-  );
+  whereParts.push(`
+    (
+      EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id IN (
+            SELECT admin_ud.department_id
+            FROM user_departments admin_ud
+            WHERE admin_ud.user_id = ?
+          )
+      )
+
+      OR employee.department_id IN (
+        SELECT admin_ud.department_id
+        FROM user_departments admin_ud
+        WHERE admin_ud.user_id = ?
+      )
+
+      OR EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id = ?
+      )
+
+      OR employee.department_id = ?
+    )
+  `);
 
   values.push(
+    admin.user_id,
+    admin.user_id,
+    admin.department_id,
     admin.department_id
   );
-} 
+}
+
 
 
     if (statusFilter) {
@@ -384,11 +415,40 @@ if (
     ) = 'employee'
   `);
 
-  summaryWhereParts.push(
-    "employee.department_id = ?"
-  );
+  summaryWhereParts.push(`
+    (
+      EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id IN (
+            SELECT admin_ud.department_id
+            FROM user_departments admin_ud
+            WHERE admin_ud.user_id = ?
+          )
+      )
+
+      OR employee.department_id IN (
+        SELECT admin_ud.department_id
+        FROM user_departments admin_ud
+        WHERE admin_ud.user_id = ?
+      )
+
+      OR EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id = ?
+      )
+
+      OR employee.department_id = ?
+    )
+  `);
 
   summaryValues.push(
+    admin.user_id,
+    admin.user_id,
+    admin.department_id,
     admin.department_id
   );
 }
@@ -661,14 +721,43 @@ if (
     ) = 'employee'
   `);
 
-  leaveWhereParts.push(
-    "employee.department_id = ?"
-  );
+  leaveWhereParts.push(`
+    (
+      EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id IN (
+            SELECT admin_ud.department_id
+            FROM user_departments admin_ud
+            WHERE admin_ud.user_id = ?
+          )
+      )
+
+      OR employee.department_id IN (
+        SELECT admin_ud.department_id
+        FROM user_departments admin_ud
+        WHERE admin_ud.user_id = ?
+      )
+
+      OR EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id = ?
+      )
+
+      OR employee.department_id = ?
+    )
+  `);
 
   leaveValues.push(
+    admin.user_id,
+    admin.user_id,
+    admin.department_id,
     admin.department_id
   );
-} 
+}
 
 
 
@@ -1188,6 +1277,12 @@ const furtherApproveLeaveApplication = async (
         req.params.leaveId
       );
 
+      const escalationRemark = String(
+  req.body?.review_remark ||
+  req.body?.remark ||
+  ""
+).trim();
+
     if (
       !Number.isFinite(
         leaveId
@@ -1287,11 +1382,40 @@ if (
     ) = 'employee'
   `);
 
-  escalationWhereParts.push(
-    "employee.department_id = ?"
-  );
+  escalationWhereParts.push(`
+    (
+      EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id IN (
+            SELECT admin_ud.department_id
+            FROM user_departments admin_ud
+            WHERE admin_ud.user_id = ?
+          )
+      )
+
+      OR employee.department_id IN (
+        SELECT admin_ud.department_id
+        FROM user_departments admin_ud
+        WHERE admin_ud.user_id = ?
+      )
+
+      OR EXISTS (
+        SELECT 1
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = employee.user_id
+          AND employee_ud.department_id = ?
+      )
+
+      OR employee.department_id = ?
+    )
+  `);
 
   escalationValues.push(
+    admin.user_id,
+    admin.user_id,
+    admin.department_id,
     admin.department_id
   );
 }
@@ -1416,21 +1540,23 @@ d.department_name,
     */
 
     await connection.query(
-      `
-      UPDATE leave_applications
+  `
+  UPDATE leave_applications
 
-      SET
-        escalated_for_approval = 1,
-        escalated_by = ?,
-        escalated_at = NOW()
+  SET
+    escalated_for_approval = 1,
+    escalated_by = ?,
+    escalated_at = NOW(),
+    escalation_remark = ?
 
-      WHERE leave_id = ?
-      `,
-      [
-        admin.user_id,
-        leaveId,
-      ]
-    );
+  WHERE leave_id = ?
+  `,
+  [
+    admin.user_id,
+    escalationRemark || null,
+    leaveId,
+  ]
+);
 
     /*
     Create fresh review token
@@ -1472,43 +1598,67 @@ for escalated leave review.
     */
 
     const [adminRows] =
-      await connection.query(
-        `
-        SELECT DISTINCT
-          u.email
+  await connection.query(
+    `
+      SELECT DISTINCT
+        u.email
 
-        FROM users u
+      FROM users u
 
-        INNER JOIN roles r
-          ON r.role_id =
-             u.role_id
+      INNER JOIN roles r
+        ON r.role_id = u.role_id
 
-        WHERE
-          u.department_id = ?
+      WHERE
+        LOWER(
+          TRIM(r.role_name)
+        ) = 'admin'
 
-          AND LOWER(
-            TRIM(
-              r.role_name
-            )
-          ) = 'admin'
+        AND LOWER(
+          COALESCE(
+            u.status,
+            'active'
+          )
+        ) = 'active'
 
-          AND LOWER(
-            COALESCE(
-              u.status,
-              'active'
-            )
-          ) = 'active'
+        AND u.email IS NOT NULL
 
-          AND u.email IS NOT NULL
+        AND TRIM(u.email) != ''
 
-          AND TRIM(
-            u.email
-          ) != ''
-        `,
-        [
-  leave.employee_department_id,
-]
-      );
+        AND (
+          EXISTS (
+            SELECT 1
+            FROM user_departments admin_ud
+            WHERE admin_ud.user_id = u.user_id
+              AND admin_ud.department_id IN (
+                SELECT employee_ud.department_id
+                FROM user_departments employee_ud
+                WHERE employee_ud.user_id = ?
+              )
+          )
+
+          OR u.department_id IN (
+            SELECT employee_ud.department_id
+            FROM user_departments employee_ud
+            WHERE employee_ud.user_id = ?
+          )
+
+          OR EXISTS (
+            SELECT 1
+            FROM user_departments admin_ud
+            WHERE admin_ud.user_id = u.user_id
+              AND admin_ud.department_id = ?
+          )
+
+          OR u.department_id = ?
+        )
+    `,
+    [
+      leave.employee_id,
+      leave.employee_id,
+      leave.employee_department_id,
+      leave.employee_department_id,
+    ]
+  );
 
     const otherAdminEmails =
       adminRows

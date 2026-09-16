@@ -114,6 +114,28 @@ const SuperadminLeaveApplications = () => {
   return type || "-";
 };
 
+const getStatusLabel = (leave) => {
+  const status = String(
+    leave?.status || "pending"
+  )
+    .trim()
+    .toLowerCase();
+
+  if (
+    status === "pending" &&
+    Number(
+      leave?.escalated_for_approval
+    ) === 1
+  ) {
+    return "Pending – Escalated";
+  }
+
+  return (
+    status.charAt(0).toUpperCase() +
+    status.slice(1)
+  );
+};
+
   const getDurationLabel = (
     leave
   ) => {
@@ -672,9 +694,8 @@ return (
   All Leave Requests
 </h2>
 
-            <p style={styles.sectionSubtitle}>
-  Employee requests are view-only.
-  Admin requests require Superadmin review.
+           <p style={styles.sectionSubtitle}>
+  Review leave requests from Employees, Admins and Administrators.
 </p>
           </div>
 
@@ -929,25 +950,18 @@ return (
                           style={{
                             ...styles.statusBadge,
 
-                            ...(leave.status ===
-                            "approved"
-                              ? styles.approvedBadge
-                              : leave.status ===
-                                "rejected"
-                              ? styles.rejectedBadge
-                              : styles.pendingBadge),
+                            ...(leave.status === "approved"
+  ? styles.approvedBadge
+  : leave.status === "rejected"
+  ? styles.rejectedBadge
+  : Number(
+      leave.escalated_for_approval
+    ) === 1
+  ? styles.escalatedBadge
+  : styles.pendingBadge),
                           }}
                         >
-                          {String(
-                            leave.status ||
-                              "pending"
-                          )
-                            .charAt(0)
-                            .toUpperCase() +
-                            String(
-                              leave.status ||
-                                "pending"
-                            ).slice(1)}
+                          {getStatusLabel(leave)}
                         </span>
                       </td>
 
@@ -1016,25 +1030,18 @@ return (
                 style={{
                   ...styles.statusBadge,
 
-                  ...(selectedLeave.status ===
-                  "approved"
-                    ? styles.approvedBadge
-                    : selectedLeave.status ===
-                      "rejected"
-                    ? styles.rejectedBadge
-                    : styles.pendingBadge),
+                 ...(selectedLeave.status === "approved"
+  ? styles.approvedBadge
+  : selectedLeave.status === "rejected"
+  ? styles.rejectedBadge
+  : Number(
+      selectedLeave.escalated_for_approval
+    ) === 1
+  ? styles.escalatedBadge
+  : styles.pendingBadge),
                 }}
               >
-                {String(
-                  selectedLeave.status ||
-                    "pending"
-                )
-                  .charAt(0)
-                  .toUpperCase() +
-                  String(
-                    selectedLeave.status ||
-                      "pending"
-                  ).slice(1)}
+                {getStatusLabel(selectedLeave)}
               </span>
             </div>
 
@@ -1168,6 +1175,41 @@ return (
               </p>
             </div>
 
+            {Number(
+  selectedLeave.escalated_for_approval
+) === 1 && (
+  <div style={styles.reasonBox}>
+    <span
+      style={{
+        color: "#b91c1c",
+        fontWeight: 900,
+      }}
+    >
+      Escalated
+    </span>
+
+    <p>
+      <strong>Escalated By:</strong>{" "}
+      {selectedLeave.escalated_by_name ||
+        selectedLeave.escalated_by_email ||
+        "-"}
+    </p>
+
+    <p>
+      <strong>Escalated On:</strong>{" "}
+      {formatDateTime(
+        selectedLeave.escalated_at
+      )}
+    </p>
+
+    <p>
+      <strong>Escalation Remark:</strong>{" "}
+      {selectedLeave.escalation_remark ||
+        "-"}
+    </p>
+  </div>
+)}
+
             {selectedBalance && (
               <section
                 style={
@@ -1288,35 +1330,18 @@ return (
               </div>
             )}
 
-            {selectedLeave.status ===
-  "pending" &&
-(
+         {selectedLeave.status === "pending" &&
+[
+  "employee",
+  "admin",
+  "administrator",
+].includes(
   String(
-    selectedLeave.applicant_role ||
-      ""
+    selectedLeave.applicant_role || ""
   )
     .trim()
-    .toLowerCase() ===
-    "admin" ||
-
-  (
-    [
-      "employee",
-      "administrator",
-    ].includes(
-      String(
-        selectedLeave.applicant_role ||
-          ""
-      )
-        .trim()
-        .toLowerCase()
-    ) &&
-    Number(
-      selectedLeave
-        .escalated_for_approval
-    ) === 1
-  )
-) ? (
+    .toLowerCase()
+) ? (  
   <>
     <label
       style={
@@ -1872,6 +1897,14 @@ adminRoleBadge: {
     background: "#fef3c7",
     color: "#92400e",
   },
+
+  escalatedBadge: {
+  background: "#fee2e2",
+  color: "#b91c1c",
+  border: "1px solid #fecaca",
+},
+
+
 
   approvedBadge: {
     background: "#dcfce7",

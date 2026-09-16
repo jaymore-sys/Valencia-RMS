@@ -126,8 +126,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to load users."
+        error.response?.data?.message ||
+        "Failed to load users."
       );
     } finally {
       setLoading(false);
@@ -184,8 +184,7 @@ const AdministratorUsers = () => {
       const response = await api.post("/administrator/users", form);
 
       setMessage(
-        `${response.data.message || "User created successfully."} Default Password: ${
-          response.data.default_password || "Valencia@123"
+        `${response.data.message || "User created successfully."} Default Password: ${response.data.default_password || "Valencia@123"
         }`
       );
 
@@ -195,8 +194,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to create user."
+        error.response?.data?.message ||
+        "Failed to create user."
       );
     } finally {
       setCreating(false);
@@ -273,8 +272,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to add department."
+        error.response?.data?.message ||
+        "Failed to add department."
       );
     } finally {
       setCreatingDepartment(false);
@@ -313,18 +312,15 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        `${response.data.message || "Users imported successfully."} Imported: ${
-          response.data.inserted_users ??
-          response.data.importedRows ??
-          0
-        }, Updated: ${
-          response.data.updated_users ??
-          response.data.updatedRows ??
-          0
-        }, Skipped: ${
-          response.data.skipped_rows ??
-          response.data.skippedRows ??
-          0
+        `${response.data.message || "Users imported successfully."} Imported: ${response.data.inserted_users ??
+        response.data.importedRows ??
+        0
+        }, Updated: ${response.data.updated_users ??
+        response.data.updatedRows ??
+        0
+        }, Skipped: ${response.data.skipped_rows ??
+        response.data.skippedRows ??
+        0
         }`
       );
 
@@ -332,8 +328,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to import users."
+        error.response?.data?.message ||
+        "Failed to import users."
       );
     } finally {
       setImporting(false);
@@ -425,11 +421,6 @@ const AdministratorUsers = () => {
   const toggleDepartment = (departmentId) => {
     const id = Number(departmentId);
 
-    if (normalizeRole(selectedRole) !== "admin") {
-      setSelectedDepartmentIds([id]);
-      return;
-    }
-
     setSelectedDepartmentIds((previous) => {
       if (previous.includes(id)) {
         return previous.filter((item) => item !== id);
@@ -453,12 +444,6 @@ const AdministratorUsers = () => {
     const nextRole = event.target.value;
 
     setSelectedRole(nextRole);
-
-    if (normalizeRole(nextRole) !== "admin") {
-      setSelectedDepartmentIds((previous) =>
-        previous.length ? [previous[0]] : []
-      );
-    }
   };
 
   const updateUserRole = async () => {
@@ -485,8 +470,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to update user role."
+        error.response?.data?.message ||
+        "Failed to update user role."
       );
     } finally {
       setUpdatingRole(false);
@@ -535,8 +520,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to update user details."
+        error.response?.data?.message ||
+        "Failed to update user details."
       );
     } finally {
       setUpdatingDetails(false);
@@ -575,8 +560,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to update user password."
+        error.response?.data?.message ||
+        "Failed to update user password."
       );
     } finally {
       setUpdatingPassword(false);
@@ -606,8 +591,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to update user status."
+        error.response?.data?.message ||
+        "Failed to update user status."
       );
     }
   };
@@ -631,8 +616,7 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        `${response.data.message} Default Password: ${
-          response.data.default_password || "Valencia@123"
+        `${response.data.message} Default Password: ${response.data.default_password || "Valencia@123"
         }`
       );
 
@@ -640,8 +624,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to reset password."
+        error.response?.data?.message ||
+        "Failed to reset password."
       );
     }
   };
@@ -672,8 +656,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-          error.response?.data?.message ||
-          "Failed to delete user."
+        error.response?.data?.message ||
+        "Failed to delete user."
       );
     }
   };
@@ -1182,17 +1166,17 @@ const AdministratorUsers = () => {
                   </div>
                 </div>
 
-                {normalizeRole(selectedRole) === "admin" ? (
+                {["admin", "employee"].includes(normalizeRole(selectedRole)) ? (
                   <div className="admin-departments-section">
                     <div className="admin-departments-title-row">
                       <div className="admin-departments-header">
                         <h4>
-                          Admin Departments
+                          Departments
                         </h4>
 
                         <p>
                           Select all departments
-                          this Admin should manage.
+  this user should belong to.
                         </p>
                       </div>
 
@@ -1225,11 +1209,10 @@ const AdministratorUsers = () => {
                               key={
                                 department.department_id
                               }
-                              className={`admin-department-card ${
-                                isChecked
+                              className={`admin-department-card ${isChecked
                                   ? "selected"
                                   : ""
-                              }`}
+                                }`}
                             >
                               <input
                                 type="checkbox"
