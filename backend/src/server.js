@@ -48,6 +48,10 @@ const {
   startDeadlineEmailJob
 } = require("./jobs/deadlineemailjob");
 
+const {
+  startMiniTaskTimerJob
+} = require("./jobs/minitasktimerjob");
+
 
 
 const app = express();
@@ -490,6 +494,7 @@ console.log(
 
 
 startDeadlineEmailJob();
+startMiniTaskTimerJob();
 
 
 }

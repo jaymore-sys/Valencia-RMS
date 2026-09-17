@@ -323,7 +323,7 @@ const departmentCondition = "";
     r.role_name,
     ''
   )
-) IN ('employee', 'administrator', 'admin')
+) IN ('employee', 'administrator')
 
       ORDER BY
         u.full_name ASC
@@ -1122,17 +1122,20 @@ const createAdminProject = async (
           "Select at least one project employee.",
       });
     }
+      /*
+    Cross-department assignment is allowed.
 
-    /*
-    Ensure selected employees belong to Admin's department.
+    Validate only that every selected assignee:
+    - exists
+    - is active
+    - has an allowed employee-working role
+
+    Department is intentionally NOT checked here.
     */
 
-    if (
-      adminDepartmentId
-    ) {
-      const [validEmployees] =
-        await connection.query(
-          `
+    const [validEmployees] =
+      await connection.query(
+        `
           SELECT
             u.user_id
 
@@ -1145,8 +1148,6 @@ const createAdminProject = async (
           WHERE
             u.user_id IN (?)
 
-            AND u.department_id = ?
-
             AND LOWER(
               COALESCE(
                 u.status,
@@ -1155,47 +1156,39 @@ const createAdminProject = async (
             ) = 'active'
 
             AND LOWER(
-  COALESCE(
-    r.role_name,
-    ''
-  )
-) NOT IN ('superadmin')
-          `,
-          [
-            assigneeIds,
-            adminDepartmentId,
-          ]
-        );
-
-      const validIds =
-        new Set(
-          validEmployees.map(
-            (employee) =>
-              Number(
-                employee.user_id
+              COALESCE(
+                r.role_name,
+                ''
               )
-          )
-        );
-
-      const invalidIds =
-        assigneeIds.filter(
-          (id) =>
-            !validIds.has(
-              Number(id)
+            ) IN (
+              'employee',
+              'administrator'
             )
-        );
+        `,
+        [assigneeIds]
+      );
 
-      if (
-        invalidIds.length
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "One or more selected employees do not belong to your department.",
-        });
-      }
+    const validIds =
+      new Set(
+        validEmployees.map(
+          (employee) =>
+            Number(employee.user_id)
+        )
+      );
+
+    const invalidIds =
+      assigneeIds.filter(
+        (id) =>
+          !validIds.has(Number(id))
+      );
+
+    if (invalidIds.length) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "One or more selected employees are invalid or inactive.",
+      });
     }
-
     await connection.beginTransaction();
 
     const [result] =

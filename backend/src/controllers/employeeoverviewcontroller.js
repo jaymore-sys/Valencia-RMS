@@ -316,98 +316,155 @@ const getEmployeeOverview = async (req, res) => {
     /* =====================================================
        6. ACTIVITY LOG
 
-       Also use task_assignments so activities belong
-       to the employee even when assigned through the
-       assignment table.
+       Completed Subtasks + Mini Tasks
     ===================================================== */
 
     const [activityLog] = await db.query(
       `
-      SELECT
-        st.task_id AS activity_id,
+        SELECT
+          activity_id,
+          title,
+          description,
+          created_at
 
-        'Subtask Completed' AS title,
+        FROM (
+          /* COMPLETED SUBTASKS */
 
-        CONCAT(
-          st.task_title,
-          ' is Done.'
-        ) AS description,
+          SELECT
+            CONCAT(
+              'task-',
+              st.task_id
+            ) AS activity_id,
 
-        DATE_FORMAT(
-          COALESCE(
-            st.updated_at,
-            st.created_at
-          ),
-          '%Y-%m-%d %H:%i'
-        ) AS created_at
+            'Subtask Completed' AS title,
 
-      FROM tasks st
+            CONCAT(
+              st.task_title,
+              ' is Done.'
+            ) AS description,
 
-      INNER JOIN tasks mt
-        ON mt.task_id =
-           st.parent_task_id
+            COALESCE(
+              st.updated_at,
+              st.created_at
+            ) AS activity_datetime,
 
-      INNER JOIN task_assignments ta
-        ON ta.task_id =
-           mt.task_id
+            DATE_FORMAT(
+              COALESCE(
+                st.updated_at,
+                st.created_at
+              ),
+              '%Y-%m-%d %H:%i'
+            ) AS created_at
 
-       AND ta.employee_id = ?
+          FROM tasks st
 
-      WHERE
-        (
-          st.is_checked = 1
+          INNER JOIN tasks mt
+            ON mt.task_id = st.parent_task_id
 
-          OR LOWER(
-            REPLACE(
-              st.status,
-              ' ',
-              '_'
+          INNER JOIN task_assignments ta
+            ON ta.task_id = mt.task_id
+           AND ta.employee_id = ?
+
+          WHERE
+            (
+              st.is_checked = 1
+
+              OR LOWER(
+                REPLACE(
+                  st.status,
+                  ' ',
+                  '_'
+                )
+              ) IN (
+                'completed',
+                'done',
+                'complete'
+              )
             )
-          ) IN (
-            'completed',
-            'done',
-            'complete'
-          )
-        )
 
-      ORDER BY
-        COALESCE(
-          st.updated_at,
-          st.created_at
-        ) DESC
+          UNION ALL
 
-      LIMIT 5
+          /* MINI TASKS */
+
+          SELECT
+            CONCAT(
+              'mini-task-',
+              mini.mini_task_id
+            ) AS activity_id,
+
+            'Mini Task' AS title,
+
+            CONCAT(
+              mini.mini_task_title,
+
+              CASE
+                WHEN mini.division IS NOT NULL
+                  AND TRIM(mini.division) <> ''
+                THEN CONCAT(
+                  ' · ',
+                  mini.division
+                )
+                ELSE ''
+              END
+            ) AS description,
+
+            COALESCE(
+              mini.edited_at,
+              mini.created_at
+            ) AS activity_datetime,
+
+            DATE_FORMAT(
+              COALESCE(
+                mini.edited_at,
+                mini.created_at
+              ),
+              '%Y-%m-%d %H:%i'
+            ) AS created_at
+
+          FROM mini_tasks mini
+
+          WHERE mini.employee_id = ?
+
+        ) activity
+
+        ORDER BY
+          activity_datetime DESC
+
+        LIMIT 5
       `,
-      [userId]
+      [
+        userId,
+        userId,
+      ]
     );
 
     /* =====================================================
        7. ATTENDANCE
     ===================================================== */
 
-    const [latestAttendanceRows] =
-      await db.query(
-        `
-        SELECT
-          MAX(attendance_date)
-            AS latest_date
+const [latestAttendanceRows] =
+  await db.query(
+    `
+      SELECT
+        MAX(attendance_date)
+          AS latest_date
 
-        FROM attendance
+      FROM attendance
 
-        WHERE employee_id = ?
-        `,
-        [userId]
-      );
+      WHERE employee_id = ?
+    `,
+    [userId]
+  );
 
-    const latestDate =
-      latestAttendanceRows[0]
-        ?.latest_date;
+const latestDate =
+  latestAttendanceRows[0]
+    ?.latest_date;
 
-    let weeklyAttendance = [];
+let weeklyAttendance = [];
 
-    if (latestDate) {
-      const [attendanceRows] =
-        await db.query(
+if (latestDate) {
+  const [attendanceRows] =
+    await db.query(
           `
           SELECT
             attendance_id,
