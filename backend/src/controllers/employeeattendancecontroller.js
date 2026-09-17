@@ -6,8 +6,7 @@ const {
 
 const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
-const MANISH_FIELD_VISIT_EMAIL =
-  "manish@valencianutrition.com";
+
   const ATTENDANCE_SYSTEM_START_DATE =
   "2026-04-01";
 const tableColumnsCache = {};
@@ -1208,9 +1207,8 @@ VALUES
       ];
 
       let ccEmails = [
-        HR_FIELD_VISIT_EMAIL,
-        MANISH_FIELD_VISIT_EMAIL,
-      ];
+  HR_FIELD_VISIT_EMAIL,
+];
 
       // Remove duplicates across TO and CC.
       toEmails = [
@@ -1244,13 +1242,12 @@ VALUES
       // If no department Admin is configured,
       // fixed recipients must still receive the request.
       if (toEmails.length === 0) {
-        toEmails = [
-          HR_FIELD_VISIT_EMAIL,
-          MANISH_FIELD_VISIT_EMAIL,
-        ];
-        ccEmails = [];
-      }
+  toEmails = [
+    HR_FIELD_VISIT_EMAIL,
+  ];
 
+  ccEmails = [];
+}
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
 
