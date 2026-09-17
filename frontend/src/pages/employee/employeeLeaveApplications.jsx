@@ -878,6 +878,115 @@ const [
           0
         )
         : 0;
+        const privilegedMaxEndDate = (() => {
+  if (
+    selectedLeaveType !== "mandatory" ||
+    form.duration_type !== "full_day" ||
+    !form.start_date
+  ) {
+    return "";
+  }
+
+  const allowedFullDays =
+    Math.floor(selectedAvailable);
+
+  if (allowedFullDays < 1) {
+    return form.start_date;
+  }
+
+  const date = new Date(
+    `${form.start_date}T00:00:00`
+  );
+
+  date.setDate(
+    date.getDate() +
+      allowedFullDays -
+      1
+  );
+
+  const year =
+    date.getFullYear();
+
+  const month =
+    String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+  const day =
+    String(
+      date.getDate()
+    ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+})();
+
+const privilegedRuleMessage = (() => {
+  if (
+    selectedLeaveType !== "mandatory" ||
+    calculateDays <= 0
+  ) {
+    return "";
+  }
+
+  /*
+  ========================================
+  BALANCE RULE
+  ========================================
+  */
+
+  if (
+    calculateDays >
+    selectedAvailable
+  ) {
+    return `You only have ${formatDays(
+      selectedAvailable
+    )} day(s) of Privileged Leave available. Please select a shorter leave duration.`;
+  }
+
+  /*
+  ========================================
+  3+ DAYS / 15 DAYS PRIOR RULE
+  ========================================
+  */
+
+  if (
+    form.duration_type === "full_day" &&
+    calculateDays >= 3 &&
+    form.start_date
+  ) {
+    const todayParts =
+      getTodayDate()
+        .split("-")
+        .map(Number);
+
+    const minimumDate =
+      new Date(
+        todayParts[0],
+        todayParts[1] - 1,
+        todayParts[2]
+      );
+
+    minimumDate.setDate(
+      minimumDate.getDate() + 15
+    );
+
+    const minimum15DayDate =
+      `${minimumDate.getFullYear()}-${String(
+        minimumDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(
+        minimumDate.getDate()
+      ).padStart(2, "0")}`;
+
+    if (
+      form.start_date <
+      minimum15DayDate
+    ) {
+      return "Privileged Leave of 3 or more consecutive days must be applied for at least 15 days in advance.";
+    }
+  }
+
+  return "";
+})();
 
     const fetchLeaveData =
       async () => {
@@ -1221,6 +1330,55 @@ const [
 
         return;
       }
+
+      /*
+========================================
+PRIVILEGED LEAVE - 3+ DAYS RULE
+
+3 or more consecutive full days
+must be applied at least 15 days prior.
+========================================
+*/
+
+if (
+  selectedLeaveType === "mandatory" &&
+  form.duration_type === "full_day" &&
+  calculateDays >= 3
+) {
+  const todayParts =
+    getTodayDate()
+      .split("-")
+      .map(Number);
+
+  const minimumDate =
+    new Date(
+      todayParts[0],
+      todayParts[1] - 1,
+      todayParts[2]
+    );
+
+  minimumDate.setDate(
+    minimumDate.getDate() + 15
+  );
+
+  const minimum15DayDate =
+    `${minimumDate.getFullYear()}-${String(
+      minimumDate.getMonth() + 1
+    ).padStart(2, "0")}-${String(
+      minimumDate.getDate()
+    ).padStart(2, "0")}`;
+
+  if (
+    form.start_date <
+    minimum15DayDate
+  ) {
+    setError(
+      "Privileged Leave for 3 or more consecutive days must be applied at least 15 days in advance."
+    );
+
+    return;
+  }
+}
 
       /*
       ========================================
@@ -1925,15 +2083,19 @@ const canApplyUnpaidLeave =
                 )}
               </p>
 
-              {error && (
-                <div
-                  style={
-                    styles.modalError
-                  }
-                >
-                  {error}
-                </div>
-              )}
+              {(
+  error ||
+  privilegedRuleMessage
+) && (
+  <div
+    style={
+      styles.modalError
+    }
+  >
+    {error ||
+      privilegedRuleMessage}
+  </div>
+)}
 
               {selectedLeaveType ===
                 "festival" ? (
@@ -2314,11 +2476,11 @@ const canApplyUnpaidLeave =
                           : "From Date"}
                       </span>
 
-                      <input
-                        type="date"
-                        min={
-                          selectedMinimumLeaveDate
-                        }
+                     <input
+  type="date"
+  min={
+    selectedMinimumLeaveDate
+  }
                         style={
                           styles.input
                         }
@@ -2369,33 +2531,53 @@ const canApplyUnpaidLeave =
                           </span>
 
                           <input
-                            type="date"
-                            min={
-                              form.start_date ||
-                              selectedMinimumLeaveDate
-                            }
+  type="date"
+  min={
+    form.start_date ||
+    selectedMinimumLeaveDate
+  }
+  max={
+    selectedLeaveType ===
+      "mandatory" &&
+    privilegedMaxEndDate
+      ? privilegedMaxEndDate
+      : undefined
+  }
                             style={
                               styles.input
                             }
                             value={
                               form.end_date
                             }
-                            onChange={(
-                              event
-                            ) =>
-                              setForm(
-                                (
-                                  previous
-                                ) => ({
-                                  ...previous,
+                            onChange={(event) => {
+  const value =
+    event.target.value;
 
-                                  end_date:
-                                    event
-                                      .target
-                                      .value,
-                                })
-                              )
-                            }
+  if (
+    selectedLeaveType ===
+      "mandatory" &&
+    privilegedMaxEndDate &&
+    value >
+      privilegedMaxEndDate
+  ) {
+    setError(
+      `You only have ${formatDays(
+        selectedAvailable
+      )} day(s) of Privileged Leave available. Please select a shorter leave duration.`
+    );
+
+    return;
+  }
+
+  setError("");
+
+  setForm(
+    (previous) => ({
+      ...previous,
+      end_date: value,
+    })
+  );
+}}
                           />
                         </label>
                       )}
@@ -2538,16 +2720,20 @@ const canApplyUnpaidLeave =
                 <button
                   type="button"
                   style={
-                    submitting
-                      ? styles.disabledSubmitBtn
-                      : styles.submitBtn
-                  }
+  submitting ||
+  privilegedRuleMessage
+    ? styles.disabledSubmitBtn
+    : styles.submitBtn
+}
                   onClick={
                     handleApply
                   }
                   disabled={
-                    submitting
-                  }
+  submitting ||
+  Boolean(
+    privilegedRuleMessage
+  )
+}
                 >
                   <Send size={18} />
 

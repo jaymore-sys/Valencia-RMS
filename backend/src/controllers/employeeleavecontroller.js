@@ -845,40 +845,7 @@ const applyEmployeeLeave =
           });
       }
 
-      /*
-======================================================
-PRIVILEGED LEAVE DATE RULE
-
-Half Day  → Today onwards
-Full Day  → Minimum 1 day in advance
-======================================================
-*/
-
-if (leaveType === "mandatory") {
-  const today =
-    getIndiaToday();
-
-  const minimumPrivilegedDate =
-    durationType === "half_day"
-      ? today
-      : getIndiaTomorrow();
-
-  if (
-    startDate <
-    minimumPrivilegedDate
-  ) {
-    return res
-      .status(400)
-      .json({
-        success: false,
-
-        message:
-          durationType === "half_day"
-            ? "Half-day Privileged Leave can be applied from today onwards."
-            : "Full-day Privileged Leave must be applied for at least 1 day in advance.",
-      });
-  }
-}
+      
 
       /*
       ------------------------------
@@ -1177,6 +1144,88 @@ if (leaveType === "mandatory") {
             });
         }
       }
+
+      /*
+======================================================
+PRIVILEGED LEAVE DATE RULES
+
+Half Day → Today onwards
+1-2 Full Days → Minimum 1 day in advance
+3+ Full Days → Minimum 15 days in advance
+======================================================
+*/
+
+if (
+  leaveType === "mandatory"
+) {
+  const today =
+    getIndiaToday();
+
+  const [
+    year,
+    month,
+    day,
+  ] = today
+    .split("-")
+    .map(Number);
+
+  const getFutureDate = (
+    numberOfDays
+  ) => {
+    const date =
+      new Date(
+        Date.UTC(
+          year,
+          month - 1,
+          day
+        )
+      );
+
+    date.setUTCDate(
+      date.getUTCDate() +
+        numberOfDays
+    );
+
+    return date
+      .toISOString()
+      .slice(0, 10);
+  };
+
+  let minimumPrivilegedDate;
+
+  if (
+    durationType === "half_day"
+  ) {
+    minimumPrivilegedDate =
+      today;
+  } else if (
+    totalDays >= 3
+  ) {
+    minimumPrivilegedDate =
+      getFutureDate(15);
+  } else {
+    minimumPrivilegedDate =
+      getFutureDate(1);
+  }
+
+  if (
+    startDate <
+    minimumPrivilegedDate
+  ) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          durationType === "half_day"
+            ? "Half-day Privileged Leave can be applied from today onwards."
+            : totalDays >= 3
+            ? "Privileged Leave for 3 or more consecutive days must be applied at least 15 days in advance."
+            : "Full-day Privileged Leave must be applied for at least 1 day in advance.",
+      });
+  }
+}
 
       /*
       ------------------------------
