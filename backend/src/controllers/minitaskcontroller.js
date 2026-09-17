@@ -884,30 +884,34 @@ const getDepartmentMiniTasks = async (req, res) => {
         LEFT JOIN departments d
           ON d.department_id = mt.department_id
 
-        WHERE EXISTS (
-          SELECT 1
-          FROM (
-            SELECT ud.department_id
-            FROM user_departments ud
-            WHERE ud.user_id = mt.employee_id
+       WHERE (
+  EXISTS (
+    SELECT 1
+    FROM user_departments ud
+    WHERE
+      ud.user_id = mt.employee_id
+      AND ud.department_id IN (${placeholders})
+  )
 
-            UNION
-
-            SELECT u2.department_id
-            FROM users u2
-            WHERE u2.user_id = mt.employee_id
-              AND u2.department_id IS NOT NULL
-          ) employee_departments
-          WHERE employee_departments.department_id
-            IN (${placeholders})
-        )
+  OR EXISTS (
+    SELECT 1
+    FROM users u2
+    WHERE
+      u2.user_id = mt.employee_id
+      AND u2.department_id IS NOT NULL
+      AND u2.department_id IN (${placeholders})
+  )
+)
 
         ORDER BY
           COALESCE(mt.start_date, mt.task_date) DESC,
           mt.start_time DESC,
           mt.mini_task_id DESC
       `,
-      departmentIds
+      [
+        ...departmentIds,
+        ...departmentIds,
+      ]
     );
 
     return res.status(200).json({
@@ -960,36 +964,60 @@ const markMiniTaskReviewed = async (req, res) => {
       });
     }
 
-    const placeholders = departmentIds.map(() => "?").join(",");
+    const placeholders = departmentIds
+  .map(() => "?")
+  .join(",");
 
-    const [rows] = await db.query(
-      `
-        SELECT
-          mt.mini_task_id,
-          mt.employee_id
-        FROM mini_tasks mt
-        WHERE mt.mini_task_id = ?
-          AND EXISTS (
-            SELECT 1
-            FROM (
-              SELECT ud.department_id
-              FROM user_departments ud
-              WHERE ud.user_id = mt.employee_id
+const [rows] = await db.query(
+  `
+    SELECT
+      mt.mini_task_id,
+      mt.employee_id
 
-              UNION
+    FROM mini_tasks mt
 
-              SELECT u.department_id
-              FROM users u
-              WHERE u.user_id = mt.employee_id
-                AND u.department_id IS NOT NULL
-            ) employee_departments
-            WHERE employee_departments.department_id
+    WHERE
+      mt.mini_task_id = ?
+
+      AND
+      (
+        EXISTS (
+          SELECT 1
+
+          FROM user_departments ud
+
+          WHERE
+            ud.user_id =
+              mt.employee_id
+
+            AND ud.department_id
               IN (${placeholders})
-          )
-        LIMIT 1
-      `,
-      [miniTaskId, ...departmentIds]
-    );
+        )
+
+        OR
+
+        EXISTS (
+          SELECT 1
+
+          FROM users u
+
+          WHERE
+            u.user_id =
+              mt.employee_id
+
+            AND u.department_id
+              IN (${placeholders})
+        )
+      )
+
+    LIMIT 1
+  `,
+  [
+    miniTaskId,
+    ...departmentIds,
+    ...departmentIds,
+  ]
+);
 
     if (!rows.length) {
       return res.status(404).json({
