@@ -318,125 +318,70 @@ const getEmployeeOverview = async (req, res) => {
 
        Completed Subtasks + Mini Tasks
     ===================================================== */
+    /* =====================================================
+       6. ACTIVITY LOG
+    ===================================================== */
 
     const [activityLog] = await db.query(
       `
-        SELECT
-          activity_id,
-          title,
-          description,
-          created_at
+      SELECT
+        st.task_id AS activity_id,
 
-        FROM (
-          /* COMPLETED SUBTASKS */
+        'Subtask Completed' AS title,
 
-          SELECT
-            CONCAT(
-              'task-',
-              st.task_id
-            ) AS activity_id,
+        CONCAT(
+          st.task_title,
+          ' is Done.'
+        ) AS description,
 
-            'Subtask Completed' AS title,
+        DATE_FORMAT(
+          COALESCE(
+            st.updated_at,
+            st.created_at
+          ),
+          '%Y-%m-%d %H:%i'
+        ) AS created_at
 
-            CONCAT(
-              st.task_title,
-              ' is Done.'
-            ) AS description,
+      FROM tasks st
 
-            COALESCE(
-              st.updated_at,
-              st.created_at
-            ) AS activity_datetime,
+      INNER JOIN tasks mt
+        ON mt.task_id =
+           st.parent_task_id
 
-            DATE_FORMAT(
-              COALESCE(
-                st.updated_at,
-                st.created_at
-              ),
-              '%Y-%m-%d %H:%i'
-            ) AS created_at
+      INNER JOIN task_assignments ta
+        ON ta.task_id =
+           mt.task_id
 
-          FROM tasks st
+       AND ta.employee_id = ?
 
-          INNER JOIN tasks mt
-            ON mt.task_id = st.parent_task_id
+      WHERE
+        (
+          st.is_checked = 1
 
-          INNER JOIN task_assignments ta
-            ON ta.task_id = mt.task_id
-           AND ta.employee_id = ?
-
-          WHERE
-            (
-              st.is_checked = 1
-
-              OR LOWER(
-                REPLACE(
-                  st.status,
-                  ' ',
-                  '_'
-                )
-              ) IN (
-                'completed',
-                'done',
-                'complete'
-              )
+          OR LOWER(
+            REPLACE(
+              st.status,
+              ' ',
+              '_'
             )
+          ) IN (
+            'completed',
+            'done',
+            'complete'
+          )
+        )
 
-          UNION ALL
+      ORDER BY
+        COALESCE(
+          st.updated_at,
+          st.created_at
+        ) DESC
 
-          /* MINI TASKS */
-
-          SELECT
-            CONCAT(
-              'mini-task-',
-              mini.mini_task_id
-            ) AS activity_id,
-
-            'Mini Task' AS title,
-
-            CONCAT(
-              mini.mini_task_title,
-
-              CASE
-                WHEN mini.division IS NOT NULL
-                  AND TRIM(mini.division) <> ''
-                THEN CONCAT(
-                  ' · ',
-                  mini.division
-                )
-                ELSE ''
-              END
-            ) AS description,
-
-            COALESCE(
-              mini.edited_at,
-              mini.created_at
-            ) AS activity_datetime,
-
-            DATE_FORMAT(
-              COALESCE(
-                mini.edited_at,
-                mini.created_at
-              ),
-              '%Y-%m-%d %H:%i'
-            ) AS created_at
-
-          FROM mini_tasks mini
-
-          WHERE mini.employee_id = ?
-
-        ) activity
-
-        ORDER BY
-          activity_datetime DESC
-
-        LIMIT 5
+      LIMIT 5
       `,
-      [
-        userId,
-        userId,
-      ]
+      [userId]
     );
+   
 
     /* =====================================================
        7. ATTENDANCE

@@ -186,15 +186,15 @@ const EmployeeOverview = () => {
     setError("");
 
     try {
-      let response;
+            let response;
 
       try {
         response = await api.get("/employee-overview");
-      } catch {
-        try {
+      } catch (firstError) {
+        if (firstError.response?.status === 404) {
           response = await api.get("/employee-overview/overview");
-        } catch {
-          response = await api.get("/employee/overview");
+        } else {
+          throw firstError;
         }
       }
 
