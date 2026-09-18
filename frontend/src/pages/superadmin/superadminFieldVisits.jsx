@@ -18,6 +18,33 @@ import api from "../../api/axios";
 
 import "./superadminFieldVisits.css";
 
+const getVisitDurationLabel = (visit) => {
+  const durationType = String(
+    visit?.duration_type || ""
+  ).toLowerCase();
+
+  const halfDaySession = String(
+    visit?.half_day_session || ""
+  ).toLowerCase();
+
+  if (durationType === "half_day") {
+    if (halfDaySession === "first_half") {
+      return "Half Day - First Half";
+    }
+
+    if (halfDaySession === "second_half") {
+      return "Half Day - Second Half";
+    }
+
+    return "Half Day";
+  }
+
+  if (durationType === "full_day") {
+    return "Full Day";
+  }
+
+  return "-";
+};
 
 const SuperadminFieldVisits = () => {
 
@@ -866,20 +893,8 @@ const SuperadminFieldVisits = () => {
 
 
                             <small>
-
-                              {
-                                visit.start_time ||
-                                "-"
-                              }
-
-                              {" - "}
-
-                              {
-                                visit.end_time ||
-                                "-"
-                              }
-
-                            </small>
+  {getVisitDurationLabel(visit)}
+</small>
 
 
                           </div>

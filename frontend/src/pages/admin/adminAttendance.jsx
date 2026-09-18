@@ -14,7 +14,39 @@ const getInitials = (name) => {
 
   return initials || "U";
 };
+const getVisitDurationLabel = (visit) => {
+  const durationType = String(
+    visit?.duration_type || ""
+  ).toLowerCase();
 
+  const halfDaySession = String(
+    visit?.half_day_session || ""
+  ).toLowerCase();
+
+  if (durationType === "half_day") {
+    if (halfDaySession === "first_half") {
+      return "Half Day - First Half";
+    }
+
+    if (halfDaySession === "second_half") {
+      return "Half Day - Second Half";
+    }
+
+    return "Half Day";
+  }
+
+  if (durationType === "full_day") {
+    return "Full Day";
+  }
+
+  // Keeps old Field Visit records readable.
+  if (visit?.start_time || visit?.end_time) {
+    return `${visit.start_time || "-"} - ${visit.end_time || "-"
+      }`;
+  }
+
+  return "-";
+};
 const getStatusBadgeStyle = (status) => {
   const value = String(status || "").toLowerCase();
 
@@ -59,6 +91,9 @@ const AdminAttendance = () => {
   const [visitError, setVisitError] = useState("");
   const [fieldVisitToken, setFieldVisitToken] = useState("");
   const [visitMessage, setVisitMessage] = useState("");
+  const [rejectVisitTarget, setRejectVisitTarget] = useState(null);
+  const [rejectRemark, setRejectRemark] = useState("");
+  const [reviewSaving, setReviewSaving] = useState(false);
 
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [savingVisit, setSavingVisit] = useState(false);
@@ -68,8 +103,8 @@ const AdminAttendance = () => {
   const [visitForm, setVisitForm] = useState({
     visit_type: "Sales Visit",
     visit_date: "",
-    start_time: "",
-    end_time: "",
+    duration_type: "full_day",
+    half_day_session: "",
     location: "",
     comment: "",
   });
@@ -155,13 +190,13 @@ const AdminAttendance = () => {
         "/admin-attendance/field-visits/my"
       );
 
-     
 
-setMyVisits(
-  Array.isArray(response.data?.visits)
-    ? response.data.visits
-    : []
-);
+
+      setMyVisits(
+        Array.isArray(response.data?.visits)
+          ? response.data.visits
+          : []
+      );
     } catch (err) {
       console.error("Fetch Admin field visits error:", err);
 
@@ -206,17 +241,26 @@ setMyVisits(
 
     if (
       !visitForm.visit_date ||
-      !visitForm.start_time ||
-      !visitForm.end_time ||
+      !visitForm.duration_type ||
       !visitForm.location.trim() ||
       !visitForm.comment.trim()
     ) {
-      setVisitError("Please fill all required fields.");
+      setVisitError(
+        "Please fill all required fields."
+      );
       return;
     }
 
-    if (visitForm.end_time <= visitForm.start_time) {
-      setVisitError("End time must be later than start time.");
+    if (
+      visitForm.duration_type === "half_day" &&
+      ![
+        "first_half",
+        "second_half",
+      ].includes(visitForm.half_day_session)
+    ) {
+      setVisitError(
+        "Please select First Half or Second Half."
+      );
       return;
     }
 
@@ -228,8 +272,13 @@ setMyVisits(
         {
           visit_type: visitForm.visit_type,
           visit_date: visitForm.visit_date,
-          start_time: visitForm.start_time,
-          end_time: visitForm.end_time,
+          duration_type:
+            visitForm.duration_type,
+
+          half_day_session:
+            visitForm.duration_type === "half_day"
+              ? visitForm.half_day_session
+              : null,
           location: visitForm.location.trim(),
           comment: visitForm.comment.trim(),
           visitor_ids: selectedVisitors,
@@ -239,8 +288,8 @@ setMyVisits(
       setVisitForm({
         visit_type: "Sales Visit",
         visit_date: "",
-        start_time: "",
-        end_time: "",
+        duration_type: "full_day",
+        half_day_session: "",
         location: "",
         comment: "",
       });
@@ -262,25 +311,15 @@ setMyVisits(
     }
   };
 
-  const reviewVisit = async (visit, status) => {
-    let remark = "";
-
-    if (status === "rejected") {
-      remark = window.prompt(
-        `Reason for rejecting ${visit.full_name || "employee"}'s visit:`
-      );
-
-      if (remark === null) return;
-
-      if (!remark.trim()) {
-        setVisitError("Rejection remark is required.");
-        return;
-      }
-    }
-
+  const submitVisitReview = async (
+    visit,
+    status,
+    remark = ""
+  ) => {
     try {
       setVisitError("");
       setVisitMessage("");
+      setReviewSaving(true);
 
       await api.post(
         `/admin-attendance/field-visits/${visit.visit_id}/review`,
@@ -297,11 +336,55 @@ setMyVisits(
       );
 
       await fetchTeamVisits();
+
+      return true;
     } catch (err) {
       setVisitError(
         err?.response?.data?.message ||
         "Failed to review field visit."
       );
+
+      return false;
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const reviewVisit = async (visit, status) => {
+    if (status === "rejected") {
+      setRejectVisitTarget(visit);
+      setRejectRemark("");
+      setVisitError("");
+      return;
+    }
+
+    await submitVisitReview(
+      visit,
+      "approved",
+      ""
+    );
+  };
+
+  const confirmRejectVisit = async () => {
+    if (!rejectRemark.trim()) {
+      setVisitError(
+        "Rejection remark is required."
+      );
+      return;
+    }
+
+    if (!rejectVisitTarget) return;
+
+    const success =
+      await submitVisitReview(
+        rejectVisitTarget,
+        "rejected",
+        rejectRemark
+      );
+
+    if (success) {
+      setRejectVisitTarget(null);
+      setRejectRemark("");
     }
   };
   useEffect(() => {
@@ -361,8 +444,8 @@ setMyVisits(
         visit.all_people?.join(" "),
         visit.visit_type,
         visit.visit_date,
-        visit.start_time,
-        visit.end_time,
+        visit.duration_type,
+        visit.half_day_session,
         visit.location,
         visit.comment,
         visit.status,
@@ -421,7 +504,6 @@ setMyVisits(
       });
 
 
-      if (status === "rejected") map[id].rejected += 1;
     });
 
     return Object.values(map);
@@ -817,8 +899,7 @@ setMyVisits(
                               </strong>
 
                               <div style={styles.visitDetailLine}>
-                                {visit.start_time || "-"} -{" "}
-                                {visit.end_time || "-"}
+                                {getVisitDurationLabel(visit)}
                               </div>
 
                               <div style={styles.visitDetailLine}>
@@ -829,21 +910,21 @@ setMyVisits(
                                 {visit.comment || "-"}
                               </div>
                               {
-visit.all_people && visit.all_people.length > 1 && (
-  <div
-    style={{
-      marginTop:"6px",
-      color:"#64748b",
-      fontSize:"12px",
-      fontWeight:800,
-    }}
-  >
-    Team: {visit.all_people.slice(1).join(", ")}
-  </div>
-)
-}
+                                visit.all_people && visit.all_people.length > 1 && (
+                                  <div
+                                    style={{
+                                      marginTop: "6px",
+                                      color: "#64748b",
+                                      fontSize: "12px",
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    Team: {visit.all_people.slice(1).join(", ")}
+                                  </div>
+                                )
+                              }
 
-                           
+
                             </td>
 
                             <td style={styles.actionTd}>
@@ -994,8 +1075,7 @@ visit.all_people && visit.all_people.length > 1 && (
                               </strong>
 
                               <div style={styles.visitDetailLine}>
-                                {visit.start_time || "-"} -{" "}
-                                {visit.end_time || "-"}
+                                {getVisitDurationLabel(visit)}
                               </div>
 
                               <div style={styles.visitDetailLine}>
@@ -1212,9 +1292,7 @@ visit.all_people && visit.all_people.length > 1 && (
                             </div>
 
                             <div style={styles.myVisitMeta}>
-                              {visit.start_time || "-"}
-                              {" • "}
-                              {visit.end_time || "-"}
+                              {getVisitDurationLabel(visit)}
                             </div>
 
                             <div style={styles.myVisitLocation}>
@@ -1224,20 +1302,20 @@ visit.all_people && visit.all_people.length > 1 && (
                             <div style={styles.myVisitReason}>
                               {visit.comment || "-"}
                             </div>
-                           {
-visit.all_people && visit.all_people.length > 1 && (
-  <div
-    style={{
-      marginTop:"6px",
-      color:"#64748b",
-      fontSize:"12px",
-      fontWeight:800,
-    }}
-  >
-    Team: {visit.all_people.slice(1).join(", ")}
-  </div>
-)
-}
+                            {
+                              visit.all_people && visit.all_people.length > 1 && (
+                                <div
+                                  style={{
+                                    marginTop: "6px",
+                                    color: "#64748b",
+                                    fontSize: "12px",
+                                    fontWeight: 800,
+                                  }}
+                                >
+                                  Team: {visit.all_people.slice(1).join(", ")}
+                                </div>
+                              )
+                            }
                           </td>
 
                           <td style={styles.td}>
@@ -1254,6 +1332,135 @@ visit.all_people && visit.all_people.length > 1 && (
             </>
           )}
         </section>
+      )}
+
+      {rejectVisitTarget && (
+        <div
+          style={styles.rejectModalOverlay}
+          onMouseDown={(event) => {
+            if (
+              event.target === event.currentTarget &&
+              !reviewSaving
+            ) {
+              setRejectVisitTarget(null);
+              setRejectRemark("");
+              setVisitError("");
+            }
+          }}
+        >
+          <div style={styles.rejectModal}>
+            <div style={styles.rejectModalHeader}>
+              <div>
+                <h2 style={styles.rejectModalTitle}>
+                  Reject Field Visit
+                </h2>
+
+                <p style={styles.rejectModalSubtitle}>
+                  Please provide a reason for rejecting{" "}
+                  <strong>
+                    {rejectVisitTarget.full_name ||
+                      "this employee"}
+                  </strong>
+                  's field visit.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                style={styles.rejectModalClose}
+                disabled={reviewSaving}
+                onClick={() => {
+                  setRejectVisitTarget(null);
+                  setRejectRemark("");
+                  setVisitError("");
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={styles.rejectVisitInfo}>
+              <div>
+                <span style={styles.rejectInfoLabel}>
+                  Visit Type
+                </span>
+
+                <strong style={styles.rejectInfoValue}>
+                  {rejectVisitTarget.visit_type || "-"}
+                </strong>
+              </div>
+
+              <div>
+                <span style={styles.rejectInfoLabel}>
+                  Date
+                </span>
+
+                <strong style={styles.rejectInfoValue}>
+                  {rejectVisitTarget.visit_date || "-"}
+                </strong>
+              </div>
+            </div>
+
+            <label style={styles.rejectRemarkGroup}>
+              <span>
+                Rejection Reason *
+              </span>
+
+              <textarea
+                autoFocus
+                style={styles.rejectRemarkInput}
+                placeholder="Enter the reason for rejection..."
+                value={rejectRemark}
+                onChange={(event) => {
+                  setRejectRemark(
+                    event.target.value
+                  );
+
+                  if (visitError) {
+                    setVisitError("");
+                  }
+                }}
+              />
+            </label>
+
+            {visitError && (
+              <div style={styles.rejectModalError}>
+                {visitError}
+              </div>
+            )}
+
+            <div style={styles.rejectModalFooter}>
+              <button
+                type="button"
+                style={styles.rejectCancelButton}
+                disabled={reviewSaving}
+                onClick={() => {
+                  setRejectVisitTarget(null);
+                  setRejectRemark("");
+                  setVisitError("");
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                style={{
+                  ...styles.rejectConfirmButton,
+                  ...(reviewSaving
+                    ? styles.rejectButtonDisabled
+                    : {}),
+                }}
+                disabled={reviewSaving}
+                onClick={confirmRejectVisit}
+              >
+                {reviewSaving
+                  ? "Rejecting..."
+                  : "Reject Visit"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {showVisitModal && (
         <div
@@ -1512,36 +1719,67 @@ visit.all_people && visit.all_people.length > 1 && (
               </label>
 
               <label style={styles.visitFormGroup}>
-                <span>Start Time *</span>
+                <span>Duration *</span>
 
-                <input
-                  type="time"
+                <select
                   style={styles.visitFormInput}
-                  value={visitForm.start_time}
-                  onChange={(event) =>
+                  value={visitForm.duration_type}
+                  onChange={(event) => {
+                    const value = event.target.value;
+
                     setVisitForm((previous) => ({
                       ...previous,
-                      start_time: event.target.value,
-                    }))
-                  }
-                />
+                      duration_type: value,
+                      half_day_session:
+                        value === "half_day"
+                          ? previous.half_day_session
+                          : "",
+                    }));
+
+                    setVisitError("");
+                  }}
+                >
+                  <option value="full_day">
+                    Full Day
+                  </option>
+
+                  <option value="half_day">
+                    Half Day
+                  </option>
+                </select>
               </label>
 
-              <label style={styles.visitFormGroup}>
-                <span>End Time *</span>
+              {visitForm.duration_type === "half_day" && (
+                <label style={styles.visitFormGroup}>
+                  <span>Half Day Session *</span>
 
-                <input
-                  type="time"
-                  style={styles.visitFormInput}
-                  value={visitForm.end_time}
-                  onChange={(event) =>
-                    setVisitForm((previous) => ({
-                      ...previous,
-                      end_time: event.target.value,
-                    }))
-                  }
-                />
-              </label>
+                  <select
+                    style={styles.visitFormInput}
+                    value={visitForm.half_day_session}
+                    onChange={(event) =>
+                      setVisitForm((previous) => ({
+                        ...previous,
+                        half_day_session:
+                          event.target.value,
+                      }))
+                    }
+                  >
+                    <option value="">
+                      Select Half
+                    </option>
+
+                    <option value="first_half">
+                      First Half
+                    </option>
+
+                    <option value="second_half">
+                      Second Half
+                    </option>
+                  </select>
+                </label>
+              )}
+
+
             </div>
 
             <label style={styles.visitFormGroup}>
@@ -2225,6 +2463,161 @@ const styles = {
     color: "#64748b",
     fontSize: "12px",
     fontWeight: 800,
+  },
+
+  rejectModalOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 10000,
+    background: "rgba(15, 23, 42, 0.55)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "22px",
+  },
+
+  rejectModal: {
+    width: "min(520px, 94vw)",
+    background: "#ffffff",
+    borderRadius: "22px",
+    padding: "26px",
+    boxSizing: "border-box",
+    boxShadow:
+      "0 30px 80px rgba(15, 23, 42, 0.28)",
+  },
+
+  rejectModalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "18px",
+    marginBottom: "20px",
+  },
+
+  rejectModalTitle: {
+    margin: "0 0 7px",
+    color: "#111827",
+    fontSize: "23px",
+    fontWeight: 900,
+  },
+
+  rejectModalSubtitle: {
+    margin: 0,
+    color: "#64748b",
+    fontSize: "14px",
+    fontWeight: 700,
+    lineHeight: 1.5,
+  },
+
+  rejectModalClose: {
+    width: "38px",
+    height: "38px",
+    flexShrink: 0,
+    border: "none",
+    borderRadius: "10px",
+    background: "#f1f5f9",
+    color: "#475569",
+    fontSize: "22px",
+    fontWeight: 700,
+    cursor: "pointer",
+  },
+
+  rejectVisitInfo: {
+    display: "grid",
+    gridTemplateColumns:
+      "repeat(2, minmax(0, 1fr))",
+    gap: "12px",
+    padding: "14px",
+    marginBottom: "18px",
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+  },
+
+  rejectInfoLabel: {
+    display: "block",
+    marginBottom: "4px",
+    color: "#94a3b8",
+    fontSize: "11px",
+    fontWeight: 900,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  },
+
+  rejectInfoValue: {
+    color: "#111827",
+    fontSize: "13px",
+    fontWeight: 900,
+  },
+
+  rejectRemarkGroup: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    color: "#111827",
+    fontSize: "13px",
+    fontWeight: 900,
+  },
+
+  rejectRemarkInput: {
+    width: "100%",
+    minHeight: "120px",
+    boxSizing: "border-box",
+    border: "1.5px solid #cbd5e1",
+    borderRadius: "13px",
+    padding: "13px 14px",
+    outline: "none",
+    resize: "vertical",
+    fontFamily: "inherit",
+    fontSize: "14px",
+    color: "#111827",
+    background: "#ffffff",
+  },
+
+  rejectModalError: {
+    marginTop: "10px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    background: "#fff1f2",
+    color: "#b91c1c",
+    fontSize: "12px",
+    fontWeight: 800,
+  },
+
+  rejectModalFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    marginTop: "22px",
+    paddingTop: "18px",
+    borderTop: "1px solid #e5e7eb",
+  },
+
+  rejectCancelButton: {
+    height: "44px",
+    padding: "0 20px",
+    border: "1px solid #d1d5db",
+    borderRadius: "11px",
+    background: "#ffffff",
+    color: "#374151",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+
+  rejectConfirmButton: {
+    height: "44px",
+    padding: "0 22px",
+    border: "none",
+    borderRadius: "11px",
+    background: "#ef4444",
+    color: "#ffffff",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+
+  rejectButtonDisabled: {
+    opacity: 0.6,
+    cursor: "not-allowed",
   },
 
   visitModalOverlay: {

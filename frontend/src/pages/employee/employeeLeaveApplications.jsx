@@ -51,14 +51,14 @@ const DEFAULT_BALANCES = {
   },
 
   festival: {
-  label: "Festival Leave",
-  total: 2,
-  earned: 2,
-  used: 0,
-  pending: 0,
-  available: 2,
-  remaining: 2,
-},
+    label: "Festival Leave",
+    total: 2,
+    earned: 2,
+    used: 0,
+    pending: 0,
+    available: 2,
+    remaining: 2,
+  },
 };
 
 const LEAVE_CARDS = [
@@ -661,10 +661,10 @@ const EmployeeLeaveApplications =
       showHolidayCalendar,
       setShowHolidayCalendar,
     ] = useState(false);
-const [
-  festivalDropdownOpen,
-  setFestivalDropdownOpen,
-] = useState(false);
+    const [
+      festivalDropdownOpen,
+      setFestivalDropdownOpen,
+    ] = useState(false);
 
 
     const POLICY_START_DATE =
@@ -677,15 +677,15 @@ const [
         : POLICY_START_DATE;
 
     const selectedMinimumLeaveDate =
-  selectedLeaveType === "sick" ||
-  (
-    selectedLeaveType === "mandatory" &&
-    form.duration_type === "half_day"
-  )
-    ? getTodayDate() > POLICY_START_DATE
-      ? getTodayDate()
-      : POLICY_START_DATE
-    : minimumLeaveDate;
+      selectedLeaveType === "sick" ||
+        (
+          selectedLeaveType === "mandatory" &&
+          form.duration_type === "half_day"
+        )
+        ? getTodayDate() > POLICY_START_DATE
+          ? getTodayDate()
+          : POLICY_START_DATE
+        : minimumLeaveDate;
 
     const calculateDays =
       useMemo(() => {
@@ -878,115 +878,115 @@ const [
           0
         )
         : 0;
-        const privilegedMaxEndDate = (() => {
-  if (
-    selectedLeaveType !== "mandatory" ||
-    form.duration_type !== "full_day" ||
-    !form.start_date
-  ) {
-    return "";
-  }
+    const privilegedMaxEndDate = (() => {
+      if (
+        selectedLeaveType !== "mandatory" ||
+        form.duration_type !== "full_day" ||
+        !form.start_date
+      ) {
+        return "";
+      }
 
-  const allowedFullDays =
-    Math.floor(selectedAvailable);
+      const allowedFullDays =
+        Math.floor(selectedAvailable);
 
-  if (allowedFullDays < 1) {
-    return form.start_date;
-  }
+      if (allowedFullDays < 1) {
+        return form.start_date;
+      }
 
-  const date = new Date(
-    `${form.start_date}T00:00:00`
-  );
-
-  date.setDate(
-    date.getDate() +
-      allowedFullDays -
-      1
-  );
-
-  const year =
-    date.getFullYear();
-
-  const month =
-    String(
-      date.getMonth() + 1
-    ).padStart(2, "0");
-
-  const day =
-    String(
-      date.getDate()
-    ).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-})();
-
-const privilegedRuleMessage = (() => {
-  if (
-    selectedLeaveType !== "mandatory" ||
-    calculateDays <= 0
-  ) {
-    return "";
-  }
-
-  /*
-  ========================================
-  BALANCE RULE
-  ========================================
-  */
-
-  if (
-    calculateDays >
-    selectedAvailable
-  ) {
-    return `You only have ${formatDays(
-      selectedAvailable
-    )} day(s) of Privileged Leave available. Please select a shorter leave duration.`;
-  }
-
-  /*
-  ========================================
-  3+ DAYS / 15 DAYS PRIOR RULE
-  ========================================
-  */
-
-  if (
-    form.duration_type === "full_day" &&
-    calculateDays >= 3 &&
-    form.start_date
-  ) {
-    const todayParts =
-      getTodayDate()
-        .split("-")
-        .map(Number);
-
-    const minimumDate =
-      new Date(
-        todayParts[0],
-        todayParts[1] - 1,
-        todayParts[2]
+      const date = new Date(
+        `${form.start_date}T00:00:00`
       );
 
-    minimumDate.setDate(
-      minimumDate.getDate() + 15
-    );
+      date.setDate(
+        date.getDate() +
+        allowedFullDays -
+        1
+      );
 
-    const minimum15DayDate =
-      `${minimumDate.getFullYear()}-${String(
-        minimumDate.getMonth() + 1
-      ).padStart(2, "0")}-${String(
-        minimumDate.getDate()
-      ).padStart(2, "0")}`;
+      const year =
+        date.getFullYear();
 
-    if (
-      form.start_date <
-      minimum15DayDate
-    ) {
-      return "Privileged Leave of 3 or more consecutive days must be applied for at least 15 days in advance.";
-    }
-  }
+      const month =
+        String(
+          date.getMonth() + 1
+        ).padStart(2, "0");
 
-  return "";
-})();
+      const day =
+        String(
+          date.getDate()
+        ).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    })();
+
+    const privilegedRuleMessage = (() => {
+      if (
+        selectedLeaveType !== "mandatory" ||
+        calculateDays <= 0
+      ) {
+        return "";
+      }
+
+      /*
+      ========================================
+      BALANCE RULE
+      ========================================
+      */
+
+      if (
+        calculateDays >
+        selectedAvailable
+      ) {
+        return `You only have ${formatDays(
+          selectedAvailable
+        )} day(s) of Privileged Leave available. Please select a shorter leave duration.`;
+      }
+
+      /*
+      ========================================
+      3+ DAYS / 15 DAYS PRIOR RULE
+      ========================================
+      */
+
+      if (
+        form.duration_type === "full_day" &&
+        calculateDays >= 3 &&
+        form.start_date
+      ) {
+        const todayParts =
+          getTodayDate()
+            .split("-")
+            .map(Number);
+
+        const minimumDate =
+          new Date(
+            todayParts[0],
+            todayParts[1] - 1,
+            todayParts[2]
+          );
+
+        minimumDate.setDate(
+          minimumDate.getDate() + 15
+        );
+
+        const minimum15DayDate =
+          `${minimumDate.getFullYear()}-${String(
+            minimumDate.getMonth() + 1
+          ).padStart(2, "0")}-${String(
+            minimumDate.getDate()
+          ).padStart(2, "0")}`;
+
+        if (
+          form.start_date <
+          minimum15DayDate
+        ) {
+          return "Privileged Leave of 3 or more consecutive days must be applied for at least 15 days in advance.";
+        }
+      }
+
+      return "";
+    })();
 
     const fetchLeaveData =
       async () => {
@@ -1107,17 +1107,17 @@ const privilegedRuleMessage = (() => {
       setSuccess("");
     };
 
-   const closeApplyModal = () => {
-  if (submitting) return;
+    const closeApplyModal = () => {
+      if (submitting) return;
 
-  setSelectedLeaveType(null);
+      setSelectedLeaveType(null);
 
-  setFestivalDropdownOpen(false);
+      setFestivalDropdownOpen(false);
 
-  resetForm();
+      resetForm();
 
-  setError("");
-};
+      setError("");
+    };
 
     const handleDurationChange = (
       durationType
@@ -1146,24 +1146,24 @@ const privilegedRuleMessage = (() => {
     };
 
     const handleFestivalChange = (
-  holidayDate
-) => {
-  setForm((previous) => ({
-    ...previous,
+      holidayDate
+    ) => {
+      setForm((previous) => ({
+        ...previous,
 
-    start_date: holidayDate,
+        start_date: holidayDate,
 
-    end_date: holidayDate,
+        end_date: holidayDate,
 
-    duration_type: "full_day",
+        duration_type: "full_day",
 
-    half_day_session: "first_half",
-  }));
+        half_day_session: "first_half",
+      }));
 
-  setFestivalDropdownOpen(false);
+      setFestivalDropdownOpen(false);
 
-  setError("");
-};
+      setError("");
+    };
     const handleApply = async () => {
       if (!selectedLeaveType) {
         return;
@@ -1210,20 +1210,20 @@ const privilegedRuleMessage = (() => {
       }
 
       if (
-  form.start_date <
-  selectedMinimumLeaveDate
-) {
-  setError(
-    selectedLeaveType === "sick"
-      ? "Sick Leave can be applied from today onwards."
-      : selectedLeaveType === "mandatory" &&
-        form.duration_type === "half_day"
-        ? "Half-day Privileged Leave can be applied from today onwards."
-        : "Leave must be applied for at least 1 day in advance."
-  );
+        form.start_date <
+        selectedMinimumLeaveDate
+      ) {
+        setError(
+          selectedLeaveType === "sick"
+            ? "Sick Leave can be applied from today onwards."
+            : selectedLeaveType === "mandatory" &&
+              form.duration_type === "half_day"
+              ? "Half-day Privileged Leave can be applied from today onwards."
+              : "Leave must be applied for at least 1 day in advance."
+        );
 
-  return;
-}
+        return;
+      }
 
       /*
       ========================================
@@ -1340,45 +1340,45 @@ must be applied at least 15 days prior.
 ========================================
 */
 
-if (
-  selectedLeaveType === "mandatory" &&
-  form.duration_type === "full_day" &&
-  calculateDays >= 3
-) {
-  const todayParts =
-    getTodayDate()
-      .split("-")
-      .map(Number);
+      if (
+        selectedLeaveType === "mandatory" &&
+        form.duration_type === "full_day" &&
+        calculateDays >= 3
+      ) {
+        const todayParts =
+          getTodayDate()
+            .split("-")
+            .map(Number);
 
-  const minimumDate =
-    new Date(
-      todayParts[0],
-      todayParts[1] - 1,
-      todayParts[2]
-    );
+        const minimumDate =
+          new Date(
+            todayParts[0],
+            todayParts[1] - 1,
+            todayParts[2]
+          );
 
-  minimumDate.setDate(
-    minimumDate.getDate() + 15
-  );
+        minimumDate.setDate(
+          minimumDate.getDate() + 15
+        );
 
-  const minimum15DayDate =
-    `${minimumDate.getFullYear()}-${String(
-      minimumDate.getMonth() + 1
-    ).padStart(2, "0")}-${String(
-      minimumDate.getDate()
-    ).padStart(2, "0")}`;
+        const minimum15DayDate =
+          `${minimumDate.getFullYear()}-${String(
+            minimumDate.getMonth() + 1
+          ).padStart(2, "0")}-${String(
+            minimumDate.getDate()
+          ).padStart(2, "0")}`;
 
-  if (
-    form.start_date <
-    minimum15DayDate
-  ) {
-    setError(
-      "Privileged Leave for 3 or more consecutive days must be applied at least 15 days in advance."
-    );
+        if (
+          form.start_date <
+          minimum15DayDate
+        ) {
+          setError(
+            "Privileged Leave for 3 or more consecutive days must be applied at least 15 days in advance."
+          );
 
-    return;
-  }
-}
+          return;
+        }
+      }
 
       /*
       ========================================
@@ -1531,20 +1531,20 @@ if (
     };
 
     const casualAvailable = Number(
-  balances.casual?.available ??
-  balances.casual?.remaining ??
-  0
-);
+      balances.casual?.available ??
+      balances.casual?.remaining ??
+      0
+    );
 
-const privilegedAvailable = Number(
-  balances.mandatory?.available ??
-  balances.mandatory?.remaining ??
-  0
-);
+    const privilegedAvailable = Number(
+      balances.mandatory?.available ??
+      balances.mandatory?.remaining ??
+      0
+    );
 
-const canApplyUnpaidLeave =
-  casualAvailable <= 0 &&
-  privilegedAvailable <= 0;
+    const canApplyUnpaidLeave =
+      casualAvailable <= 0 &&
+      privilegedAvailable <= 0;
 
     return (
       <div style={styles.page}>
@@ -1608,36 +1608,36 @@ const canApplyUnpaidLeave =
             </button>
 
             <button
-  type="button"
-  disabled={!canApplyUnpaidLeave}
-  style={{
-    ...styles.unpaidLeaveBtn,
-    ...(!canApplyUnpaidLeave
-      ? styles.disabledUnpaidLeaveBtn
-      : {}),
-  }}
-  onClick={() => {
-    if (!canApplyUnpaidLeave) return;
+              type="button"
+              disabled={!canApplyUnpaidLeave}
+              style={{
+                ...styles.unpaidLeaveBtn,
+                ...(!canApplyUnpaidLeave
+                  ? styles.disabledUnpaidLeaveBtn
+                  : {}),
+              }}
+              onClick={() => {
+                if (!canApplyUnpaidLeave) return;
 
-    openApplyModal("unpaid");
-  }}
->
-  <Send size={17} />
+                openApplyModal("unpaid");
+              }}
+            >
+              <Send size={17} />
 
-  <span
-    style={
-      styles.unpaidLeaveBtnText
-    }
-  >
-    <strong>
-      Apply for Leave
-    </strong>
+              <span
+                style={
+                  styles.unpaidLeaveBtnText
+                }
+              >
+                <strong>
+                  Apply for Leave
+                </strong>
 
-    <small>
-      Unpaid Leave
-    </small>
-  </span>
-</button>
+                <small>
+                  Unpaid Leave
+                </small>
+              </span>
+            </button>
 
             <button
               type="button"
@@ -2084,129 +2084,129 @@ const canApplyUnpaidLeave =
               </p>
 
               {(
-  error ||
-  privilegedRuleMessage
-) && (
-  <div
-    style={
-      styles.modalError
-    }
-  >
-    {error ||
-      privilegedRuleMessage}
-  </div>
-)}
+                error ||
+                privilegedRuleMessage
+              ) && (
+                  <div
+                    style={
+                      styles.modalError
+                    }
+                  >
+                    {error ||
+                      privilegedRuleMessage}
+                  </div>
+                )}
 
               {selectedLeaveType ===
                 "festival" ? (
                 <>
-                <label style={styles.field}>
-  <span>
-    Festival Holiday
-  </span>
+                  <label style={styles.field}>
+                    <span>
+                      Festival Holiday
+                    </span>
 
-  <div
-    style={
-      styles.festivalDropdownWrapper
-    }
-  >
-    <button
-      type="button"
-      style={
-        styles.festivalDropdownTrigger
-      }
-      onClick={() =>
-        setFestivalDropdownOpen(
-          (previous) => !previous
-        )
-      }
-      disabled={holidayLoading}
-    >
-      <span>
-        {holidayLoading
-          ? "Loading holidays..."
-          : selectedFestival
-            ? `${formatDisplayDate(
-                selectedFestival.date
-              )} - ${selectedFestival.name}`
-            : "Select a festival holiday"}
-      </span>
-
-      <span
-        style={{
-          ...styles.festivalDropdownArrow,
-          transform:
-            festivalDropdownOpen
-              ? "rotate(180deg)"
-              : "rotate(0deg)",
-        }}
-      >
-        ▼
-      </span>
-    </button>
-
-    {festivalDropdownOpen &&
-      !holidayLoading && (
-        <div
-          style={
-            styles.festivalDropdownMenu
-          }
-        >
-          {eligibleFestivalHolidays.length ===
-          0 ? (
-            <div
-              style={
-                styles.festivalDropdownEmpty
-              }
-            >
-              No eligible festival
-              holidays available.
-            </div>
-          ) : (
-            eligibleFestivalHolidays.map(
-              (holiday) => {
-                const isSelected =
-                  form.start_date ===
-                  holiday.date;
-
-                return (
-                  <button
-                    key={holiday.date}
-                    type="button"
-                    style={{
-                      ...styles.festivalDropdownOption,
-                      ...(isSelected
-                        ? styles.festivalDropdownOptionActive
-                        : {}),
-                    }}
-                    onClick={() =>
-                      handleFestivalChange(
-                        holiday.date
-                      )
-                    }
-                  >
-                    <span
+                    <div
                       style={
-                        styles.festivalDropdownDate
+                        styles.festivalDropdownWrapper
                       }
                     >
-                      {formatDisplayDate(
-                        holiday.date
-                      )}
-                    </span>
+                      <button
+                        type="button"
+                        style={
+                          styles.festivalDropdownTrigger
+                        }
+                        onClick={() =>
+                          setFestivalDropdownOpen(
+                            (previous) => !previous
+                          )
+                        }
+                        disabled={holidayLoading}
+                      >
+                        <span>
+                          {holidayLoading
+                            ? "Loading holidays..."
+                            : selectedFestival
+                              ? `${formatDisplayDate(
+                                selectedFestival.date
+                              )} - ${selectedFestival.name}`
+                              : "Select a festival holiday"}
+                        </span>
 
-                    <span>
-                      {holiday.name}
-                    </span>
-                  </button>
-                );
-              }
-            )
-          )}
-        </div>
-      )}
-  </div>
-</label>
+                        <span
+                          style={{
+                            ...styles.festivalDropdownArrow,
+                            transform:
+                              festivalDropdownOpen
+                                ? "rotate(180deg)"
+                                : "rotate(0deg)",
+                          }}
+                        >
+                          ▼
+                        </span>
+                      </button>
+
+                      {festivalDropdownOpen &&
+                        !holidayLoading && (
+                          <div
+                            style={
+                              styles.festivalDropdownMenu
+                            }
+                          >
+                            {eligibleFestivalHolidays.length ===
+                              0 ? (
+                              <div
+                                style={
+                                  styles.festivalDropdownEmpty
+                                }
+                              >
+                                No eligible festival
+                                holidays available.
+                              </div>
+                            ) : (
+                              eligibleFestivalHolidays.map(
+                                (holiday) => {
+                                  const isSelected =
+                                    form.start_date ===
+                                    holiday.date;
+
+                                  return (
+                                    <button
+                                      key={holiday.date}
+                                      type="button"
+                                      style={{
+                                        ...styles.festivalDropdownOption,
+                                        ...(isSelected
+                                          ? styles.festivalDropdownOptionActive
+                                          : {}),
+                                      }}
+                                      onClick={() =>
+                                        handleFestivalChange(
+                                          holiday.date
+                                        )
+                                      }
+                                    >
+                                      <span
+                                        style={
+                                          styles.festivalDropdownDate
+                                        }
+                                      >
+                                        {formatDisplayDate(
+                                          holiday.date
+                                        )}
+                                      </span>
+
+                                      <span>
+                                        {holiday.name}
+                                      </span>
+                                    </button>
+                                  );
+                                }
+                              )
+                            )}
+                          </div>
+                        )}
+                    </div>
+                  </label>
 
                   {!holidayLoading &&
                     eligibleFestivalHolidays.length ===
@@ -2476,11 +2476,11 @@ const canApplyUnpaidLeave =
                           : "From Date"}
                       </span>
 
-                     <input
-  type="date"
-  min={
-    selectedMinimumLeaveDate
-  }
+                      <input
+                        type="date"
+                        min={
+                          selectedMinimumLeaveDate
+                        }
                         style={
                           styles.input
                         }
@@ -2531,18 +2531,18 @@ const canApplyUnpaidLeave =
                           </span>
 
                           <input
-  type="date"
-  min={
-    form.start_date ||
-    selectedMinimumLeaveDate
-  }
-  max={
-    selectedLeaveType ===
-      "mandatory" &&
-    privilegedMaxEndDate
-      ? privilegedMaxEndDate
-      : undefined
-  }
+                            type="date"
+                            min={
+                              form.start_date ||
+                              selectedMinimumLeaveDate
+                            }
+                            max={
+                              selectedLeaveType ===
+                                "mandatory" &&
+                                privilegedMaxEndDate
+                                ? privilegedMaxEndDate
+                                : undefined
+                            }
                             style={
                               styles.input
                             }
@@ -2550,34 +2550,34 @@ const canApplyUnpaidLeave =
                               form.end_date
                             }
                             onChange={(event) => {
-  const value =
-    event.target.value;
+                              const value =
+                                event.target.value;
 
-  if (
-    selectedLeaveType ===
-      "mandatory" &&
-    privilegedMaxEndDate &&
-    value >
-      privilegedMaxEndDate
-  ) {
-    setError(
-      `You only have ${formatDays(
-        selectedAvailable
-      )} day(s) of Privileged Leave available. Please select a shorter leave duration.`
-    );
+                              if (
+                                selectedLeaveType ===
+                                "mandatory" &&
+                                privilegedMaxEndDate &&
+                                value >
+                                privilegedMaxEndDate
+                              ) {
+                                setError(
+                                  `You only have ${formatDays(
+                                    selectedAvailable
+                                  )} day(s) of Privileged Leave available. Please select a shorter leave duration.`
+                                );
 
-    return;
-  }
+                                return;
+                              }
 
-  setError("");
+                              setError("");
 
-  setForm(
-    (previous) => ({
-      ...previous,
-      end_date: value,
-    })
-  );
-}}
+                              setForm(
+                                (previous) => ({
+                                  ...previous,
+                                  end_date: value,
+                                })
+                              );
+                            }}
                           />
                         </label>
                       )}
@@ -2720,20 +2720,20 @@ const canApplyUnpaidLeave =
                 <button
                   type="button"
                   style={
-  submitting ||
-  privilegedRuleMessage
-    ? styles.disabledSubmitBtn
-    : styles.submitBtn
-}
+                    submitting ||
+                      privilegedRuleMessage
+                      ? styles.disabledSubmitBtn
+                      : styles.submitBtn
+                  }
                   onClick={
                     handleApply
                   }
                   disabled={
-  submitting ||
-  Boolean(
-    privilegedRuleMessage
-  )
-}
+                    submitting ||
+                    Boolean(
+                      privilegedRuleMessage
+                    )
+                  }
                 >
                   <Send size={18} />
 
@@ -4034,132 +4034,132 @@ const styles = {
     gap: "8px",
   },
   disabledUnpaidLeaveBtn: {
-  opacity: 0.45,
-  cursor: "not-allowed",
-  background: "#ff8f7c",
-},
+    opacity: 0.45,
+    cursor: "not-allowed",
+    background: "#ff8f7c",
+  },
 
-festivalDropdownWrapper: {
-  width: "100%",
-  position: "relative",
-},
+  festivalDropdownWrapper: {
+    width: "100%",
+    position: "relative",
+  },
 
-festivalDropdownTrigger: {
-  width: "100%",
-  height: "48px",
+  festivalDropdownTrigger: {
+    width: "100%",
+    height: "48px",
 
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
 
-  gap: "12px",
+    gap: "12px",
 
-  border: "1px solid #d1d5db",
-  borderRadius: "13px",
+    border: "1px solid #d1d5db",
+    borderRadius: "13px",
 
-  background: "#ffffff",
-  color: "#111827",
+    background: "#ffffff",
+    color: "#111827",
 
-  padding: "0 14px",
+    padding: "0 14px",
 
-  boxSizing: "border-box",
+    boxSizing: "border-box",
 
-  fontFamily: "inherit",
-  fontSize: "14px",
+    fontFamily: "inherit",
+    fontSize: "14px",
 
-  textAlign: "left",
+    textAlign: "left",
 
-  cursor: "pointer",
-},
+    cursor: "pointer",
+  },
 
-festivalDropdownArrow: {
-  flexShrink: 0,
+  festivalDropdownArrow: {
+    flexShrink: 0,
 
-  color: "#475569",
+    color: "#475569",
 
-  fontSize: "11px",
+    fontSize: "11px",
 
-  transition:
-    "transform 0.2s ease",
-},
+    transition:
+      "transform 0.2s ease",
+  },
 
-festivalDropdownMenu: {
-  position: "absolute",
+  festivalDropdownMenu: {
+    position: "absolute",
 
-  top: "54px",
-  left: 0,
-  right: 0,
+    top: "54px",
+    left: 0,
+    right: 0,
 
-  zIndex: 100,
+    zIndex: 100,
 
-  maxHeight: "240px",
-  overflowY: "auto",
+    maxHeight: "240px",
+    overflowY: "auto",
 
-  background: "#ffffff",
+    background: "#ffffff",
 
-  border: "1px solid #d1d5db",
-  borderRadius: "13px",
+    border: "1px solid #d1d5db",
+    borderRadius: "13px",
 
-  padding: "6px",
+    padding: "6px",
 
-  boxSizing: "border-box",
+    boxSizing: "border-box",
 
-  boxShadow:
-    "0 14px 35px rgba(15,23,42,0.14)",
-},
+    boxShadow:
+      "0 14px 35px rgba(15,23,42,0.14)",
+  },
 
-festivalDropdownOption: {
-  width: "100%",
+  festivalDropdownOption: {
+    width: "100%",
 
-  minHeight: "44px",
+    minHeight: "44px",
 
-  display: "grid",
+    display: "grid",
 
-  gridTemplateColumns:
-    "115px minmax(0, 1fr)",
+    gridTemplateColumns:
+      "115px minmax(0, 1fr)",
 
-  alignItems: "center",
+    alignItems: "center",
 
-  gap: "12px",
+    gap: "12px",
 
-  padding: "9px 11px",
+    padding: "9px 11px",
 
-  border: 0,
-  borderRadius: "9px",
+    border: 0,
+    borderRadius: "9px",
 
-  background: "#ffffff",
-  color: "#111827",
+    background: "#ffffff",
+    color: "#111827",
 
-  fontFamily: "inherit",
-  fontSize: "14px",
+    fontFamily: "inherit",
+    fontSize: "14px",
 
-  textAlign: "left",
+    textAlign: "left",
 
-  cursor: "pointer",
-},
+    cursor: "pointer",
+  },
 
-festivalDropdownOptionActive: {
-  background: "#fff1eb",
-  color: "#ff5733",
-  fontWeight: 800,
-},
+  festivalDropdownOptionActive: {
+    background: "#fff1eb",
+    color: "#ff5733",
+    fontWeight: 800,
+  },
 
-festivalDropdownDate: {
-  color: "#475569",
-  fontWeight: 700,
-  whiteSpace: "nowrap",
-},
+  festivalDropdownDate: {
+    color: "#475569",
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
 
-festivalDropdownEmpty: {
-  padding: "18px 14px",
+  festivalDropdownEmpty: {
+    padding: "18px 14px",
 
-  color: "#64748b",
+    color: "#64748b",
 
-  fontSize: "13px",
-  fontWeight: 700,
+    fontSize: "13px",
+    fontWeight: 700,
 
-  textAlign: "center",
-},
+    textAlign: "center",
+  },
 
 
 

@@ -258,8 +258,8 @@ const getSuperadminFieldVisits = async (
 
         fv.visit_type,
         fv.visit_date,
-        fv.start_time,
-        fv.end_time,
+        fv.duration_type,
+fv.half_day_session,
         fv.location,
         fv.comment,
 
@@ -509,15 +509,8 @@ const reviewSuperadminFieldVisit = async (
             '%Y-%m-%d'
           ) AS visit_date,
 
-          TIME_FORMAT(
-            fv.start_time,
-            '%H:%i'
-          ) AS start_time,
-
-          TIME_FORMAT(
-            fv.end_time,
-            '%H:%i'
-          ) AS end_time,
+          fv.duration_type,
+fv.half_day_session,
 
           fv.location,
           fv.comment,
