@@ -1487,7 +1487,7 @@
 .administrator-leave-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100000;
+  z-index: 2000000;
 
   display: flex;
   align-items: center;
@@ -1502,7 +1502,7 @@
 .administrator-leave-form-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100010;
+  z-index: 2000000;
 
   display: flex;
   align-items: center;
