@@ -2,6 +2,9 @@ const bcrypt = require("bcryptjs");
 const { parse } = require("csv-parse/sync");
 const XLSX = require("xlsx");
 const db = require("../config/db");
+const {
+  buildLeaveBalances,
+} = require("../utils/leavepolicy");
 
 const DEFAULT_USER_PASSWORD = "Valencia@123";
 
@@ -3698,6 +3701,979 @@ const deleteAdministratorUser = async (req, res) => {
   }
 };
 
+/*
+========================================================
+ADMINISTRATOR USER LEAVE MANAGEMENT
+========================================================
+*/
+
+const ADMINISTRATOR_LEAVE_TYPES = [
+  "sick",
+  "casual",
+  "mandatory",
+  "festival",
+];
+
+const normalizeAdministratorLeaveType = (value) => {
+  const type = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  if (
+    type === "sick" ||
+    type === "sick_leave"
+  ) {
+    return "sick";
+  }
+
+  if (
+    type === "casual" ||
+    type === "casual_leave"
+  ) {
+    return "casual";
+  }
+
+  if (
+    type === "mandatory" ||
+    type === "mandatory_leave" ||
+    type === "privileged" ||
+    type === "privileged_leave"
+  ) {
+    return "mandatory";
+  }
+
+  if (
+    type === "festival" ||
+    type === "festival_leave"
+  ) {
+    return "festival";
+  }
+
+  return "";
+};
+
+const calculateAdministratorLeaveDays = (
+  startDate,
+  endDate
+) => {
+  const startParts = String(startDate || "")
+    .split("-")
+    .map(Number);
+
+  const endParts = String(endDate || "")
+    .split("-")
+    .map(Number);
+
+  if (
+    startParts.length !== 3 ||
+    endParts.length !== 3
+  ) {
+    return 0;
+  }
+
+  const start = Date.UTC(
+    startParts[0],
+    startParts[1] - 1,
+    startParts[2]
+  );
+
+  const end = Date.UTC(
+    endParts[0],
+    endParts[1] - 1,
+    endParts[2]
+  );
+
+  if (
+    Number.isNaN(start) ||
+    Number.isNaN(end) ||
+    end < start
+  ) {
+    return 0;
+  }
+
+  return (
+    Math.floor(
+      (end - start) /
+        (24 * 60 * 60 * 1000)
+    ) + 1
+  );
+};
+
+const getAdministratorManagedUser = async (
+  connectionOrDb,
+  userId
+) => {
+  const [rows] =
+    await connectionOrDb.query(
+      `
+      SELECT
+        u.user_id,
+        u.employee_code,
+        u.full_name,
+        u.email,
+        u.status,
+        r.role_name
+
+      FROM users u
+
+      LEFT JOIN roles r
+        ON r.role_id = u.role_id
+
+      WHERE u.user_id = ?
+        AND COALESCE(
+          u.status,
+          'active'
+        ) != 'deleted'
+
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+  return rows[0] || null;
+};
+
+/*
+========================================================
+GET USER LEAVE BALANCES
+========================================================
+*/
+
+const getAdministratorUserLeaveBalances =
+  async (req, res) => {
+    try {
+      const userId =
+        Number(req.params.userId);
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid user ID is required.",
+        });
+      }
+
+      const user =
+        await getAdministratorManagedUser(
+          db,
+          userId
+        );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User not found.",
+        });
+      }
+
+      const requestedYear =
+        Number(req.query.year);
+
+      const currentYear =
+        new Date().getFullYear();
+
+      const year =
+        Number.isFinite(requestedYear) &&
+        requestedYear >= 2000
+          ? requestedYear
+          : currentYear;
+
+      const balances =
+        await buildLeaveBalances(
+          db,
+          userId,
+          year
+        );
+
+      return res.json({
+        success: true,
+        year,
+        user,
+        balances,
+      });
+    } catch (error) {
+      console.error(
+        "getAdministratorUserLeaveBalances error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to fetch user leave balances.",
+        error: error.message,
+        sqlMessage:
+          error.sqlMessage || null,
+      });
+    }
+  };
+
+/*
+========================================================
+ADD EXTRA LEAVE
+========================================================
+*/
+
+const addAdministratorUserExtraLeave =
+  async (req, res) => {
+    let connection;
+
+    try {
+      connection =
+        await db.getConnection();
+
+      const userId =
+        Number(req.params.userId);
+
+      const administratorUserId =
+        Number(req.user?.user_id);
+
+      const leaveType =
+        normalizeAdministratorLeaveType(
+          req.body.leave_type
+        );
+
+      const adjustmentDays =
+        Number(
+          req.body.adjustment_days ??
+            req.body.days
+        );
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid user ID is required.",
+        });
+      }
+
+      if (
+        !ADMINISTRATOR_LEAVE_TYPES.includes(
+          leaveType
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select a valid leave type.",
+        });
+      }
+
+      if (
+        !Number.isFinite(adjustmentDays) ||
+        adjustmentDays <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Extra leave days must be greater than 0.",
+        });
+      }
+
+      await connection.beginTransaction();
+
+      const user =
+        await getAdministratorManagedUser(
+          connection,
+          userId
+        );
+
+      if (!user) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "User not found.",
+        });
+      }
+
+      const [result] =
+        await connection.query(
+          `
+          INSERT INTO employee_leave_adjustments
+          (
+            employee_id,
+            leave_type,
+            adjustment_days,
+            adjusted_by
+          )
+          VALUES (?, ?, ?, ?)
+          `,
+          [
+            userId,
+            leaveType,
+            adjustmentDays,
+            administratorUserId,
+          ]
+        );
+
+      const currentYear =
+        new Date().getFullYear();
+
+      const balances =
+        await buildLeaveBalances(
+          connection,
+          userId,
+          currentYear
+        );
+
+      await connection.commit();
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Extra leave added successfully.",
+
+        adjustment: {
+          adjustment_id:
+            result.insertId,
+
+          employee_id:
+            userId,
+
+          leave_type:
+            leaveType,
+
+          adjustment_days:
+            adjustmentDays,
+
+          adjusted_by:
+            administratorUserId,
+        },
+
+        balances,
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error(
+            "ADD EXTRA LEAVE ROLLBACK ERROR:",
+            rollbackError
+          );
+        }
+      }
+
+      console.error(
+        "addAdministratorUserExtraLeave error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to add extra leave.",
+        error: error.message,
+        sqlMessage:
+          error.sqlMessage || null,
+      });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  };
+
+/*
+========================================================
+REDUCE LEAVE
+
+Manual historical leave entry.
+
+IMPORTANT:
+- Directly approved
+- No email
+- No review token
+- No pending workflow
+- No reason required
+========================================================
+*/
+
+const reduceAdministratorUserLeave =
+  async (req, res) => {
+    let connection;
+
+    try {
+      connection =
+        await db.getConnection();
+
+      const userId =
+        Number(req.params.userId);
+
+      const administratorUserId =
+        Number(req.user?.user_id);
+
+      const leaveType =
+        normalizeAdministratorLeaveType(
+          req.body.leave_type
+        );
+
+      const durationType =
+        String(
+          req.body.duration_type ||
+            "full_day"
+        )
+          .trim()
+          .toLowerCase();
+
+      const halfDaySession =
+        String(
+          req.body.half_day_session ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const startDate =
+        String(
+          req.body.start_date ||
+            ""
+        ).trim();
+
+      let endDate =
+        String(
+          req.body.end_date ||
+            ""
+        ).trim();
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid user ID is required.",
+        });
+      }
+
+      if (
+        !ADMINISTRATOR_LEAVE_TYPES.includes(
+          leaveType
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select a valid leave type.",
+        });
+      }
+
+      if (
+        ![
+          "full_day",
+          "half_day",
+        ].includes(
+          durationType
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select Full Day or Half Day.",
+        });
+      }
+
+      const datePattern =
+        /^\d{4}-\d{2}-\d{2}$/;
+
+      if (
+        !startDate ||
+        !datePattern.test(startDate)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select a valid leave date.",
+        });
+      }
+
+      if (
+        durationType === "half_day"
+      ) {
+        if (
+          ![
+            "first_half",
+            "second_half",
+          ].includes(
+            halfDaySession
+          )
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Please select First Half or Second Half.",
+          });
+        }
+
+        endDate =
+          startDate;
+      } else {
+        if (
+          !endDate ||
+          !datePattern.test(endDate)
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Please select the end date.",
+          });
+        }
+
+        if (
+          endDate < startDate
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Leave end date cannot be before start date.",
+          });
+        }
+      }
+
+      /*
+      ------------------------------------------------------
+      TODAY IN INDIA
+      ------------------------------------------------------
+      */
+
+      const indiaParts =
+        new Intl.DateTimeFormat(
+          "en-CA",
+          {
+            timeZone:
+              "Asia/Kolkata",
+
+            year:
+              "numeric",
+
+            month:
+              "2-digit",
+
+            day:
+              "2-digit",
+          }
+        ).formatToParts(
+          new Date()
+        );
+
+      const indiaValues = {};
+
+      indiaParts.forEach(
+        (part) => {
+          indiaValues[
+            part.type
+          ] =
+            part.value;
+        }
+      );
+
+      const todayDate =
+        `${indiaValues.year}-${indiaValues.month}-${indiaValues.day}`;
+
+      /*
+      Reduce Leave is for historical leave,
+      therefore future dates are not allowed.
+      */
+
+      if (
+        startDate > todayDate ||
+        endDate > todayDate
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Manual leave reduction can only be recorded for today or a past date.",
+        });
+      }
+
+      /*
+      Keep one record within one calendar year.
+      */
+
+      if (
+        startDate.slice(0, 4) !==
+        endDate.slice(0, 4)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please save separate leave records for each calendar year.",
+        });
+      }
+
+      const totalDays =
+        durationType ===
+        "half_day"
+          ? 0.5
+          : calculateAdministratorLeaveDays(
+              startDate,
+              endDate
+            );
+
+      if (
+        totalDays <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Unable to calculate leave days.",
+        });
+      }
+
+      await connection.beginTransaction();
+
+      const user =
+        await getAdministratorManagedUser(
+          connection,
+          userId
+        );
+
+      if (!user) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "User not found.",
+        });
+      }
+
+      const leaveYear =
+        Number(
+          startDate.slice(
+            0,
+            4
+          )
+        );
+
+      /*
+      ------------------------------------------------------
+      CHECK THAT EMPLOYEE HAS ENOUGH LEAVE
+      ------------------------------------------------------
+      */
+
+      const balances =
+        await buildLeaveBalances(
+          connection,
+          userId,
+          leaveYear
+        );
+
+      const selectedBalance =
+        balances[
+          leaveType
+        ];
+
+      if (!selectedBalance) {
+        await connection.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "Unable to calculate employee leave balance.",
+        });
+      }
+
+      const available =
+        Number(
+          selectedBalance.available ||
+            0
+        );
+
+      if (
+        totalDays >
+        available
+      ) {
+        await connection.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            `Employee only has ${available} day(s) available for this leave type.`,
+        });
+      }
+
+      /*
+      ------------------------------------------------------
+      PREVENT DUPLICATE / OVERLAPPING LEAVE
+      ------------------------------------------------------
+      */
+
+      const [overlappingRows] =
+        await connection.query(
+          `
+          SELECT
+            leave_id
+
+          FROM leave_applications
+
+          WHERE employee_id = ?
+
+            AND status IN (
+              'pending',
+              'approved'
+            )
+
+            AND NOT (
+              end_date < ?
+              OR start_date > ?
+            )
+
+          LIMIT 1
+
+          FOR UPDATE
+          `,
+          [
+            userId,
+            startDate,
+            endDate,
+          ]
+        );
+
+      if (
+        overlappingRows.length > 0
+      ) {
+        await connection.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "This employee already has a pending or approved leave record for the selected date(s).",
+        });
+      }
+
+      /*
+      ------------------------------------------------------
+      CHECK EXISTING LEAVE COLUMNS
+      ------------------------------------------------------
+      */
+
+      const [columnRows] =
+        await connection.query(
+          `
+          SHOW COLUMNS
+          FROM leave_applications
+          `
+        );
+
+      const columns =
+        new Set(
+          columnRows.map(
+            (row) =>
+              String(
+                row.Field
+              )
+          )
+        );
+
+      const insertColumns = [
+        "employee_id",
+        "leave_type",
+        "start_date",
+        "end_date",
+        "total_days",
+        "reason",
+        "status",
+      ];
+
+      const insertValues = [
+        userId,
+        leaveType,
+        startDate,
+        endDate,
+        totalDays,
+        null,
+        "approved",
+      ];
+
+      if (
+        columns.has(
+          "duration_type"
+        )
+      ) {
+        insertColumns.push(
+          "duration_type"
+        );
+
+        insertValues.push(
+          durationType
+        );
+      }
+
+      if (
+        columns.has(
+          "half_day_session"
+        )
+      ) {
+        insertColumns.push(
+          "half_day_session"
+        );
+
+        insertValues.push(
+          durationType ===
+            "half_day"
+            ? halfDaySession
+            : null
+        );
+      }
+
+      if (
+        columns.has(
+          "reviewed_by"
+        )
+      ) {
+        insertColumns.push(
+          "reviewed_by"
+        );
+
+        insertValues.push(
+          administratorUserId
+        );
+      }
+
+      if (
+        columns.has(
+          "reviewed_at"
+        )
+      ) {
+        insertColumns.push(
+          "reviewed_at"
+        );
+
+        insertValues.push(
+          new Date()
+        );
+      }
+
+      const placeholders =
+        insertColumns
+          .map(() => "?")
+          .join(", ");
+
+      /*
+      ------------------------------------------------------
+      DIRECT APPROVED INSERT
+
+      No:
+      - email
+      - review token
+      - approval workflow
+      ------------------------------------------------------
+      */
+
+      const [result] =
+        await connection.query(
+          `
+          INSERT INTO leave_applications
+          (
+            ${insertColumns.join(
+              ", "
+            )}
+          )
+
+          VALUES
+          (
+            ${placeholders}
+          )
+          `,
+          insertValues
+        );
+
+      const updatedBalances =
+        await buildLeaveBalances(
+          connection,
+          userId,
+          leaveYear
+        );
+
+      await connection.commit();
+
+      return res.status(201).json({
+        success: true,
+        message:
+          "Leave reduced successfully.",
+
+        leave: {
+          leave_id:
+            result.insertId,
+
+          employee_id:
+            userId,
+
+          leave_type:
+            leaveType,
+
+          start_date:
+            startDate,
+
+          end_date:
+            endDate,
+
+          duration_type:
+            durationType,
+
+          half_day_session:
+            durationType ===
+              "half_day"
+              ? halfDaySession
+              : null,
+
+          total_days:
+            totalDays,
+
+          status:
+            "approved",
+
+          reviewed_by:
+            administratorUserId,
+        },
+
+        balances:
+          updatedBalances,
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (rollbackError) {
+          console.error(
+            "REDUCE LEAVE ROLLBACK ERROR:",
+            rollbackError
+          );
+        }
+      }
+
+      console.error(
+        "reduceAdministratorUserLeave error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to reduce leave.",
+        error: error.message,
+        sqlMessage:
+          error.sqlMessage || null,
+      });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  };
+
 const getAdministratorAttendance = async (req, res) => {
   try {
     const userId = req.user.user_id;
@@ -4200,6 +5176,10 @@ module.exports = {
   resetAdministratorUserPassword,
   setAdministratorUserPassword,
   deleteAdministratorUser,
+
+  getAdministratorUserLeaveBalances,
+  addAdministratorUserExtraLeave,
+  reduceAdministratorUserLeave,
 
   getAdministratorAttendance,
   importAdministratorAttendanceCsv,

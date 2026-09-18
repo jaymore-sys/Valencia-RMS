@@ -378,6 +378,201 @@ const getPrivilegedUsage =
 
 /*
 ========================================================
+ADMINISTRATOR EXTRA LEAVE
+
+Extra Leave:
+- Is not tied to a calendar year.
+- Does not expire.
+- Carries forward until consumed.
+- Applies to:
+  sick
+  casual
+  mandatory / privileged
+  festival
+========================================================
+*/
+
+const getExtraLeaveGranted = async (
+  db,
+  employeeId,
+  leaveType
+) => {
+  const [rows] =
+    await db.query(
+      `
+      SELECT
+        COALESCE(
+          SUM(adjustment_days),
+          0
+        ) AS extra_days
+
+      FROM employee_leave_adjustments
+
+      WHERE employee_id = ?
+        AND leave_type = ?
+      `,
+      [
+        employeeId,
+        leaveType,
+      ]
+    );
+
+  return Number(
+    rows[0]?.extra_days ||
+      0
+  );
+};
+
+/*
+========================================================
+CALCULATE EXTRA LEAVE ALREADY CONSUMED
+IN PREVIOUS YEARS
+
+Example:
+
+Normal Sick entitlement = 2
+Administrator added      = 2 extra
+
+2026 employee used 3
+
+Normal entitlement used  = 2
+Extra consumed           = 1
+
+So next year:
+1 Extra Sick Leave still carries forward.
+========================================================
+*/
+
+const getHistoricalExtraConsumed =
+  async (
+    db,
+    employeeId,
+    leaveType,
+    beforeYear
+  ) => {
+    const numericYear =
+      Number(beforeYear);
+
+    if (
+      !Number.isFinite(
+        numericYear
+      ) ||
+      numericYear <= 2026
+    ) {
+      return 0;
+    }
+
+    const [rows] =
+      await db.query(
+        `
+        SELECT
+          YEAR(start_date) AS leave_year,
+
+          COALESCE(
+            SUM(total_days),
+            0
+          ) AS used_days
+
+        FROM leave_applications
+
+        WHERE employee_id = ?
+          AND leave_type = ?
+          AND status = 'approved'
+          AND start_date >= ?
+          AND YEAR(start_date) < ?
+
+        GROUP BY
+          YEAR(start_date)
+
+        ORDER BY
+          YEAR(start_date) ASC
+        `,
+        [
+          employeeId,
+          leaveType,
+          POLICY_START_DATE,
+          numericYear,
+        ]
+      );
+
+    let consumedExtra = 0;
+
+    rows.forEach((row) => {
+      const leaveYear =
+        Number(
+          row.leave_year
+        );
+
+      const usage =
+        Number(
+          row.used_days ||
+            0
+        );
+
+      const yearlyEntitlements =
+        getAnnualEntitlements(
+          leaveYear
+        );
+
+      const normalEntitlement =
+        Number(
+          yearlyEntitlements[
+            leaveType
+          ] || 0
+        );
+
+      consumedExtra +=
+        Math.max(
+          0,
+          usage -
+            normalEntitlement
+        );
+    });
+
+    return formatNumber(
+      consumedExtra
+    );
+  };
+
+/*
+========================================================
+EXTRA LEAVE AVAILABLE AT START OF YEAR
+========================================================
+*/
+
+const getCarryForwardExtraLeave =
+  async (
+    db,
+    employeeId,
+    leaveType,
+    year
+  ) => {
+    const granted =
+      await getExtraLeaveGranted(
+        db,
+        employeeId,
+        leaveType
+      );
+
+    const previouslyConsumed =
+      await getHistoricalExtraConsumed(
+        db,
+        employeeId,
+        leaveType,
+        year
+      );
+
+    return formatNumber(
+      Math.max(
+        0,
+        granted -
+          previouslyConsumed
+      )
+    );
+  };
+
+/*
+========================================================
 BUILD FINAL BALANCES
 ========================================================
 */
@@ -435,10 +630,76 @@ const buildLeaveBalances =
     const privilegedEarned =
       getPrivilegedEarned();
 
+    const [
+      sickExtra,
+      casualExtra,
+      festivalExtra,
+      privilegedExtra,
+    ] = await Promise.all([
+      getCarryForwardExtraLeave(
+        db,
+        employeeId,
+        "sick",
+        year
+      ),
+
+      getCarryForwardExtraLeave(
+        db,
+        employeeId,
+        "casual",
+        year
+      ),
+
+      getCarryForwardExtraLeave(
+        db,
+        employeeId,
+        "festival",
+        year
+      ),
+
+      getExtraLeaveGranted(
+        db,
+        employeeId,
+        "mandatory"
+      ),
+    ]);
+
+    const sickTotal =
+      Number(
+        entitlements.sick || 0
+      ) +
+      Number(
+        sickExtra || 0
+      );
+
+    const casualTotal =
+      Number(
+        entitlements.casual || 0
+      ) +
+      Number(
+        casualExtra || 0
+      );
+
+    const festivalTotal =
+      Number(
+        entitlements.festival || 0
+      ) +
+      Number(
+        festivalExtra || 0
+      );
+
+    const privilegedTotal =
+      Number(
+        privilegedEarned || 0
+      ) +
+      Number(
+        privilegedExtra || 0
+      );
+
     const sickAvailable =
       Math.max(
         0,
-        entitlements.sick -
+        sickTotal -
           sickUsage.used -
           sickUsage.pending
       );
@@ -446,7 +707,7 @@ const buildLeaveBalances =
     const casualAvailable =
       Math.max(
         0,
-        entitlements.casual -
+        casualTotal -
           casualUsage.used -
           casualUsage.pending
       );
@@ -454,7 +715,7 @@ const buildLeaveBalances =
     const holidayAvailable =
       Math.max(
         0,
-        entitlements.festival -
+        festivalTotal -
           festivalUsage.used -
           festivalUsage.pending
       );
@@ -462,20 +723,25 @@ const buildLeaveBalances =
     const privilegedAvailable =
       Math.max(
         0,
-        privilegedEarned -
+        privilegedTotal -
           privilegedUsage.used -
           privilegedUsage.pending
       );
 
     return {
       sick: {
-        label: "Sick Leave",
+        label:
+          "Sick Leave",
 
         total:
-          entitlements.sick,
+          formatNumber(
+            sickTotal
+          ),
 
         earned:
-          entitlements.sick,
+          formatNumber(
+            sickTotal
+          ),
 
         used:
           formatNumber(
@@ -503,10 +769,14 @@ const buildLeaveBalances =
           "Casual Leave",
 
         total:
-          entitlements.casual,
+          formatNumber(
+            casualTotal
+          ),
 
         earned:
-          entitlements.casual,
+          formatNumber(
+            casualTotal
+          ),
 
         used:
           formatNumber(
@@ -541,12 +811,12 @@ const buildLeaveBalances =
 
         earned:
           formatNumber(
-            privilegedEarned
+            privilegedTotal
           ),
 
         total:
           formatNumber(
-            privilegedEarned
+            privilegedTotal
           ),
 
         used:
@@ -575,10 +845,14 @@ const buildLeaveBalances =
           "Holiday Leave",
 
         total:
-          entitlements.festival,
+          formatNumber(
+            festivalTotal
+          ),
 
         earned:
-          entitlements.festival,
+          formatNumber(
+            festivalTotal
+          ),
 
         used:
           formatNumber(

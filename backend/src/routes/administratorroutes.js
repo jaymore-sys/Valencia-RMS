@@ -36,6 +36,10 @@ const {
   setAdministratorUserPassword,
   deleteAdministratorUser,
 
+  getAdministratorUserLeaveBalances,
+  addAdministratorUserExtraLeave,
+  reduceAdministratorUserLeave,
+
   getAdministratorAttendance,
   importAdministratorAttendanceCsv,
   exportAdministratorAttendanceCsv,
@@ -251,6 +255,31 @@ router.delete(
   authMiddleware,
   requireJayAdministrator,
   deleteAdministratorUser
+);
+
+/* =========================================================
+   USER LEAVE MANAGEMENT
+========================================================= */
+
+router.get(
+  "/users/:userId/leave-balances",
+  authMiddleware,
+  requireJayAdministrator,
+  getAdministratorUserLeaveBalances
+);
+
+router.post(
+  "/users/:userId/leave-extra",
+  authMiddleware,
+  requireJayAdministrator,
+  addAdministratorUserExtraLeave
+);
+
+router.post(
+  "/users/:userId/leave-reduction",
+  authMiddleware,
+  requireJayAdministrator,
+  reduceAdministratorUserLeave
 );
 
 /* =========================================================

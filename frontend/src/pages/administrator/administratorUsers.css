@@ -1437,3 +1437,585 @@
     justify-content: center !important;
   }
 }
+
+
+
+
+
+
+
+
+
+
+/* =========================================================
+   ADMINISTRATOR USER LEAVE MANAGEMENT
+========================================================= */
+
+.administrator-leave-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.administrator-leave-action-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+  min-width: 220px;
+}
+
+.administrator-leave-action-copy strong {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.administrator-leave-action-copy span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+}
+
+
+/* =========================================================
+   LEAVE MODAL BACKDROP
+========================================================= */
+
+.administrator-leave-modal-backdrop,
+.administrator-leave-form-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(2px);
+}
+
+
+/* =========================================================
+   LEAVE MODAL
+========================================================= */
+
+.administrator-leave-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 48px);
+
+  display: flex;
+  flex-direction: column;
+
+  background: #ffffff;
+
+  border-radius: 18px;
+
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.2);
+
+  overflow: hidden;
+}
+
+.administrator-reduce-leave-modal {
+  width: min(920px, 100%);
+}
+
+.administrator-reduce-leave-form-modal {
+  width: min(620px, 100%);
+}
+
+
+/* =========================================================
+   LEAVE MODAL HEADER
+========================================================= */
+
+.administrator-leave-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 20px 22px;
+
+  border-bottom: 1px solid #e5e7eb;
+
+  background: #ffffff;
+}
+
+.administrator-leave-modal-header h2 {
+  margin: 0;
+
+  font-size: 20px;
+  font-weight: 750;
+
+  color: #111827;
+}
+
+.administrator-leave-modal-header p {
+  margin: 5px 0 0;
+
+  font-size: 13px;
+  line-height: 1.5;
+
+  color: #64748b;
+}
+
+.administrator-leave-modal-header > button {
+  width: 36px;
+  height: 36px;
+
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+
+  background: #ffffff;
+  color: #475569;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.administrator-leave-modal-header > button:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.administrator-leave-modal-header > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   LEAVE MODAL BODY
+========================================================= */
+
+.administrator-leave-modal-body {
+  padding: 22px;
+
+  overflow-y: auto;
+}
+
+.administrator-leave-modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.administrator-leave-modal-section + .administrator-leave-modal-section {
+  margin-top: 20px;
+}
+
+.administrator-leave-modal-label {
+  font-size: 13px;
+  font-weight: 700;
+
+  color: #334155;
+}
+
+.administrator-leave-modal-section input[type="number"],
+.administrator-leave-modal-section input[type="date"],
+.administrator-leave-modal-section select {
+  width: 100%;
+  min-height: 44px;
+
+  padding: 10px 12px;
+
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+
+  outline: none;
+
+  background: #ffffff;
+
+  font-size: 14px;
+  color: #1f2937;
+
+  box-sizing: border-box;
+
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.administrator-leave-modal-section input:focus,
+.administrator-leave-modal-section select:focus {
+  border-color: #f97316;
+
+  box-shadow:
+    0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+.administrator-leave-modal-section input:disabled,
+.administrator-leave-modal-section select:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   ADD EXTRA LEAVE TYPES
+========================================================= */
+
+.administrator-extra-leave-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+}
+
+.administrator-extra-leave-type-option {
+  min-height: 46px;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 11px 13px;
+
+  border: 1px solid #dbe2ea;
+  border-radius: 11px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.administrator-extra-leave-type-option:hover {
+  border-color: #fdba74;
+}
+
+.administrator-extra-leave-type-option.selected {
+  border-color: #f97316;
+
+  background: #fff7ed;
+
+  box-shadow:
+    0 0 0 2px rgba(249, 115, 22, 0.08);
+}
+
+.administrator-extra-leave-type-option input {
+  width: 16px;
+  height: 16px;
+
+  accent-color: #f97316;
+}
+
+.administrator-extra-leave-type-option span {
+  font-size: 13px;
+  font-weight: 650;
+
+  color: #334155;
+}
+
+
+/* =========================================================
+   LEAVE MODAL ACTIONS
+========================================================= */
+
+.administrator-leave-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  margin-top: 24px;
+}
+
+
+/* =========================================================
+   LEAVE BALANCE CARDS
+========================================================= */
+
+.administrator-leave-loading {
+  padding: 42px 18px;
+
+  text-align: center;
+
+  font-size: 14px;
+
+  color: #64748b;
+}
+
+.administrator-leave-balance-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 14px;
+}
+
+.administrator-leave-balance-card {
+  display: flex;
+  flex-direction: column;
+
+  padding: 16px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 3px 10px rgba(15, 23, 42, 0.04);
+}
+
+.administrator-leave-balance-card-header {
+  margin-bottom: 14px;
+}
+
+.administrator-leave-balance-card-header h3 {
+  margin: 0;
+
+  font-size: 15px;
+  font-weight: 750;
+
+  color: #1f2937;
+}
+
+.administrator-leave-balance-stats {
+  display: grid;
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 8px;
+
+  margin-bottom: 15px;
+}
+
+.administrator-leave-balance-stats > div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 4px;
+
+  padding: 9px 7px;
+
+  border-radius: 9px;
+
+  background: #f8fafc;
+
+  text-align: center;
+}
+
+.administrator-leave-balance-stats span {
+  font-size: 10px;
+  font-weight: 600;
+
+  color: #64748b;
+}
+
+.administrator-leave-balance-stats strong {
+  font-size: 14px;
+  font-weight: 750;
+
+  color: #0f172a;
+}
+
+.administrator-leave-card-action {
+  width: 100%;
+
+  margin-top: auto;
+}
+
+
+/* =========================================================
+   REDUCE LEAVE FORM
+========================================================= */
+
+.administrator-reduce-form-grid {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 18px;
+}
+
+.administrator-reduce-form-grid
+  .administrator-leave-modal-section {
+  margin-top: 0;
+}
+
+.administrator-reduce-form-full {
+  grid-column: 1 / -1;
+}
+
+.administrator-duration-options {
+  display: grid;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 10px;
+}
+
+.administrator-duration-option {
+  min-height: 44px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 8px;
+
+  padding: 10px 12px;
+
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+
+  background: #ffffff;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.administrator-duration-option:hover {
+  border-color: #fdba74;
+}
+
+.administrator-duration-option.selected {
+  border-color: #f97316;
+  background: #fff7ed;
+}
+
+.administrator-duration-option input {
+  accent-color: #f97316;
+}
+
+.administrator-duration-option span {
+  font-size: 13px;
+  font-weight: 650;
+
+  color: #334155;
+}
+
+
+/* =========================================================
+   LEAVE DAYS SUMMARY
+========================================================= */
+
+.administrator-leave-days-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 13px 15px;
+
+  border: 1px solid #fed7aa;
+  border-radius: 11px;
+
+  background: #fff7ed;
+}
+
+.administrator-leave-days-summary span {
+  font-size: 13px;
+  font-weight: 650;
+
+  color: #9a3412;
+}
+
+.administrator-leave-days-summary strong {
+  font-size: 18px;
+  font-weight: 800;
+
+  color: #ea580c;
+}
+
+
+/* =========================================================
+   MOBILE
+========================================================= */
+
+@media (max-width: 768px) {
+  .administrator-leave-modal-backdrop,
+  .administrator-leave-form-backdrop {
+    align-items: flex-end;
+
+    padding: 12px;
+  }
+
+  .administrator-leave-modal {
+    width: 100%;
+    max-height: 90vh;
+
+    border-radius: 16px;
+  }
+
+  .administrator-leave-action-row {
+    align-items: stretch;
+  }
+
+  .administrator-leave-action-row
+    .administrator-primary-btn {
+    width: 100%;
+  }
+
+  .administrator-extra-leave-type-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .administrator-leave-balance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .administrator-reduce-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .administrator-reduce-form-full {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .administrator-leave-modal-header {
+    padding: 16px;
+  }
+
+  .administrator-leave-modal-body {
+    padding: 16px;
+  }
+
+  .administrator-leave-balance-stats {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .administrator-duration-options {
+    grid-template-columns: 1fr;
+  }
+
+  .administrator-leave-modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .administrator-leave-modal-actions button {
+    width: 100%;
+  }
+}

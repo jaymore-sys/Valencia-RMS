@@ -1,9 +1,12 @@
+/* PART 1 OF 8 */
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   Eye,
   EyeOff,
   Lock,
+  MinusCircle,
   Plus,
   RefreshCw,
   Save,
@@ -39,6 +42,25 @@ const normalizeRole = (value) =>
     .trim()
     .toLowerCase();
 
+const LEAVE_TYPES = [
+  {
+    value: "sick",
+    label: "Sick Leave",
+  },
+  {
+    value: "casual",
+    label: "Casual Leave",
+  },
+  {
+    value: "mandatory",
+    label: "Privileged Leave",
+  },
+  {
+    value: "festival",
+    label: "Festival Leave",
+  },
+];
+
 const AdministratorUsers = () => {
   const fileInputRef = useRef(null);
 
@@ -56,10 +78,6 @@ const AdministratorUsers = () => {
 
   const [message, setMessage] = useState("");
 
-  /* =========================================================
-     SELECTED USER
-  ========================================================= */
-
   const [selectedUser, setSelectedUser] = useState(null);
 
   const [selectedRole, setSelectedRole] = useState("");
@@ -71,17 +89,27 @@ const AdministratorUsers = () => {
   const [updatingRole, setUpdatingRole] = useState(false);
   const [updatingDetails, setUpdatingDetails] = useState(false);
 
-  /* =========================================================
-     PASSWORD
-  ========================================================= */
-
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  /* =========================================================
-     ADD DEPARTMENT MODAL
-  ========================================================= */
+  const [showExtraLeaveModal, setShowExtraLeaveModal] = useState(false);
+  const [extraLeaveType, setExtraLeaveType] = useState("");
+  const [extraLeaveDays, setExtraLeaveDays] = useState("");
+  const [savingExtraLeave, setSavingExtraLeave] = useState(false);
+
+  const [showReduceLeaveModal, setShowReduceLeaveModal] = useState(false);
+  const [leaveBalances, setLeaveBalances] = useState(null);
+  const [loadingLeaveBalances, setLoadingLeaveBalances] = useState(false);
+
+  const [showReduceLeaveForm, setShowReduceLeaveForm] = useState(false);
+  const [reduceLeaveType, setReduceLeaveType] = useState("");
+  const [reduceDurationType, setReduceDurationType] = useState("full_day");
+  const [reduceHalfDaySession, setReduceHalfDaySession] =
+    useState("first_half");
+  const [reduceStartDate, setReduceStartDate] = useState("");
+  const [reduceEndDate, setReduceEndDate] = useState("");
+  const [savingReduceLeave, setSavingReduceLeave] = useState(false);
 
   const [showAddDepartment, setShowAddDepartment] = useState(false);
 
@@ -91,14 +119,6 @@ const AdministratorUsers = () => {
 
   const [creatingDepartment, setCreatingDepartment] = useState(false);
 
-  /* =========================================================
-     ALL DEPARTMENTS
-
-     IMPORTANT:
-     No fixed department filtering anymore.
-     Newly-created departments immediately appear.
-  ========================================================= */
-
   const visibleDepartments = useMemo(() => {
     return [...departments].sort((a, b) =>
       String(a.department_name || "").localeCompare(
@@ -106,10 +126,6 @@ const AdministratorUsers = () => {
       )
     );
   }, [departments]);
-
-  /* =========================================================
-     FETCH USERS
-  ========================================================= */
 
   const fetchUsers = async () => {
     try {
@@ -126,8 +142,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to load users."
+          error.response?.data?.message ||
+          "Failed to load users."
       );
     } finally {
       setLoading(false);
@@ -137,10 +153,6 @@ const AdministratorUsers = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
-
-  /* =========================================================
-     FILTER USERS
-  ========================================================= */
 
   const filteredUsers = useMemo(() => {
     const value = search.trim().toLowerCase();
@@ -161,10 +173,6 @@ const AdministratorUsers = () => {
     });
   }, [users, search]);
 
-  /* =========================================================
-     ADD USER FORM
-  ========================================================= */
-
   const handleChange = (event) => {
     const { name, value } = event.target;
 
@@ -184,7 +192,10 @@ const AdministratorUsers = () => {
       const response = await api.post("/administrator/users", form);
 
       setMessage(
-        `${response.data.message || "User created successfully."} Default Password: ${response.data.default_password || "Valencia@123"
+        `${
+          response.data.message || "User created successfully."
+        } Default Password: ${
+          response.data.default_password || "Valencia@123"
         }`
       );
 
@@ -194,17 +205,13 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to create user."
+          error.response?.data?.message ||
+          "Failed to create user."
       );
     } finally {
       setCreating(false);
     }
   };
-
-  /* =========================================================
-     ADD DEPARTMENT
-  ========================================================= */
 
   const openAddDepartmentModal = () => {
     setDepartmentForm(emptyDepartmentForm);
@@ -259,10 +266,6 @@ const AdministratorUsers = () => {
 
       setDepartments(metaResponse.data.departments || []);
 
-      /*
-        If Add Department was opened while creating a user,
-        automatically select the newly-created department.
-      */
       if (createdDepartment?.department_name) {
         setForm((previous) => ({
           ...previous,
@@ -272,17 +275,13 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to add department."
+          error.response?.data?.message ||
+          "Failed to add department."
       );
     } finally {
       setCreatingDepartment(false);
     }
   };
-
-  /* =========================================================
-     IMPORT
-  ========================================================= */
 
   const handleImportClick = () => {
     fileInputRef.current?.click();
@@ -312,15 +311,20 @@ const AdministratorUsers = () => {
       );
 
       setMessage(
-        `${response.data.message || "Users imported successfully."} Imported: ${response.data.inserted_users ??
-        response.data.importedRows ??
-        0
-        }, Updated: ${response.data.updated_users ??
-        response.data.updatedRows ??
-        0
-        }, Skipped: ${response.data.skipped_rows ??
-        response.data.skippedRows ??
-        0
+        `${
+          response.data.message || "Users imported successfully."
+        } Imported: ${
+          response.data.inserted_users ??
+          response.data.importedRows ??
+          0
+        }, Updated: ${
+          response.data.updated_users ??
+          response.data.updatedRows ??
+          0
+        }, Skipped: ${
+          response.data.skipped_rows ??
+          response.data.skippedRows ??
+          0
         }`
       );
 
@@ -328,8 +332,8 @@ const AdministratorUsers = () => {
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to import users."
+          error.response?.data?.message ||
+          "Failed to import users."
       );
     } finally {
       setImporting(false);
@@ -340,9 +344,7 @@ const AdministratorUsers = () => {
     }
   };
 
-  /* =========================================================
-     USER DEPARTMENTS
-  ========================================================= */
+  /* PART 2 OF 8 */
 
   const getUserDepartmentIds = (user) => {
     if (!user) return [];
@@ -369,31 +371,55 @@ const AdministratorUsers = () => {
     }
 
     const department = visibleDepartments.find(
-      (item) => item.department_name === user.department_name
+      (item) =>
+        item.department_name ===
+        user.department_name
     );
 
     if (department) {
-      return [Number(department.department_id)];
+      return [
+        Number(department.department_id),
+      ];
     }
 
     return [];
   };
 
-  /* =========================================================
-     USER DIALOG
-  ========================================================= */
-
   const openUserDialog = (user) => {
     setSelectedUser(user);
 
-    setSelectedRole(user.role_name || "employee");
-    setSelectedEmail(user.email || "");
-    setSelectedDesignation(user.designation || "");
+    setSelectedRole(
+      user.role_name || "employee"
+    );
 
-    setSelectedDepartmentIds(getUserDepartmentIds(user));
+    setSelectedEmail(
+      user.email || ""
+    );
+
+    setSelectedDesignation(
+      user.designation || ""
+    );
+
+    setSelectedDepartmentIds(
+      getUserDepartmentIds(user)
+    );
 
     setNewPassword("");
     setShowPassword(false);
+
+    setShowExtraLeaveModal(false);
+    setExtraLeaveType("");
+    setExtraLeaveDays("");
+
+    setShowReduceLeaveModal(false);
+    setLeaveBalances(null);
+    setShowReduceLeaveForm(false);
+    setReduceLeaveType("");
+    setReduceDurationType("full_day");
+    setReduceHalfDaySession("first_half");
+    setReduceStartDate("");
+    setReduceEndDate("");
+
     setMessage("");
   };
 
@@ -409,262 +435,743 @@ const AdministratorUsers = () => {
     setNewPassword("");
     setShowPassword(false);
 
+    setShowExtraLeaveModal(false);
+    setExtraLeaveType("");
+    setExtraLeaveDays("");
+    setSavingExtraLeave(false);
+
+    setShowReduceLeaveModal(false);
+    setLeaveBalances(null);
+    setLoadingLeaveBalances(false);
+
+    setShowReduceLeaveForm(false);
+    setReduceLeaveType("");
+    setReduceDurationType("full_day");
+    setReduceHalfDaySession("first_half");
+    setReduceStartDate("");
+    setReduceEndDate("");
+    setSavingReduceLeave(false);
+
     setUpdatingRole(false);
     setUpdatingDetails(false);
     setUpdatingPassword(false);
   };
 
-  /* =========================================================
-     DEPARTMENT SELECTION
-  ========================================================= */
+  const getIndiaToday = () => {
+    const parts =
+      new Intl.DateTimeFormat(
+        "en-CA",
+        {
+          timeZone:
+            "Asia/Kolkata",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }
+      ).formatToParts(
+        new Date()
+      );
 
-  const toggleDepartment = (departmentId) => {
-    const id = Number(departmentId);
+    const values = {};
 
-    setSelectedDepartmentIds((previous) => {
-      if (previous.includes(id)) {
-        return previous.filter((item) => item !== id);
+    parts.forEach((part) => {
+      values[part.type] =
+        part.value;
+    });
+
+    return `${values.year}-${values.month}-${values.day}`;
+  };
+
+  const calculateReductionDays = () => {
+    if (!reduceStartDate) {
+      return 0;
+    }
+
+    if (
+      reduceDurationType ===
+      "half_day"
+    ) {
+      return 0.5;
+    }
+
+    if (!reduceEndDate) {
+      return 0;
+    }
+
+    const startParts =
+      reduceStartDate
+        .split("-")
+        .map(Number);
+
+    const endParts =
+      reduceEndDate
+        .split("-")
+        .map(Number);
+
+    if (
+      startParts.length !== 3 ||
+      endParts.length !== 3
+    ) {
+      return 0;
+    }
+
+    const start =
+      Date.UTC(
+        startParts[0],
+        startParts[1] - 1,
+        startParts[2]
+      );
+
+    const end =
+      Date.UTC(
+        endParts[0],
+        endParts[1] - 1,
+        endParts[2]
+      );
+
+    if (
+      Number.isNaN(start) ||
+      Number.isNaN(end) ||
+      end < start
+    ) {
+      return 0;
+    }
+
+    return (
+      Math.floor(
+        (end - start) /
+          (
+            24 *
+            60 *
+            60 *
+            1000
+          )
+      ) + 1
+    );
+  };
+
+  const openExtraLeaveModal = () => {
+    if (!selectedUser) return;
+
+    setExtraLeaveType("");
+    setExtraLeaveDays("");
+
+    setShowExtraLeaveModal(true);
+  };
+
+  const closeExtraLeaveModal = () => {
+    if (savingExtraLeave) {
+      return;
+    }
+
+    setShowExtraLeaveModal(false);
+    setExtraLeaveType("");
+    setExtraLeaveDays("");
+  };
+
+  const addExtraLeave = async () => {
+    if (!selectedUser) {
+      return;
+    }
+
+    if (!extraLeaveType) {
+      setMessage(
+        "Please select a leave type."
+      );
+
+      return;
+    }
+
+    const days =
+      Number(extraLeaveDays);
+
+    if (
+      !Number.isFinite(days) ||
+      days <= 0
+    ) {
+      setMessage(
+        "Please enter valid extra leave days."
+      );
+
+      return;
+    }
+
+    try {
+      setSavingExtraLeave(true);
+      setMessage("");
+
+      const response =
+        await api.post(
+          `/administrator/users/${selectedUser.user_id}/leave-extra`,
+          {
+            leave_type:
+              extraLeaveType,
+
+            adjustment_days:
+              days,
+          }
+        );
+
+      setMessage(
+        response.data.message ||
+          "Extra leave added successfully."
+      );
+
+      setShowExtraLeaveModal(false);
+      setExtraLeaveType("");
+      setExtraLeaveDays("");
+
+      if (
+        response.data.balances
+      ) {
+        setLeaveBalances(
+          response.data.balances
+        );
+      }
+    } catch (error) {
+      setMessage(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          "Failed to add extra leave."
+      );
+    } finally {
+      setSavingExtraLeave(false);
+    }
+  };
+
+  const fetchSelectedUserLeaveBalances =
+    async () => {
+      if (!selectedUser) {
+        return null;
       }
 
-      return [...previous, id];
-    });
-  };
+      try {
+        setLoadingLeaveBalances(true);
+        setMessage("");
 
-  const handleSingleDepartmentChange = (event) => {
-    const value = Number(event.target.value);
+        const response =
+          await api.get(
+            `/administrator/users/${selectedUser.user_id}/leave-balances`
+          );
 
-    setSelectedDepartmentIds(value ? [value] : []);
-  };
+        const balances =
+          response.data.balances ||
+          {};
 
-  /* =========================================================
-     ROLE
-  ========================================================= */
+        setLeaveBalances(
+          balances
+        );
 
-  const handleRoleSelectionChange = (event) => {
-    const nextRole = event.target.value;
+        return balances;
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to load leave balances."
+        );
 
-    setSelectedRole(nextRole);
-  };
+        return null;
+      } finally {
+        setLoadingLeaveBalances(false);
+      }
+    };
 
-  const updateUserRole = async () => {
-    if (!selectedUser) return;
+  const openReduceLeaveModal =
+    async () => {
+      if (!selectedUser) {
+        return;
+      }
 
-    try {
-      setUpdatingRole(true);
-      setMessage("");
+      setShowReduceLeaveModal(true);
 
-      const response = await api.put(
-        `/administrator/users/${selectedUser.user_id}/role`,
-        {
-          role_name: selectedRole,
-        }
+      setShowReduceLeaveForm(false);
+      setReduceLeaveType("");
+      setReduceDurationType("full_day");
+      setReduceHalfDaySession(
+        "first_half"
       );
+      setReduceStartDate("");
+      setReduceEndDate("");
 
-      setMessage(
-        response.data.message || "User role updated successfully."
-      );
+      await fetchSelectedUserLeaveBalances();
+    };
 
-      await fetchUsers();
-
-      closeUserDialog();
-    } catch (error) {
-      setMessage(
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to update user role."
-      );
-    } finally {
-      setUpdatingRole(false);
-    }
-  };
-
-  /* =========================================================
-     SAVE DETAILS
-  ========================================================= */
-
-  const updateUserDetails = async () => {
-    if (!selectedUser) return;
-
-    const cleanEmail = selectedEmail.trim().toLowerCase();
-
-    if (!cleanEmail) {
-      setMessage("Please enter an email address.");
+  const closeReduceLeaveModal = () => {
+    if (
+      savingReduceLeave ||
+      loadingLeaveBalances
+    ) {
       return;
     }
 
-    if (!selectedDepartmentIds.length) {
-      setMessage("Please select at least one department.");
-      return;
-    }
+    setShowReduceLeaveModal(false);
+    setShowReduceLeaveForm(false);
 
-    try {
-      setUpdatingDetails(true);
-      setMessage("");
-
-      const response = await api.put(
-        `/administrator/users/${selectedUser.user_id}/details`,
-        {
-          email: cleanEmail,
-          designation: selectedDesignation.trim(),
-          department_ids: selectedDepartmentIds,
-        }
-      );
-
-      setMessage(
-        response.data.message || "User details updated successfully."
-      );
-
-      await fetchUsers();
-
-      closeUserDialog();
-    } catch (error) {
-      setMessage(
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to update user details."
-      );
-    } finally {
-      setUpdatingDetails(false);
-    }
-  };
-
-  /* =========================================================
-     PASSWORD
-  ========================================================= */
-
-  const updateUserPassword = async () => {
-    if (!selectedUser) return;
-
-    if (newPassword.length < 8) {
-      setMessage("Password must be at least 8 characters.");
-      return;
-    }
-
-    try {
-      setUpdatingPassword(true);
-      setMessage("");
-
-      const response = await api.put(
-        `/administrator/users/${selectedUser.user_id}/password`,
-        {
-          password: newPassword,
-        }
-      );
-
-      setMessage(
-        response.data.message || "User password updated successfully."
-      );
-
-      setNewPassword("");
-      setShowPassword(false);
-    } catch (error) {
-      setMessage(
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to update user password."
-      );
-    } finally {
-      setUpdatingPassword(false);
-    }
-  };
-
-  /* =========================================================
-     STATUS
-  ========================================================= */
-
-  const updateUserStatus = async (userId, status) => {
-    try {
-      setMessage("");
-
-      const response = await api.put(
-        `/administrator/users/${userId}/status`,
-        {
-          status,
-        }
-      );
-
-      setMessage(response.data.message);
-
-      await fetchUsers();
-
-      closeUserDialog();
-    } catch (error) {
-      setMessage(
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to update user status."
-      );
-    }
-  };
-
-  /* =========================================================
-     RESET PASSWORD
-  ========================================================= */
-
-  const resetPassword = async (userId) => {
-    const confirmReset = window.confirm(
-      "Reset this user's password to Valencia@123?"
+    setReduceLeaveType("");
+    setReduceDurationType("full_day");
+    setReduceHalfDaySession(
+      "first_half"
     );
-
-    if (!confirmReset) return;
-
-    try {
-      setMessage("");
-
-      const response = await api.put(
-        `/administrator/users/${userId}/reset-password`
-      );
-
-      setMessage(
-        `${response.data.message} Default Password: ${response.data.default_password || "Valencia@123"
-        }`
-      );
-
-      closeUserDialog();
-    } catch (error) {
-      setMessage(
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to reset password."
-      );
-    }
+    setReduceStartDate("");
+    setReduceEndDate("");
   };
 
-  /* =========================================================
-     DELETE
-  ========================================================= */
+  const openReduceLeaveFormForType =
+    (leaveType) => {
+      setReduceLeaveType(
+        leaveType
+      );
 
-  const deleteUser = async (userId) => {
-    const confirmDelete = window.confirm(
-      "Delete this user permanently?"
+      setReduceDurationType(
+        "full_day"
+      );
+
+      setReduceHalfDaySession(
+        "first_half"
+      );
+
+      setReduceStartDate("");
+      setReduceEndDate("");
+
+      setShowReduceLeaveForm(true);
+    };
+
+  const closeReduceLeaveForm = () => {
+    if (savingReduceLeave) {
+      return;
+    }
+
+    setShowReduceLeaveForm(false);
+    setReduceLeaveType("");
+    setReduceDurationType("full_day");
+    setReduceHalfDaySession(
+      "first_half"
     );
-
-    if (!confirmDelete) return;
-
-    try {
-      setMessage("");
-
-      const response = await api.delete(
-        `/administrator/users/${userId}`
-      );
-
-      setMessage(response.data.message);
-
-      await fetchUsers();
-
-      closeUserDialog();
-    } catch (error) {
-      setMessage(
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        "Failed to delete user."
-      );
-    }
+    setReduceStartDate("");
+    setReduceEndDate("");
   };
 
-  /* =========================================================
-     EXPORT
-  ========================================================= */
+  /* PART 3 OF 8 */
+
+  const saveReducedLeave =
+    async () => {
+      if (
+        !selectedUser ||
+        !reduceLeaveType
+      ) {
+        return;
+      }
+
+      if (!reduceStartDate) {
+        setMessage(
+          "Please select the From Date."
+        );
+
+        return;
+      }
+
+      const finalEndDate =
+        reduceDurationType ===
+        "half_day"
+          ? reduceStartDate
+          : reduceEndDate;
+
+      if (
+        reduceDurationType ===
+          "full_day" &&
+        !finalEndDate
+      ) {
+        setMessage(
+          "Please select the To Date."
+        );
+
+        return;
+      }
+
+      const leaveDays =
+        calculateReductionDays();
+
+      if (
+        leaveDays <= 0
+      ) {
+        setMessage(
+          "Please select valid leave dates."
+        );
+
+        return;
+      }
+
+      try {
+        setSavingReduceLeave(true);
+        setMessage("");
+
+        const response =
+          await api.post(
+            `/administrator/users/${selectedUser.user_id}/leave-reduction`,
+            {
+              leave_type:
+                reduceLeaveType,
+
+              duration_type:
+                reduceDurationType,
+
+              half_day_session:
+                reduceDurationType ===
+                "half_day"
+                  ? reduceHalfDaySession
+                  : null,
+
+              start_date:
+                reduceStartDate,
+
+              end_date:
+                finalEndDate,
+            }
+          );
+
+        setMessage(
+          response.data.message ||
+            "Leave reduced successfully."
+        );
+
+        if (
+          response.data.balances
+        ) {
+          setLeaveBalances(
+            response.data.balances
+          );
+        } else {
+          await fetchSelectedUserLeaveBalances();
+        }
+
+        setShowReduceLeaveForm(false);
+        setReduceLeaveType("");
+        setReduceDurationType(
+          "full_day"
+        );
+        setReduceHalfDaySession(
+          "first_half"
+        );
+        setReduceStartDate("");
+        setReduceEndDate("");
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to reduce leave."
+        );
+      } finally {
+        setSavingReduceLeave(false);
+      }
+    };
+
+  const toggleDepartment = (
+    departmentId
+  ) => {
+    const id =
+      Number(departmentId);
+
+    setSelectedDepartmentIds(
+      (previous) => {
+        if (
+          previous.includes(id)
+        ) {
+          return previous.filter(
+            (item) =>
+              item !== id
+          );
+        }
+
+        return [
+          ...previous,
+          id,
+        ];
+      }
+    );
+  };
+
+  const handleSingleDepartmentChange =
+    (event) => {
+      const value =
+        Number(
+          event.target.value
+        );
+
+      setSelectedDepartmentIds(
+        value
+          ? [value]
+          : []
+      );
+    };
+
+  const handleRoleSelectionChange =
+    (event) => {
+      const nextRole =
+        event.target.value;
+
+      setSelectedRole(
+        nextRole
+      );
+    };
+
+  const updateUserRole =
+    async () => {
+      if (!selectedUser) {
+        return;
+      }
+
+      try {
+        setUpdatingRole(true);
+        setMessage("");
+
+        const response =
+          await api.put(
+            `/administrator/users/${selectedUser.user_id}/role`,
+            {
+              role_name:
+                selectedRole,
+            }
+          );
+
+        setMessage(
+          response.data.message ||
+            "User role updated successfully."
+        );
+
+        await fetchUsers();
+
+        closeUserDialog();
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to update user role."
+        );
+      } finally {
+        setUpdatingRole(false);
+      }
+    };
+
+  const updateUserDetails =
+    async () => {
+      if (!selectedUser) {
+        return;
+      }
+
+      const cleanEmail =
+        selectedEmail
+          .trim()
+          .toLowerCase();
+
+      if (!cleanEmail) {
+        setMessage(
+          "Please enter an email address."
+        );
+
+        return;
+      }
+
+      if (
+        !selectedDepartmentIds.length
+      ) {
+        setMessage(
+          "Please select at least one department."
+        );
+
+        return;
+      }
+
+      try {
+        setUpdatingDetails(true);
+        setMessage("");
+
+        const response =
+          await api.put(
+            `/administrator/users/${selectedUser.user_id}/details`,
+            {
+              email:
+                cleanEmail,
+
+              designation:
+                selectedDesignation.trim(),
+
+              department_ids:
+                selectedDepartmentIds,
+            }
+          );
+
+        setMessage(
+          response.data.message ||
+            "User details updated successfully."
+        );
+
+        await fetchUsers();
+
+        closeUserDialog();
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to update user details."
+        );
+      } finally {
+        setUpdatingDetails(false);
+      }
+    };
+
+  const updateUserPassword =
+    async () => {
+      if (!selectedUser) {
+        return;
+      }
+
+      if (
+        newPassword.length <
+        8
+      ) {
+        setMessage(
+          "Password must be at least 8 characters."
+        );
+
+        return;
+      }
+
+      try {
+        setUpdatingPassword(true);
+        setMessage("");
+
+        const response =
+          await api.put(
+            `/administrator/users/${selectedUser.user_id}/password`,
+            {
+              password:
+                newPassword,
+            }
+          );
+
+        setMessage(
+          response.data.message ||
+            "User password updated successfully."
+        );
+
+        setNewPassword("");
+        setShowPassword(false);
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to update user password."
+        );
+      } finally {
+        setUpdatingPassword(false);
+      }
+    };
+
+  const updateUserStatus =
+    async (
+      userId,
+      status
+    ) => {
+      try {
+        setMessage("");
+
+        const response =
+          await api.put(
+            `/administrator/users/${userId}/status`,
+            {
+              status,
+            }
+          );
+
+        setMessage(
+          response.data.message
+        );
+
+        await fetchUsers();
+
+        closeUserDialog();
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to update user status."
+        );
+      }
+    };
+
+  const resetPassword =
+    async (userId) => {
+      const confirmReset =
+        window.confirm(
+          "Reset this user's password to Valencia@123?"
+        );
+
+      if (!confirmReset) {
+        return;
+      }
+
+      try {
+        setMessage("");
+
+        const response =
+          await api.put(
+            `/administrator/users/${userId}/reset-password`
+          );
+
+        setMessage(
+          `${
+            response.data.message
+          } Default Password: ${
+            response.data
+              .default_password ||
+            "Valencia@123"
+          }`
+        );
+
+        closeUserDialog();
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to reset password."
+        );
+      }
+    };
+
+  const deleteUser =
+    async (userId) => {
+      const confirmDelete =
+        window.confirm(
+          "Delete this user permanently?"
+        );
+
+      if (!confirmDelete) {
+        return;
+      }
+
+      try {
+        setMessage("");
+
+        const response =
+          await api.delete(
+            `/administrator/users/${userId}`
+          );
+
+        setMessage(
+          response.data.message
+        );
+
+        await fetchUsers();
+
+        closeUserDialog();
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to delete user."
+        );
+      }
+    };
 
   const exportUsersCsv = () => {
     const headers = [
@@ -678,45 +1185,79 @@ const AdministratorUsers = () => {
       "status",
     ];
 
-    const rows = filteredUsers.map((user) =>
-      headers
-        .map((header) => {
-          let value = user[header] || "";
+    const rows =
+      filteredUsers.map(
+        (user) =>
+          headers
+            .map(
+              (header) => {
+                let value =
+                  user[
+                    header
+                  ] ||
+                  "";
 
-          if (
-            header === "department_names" &&
-            !value
-          ) {
-            value = user.department_name || "";
-          }
+                if (
+                  header ===
+                    "department_names" &&
+                  !value
+                ) {
+                  value =
+                    user.department_name ||
+                    "";
+                }
 
-          const stringValue = String(value);
+                const stringValue =
+                  String(
+                    value
+                  );
 
-          if (
-            stringValue.includes(",") ||
-            stringValue.includes('"') ||
-            stringValue.includes("\n")
-          ) {
-            return `"${stringValue.replaceAll('"', '""')}"`;
-          }
+                if (
+                  stringValue.includes(
+                    ","
+                  ) ||
+                  stringValue.includes(
+                    '"'
+                  ) ||
+                  stringValue.includes(
+                    "\n"
+                  )
+                ) {
+                  return `"${stringValue.replaceAll(
+                    '"',
+                    '""'
+                  )}"`;
+                }
 
-          return stringValue;
-        })
-        .join(",")
-    );
+                return stringValue;
+              }
+            )
+            .join(",")
+      );
 
     const csvContent = [
       headers.join(","),
       ...rows,
     ].join("\n");
 
-    const blob = new Blob([csvContent], {
-      type: "text/csv;charset=utf-8;",
-    });
+    const blob =
+      new Blob(
+        [csvContent],
+        {
+          type:
+            "text/csv;charset=utf-8;",
+        }
+      );
 
-    const url = window.URL.createObjectURL(blob);
+    const url =
+      window.URL.createObjectURL(
+        blob
+      );
 
-    const link = document.createElement("a");
+    const link =
+      document.createElement(
+        "a"
+      );
 
     link.href = url;
 
@@ -725,31 +1266,31 @@ const AdministratorUsers = () => {
       "valencia-rms-users.csv"
     );
 
-    document.body.appendChild(link);
+    document.body.appendChild(
+      link
+    );
 
     link.click();
-
     link.remove();
 
-    window.URL.revokeObjectURL(url);
-  };
-
-  const getDepartmentDisplay = (user) => {
-    return (
-      user.department_names ||
-      user.department_name ||
-      "-"
+    window.URL.revokeObjectURL(
+      url
     );
   };
 
-  /* =========================================================
-     UI
-  ========================================================= */
+  const getDepartmentDisplay =
+    (user) => {
+      return (
+        user.department_names ||
+        user.department_name ||
+        "-"
+      );
+    };
+
+  /* PART 4 OF 8 */
 
   return (
     <div className="users-page">
-      {/* HEADER */}
-
       <div className="administrator-users-header">
         <div className="administrator-users-heading">
           <h1>Users</h1>
@@ -816,8 +1357,6 @@ const AdministratorUsers = () => {
           {message}
         </div>
       )}
-
-      {/* ADD USER */}
 
       <section className="administrator-add-user-card">
         <div className="administrator-add-user-heading">
@@ -913,14 +1452,22 @@ const AdministratorUsers = () => {
                 Select department
               </option>
 
-              {visibleDepartments.map((department) => (
-                <option
-                  key={department.department_id}
-                  value={department.department_name}
-                >
-                  {department.department_name}
-                </option>
-              ))}
+              {visibleDepartments.map(
+                (department) => (
+                  <option
+                    key={
+                      department.department_id
+                    }
+                    value={
+                      department.department_name
+                    }
+                  >
+                    {
+                      department.department_name
+                    }
+                  </option>
+                )
+              )}
             </select>
           </div>
 
@@ -932,14 +1479,22 @@ const AdministratorUsers = () => {
               value={form.role_name}
               onChange={handleChange}
             >
-              {roles.map((role) => (
-                <option
-                  key={role.role_id}
-                  value={role.role_name}
-                >
-                  {role.role_name}
-                </option>
-              ))}
+              {roles.map(
+                (role) => (
+                  <option
+                    key={
+                      role.role_id
+                    }
+                    value={
+                      role.role_name
+                    }
+                  >
+                    {
+                      role.role_name
+                    }
+                  </option>
+                )
+              )}
             </select>
           </div>
 
@@ -949,7 +1504,9 @@ const AdministratorUsers = () => {
               className="administrator-primary-btn"
               disabled={creating}
             >
-              <UserPlus size={16} />
+              <UserPlus
+                size={16}
+              />
 
               {creating
                 ? "Creating..."
@@ -959,8 +1516,6 @@ const AdministratorUsers = () => {
         </form>
       </section>
 
-      {/* TOOLBAR */}
-
       <div className="administrator-users-toolbar">
         <div className="administrator-users-search">
           <Search size={17} />
@@ -968,18 +1523,21 @@ const AdministratorUsers = () => {
           <input
             value={search}
             onChange={(event) =>
-              setSearch(event.target.value)
+              setSearch(
+                event.target.value
+              )
             }
             placeholder="Search users, email, role or department..."
           />
         </div>
 
         <span className="administrator-total-users">
-          Total: {filteredUsers.length}
+          Total:{" "}
+          {
+            filteredUsers.length
+          }
         </span>
       </div>
-
-      {/* TABLE */}
 
       <div className="administrator-users-table-card">
         {loading ? (
@@ -990,60 +1548,93 @@ const AdministratorUsers = () => {
           <table className="administrator-users-table">
             <thead>
               <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Designation</th>
+                <th>
+                  User
+                </th>
+
+                <th>
+                  Role
+                </th>
+
+                <th>
+                  Department
+                </th>
+
+                <th>
+                  Designation
+                </th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
-                  <tr
-                    key={user.user_id}
-                    onClick={() => openUserDialog(user)}
-                  >
-                    <td>
-                      <div className="administrator-user-cell">
-                        <div className="administrator-user-avatar">
-                          <Users size={17} />
+              {filteredUsers.length >
+              0 ? (
+                filteredUsers.map(
+                  (user) => (
+                    <tr
+                      key={
+                        user.user_id
+                      }
+                      onClick={() =>
+                        openUserDialog(
+                          user
+                        )
+                      }
+                    >
+                      <td>
+                        <div className="administrator-user-cell">
+                          <div className="administrator-user-avatar">
+                            <Users
+                              size={
+                                17
+                              }
+                            />
+                          </div>
+
+                          <div className="administrator-user-main">
+                            <strong>
+                              {
+                                user.full_name
+                              }
+                            </strong>
+
+                            <span>
+                              {
+                                user.email
+                              }
+                            </span>
+
+                            <small>
+                              {user.employee_code ||
+                                "Code not generated"}
+                            </small>
+                          </div>
                         </div>
+                      </td>
 
-                        <div className="administrator-user-main">
-                          <strong>
-                            {user.full_name}
-                          </strong>
+                      <td>
+                        <span className="administrator-role-pill">
+                          {
+                            user.role_name
+                          }
+                        </span>
+                      </td>
 
-                          <span>
-                            {user.email}
-                          </span>
+                      <td>
+                        <span className="administrator-department-text">
+                          {getDepartmentDisplay(
+                            user
+                          )}
+                        </span>
+                      </td>
 
-                          <small>
-                            {user.employee_code ||
-                              "Code not generated"}
-                          </small>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td>
-                      <span className="administrator-role-pill">
-                        {user.role_name}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span className="administrator-department-text">
-                        {getDepartmentDisplay(user)}
-                      </span>
-                    </td>
-
-                    <td>
-                      {user.designation || "-"}
-                    </td>
-                  </tr>
-                ))
+                      <td>
+                        {user.designation ||
+                          "-"}
+                      </td>
+                    </tr>
+                  )
+                )
               ) : (
                 <tr>
                   <td
@@ -1059,23 +1650,29 @@ const AdministratorUsers = () => {
         )}
       </div>
 
-      {/* USER DIALOG */}
+    /* PART 5 OF 8 */
 
       {selectedUser && (
         <div
           className="administrator-user-dialog-backdrop"
-          onMouseDown={closeUserDialog}
+          onMouseDown={
+            closeUserDialog
+          }
         >
           <div
             className="administrator-user-dialog"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
             <div className="administrator-user-dialog-header">
               <div>
                 <h2>
-                  {selectedUser.full_name}
+                  {
+                    selectedUser.full_name
+                  }
                 </h2>
 
                 <p>
@@ -1087,7 +1684,9 @@ const AdministratorUsers = () => {
               <button
                 type="button"
                 className="administrator-dialog-close"
-                onClick={closeUserDialog}
+                onClick={
+                  closeUserDialog
+                }
               >
                 <X size={19} />
               </button>
@@ -1096,7 +1695,9 @@ const AdministratorUsers = () => {
             <div className="administrator-user-dialog-body">
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
-                  <h3>User Details</h3>
+                  <h3>
+                    User Details
+                  </h3>
 
                   <p>
                     Update email, designation
@@ -1128,14 +1729,21 @@ const AdministratorUsers = () => {
                   </div>
 
                   <div className="administrator-dialog-field administrator-dialog-field-full">
-                    <label>Email</label>
+                    <label>
+                      Email
+                    </label>
 
                     <input
                       type="email"
-                      value={selectedEmail}
-                      onChange={(event) =>
+                      value={
+                        selectedEmail
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setSelectedEmail(
-                          event.target.value
+                          event.target
+                            .value
                         )
                       }
                     />
@@ -1147,17 +1755,24 @@ const AdministratorUsers = () => {
                     </label>
 
                     <input
-                      value={selectedDesignation}
-                      onChange={(event) =>
+                      value={
+                        selectedDesignation
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setSelectedDesignation(
-                          event.target.value
+                          event.target
+                            .value
                         )
                       }
                     />
                   </div>
 
                   <div className="administrator-dialog-field">
-                    <label>Status</label>
+                    <label>
+                      Status
+                    </label>
 
                     <div className="administrator-static-field">
                       {selectedUser.status ||
@@ -1166,7 +1781,14 @@ const AdministratorUsers = () => {
                   </div>
                 </div>
 
-                {["admin", "employee"].includes(normalizeRole(selectedRole)) ? (
+                {[
+                  "admin",
+                  "employee",
+                ].includes(
+                  normalizeRole(
+                    selectedRole
+                  )
+                ) ? (
                   <div className="admin-departments-section">
                     <div className="admin-departments-title-row">
                       <div className="admin-departments-header">
@@ -1176,16 +1798,22 @@ const AdministratorUsers = () => {
 
                         <p>
                           Select all departments
-  this user should belong to.
+                          this user should belong to.
                         </p>
                       </div>
 
                       <button
                         type="button"
                         className="administrator-small-add-department-btn"
-                        onClick={openAddDepartmentModal}
+                        onClick={
+                          openAddDepartmentModal
+                        }
                       >
-                        <Plus size={14} />
+                        <Plus
+                          size={
+                            14
+                          }
+                        />
 
                         Add Department
                       </button>
@@ -1193,7 +1821,9 @@ const AdministratorUsers = () => {
 
                     <div className="admin-departments-grid">
                       {visibleDepartments.map(
-                        (department) => {
+                        (
+                          department
+                        ) => {
                           const departmentId =
                             Number(
                               department.department_id
@@ -1209,14 +1839,17 @@ const AdministratorUsers = () => {
                               key={
                                 department.department_id
                               }
-                              className={`admin-department-card ${isChecked
+                              className={`admin-department-card ${
+                                isChecked
                                   ? "selected"
                                   : ""
-                                }`}
+                              }`}
                             >
                               <input
                                 type="checkbox"
-                                checked={isChecked}
+                                checked={
+                                  isChecked
+                                }
                                 onChange={() =>
                                   toggleDepartment(
                                     departmentId
@@ -1250,9 +1883,16 @@ const AdministratorUsers = () => {
 
                       <button
                         type="button"
-                        onClick={openAddDepartmentModal}
+                        onClick={
+                          openAddDepartmentModal
+                        }
                       >
-                        <Plus size={13} />
+                        <Plus
+                          size={
+                            13
+                          }
+                        />
+
                         Add Department
                       </button>
                     </div>
@@ -1271,7 +1911,9 @@ const AdministratorUsers = () => {
                       </option>
 
                       {visibleDepartments.map(
-                        (department) => (
+                        (
+                          department
+                        ) => (
                           <option
                             key={
                               department.department_id
@@ -1294,10 +1936,18 @@ const AdministratorUsers = () => {
                   <button
                     type="button"
                     className="administrator-primary-btn"
-                    onClick={updateUserDetails}
-                    disabled={updatingDetails}
+                    onClick={
+                      updateUserDetails
+                    }
+                    disabled={
+                      updatingDetails
+                    }
                   >
-                    <Save size={16} />
+                    <Save
+                      size={
+                        16
+                      }
+                    />
 
                     {updatingDetails
                       ? "Saving..."
@@ -1306,11 +1956,11 @@ const AdministratorUsers = () => {
                 </div>
               </section>
 
-              {/* ROLE */}
-
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
-                  <h3>Change Role</h3>
+                  <h3>
+                    Change Role
+                  </h3>
 
                   <p>
                     Select the dashboard role
@@ -1320,28 +1970,48 @@ const AdministratorUsers = () => {
 
                 <div className="administrator-role-control">
                   <select
-                    value={selectedRole}
+                    value={
+                      selectedRole
+                    }
                     onChange={
                       handleRoleSelectionChange
                     }
                   >
-                    {roles.map((role) => (
-                      <option
-                        key={role.role_id}
-                        value={role.role_name}
-                      >
-                        {role.role_name}
-                      </option>
-                    ))}
+                    {roles.map(
+                      (
+                        role
+                      ) => (
+                        <option
+                          key={
+                            role.role_id
+                          }
+                          value={
+                            role.role_name
+                          }
+                        >
+                          {
+                            role.role_name
+                          }
+                        </option>
+                      )
+                    )}
                   </select>
 
                   <button
                     type="button"
                     className="administrator-primary-btn"
-                    onClick={updateUserRole}
-                    disabled={updatingRole}
+                    onClick={
+                      updateUserRole
+                    }
+                    disabled={
+                      updatingRole
+                    }
                   >
-                    <Save size={16} />
+                    <Save
+                      size={
+                        16
+                      }
+                    />
 
                     {updatingRole
                       ? "Saving..."
@@ -1350,7 +2020,83 @@ const AdministratorUsers = () => {
                 </div>
               </section>
 
-              {/* PASSWORD */}
+              <section className="administrator-dialog-section">
+                <div className="administrator-dialog-section-heading">
+                  <h3>
+                    Add Extra Leave
+                  </h3>
+
+                  <p>
+                    Add additional leave for OT or other approved compensation.
+                  </p>
+                </div>
+
+                <div className="administrator-leave-action-row">
+                  <div className="administrator-leave-action-copy">
+                    <strong>
+                      Increase available leave
+                    </strong>
+
+                    <span>
+                      Select a leave type and add extra days to this user.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="administrator-primary-btn"
+                    onClick={
+                      openExtraLeaveModal
+                    }
+                  >
+                    <Plus size={16} />
+
+                    Add Extra Leave
+                  </button>
+                </div>
+              </section>
+
+              <section className="administrator-dialog-section">
+                <div className="administrator-dialog-section-heading">
+                  <h3>
+                    Reduce Leave
+                  </h3>
+
+                  <p>
+                    Record already-approved historical leave directly in RMS.
+                  </p>
+                </div>
+
+                <div className="administrator-leave-action-row">
+                  <div className="administrator-leave-action-copy">
+                    <strong>
+                      Use existing leave balance
+                    </strong>
+
+                    <span>
+                      Review current balances and save past approved leave.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="administrator-primary-btn"
+                    onClick={
+                      openReduceLeaveModal
+                    }
+                  >
+                    <MinusCircle
+                      size={
+                        16
+                      }
+                    />
+
+                    Reduce Leave
+                  </button>
+                </div>
+              </section>
+
+              /* PART 6 OF 8 */
 
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
@@ -1373,10 +2119,15 @@ const AdministratorUsers = () => {
                           ? "text"
                           : "password"
                       }
-                      value={newPassword}
-                      onChange={(event) =>
+                      value={
+                        newPassword
+                      }
+                      onChange={(
+                        event
+                      ) =>
                         setNewPassword(
-                          event.target.value
+                          event.target
+                            .value
                         )
                       }
                       placeholder="Minimum 8 characters"
@@ -1387,15 +2138,25 @@ const AdministratorUsers = () => {
                       className="administrator-password-eye"
                       onClick={() =>
                         setShowPassword(
-                          (previous) =>
+                          (
+                            previous
+                          ) =>
                             !previous
                         )
                       }
                     >
                       {showPassword ? (
-                        <EyeOff size={18} />
+                        <EyeOff
+                          size={
+                            18
+                          }
+                        />
                       ) : (
-                        <Eye size={18} />
+                        <Eye
+                          size={
+                            18
+                          }
+                        />
                       )}
                     </button>
                   </div>
@@ -1403,10 +2164,13 @@ const AdministratorUsers = () => {
                   <button
                     type="button"
                     className="administrator-primary-btn"
-                    onClick={updateUserPassword}
+                    onClick={
+                      updateUserPassword
+                    }
                     disabled={
                       updatingPassword ||
-                      newPassword.length < 8
+                      newPassword.length <
+                        8
                     }
                   >
                     <Lock size={16} />
@@ -1417,8 +2181,6 @@ const AdministratorUsers = () => {
                   </button>
                 </div>
               </section>
-
-              {/* ACTIONS */}
 
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
@@ -1447,7 +2209,8 @@ const AdministratorUsers = () => {
                     Reset to Default
                   </button>
 
-                  {selectedUser.status === "blocked" ? (
+                  {selectedUser.status ===
+                  "blocked" ? (
                     <button
                       type="button"
                       className="administrator-action-btn"
@@ -1458,7 +2221,11 @@ const AdministratorUsers = () => {
                         )
                       }
                     >
-                      <ShieldCheck size={16} />
+                      <ShieldCheck
+                        size={
+                          16
+                        }
+                      />
 
                       Unblock User
                     </button>
@@ -1473,7 +2240,11 @@ const AdministratorUsers = () => {
                         )
                       }
                     >
-                      <ShieldCheck size={16} />
+                      <ShieldCheck
+                        size={
+                          16
+                        }
+                      />
 
                       Block User
                     </button>
@@ -1488,7 +2259,11 @@ const AdministratorUsers = () => {
                       )
                     }
                   >
-                    <Trash2 size={16} />
+                    <Trash2
+                      size={
+                        16
+                      }
+                    />
 
                     Delete User
                   </button>
@@ -1499,16 +2274,668 @@ const AdministratorUsers = () => {
         </div>
       )}
 
-      {/* ADD DEPARTMENT MODAL */}
+      {showExtraLeaveModal &&
+        selectedUser && (
+          <div
+            className="administrator-leave-modal-backdrop"
+            onMouseDown={
+              closeExtraLeaveModal
+            }
+          >
+            <div
+              className="administrator-leave-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="administrator-leave-modal-header">
+                <div>
+                  <h2>
+                    Add Extra Leave
+                  </h2>
+
+                  <p>
+                    {
+                      selectedUser.full_name
+                    }
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    closeExtraLeaveModal
+                  }
+                  disabled={
+                    savingExtraLeave
+                  }
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="administrator-leave-modal-body">
+                <div className="administrator-leave-modal-section">
+                  <label className="administrator-leave-modal-label">
+                    Leave Type
+                  </label>
+
+                  <div className="administrator-extra-leave-type-grid">
+                    {LEAVE_TYPES.map(
+                      (
+                        leaveType
+                      ) => {
+                        const selected =
+                          extraLeaveType ===
+                          leaveType.value;
+
+                        return (
+                          <label
+                            key={
+                              leaveType.value
+                            }
+                            className={`administrator-extra-leave-type-option ${
+                              selected
+                                ? "selected"
+                                : ""
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="extra_leave_type"
+                              value={
+                                leaveType.value
+                              }
+                              checked={
+                                selected
+                              }
+                              onChange={(
+                                event
+                              ) =>
+                                setExtraLeaveType(
+                                  event
+                                    .target
+                                    .value
+                                )
+                              }
+                            />
+
+                            <span>
+                              {
+                                leaveType.label
+                              }
+                            </span>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+
+                <div className="administrator-leave-modal-section">
+                  <label
+                    className="administrator-leave-modal-label"
+                    htmlFor="administrator-extra-leave-days"
+                  >
+                    Number of Leaves to Add
+                  </label>
+
+                  <input
+                    id="administrator-extra-leave-days"
+                    type="number"
+                    min="0.5"
+                    step="0.5"
+                    value={
+                      extraLeaveDays
+                    }
+                    onChange={(
+                      event
+                    ) =>
+                      setExtraLeaveDays(
+                        event.target
+                          .value
+                      )
+                    }
+                    placeholder="Example: 1 or 1.5"
+                  />
+                </div>
+
+                <div className="administrator-leave-modal-actions">
+                  <button
+                    type="button"
+                    className="administrator-modal-cancel-btn"
+                    onClick={
+                      closeExtraLeaveModal
+                    }
+                    disabled={
+                      savingExtraLeave
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="administrator-modal-add-btn"
+                    onClick={
+                      addExtraLeave
+                    }
+                    disabled={
+                      savingExtraLeave ||
+                      !extraLeaveType ||
+                      !extraLeaveDays
+                    }
+                  >
+                    {savingExtraLeave
+                      ? "Adding..."
+                      : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        /* PART 7 OF 8 */
+
+      {showReduceLeaveModal &&
+        selectedUser && (
+          <div
+            className="administrator-leave-modal-backdrop"
+            onMouseDown={
+              closeReduceLeaveModal
+            }
+          >
+            <div
+              className="administrator-leave-modal administrator-reduce-leave-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="administrator-leave-modal-header">
+                <div>
+                  <h2>
+                    Reduce Leave
+                  </h2>
+
+                  <p>
+                    {
+                      selectedUser.full_name
+                    }
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    closeReduceLeaveModal
+                  }
+                  disabled={
+                    savingReduceLeave ||
+                    loadingLeaveBalances
+                  }
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="administrator-leave-modal-body">
+                {loadingLeaveBalances ? (
+                  <div className="administrator-leave-loading">
+                    Loading leave balances...
+                  </div>
+                ) : (
+                  <>
+                    <div className="administrator-leave-balance-grid">
+                      {LEAVE_TYPES.map(
+                        (
+                          leaveType
+                        ) => {
+                          const balance =
+                            leaveBalances?.[
+                              leaveType
+                                .value
+                            ] ||
+                            {};
+
+                          const total =
+                            balance.total ??
+                            balance.earned ??
+                            0;
+
+                          const used =
+                            balance.used ??
+                            0;
+
+                          const pending =
+                            balance.pending ??
+                            0;
+
+                          const available =
+                            balance.available ??
+                            balance.remaining ??
+                            0;
+
+                          return (
+                            <div
+                              key={
+                                leaveType.value
+                              }
+                              className="administrator-leave-balance-card"
+                            >
+                              <div className="administrator-leave-balance-card-header">
+                                <h3>
+                                  {
+                                    leaveType.label
+                                  }
+                                </h3>
+                              </div>
+
+                              <div className="administrator-leave-balance-stats">
+                                <div>
+                                  <span>
+                                    Total
+                                  </span>
+
+                                  <strong>
+                                    {
+                                      total
+                                    }
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>
+                                    Used
+                                  </span>
+
+                                  <strong>
+                                    {
+                                      used
+                                    }
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>
+                                    Pending
+                                  </span>
+
+                                  <strong>
+                                    {
+                                      pending
+                                    }
+                                  </strong>
+                                </div>
+
+                                <div>
+                                  <span>
+                                    Available
+                                  </span>
+
+                                  <strong>
+                                    {
+                                      available
+                                    }
+                                  </strong>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                className="administrator-primary-btn administrator-leave-card-action"
+                                onClick={() =>
+                                  openReduceLeaveFormForType(
+                                    leaveType.value
+                                  )
+                                }
+                                disabled={
+                                  Number(
+                                    available
+                                  ) <=
+                                  0
+                                }
+                              >
+                                Apply
+                              </button>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+
+                    {!showReduceLeaveForm && (
+                      <div className="administrator-leave-modal-actions">
+                        <button
+                          type="button"
+                          className="administrator-modal-cancel-btn"
+                          onClick={
+                            closeReduceLeaveModal
+                          }
+                        >
+                          Close
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      {showReduceLeaveForm &&
+        selectedUser && (
+          <div
+            className="administrator-leave-form-backdrop"
+            onMouseDown={
+              closeReduceLeaveForm
+            }
+          >
+            <div
+              className="administrator-leave-modal administrator-reduce-leave-form-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="administrator-leave-modal-header">
+                <div>
+                  <h2>
+                    Record{" "}
+                    {
+                      LEAVE_TYPES.find(
+                        (
+                          item
+                        ) =>
+                          item.value ===
+                          reduceLeaveType
+                      )?.label
+                    }
+                  </h2>
+
+                  <p>
+                    Save already-approved historical leave for{" "}
+                    {
+                      selectedUser.full_name
+                    }
+                    .
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    closeReduceLeaveForm
+                  }
+                  disabled={
+                    savingReduceLeave
+                  }
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="administrator-leave-modal-body">
+                <div className="administrator-reduce-form-grid">
+                  <div className="administrator-leave-modal-section administrator-reduce-form-full">
+                    <label className="administrator-leave-modal-label">
+                      Duration
+                    </label>
+
+                    <div className="administrator-duration-options">
+                      <label
+                        className={`administrator-duration-option ${
+                          reduceDurationType ===
+                          "full_day"
+                            ? "selected"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="reduce_duration_type"
+                          value="full_day"
+                          checked={
+                            reduceDurationType ===
+                            "full_day"
+                          }
+                          onChange={() => {
+                            setReduceDurationType(
+                              "full_day"
+                            );
+                          }}
+                        />
+
+                        <span>
+                          Full Day
+                        </span>
+                      </label>
+
+                      <label
+                        className={`administrator-duration-option ${
+                          reduceDurationType ===
+                          "half_day"
+                            ? "selected"
+                            : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="reduce_duration_type"
+                          value="half_day"
+                          checked={
+                            reduceDurationType ===
+                            "half_day"
+                          }
+                          onChange={() => {
+                            setReduceDurationType(
+                              "half_day"
+                            );
+
+                            if (
+                              reduceStartDate
+                            ) {
+                              setReduceEndDate(
+                                reduceStartDate
+                              );
+                            }
+                          }}
+                        />
+
+                        <span>
+                          Half Day
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                  /* PART 8 OF 8 */
+
+                  {reduceDurationType ===
+                    "half_day" && (
+                    <div className="administrator-leave-modal-section administrator-reduce-form-full">
+                      <label className="administrator-leave-modal-label">
+                        Half Day Session
+                      </label>
+
+                      <select
+                        value={
+                          reduceHalfDaySession
+                        }
+                        onChange={(
+                          event
+                        ) =>
+                          setReduceHalfDaySession(
+                            event
+                              .target
+                              .value
+                          )
+                        }
+                      >
+                        <option value="first_half">
+                          First Half
+                        </option>
+
+                        <option value="second_half">
+                          Second Half
+                        </option>
+                      </select>
+                    </div>
+                  )}
+
+                  <div className="administrator-leave-modal-section">
+                    <label className="administrator-leave-modal-label">
+                      From Date
+                    </label>
+
+                    <input
+                      type="date"
+                      max={
+                        getIndiaToday()
+                      }
+                      value={
+                        reduceStartDate
+                      }
+                      onChange={(
+                        event
+                      ) => {
+                        const value =
+                          event
+                            .target
+                            .value;
+
+                        setReduceStartDate(
+                          value
+                        );
+
+                        if (
+                          reduceDurationType ===
+                          "half_day"
+                        ) {
+                          setReduceEndDate(
+                            value
+                          );
+                        } else if (
+                          reduceEndDate &&
+                          reduceEndDate <
+                            value
+                        ) {
+                          setReduceEndDate(
+                            ""
+                          );
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="administrator-leave-modal-section">
+                    <label className="administrator-leave-modal-label">
+                      To Date
+                    </label>
+
+                    <input
+                      type="date"
+                      max={
+                        getIndiaToday()
+                      }
+                      min={
+                        reduceStartDate ||
+                        undefined
+                      }
+                      value={
+                        reduceDurationType ===
+                        "half_day"
+                          ? reduceStartDate
+                          : reduceEndDate
+                      }
+                      disabled={
+                        reduceDurationType ===
+                        "half_day"
+                      }
+                      onChange={(
+                        event
+                      ) =>
+                        setReduceEndDate(
+                          event
+                            .target
+                            .value
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="administrator-leave-days-summary administrator-reduce-form-full">
+                    <span>
+                      Leave Days
+                    </span>
+
+                    <strong>
+                      {
+                        calculateReductionDays()
+                      }
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="administrator-leave-modal-actions">
+                  <button
+                    type="button"
+                    className="administrator-modal-cancel-btn"
+                    onClick={
+                      closeReduceLeaveForm
+                    }
+                    disabled={
+                      savingReduceLeave
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="administrator-modal-add-btn"
+                    onClick={
+                      saveReducedLeave
+                    }
+                    disabled={
+                      savingReduceLeave ||
+                      !reduceStartDate ||
+                      (
+                        reduceDurationType ===
+                          "full_day" &&
+                        !reduceEndDate
+                      ) ||
+                      calculateReductionDays() <=
+                        0
+                    }
+                  >
+                    {savingReduceLeave
+                      ? "Saving..."
+                      : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {showAddDepartment && (
         <div
           className="administrator-department-modal-backdrop"
-          onMouseDown={closeAddDepartmentModal}
+          onMouseDown={
+            closeAddDepartmentModal
+          }
         >
           <div
             className="administrator-department-modal"
-            onMouseDown={(event) =>
+            onMouseDown={(
+              event
+            ) =>
               event.stopPropagation()
             }
           >
@@ -1534,7 +2961,9 @@ const AdministratorUsers = () => {
             </div>
 
             <form
-              onSubmit={createDepartment}
+              onSubmit={
+                createDepartment
+              }
               className="administrator-department-modal-body"
             >
               <div className="administrator-department-modal-field">
