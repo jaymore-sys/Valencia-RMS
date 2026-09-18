@@ -1,5 +1,3 @@
-/* PART 1 OF 8 */
-
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
@@ -343,8 +341,6 @@ const AdministratorUsers = () => {
       }
     }
   };
-
-  /* PART 2 OF 8 */
 
   const getUserDepartmentIds = (user) => {
     if (!user) return [];
@@ -750,8 +746,6 @@ const AdministratorUsers = () => {
     setReduceStartDate("");
     setReduceEndDate("");
   };
-
-  /* PART 3 OF 8 */
 
   const saveReducedLeave =
     async () => {
@@ -1287,8 +1281,6 @@ const AdministratorUsers = () => {
       );
     };
 
-  /* PART 4 OF 8 */
-
   return (
     <div className="users-page">
       <div className="administrator-users-header">
@@ -1649,8 +1641,6 @@ const AdministratorUsers = () => {
           </table>
         )}
       </div>
-
-    /* PART 5 OF 8 */
 
       {selectedUser && (
         <div
@@ -2096,8 +2086,6 @@ const AdministratorUsers = () => {
                 </div>
               </section>
 
-              /* PART 6 OF 8 */
-
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
                   <h3>
@@ -2438,8 +2426,6 @@ const AdministratorUsers = () => {
           </div>
         )}
 
-        /* PART 7 OF 8 */
-
       {showReduceLeaveModal &&
         selectedUser && (
           <div
@@ -2754,7 +2740,6 @@ const AdministratorUsers = () => {
                       </label>
                     </div>
                   </div>
-                  /* PART 8 OF 8 */
 
                   {reduceDurationType ===
                     "half_day" && (
