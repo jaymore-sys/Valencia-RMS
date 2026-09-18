@@ -1567,15 +1567,8 @@ const reviewFieldVisit = async (req, res) => {
             '%Y-%m-%d'
           ) AS visit_date,
 
-          TIME_FORMAT(
-            fv.start_time,
-            '%H:%i'
-          ) AS start_time,
-
-          TIME_FORMAT(
-            fv.end_time,
-            '%H:%i'
-          ) AS end_time,
+          fv.duration_type,
+fv.half_day_session,
 
           fv.location,
           fv.comment,
@@ -1681,17 +1674,21 @@ const createAdminFieldVisit = async (
           ""
       ).trim();
 
-    const startTime =
-      String(
-        req.body?.start_time ||
-          ""
-      ).trim();
+    const durationType =
+  String(
+    req.body?.duration_type ||
+      "full_day"
+  )
+    .trim()
+    .toLowerCase();
 
-    const endTime =
-      String(
-        req.body?.end_time ||
-          ""
-      ).trim();
+const halfDaySession =
+  String(
+    req.body?.half_day_session ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
     const location =
       String(
@@ -1721,30 +1718,36 @@ const createAdminFieldVisit = async (
         });
     }
 
-    if (
-      !startTime ||
-      !endTime
-    ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "Start time and end time are required.",
-        });
-    }
+   if (
+  ![
+    "full_day",
+    "half_day",
+  ].includes(durationType)
+) {
+  return res
+    .status(400)
+    .json({
+      success: false,
+      message:
+        "Please select Full Day or Half Day.",
+    });
+}
 
-    if (
-      endTime <= startTime
-    ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message:
-            "End time must be later than start time.",
-        });
-    }
+if (
+  durationType === "half_day" &&
+  ![
+    "first_half",
+    "second_half",
+  ].includes(halfDaySession)
+) {
+  return res
+    .status(400)
+    .json({
+      success: false,
+      message:
+        "Please select First Half or Second Half.",
+    });
+}
 
     if (!location) {
       return res
@@ -1780,15 +1783,15 @@ const createAdminFieldVisit = async (
       await db.query(
         `
         INSERT INTO employee_field_visits (
-          employee_id,
-          visit_type,
-          visit_date,
-          start_time,
-          end_time,
-          location,
-          comment,
-          status
-        )
+  employee_id,
+  visit_type,
+  visit_date,
+  duration_type,
+  half_day_session,
+  location,
+  comment,
+  status
+)
 
         VALUES (
           ?, ?, ?, ?, ?, ?, ?,
@@ -1796,14 +1799,16 @@ const createAdminFieldVisit = async (
         )
         `,
         [
-          admin.user_id,
-          visitType,
-          visitDate,
-          startTime,
-          endTime,
-          location,
-          comment,
-        ]
+  admin.user_id,
+  visitType,
+  visitDate,
+  durationType,
+  durationType === "half_day"
+    ? halfDaySession
+    : null,
+  location,
+  comment,
+]
       );
 
      const teamMembers =
@@ -1883,15 +1888,8 @@ VALUES
             '%Y-%m-%d'
           ) AS visit_date,
 
-          TIME_FORMAT(
-            fv.start_time,
-            '%H:%i'
-          ) AS start_time,
-
-          TIME_FORMAT(
-            fv.end_time,
-            '%H:%i'
-          ) AS end_time,
+          duration_type,
+half_day_session,
 
           fv.location,
           fv.comment,
@@ -1925,6 +1923,13 @@ VALUES
 
     try {
 
+      const durationLabel =
+  durationType === "half_day"
+    ? halfDaySession === "first_half"
+      ? "Half Day - First Half"
+      : "Half Day - Second Half"
+    : "Full Day";
+
   const subject =
     `Admin Field Visit - ${
       admin.full_name || "Admin"
@@ -1940,7 +1945,7 @@ Role: Admin
 
 Visit Type: ${visitType}
 Date: ${visitDate}
-Time: ${startTime} - ${endTime}
+Duration: ${durationLabel}
 Location: ${location}
 
 Reason:
@@ -1970,7 +1975,7 @@ Valencia RMS
       <b>Department:</b> ${admin.department_name || "-"}<br/>
       <b>Visit Type:</b> ${visitType}<br/>
       <b>Date:</b> ${visitDate}<br/>
-      <b>Time:</b> ${startTime} - ${endTime}<br/>
+      <b>Duration:</b> ${durationLabel}<br/>
       <b>Location:</b> ${location}<br/>
       <b>Reason:</b> ${comment}<br/>
       <b>Status:</b> Pending Superadmin Approval
@@ -1994,73 +1999,11 @@ Valencia RMS
   </div>
   `;
 
-
-  const [superadminRows] = await db.query(
-  `
-    SELECT DISTINCT u.email
-
-    FROM users u
-
-    INNER JOIN roles r
-      ON r.role_id = u.role_id
-
-    WHERE LOWER(r.role_name) = 'superadmin'
-
-      AND LOWER(
-        COALESCE(
-          u.status,
-          'active'
-        )
-      ) != 'deleted'
-
-      AND u.email IS NOT NULL
-
-      AND TRIM(u.email) != ''
-
-      AND LOWER(
-        TRIM(u.email)
-      ) != 'manish@valencianutrition.com'
-  `
-);
-
-  const reviewerEmails = [
-    ...new Set(
-      superadminRows
-        .map((row) =>
-          String(row.email || "")
-            .trim()
-            .toLowerCase()
-        )
-        .filter(Boolean)
-    ),
-  ];
-
-  let toEmails = reviewerEmails;
-
-  let ccEmails = [
+const toEmails = [
   HR_FIELD_VISIT_EMAIL,
-]
-    .map((email) =>
-      String(email || "")
-        .trim()
-        .toLowerCase()
-    )
-    .filter(
-      (email, index, array) =>
-        email &&
-        array.indexOf(email) === index &&
-        !toEmails.includes(email)
-    );
+];
 
-  // Fallback: HR + Manish still receive the mail
-  // if no active Superadmin account is found.
- if (toEmails.length === 0) {
-  toEmails = [
-    HR_FIELD_VISIT_EMAIL,
-  ];
-
-  ccEmails = [];
-}
+const ccEmails = [];
 
 const mailResponse =
 await sendMail({
@@ -2089,7 +2032,7 @@ await sendMail({
 } catch(emailError){
 
   console.error(
-    "Admin field visit Superadmin email failed:",
+    "Admin field visit email failed:",
     emailError
   );
 

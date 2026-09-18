@@ -687,16 +687,8 @@ SELECT
   ) AS visit_date,
 
 
-  TIME_FORMAT(
-    fv.start_time,
-    '%H:%i'
-  ) AS start_time,
-
-
-  TIME_FORMAT(
-    fv.end_time,
-    '%H:%i'
-  ) AS end_time,
+ fv.duration_type,
+fv.half_day_session,
 
 
   fv.location,
@@ -768,12 +760,9 @@ WHERE
 GROUP BY
 fv.visit_id
 
-
 ORDER BY
-
-fv.visit_date DESC,
-fv.start_time DESC,
-fv.visit_id DESC
+  fv.visit_date DESC,
+  fv.visit_id DESC
 
 `,
 [
@@ -881,15 +870,21 @@ const createEmployeeFieldVisit = async (
         req.body?.visit_date || ""
       ).trim();
 
-    const startTime =
-      String(
-        req.body?.start_time || ""
-      ).trim();
+    const durationType =
+  String(
+    req.body?.duration_type ||
+      "full_day"
+  )
+    .trim()
+    .toLowerCase();
 
-    const endTime =
-      String(
-        req.body?.end_time || ""
-      ).trim();
+const halfDaySession =
+  String(
+    req.body?.half_day_session ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
 
     const location =
       String(
@@ -914,25 +909,31 @@ const createEmployeeFieldVisit = async (
     }
 
     if (
-      !startTime ||
-      !endTime
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Start time and end time are required.",
-      });
-    }
+  ![
+    "full_day",
+    "half_day",
+  ].includes(durationType)
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Please select Full Day or Half Day.",
+  });
+}
 
-    if (
-      endTime <= startTime
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "End time must be later than start time.",
-      });
-    }
+if (
+  durationType === "half_day" &&
+  ![
+    "first_half",
+    "second_half",
+  ].includes(halfDaySession)
+) {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Please select First Half or Second Half.",
+  });
+}
 
     if (!location) {
       return res.status(400).json({
@@ -999,30 +1000,32 @@ const createEmployeeFieldVisit = async (
       await db.query(
         `
         INSERT INTO employee_field_visits (
-          employee_id,
-          visit_type,
-          visit_date,
-          start_time,
-          end_time,
-          location,
-          comment,
-          status
-        )
+  employee_id,
+  visit_type,
+  visit_date,
+  duration_type,
+  half_day_session,
+  location,
+  comment,
+  status
+)
 
-        VALUES (
-          ?, ?, ?, ?, ?, ?, ?,
-          'pending'
-        )
+VALUES (
+  ?, ?, ?, ?, ?, ?, ?,
+  'pending'
+)
         `,
         [
-          employeeId,
-          visitType,
-          visitDate,
-          startTime,
-          endTime,
-          location,
-          comment,
-        ]
+  employeeId,
+  visitType,
+  visitDate,
+  durationType,
+  durationType === "half_day"
+    ? halfDaySession
+    : null,
+  location,
+  comment,
+]
       );
       if(
  Array.isArray(req.body.visitor_ids) &&
@@ -1093,15 +1096,8 @@ VALUES
             '%Y-%m-%d'
           ) AS visit_date,
 
-          TIME_FORMAT(
-            start_time,
-            '%H:%i'
-          ) AS start_time,
-
-          TIME_FORMAT(
-            end_time,
-            '%H:%i'
-          ) AS end_time,
+          duration_type,
+half_day_session,
 
           location,
           comment,
@@ -1196,7 +1192,7 @@ VALUES
       /*
        Employee Field Visit recipients:
        TO = active Admin(s) of employee's department
-       CC = Rathika + Manish
+       CC = Rathika
 
        Selected visitors/team members are intentionally
        NOT added to the approval email.
@@ -1248,6 +1244,14 @@ VALUES
 
   ccEmails = [];
 }
+
+const durationLabel =
+  durationType === "half_day"
+    ? halfDaySession === "first_half"
+      ? "Half Day - First Half"
+      : "Half Day - Second Half"
+    : "Full Day";
+
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
 
@@ -1261,7 +1265,7 @@ Designation: ${employee.designation || "-"}
 
 Visit Type: ${visitType}
 Date: ${visitDate}
-Time: ${startTime} - ${endTime}
+Duration: ${durationLabel}
 Location: ${location}
 
 Reason:
@@ -1392,23 +1396,21 @@ Valencia RMS
               </td>
             </tr>
 
-            <tr>
-              <td style="
-                padding: 9px;
-                border: 1px solid #ddd;
-              ">
-                <strong>Time</strong>
-              </td>
+           <tr>
+  <td style="
+    padding: 9px;
+    border: 1px solid #ddd;
+  ">
+    <strong>Duration</strong>
+  </td>
 
-              <td style="
-                padding: 9px;
-                border: 1px solid #ddd;
-              ">
-                ${startTime}
-                -
-                ${endTime}
-              </td>
-            </tr>
+  <td style="
+    padding: 9px;
+    border: 1px solid #ddd;
+  ">
+    ${durationLabel}
+  </td>
+</tr>
 
             <tr>
               <td style="
