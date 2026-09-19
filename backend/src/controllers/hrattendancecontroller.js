@@ -745,74 +745,121 @@ const buildHrAttendanceData = async (
     ]
   );
 
-  const [hrLeaveRows] = await db.query(
-    `
-    SELECT
-      la.leave_id,
-      la.employee_id,
-      la.leave_type,
-      la.total_days,
-      la.duration_type,
-      la.half_day_session,
-      la.reason,
-      la.status,
-      la.review_remark,
-      COALESCE(la.escalated_for_approval, 0) AS escalated_for_approval,
+ const [hrLeaveRows] = await db.query(
+  `
+  SELECT
+    la.leave_id,
+    la.employee_id,
+    la.leave_type,
+    la.total_days,
+    la.duration_type,
+    la.half_day_session,
+    la.reason,
+    la.status,
+    la.review_remark,
+    COALESCE(
+      la.escalated_for_approval,
+      0
+    ) AS escalated_for_approval,
 
-      DATE_FORMAT(la.start_date, '%Y-%m-%d') AS start_date,
-      DATE_FORMAT(la.end_date, '%Y-%m-%d') AS end_date,
+    DATE_FORMAT(
+      la.start_date,
+      '%Y-%m-%d'
+    ) AS start_date,
 
-      la.reviewed_by,
-      DATE_FORMAT(la.reviewed_at, '%Y-%m-%d %H:%i:%s') AS reviewed_at,
+    DATE_FORMAT(
+      la.end_date,
+      '%Y-%m-%d'
+    ) AS end_date,
 
-      la.escalated_by,
-      DATE_FORMAT(la.escalated_at, '%Y-%m-%d %H:%i:%s') AS escalated_at,
+    la.reviewed_by,
 
-      employee.employee_code,
-      employee.full_name AS employee_name,
-      employee.email AS employee_email,
-      employee.designation,
-      employee.department_id,
+    DATE_FORMAT(
+      la.reviewed_at,
+      '%Y-%m-%d %H:%i:%s'
+    ) AS reviewed_at,
 
-      department.department_name,
-      role.role_name,
+    la.escalated_by,
 
-      reviewer.full_name AS reviewed_by_name,
-      reviewer.email AS reviewed_by_email,
+    DATE_FORMAT(
+      la.escalated_at,
+      '%Y-%m-%d %H:%i:%s'
+    ) AS escalated_at,
 
-      escalator.full_name AS escalated_by_name,
-      escalator.email AS escalated_by_email
+    DATE_FORMAT(
+      la.applied_at,
+      '%Y-%m-%d %H:%i:%s'
+    ) AS applied_at,
 
-    FROM leave_applications la
+    employee.employee_code,
+    employee.full_name AS employee_name,
+    employee.email AS employee_email,
+    employee.designation,
+    employee.department_id,
 
-    INNER JOIN users employee
-      ON employee.user_id = la.employee_id
+    department.department_name,
+    role.role_name,
 
-    LEFT JOIN departments department
-      ON department.department_id = employee.department_id
+    reviewer.full_name AS reviewed_by_name,
+    reviewer.email AS reviewed_by_email,
 
-    LEFT JOIN roles role
-      ON role.role_id = employee.role_id
+    escalator.full_name AS escalated_by_name,
+    escalator.email AS escalated_by_email
 
-    LEFT JOIN users reviewer
-      ON reviewer.user_id = la.reviewed_by
+  FROM leave_applications la
 
-    LEFT JOIN users escalator
-      ON escalator.user_id = la.escalated_by
+  INNER JOIN users employee
+    ON employee.user_id = la.employee_id
 
-    WHERE la.employee_id IN (${placeholders})
-      AND la.start_date <= ?
-      AND la.end_date >= ?
-      AND LOWER(TRIM(la.status)) IN ('pending', 'approved', 'rejected')
+  LEFT JOIN departments department
+    ON department.department_id =
+       employee.department_id
 
-    ORDER BY la.leave_id DESC
-    `,
-    [
-      ...userIds,
-      toDate,
-      fromDate,
-    ]
-  );
+  LEFT JOIN roles role
+    ON role.role_id = employee.role_id
+
+  LEFT JOIN users reviewer
+    ON reviewer.user_id = la.reviewed_by
+
+  LEFT JOIN users escalator
+    ON escalator.user_id = la.escalated_by
+
+  WHERE
+    la.employee_id IN (${placeholders})
+
+    AND LOWER(
+      TRIM(la.status)
+    ) IN (
+      'pending',
+      'approved',
+      'rejected'
+    )
+
+  ORDER BY
+    CASE
+      WHEN LOWER(
+        TRIM(la.status)
+      ) = 'pending'
+      THEN 1
+
+      WHEN LOWER(
+        TRIM(la.status)
+      ) = 'approved'
+      THEN 2
+
+      WHEN LOWER(
+        TRIM(la.status)
+      ) = 'rejected'
+      THEN 3
+
+      ELSE 4
+    END,
+
+    la.applied_at DESC,
+    la.leave_id DESC
+  `,
+  userIds
+);
 
   const [fieldVisitRows] = await db.query(
     `
