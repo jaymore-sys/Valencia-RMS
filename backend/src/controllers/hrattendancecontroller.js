@@ -5,51 +5,7 @@ const XLSX = require("xlsx");
 const HR_EMAILS = [
   "rathika.haleangadi@valencianutrition.com",
 ];
-/* =========================================================
-   FIELD VISIT SCHEMA CACHE
-========================================================= */
 
-let fieldVisitMemberForeignKeyCache = null;
-let fieldVisitMemberForeignKeyChecked = false;
-
-const getFieldVisitMemberForeignKey = async () => {
-  if (fieldVisitMemberForeignKeyChecked) {
-    return fieldVisitMemberForeignKeyCache;
-  }
-
-  const [memberColumns] = await db.query(
-    `SHOW COLUMNS FROM field_visit_members`
-  );
-
-  const columnNames = memberColumns.map(
-    (column) =>
-      String(column.Field || "")
-        .trim()
-        .toLowerCase()
-  );
-
-  if (
-    columnNames.includes(
-      "field_visit_id"
-    )
-  ) {
-    fieldVisitMemberForeignKeyCache =
-      "field_visit_id";
-  } else if (
-    columnNames.includes("visit_id")
-  ) {
-    fieldVisitMemberForeignKeyCache =
-      "visit_id";
-  } else {
-    fieldVisitMemberForeignKeyCache =
-      null;
-  }
-
-  fieldVisitMemberForeignKeyChecked =
-    true;
-
-  return fieldVisitMemberForeignKeyCache;
-};
 const FIXED_HOLIDAYS = {
   "01-26": "Republic Day",
   "05-01": "Maharashtra Day",
@@ -212,6 +168,25 @@ const getLeaveLabel = (leaveType) => {
     default:
       return "Leave";
   }
+};
+
+const getHrLeaveDisplayStatus = (leave) => {
+  const status = String(leave?.status || "")
+    .trim()
+    .toLowerCase();
+
+  const escalated =
+    Number(leave?.escalated_for_approval || 0) === 1;
+
+  if (status === "pending" && escalated) {
+    return "Escalated";
+  }
+
+  if (status === "pending") return "Pending";
+  if (status === "approved") return "Approved";
+  if (status === "rejected") return "Rejected";
+
+  return status || "-";
 };
 
 /* =========================================================
@@ -569,10 +544,6 @@ const buildHrAttendanceData = async (
   fromDate,
   toDate
 ) => {
-  /* =======================================================
-     USERS
-  ======================================================= */
-
   const [users] = await db.query(
     `
     SELECT
@@ -620,6 +591,14 @@ const buildHrAttendanceData = async (
       users: [],
       records: [],
       summary: {},
+      leave_applications: [],
+      leave_application_summary: {
+        total: 0,
+        pending: 0,
+        escalated: 0,
+        approved: 0,
+        rejected: 0,
+      },
       biometric_range: {
         first_date: null,
         last_date: null,
@@ -633,10 +612,6 @@ const buildHrAttendanceData = async (
 
   const placeholders =
     userIds.map(() => "?").join(",");
-
-  /* =======================================================
-     BIOMETRIC RANGE
-  ======================================================= */
 
   const [rangeRows] = await db.query(
     `
@@ -660,10 +635,6 @@ const buildHrAttendanceData = async (
 
   const biometricLastDate =
     rangeRows[0]?.last_date || null;
-
-  /* =======================================================
-     FIRST ATTENDANCE PER EMPLOYEE
-  ======================================================= */
 
   const [firstAttendanceRows] = await db.query(
     `
@@ -692,10 +663,6 @@ const buildHrAttendanceData = async (
       row.first_attendance_date
     );
   });
-
-  /* =======================================================
-     ATTENDANCE
-  ======================================================= */
 
   const [attendanceRows] = await db.query(
     `
@@ -728,22 +695,7 @@ const buildHrAttendanceData = async (
     ]
   );
 
-  /* =======================================================
-     APPROVED LEAVES
-  ======================================================= */
-  /* =======================================================
-   LEAVE APPLICATIONS
-
-   IMPORTANT:
-   - approvedLeaveRows affects attendance
-   - allLeaveRows is for HR visibility/review
-======================================================= */
-
-const [
-  approvedLeaveResult,
-  allLeaveResult,
-] = await Promise.all([
-  db.query(
+  const [leaveRows] = await db.query(
     `
     SELECT
       la.leave_id,
@@ -769,36 +721,21 @@ const [
       la.reviewed_by,
 
       DATE_FORMAT(
-        la.applied_at,
-        '%Y-%m-%d %H:%i:%s'
-      ) AS applied_at,
-
-      DATE_FORMAT(
         la.reviewed_at,
         '%Y-%m-%d %H:%i:%s'
       ) AS reviewed_at,
 
-      reviewer.full_name
-        AS reviewed_by_name,
-
-      reviewer.email
-        AS reviewed_by_email
+      reviewer.full_name AS reviewed_by_name,
+      reviewer.email AS reviewed_by_email
 
     FROM leave_applications la
 
     LEFT JOIN users reviewer
-      ON reviewer.user_id =
-        la.reviewed_by
+      ON reviewer.user_id = la.reviewed_by
 
-    WHERE
-      la.employee_id IN (${placeholders})
-
-      AND LOWER(
-        TRIM(la.status)
-      ) = 'approved'
-
+    WHERE la.employee_id IN (${placeholders})
+      AND LOWER(TRIM(la.status)) = 'approved'
       AND la.start_date <= ?
-
       AND la.end_date >= ?
     `,
     [
@@ -806,148 +743,78 @@ const [
       toDate,
       fromDate,
     ]
-  ),
+  );
 
-  db.query(
+  const [hrLeaveRows] = await db.query(
     `
     SELECT
       la.leave_id,
       la.employee_id,
       la.leave_type,
-
-      DATE_FORMAT(
-        la.start_date,
-        '%Y-%m-%d'
-      ) AS start_date,
-
-      DATE_FORMAT(
-        la.end_date,
-        '%Y-%m-%d'
-      ) AS end_date,
-
       la.total_days,
       la.duration_type,
       la.half_day_session,
       la.reason,
       la.status,
       la.review_remark,
+      COALESCE(la.escalated_for_approval, 0) AS escalated_for_approval,
+
+      DATE_FORMAT(la.start_date, '%Y-%m-%d') AS start_date,
+      DATE_FORMAT(la.end_date, '%Y-%m-%d') AS end_date,
+
       la.reviewed_by,
+      DATE_FORMAT(la.reviewed_at, '%Y-%m-%d %H:%i:%s') AS reviewed_at,
 
-      DATE_FORMAT(
-        la.applied_at,
-        '%Y-%m-%d %H:%i:%s'
-      ) AS applied_at,
-
-      DATE_FORMAT(
-        la.reviewed_at,
-        '%Y-%m-%d %H:%i:%s'
-      ) AS reviewed_at,
-
-      employee.full_name
-        AS employee_name,
-
-      employee.email
-        AS employee_email,
+      la.escalated_by,
+      DATE_FORMAT(la.escalated_at, '%Y-%m-%d %H:%i:%s') AS escalated_at,
 
       employee.employee_code,
-
+      employee.full_name AS employee_name,
+      employee.email AS employee_email,
       employee.designation,
-
       employee.department_id,
 
       department.department_name,
-
       role.role_name,
 
-      reviewer.full_name
-        AS reviewed_by_name,
+      reviewer.full_name AS reviewed_by_name,
+      reviewer.email AS reviewed_by_email,
 
-      reviewer.email
-        AS reviewed_by_email
+      escalator.full_name AS escalated_by_name,
+      escalator.email AS escalated_by_email
 
     FROM leave_applications la
 
     INNER JOIN users employee
-      ON employee.user_id =
-        la.employee_id
+      ON employee.user_id = la.employee_id
 
     LEFT JOIN departments department
-      ON department.department_id =
-        employee.department_id
+      ON department.department_id = employee.department_id
 
     LEFT JOIN roles role
-      ON role.role_id =
-        employee.role_id
+      ON role.role_id = employee.role_id
 
     LEFT JOIN users reviewer
-      ON reviewer.user_id =
-        la.reviewed_by
+      ON reviewer.user_id = la.reviewed_by
 
-    WHERE
-      la.employee_id IN (${placeholders})
+    LEFT JOIN users escalator
+      ON escalator.user_id = la.escalated_by
 
+    WHERE la.employee_id IN (${placeholders})
       AND la.start_date <= ?
-
       AND la.end_date >= ?
+      AND LOWER(TRIM(la.status)) IN ('pending', 'approved', 'rejected')
 
-      AND LOWER(
-        TRIM(la.status)
-      ) IN (
-        'pending',
-        'approved',
-        'rejected'
-      )
-
-    ORDER BY
-
-      CASE
-        WHEN LOWER(TRIM(la.status)) =
-          'pending'
-          THEN 1
-
-        WHEN LOWER(TRIM(la.status)) =
-          'approved'
-          THEN 2
-
-        WHEN LOWER(TRIM(la.status)) =
-          'rejected'
-          THEN 3
-
-        ELSE 4
-      END,
-
-      la.applied_at DESC,
-
-      la.leave_id DESC
+    ORDER BY la.leave_id DESC
     `,
     [
       ...userIds,
       toDate,
       fromDate,
     ]
-  ),
-]);
+  );
 
-const approvedLeaveRows =
-  approvedLeaveResult[0] || [];
-
-const allLeaveRows =
-  allLeaveResult[0] || [];
-
-/*
-  Keep this alias because the existing
-  attendance-building logic below already
-  uses leaveRows.
-*/
-
-const leaveRows =
-  approvedLeaveRows;
-
-  /* =======================================================
-     APPROVED FIELD VISITS
-  ======================================================= */
-const [fieldVisitRows] =
-  await db.query(
+  const [fieldVisitRows] = await db.query(
     `
     SELECT
       fv.visit_id,
@@ -972,28 +839,16 @@ const [fieldVisitRows] =
         '%Y-%m-%d %H:%i:%s'
       ) AS reviewed_at,
 
-      reviewer.full_name
-        AS reviewed_by_name,
-
-      reviewer.email
-        AS reviewed_by_email
+      reviewer.full_name AS reviewed_by_name,
+      reviewer.email AS reviewed_by_email
 
     FROM employee_field_visits fv
 
     LEFT JOIN users reviewer
-      ON reviewer.user_id =
-        fv.reviewed_by
+      ON reviewer.user_id = fv.reviewed_by
 
-    WHERE
-      LOWER(
-        TRIM(fv.status)
-      ) = 'approved'
-
-      AND fv.visit_date
-        BETWEEN ? AND ?
-
-    ORDER BY
-      fv.visit_date DESC
+    WHERE LOWER(fv.status) = 'approved'
+      AND fv.visit_date BETWEEN ? AND ?
     `,
     [
       fromDate,
@@ -1001,91 +856,48 @@ const [fieldVisitRows] =
     ]
   );
 
-  /* =======================================================
-   FIELD VISIT MEMBERS
-======================================================= */
+  const visitIds =
+    fieldVisitRows
+      .map((visit) => Number(visit.visit_id))
+      .filter(Boolean);
 
-const visitIds =
-  fieldVisitRows
-    .map(
-      (visit) =>
-        Number(visit.visit_id)
-    )
-    .filter(Boolean);
+  let fieldVisitMembers = [];
 
-let fieldVisitMembers = [];
+  if (visitIds.length) {
+    const [memberColumns] = await db.query(
+      `SHOW COLUMNS FROM field_visit_members`
+    );
 
-if (visitIds.length) {
-  const visitForeignKey =
-    await getFieldVisitMemberForeignKey();
+    const columnNames = memberColumns.map((column) =>
+      String(column.Field || "").toLowerCase()
+    );
 
-  if (visitForeignKey) {
-    const visitPlaceholders =
-      visitIds
-        .map(() => "?")
-        .join(",");
+    let visitForeignKey = null;
 
-    const [memberRows] =
-      await db.query(
+    if (columnNames.includes("field_visit_id")) {
+      visitForeignKey = "field_visit_id";
+    } else if (columnNames.includes("visit_id")) {
+      visitForeignKey = "visit_id";
+    }
+
+    if (visitForeignKey) {
+      const visitPlaceholders =
+        visitIds.map(() => "?").join(",");
+
+      const [memberRows] = await db.query(
         `
         SELECT
-          ${visitForeignKey}
-            AS visit_id,
-
+          ${visitForeignKey} AS visit_id,
           employee_id
-
         FROM field_visit_members
-
-        WHERE
-          ${visitForeignKey}
-          IN (${visitPlaceholders})
+        WHERE ${visitForeignKey} IN (${visitPlaceholders})
         `,
         visitIds
       );
 
-    fieldVisitMembers =
-      memberRows;
-  }
-}
-
-/*
-  Build this once.
-
-  Previously every visit filtered the complete
-  fieldVisitMembers array again.
-*/
-
-const fieldVisitMembersMap =
-  new Map();
-
-fieldVisitMembers.forEach(
-  (member) => {
-    const visitId =
-      Number(member.visit_id);
-
-    if (
-      !fieldVisitMembersMap.has(
-        visitId
-      )
-    ) {
-      fieldVisitMembersMap.set(
-        visitId,
-        []
-      );
+      fieldVisitMembers = memberRows;
     }
-
-    fieldVisitMembersMap
-      .get(visitId)
-      .push(
-        Number(
-          member.employee_id
-        )
-      );
   }
-);
-  /* =======================================================
-     MAP ATTENDANCE
-  ======================================================= */
 
   const attendanceMap = new Map();
 
@@ -1095,10 +907,6 @@ fieldVisitMembers.forEach(
       row
     );
   });
-
-  /* =======================================================
-     MAP LEAVE
-  ======================================================= */
 
   const leaveMap = new Map();
 
@@ -1114,10 +922,6 @@ fieldVisitMembers.forEach(
       date = addOneDay(date);
     }
   });
-
-  /* =======================================================
-     MAP FIELD VISITS
-  ======================================================= */
 
   const visitMap = new Map();
 
@@ -1146,10 +950,6 @@ fieldVisitMembers.forEach(
     });
   });
 
-  /* =======================================================
-     BUILD FINAL REGISTER
-  ======================================================= */
-
   const records = [];
 
   for (const user of users) {
@@ -1157,14 +957,6 @@ fieldVisitMembers.forEach(
       firstAttendanceMap.get(
         Number(user.user_id)
       ) || null;
-
-    /*
-      For old biometric data:
-      use joining date where available.
-
-      If missing:
-      fall back to first known biometric attendance.
-    */
 
     const effectiveStartDate =
       user.joining_date ||
@@ -1186,10 +978,6 @@ fieldVisitMembers.forEach(
       const fieldVisit =
         visitMap.get(key);
 
-      /* =====================================================
-         BEFORE JOINING
-      ===================================================== */
-
       if (
         effectiveStartDate &&
         currentDate < effectiveStartDate
@@ -1197,11 +985,6 @@ fieldVisitMembers.forEach(
         currentDate = addOneDay(currentDate);
         continue;
       }
-
-      /*
-        No reliable employment start and no actual record:
-        do not invent attendance.
-      */
 
       if (
         !effectiveStartDate &&
@@ -1212,14 +995,6 @@ fieldVisitMembers.forEach(
         currentDate = addOneDay(currentDate);
         continue;
       }
-
-      /* =====================================================
-         AFTER LATEST BIOMETRIC IMPORT
-
-         Going forward, RMS leave and field visits still show,
-         but we do not create fake absence after the latest
-         biometric import date.
-      ===================================================== */
 
       if (
         biometricLastDate &&
@@ -1260,10 +1035,6 @@ fieldVisitMembers.forEach(
             )
           : 0;
 
-      /* =====================================================
-         RESULT DEFAULTS
-      ===================================================== */
-
       let finalStatus = null;
       let source = null;
       let detail = "-";
@@ -1281,10 +1052,6 @@ fieldVisitMembers.forEach(
       let approvedAt = null;
 
       let conflictReason = null;
-
-      /* =====================================================
-         DETECT SELECTIVE CONFLICTS
-      ===================================================== */
 
       if (leave && fieldVisit) {
         conflictReason =
@@ -1310,23 +1077,11 @@ fieldVisitMembers.forEach(
           "Attendance is marked absent but biometric punch data exists.";
       }
 
-      /* =====================================================
-         NEEDS REVIEW
-
-         Only genuine conflicts come here.
-      ===================================================== */
-
       if (conflictReason) {
         finalStatus = "Needs Review";
         source = "conflict";
         detail = conflictReason;
-      }
-
-      /* =====================================================
-         APPROVED LEAVE
-      ===================================================== */
-
-      else if (leave) {
+      } else if (leave) {
         leaveCode = leave.leave_type;
 
         leaveType =
@@ -1350,8 +1105,8 @@ fieldVisitMembers.forEach(
         source = "rms_leave";
 
         detail =
-  leave.reason ||
-  leaveType;
+          leave.reason ||
+          leaveType;
 
         approvedByName =
           leave.reviewed_by_name || null;
@@ -1361,13 +1116,7 @@ fieldVisitMembers.forEach(
 
         approvedAt =
           leave.reviewed_at || null;
-      }
-
-      /* =====================================================
-         FIELD VISIT
-      ===================================================== */
-
-      else if (fieldVisit) {
+      } else if (fieldVisit) {
         finalStatus = "Field Visit";
         source = "rms_field_visit";
 
@@ -1395,22 +1144,12 @@ fieldVisitMembers.forEach(
 
         approvedAt =
           fieldVisit.reviewed_at || null;
-      }
-
-      /* =====================================================
-         BIOMETRIC / MANUAL ATTENDANCE
-      ===================================================== */
-
-      else if (attendance) {
+      } else if (attendance) {
         const rawStatus = String(
           attendance.status || "present"
         )
           .trim()
           .toLowerCase();
-
-        /*
-          Explicit manual absence.
-        */
 
         if (
           rawStatus === "absent" &&
@@ -1418,96 +1157,44 @@ fieldVisitMembers.forEach(
           !checkOut
         ) {
           finalStatus = "Absent";
-        }
-
-        /*
-          Only one punch.
-        */
-
-        else if (
+        } else if (
           (checkIn && !checkOut) ||
           (!checkIn && checkOut)
         ) {
           finalStatus = "No Punch";
-        }
-
-        /*
-          Explicit half day.
-        */
-
-        else if (
+        } else if (
           rawStatus === "half_day"
         ) {
           finalStatus = "Half Day";
-        }
-
-        /*
-          Explicit late.
-        */
-
-        else if (
+        } else if (
           rawStatus === "late"
         ) {
           finalStatus = "Late";
-        }
-
-        /*
-          Holiday record.
-        */
-
-        else if (
+        } else if (
           rawStatus === "holiday"
         ) {
           finalStatus = "Holiday";
-        }
-
-        /*
-          Both punches.
-        */
-
-        else if (
+        } else if (
           checkIn &&
           checkOut
         ) {
           finalStatus = "Present";
-        }
-
-        /*
-          Attendance record but no punches.
-        */
-
-        else {
+        } else {
           finalStatus = "Absent";
         }
 
         source = "attendance";
         detail =
           attendance.remarks || "-";
-      }
-
-      /* =====================================================
-         CALENDAR
-      ===================================================== */
-
-      else if (sunday) {
+      } else if (sunday) {
         finalStatus = "Weekly Off";
         source = "calendar";
         detail = "Sunday";
-      }
-
-      else if (holidayName) {
+      } else if (holidayName) {
         finalStatus = "Holiday";
         source = "calendar";
         detail = holidayName;
-      }
-
-      /* =====================================================
-         NO PUNCH + NO RMS EXCEPTION = ABSENT
-
-         This is the normal past-data rule.
-      ===================================================== */
-
-      else {
+      } else {
         finalStatus = "Absent";
         source = "system";
         detail = "No biometric attendance found";
@@ -1583,7 +1270,7 @@ fieldVisitMembers.forEach(
           leaveSession,
 
         leave_reason:
-  leave?.reason || null,
+          leave?.reason || null,
 
         field_visit_id:
           fieldVisit?.visit_id || null,
@@ -1612,10 +1299,6 @@ fieldVisitMembers.forEach(
     }
   }
 
-  /* =======================================================
-     SORT
-  ======================================================= */
-
   records.sort((a, b) => {
     const dateComparison =
       String(
@@ -1638,10 +1321,6 @@ fieldVisitMembers.forEach(
       )
     );
   });
-
-  /* =======================================================
-     SUMMARY
-  ======================================================= */
 
   const summary = {
     employees:
@@ -1744,10 +1423,79 @@ fieldVisitMembers.forEach(
     }
   });
 
+  const leaveApplications = hrLeaveRows.map((leave) => ({
+    leave_id: leave.leave_id,
+    employee_id: leave.employee_id,
+    employee_code: leave.employee_code,
+    employee_name: leave.employee_name,
+    employee_email: leave.employee_email,
+    designation: leave.designation,
+    department_id: leave.department_id,
+    department_name: leave.department_name,
+    role_name: leave.role_name,
+    leave_type: getLeaveLabel(leave.leave_type),
+    leave_code: leave.leave_type,
+    start_date: leave.start_date,
+    end_date: leave.end_date,
+    total_days: leave.total_days,
+    duration_type: leave.duration_type,
+    half_day_session: leave.half_day_session,
+    reason: leave.reason,
+    display_status: getHrLeaveDisplayStatus(leave),
+    status: leave.status,
+    escalated_for_approval: Number(
+      leave.escalated_for_approval || 0
+    ),
+    escalated_by_name:
+      leave.escalated_by_name || null,
+    escalated_at:
+      leave.escalated_at || null,
+    reviewed_by_name:
+      leave.reviewed_by_name || null,
+    reviewed_at:
+      leave.reviewed_at || null,
+    review_remark:
+      leave.review_remark || null,
+  }));
+
+  const leaveApplicationSummary = {
+    total: leaveApplications.length,
+
+    pending:
+      leaveApplications.filter(
+        (item) =>
+          item.display_status === "Pending"
+      ).length,
+
+    escalated:
+      leaveApplications.filter(
+        (item) =>
+          item.display_status === "Escalated"
+      ).length,
+
+    approved:
+      leaveApplications.filter(
+        (item) =>
+          item.display_status === "Approved"
+      ).length,
+
+    rejected:
+      leaveApplications.filter(
+        (item) =>
+          item.display_status === "Rejected"
+      ).length,
+  };
+
   return {
     users,
     records,
     summary,
+
+    leave_applications:
+      leaveApplications,
+
+    leave_application_summary:
+      leaveApplicationSummary,
 
     biometric_range: {
       first_date:
@@ -1774,13 +1522,14 @@ const getHrAttendance = async (req, res) => {
 
     const today = new Date();
 
+    const defaultDate =
+      formatDate(today);
+
     const defaultFrom =
-      `${today.getFullYear()}-${String(
-        today.getMonth() + 1
-      ).padStart(2, "0")}-01`;
+      defaultDate;
 
     const defaultTo =
-      formatDate(today);
+      defaultDate;
 
     const fromDate = String(
       req.query.from_date ||
@@ -1824,10 +1573,82 @@ const getHrAttendance = async (req, res) => {
         result.users,
 
       records:
-        result.records,
+        result.records.slice(
+          (Math.max(
+            Number(req.query.page || 1),
+            1
+          ) -
+            1) *
+            Math.min(
+              Math.max(
+                Number(req.query.page_size || 100),
+                1
+              ),
+              100
+            ),
+
+          Math.max(
+            Number(req.query.page || 1),
+            1
+          ) *
+            Math.min(
+              Math.max(
+                Number(req.query.page_size || 100),
+                1
+              ),
+              100
+            )
+        ),
 
       summary:
         result.summary,
+
+      leave_applications:
+        result.leave_applications || [],
+
+      leave_application_summary:
+        result.leave_application_summary || {
+          total: 0,
+          pending: 0,
+          escalated: 0,
+          approved: 0,
+          rejected: 0,
+        },
+
+      pagination: {
+        page:
+          Math.max(
+            Number(req.query.page || 1),
+            1
+          ),
+
+        page_size:
+          Math.min(
+            Math.max(
+              Number(req.query.page_size || 100),
+              1
+            ),
+            100
+          ),
+
+        total_records:
+          result.records.length,
+
+        total_pages:
+          Math.max(
+            Math.ceil(
+              result.records.length /
+                Math.min(
+                  Math.max(
+                    Number(req.query.page_size || 100),
+                    1
+                  ),
+                  100
+                )
+            ),
+            1
+          ),
+      },
     });
   } catch (error) {
     console.error(
@@ -2691,7 +2512,168 @@ const exportHrAttendance = async (req, res) => {
     });
   }
 };
+const approveHrLeaveApplication = async (req, res) => {
+  let connection;
 
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const hrUserId = Number(req.user?.user_id || 0);
+    const leaveId = Number(req.params.leaveId);
+
+    if (!hrUserId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid HR user.",
+      });
+    }
+
+    if (!Number.isFinite(leaveId) || leaveId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid leave application ID.",
+      });
+    }
+
+    connection = await db.getConnection();
+
+    await connection.beginTransaction();
+
+    const [leaveRows] = await connection.query(
+      `
+      SELECT
+        la.leave_id,
+        la.employee_id,
+        la.status,
+
+        COALESCE(
+          la.escalated_for_approval,
+          0
+        ) AS escalated_for_approval
+
+      FROM leave_applications la
+
+      WHERE la.leave_id = ?
+
+      LIMIT 1
+
+      FOR UPDATE
+      `,
+      [leaveId]
+    );
+
+    if (!leaveRows.length) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Leave application not found.",
+      });
+    }
+
+    const leave = leaveRows[0];
+
+    const status = String(
+      leave.status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const escalated =
+      Number(
+        leave.escalated_for_approval || 0
+      ) === 1;
+
+    /*
+      Rathika rule:
+
+      Pending      -> can approve
+      Escalated    -> view only
+      Approved     -> view only
+      Rejected     -> view only
+    */
+
+    if (escalated) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "This leave application is escalated and requires final review by Manish.",
+      });
+    }
+
+    if (status !== "pending") {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          `Leave application is already ${status}.`,
+      });
+    }
+
+    await connection.query(
+      `
+      UPDATE leave_applications
+
+      SET
+        status = 'approved',
+        reviewed_by = ?,
+        reviewed_at = NOW()
+
+      WHERE leave_id = ?
+        AND LOWER(TRIM(status)) = 'pending'
+        AND COALESCE(
+          escalated_for_approval,
+          0
+        ) = 0
+      `,
+      [
+        hrUserId,
+        leaveId,
+      ]
+    );
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message:
+        "Leave approved successfully.",
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+
+    console.error(
+      "HR leave approval error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to approve leave application.",
+      error:
+        error.message,
+      sqlMessage:
+        error.sqlMessage || null,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
 /* =========================================================
    EXPORTS
 ========================================================= */
@@ -2701,4 +2683,5 @@ module.exports = {
   saveHrAttendance,
   importHrAttendance,
   exportHrAttendance,
+  approveHrLeaveApplication,
 };

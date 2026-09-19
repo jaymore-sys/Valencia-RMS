@@ -1,62 +1,67 @@
-import React, {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle,
   CalendarDays,
   CheckCircle2,
-  Clock3,
+  ChevronLeft,
+  ChevronRight,
   Download,
+  Eye,
   FileSpreadsheet,
   MapPin,
+  Plus,
   RefreshCw,
   Search,
-  Timer,
-  UserPlus,
-  Users,
+  Upload,
   X,
-  XCircle,
 } from "lucide-react";
 
 import api from "../../api/axios";
+import "../../layouts/hrAttendance.css";
 
 /* =========================================================
    HELPERS
 ========================================================= */
 
-const formatToday = () => {
-  const date = new Date();
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
+const toDateInput = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 };
 
-const getMonthStart = () => {
-  const date = new Date();
+const todayString = () => toDateInput(new Date());
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-
-  return `${year}-${month}-01`;
+const addDays = (value, amount) => {
+  const date = new Date(`${value}T00:00:00`);
+  date.setDate(date.getDate() + amount);
+  return toDateInput(date);
 };
 
-const formatDisplayDate = (value) => {
+const monthStart = (value) => {
+  const date = new Date(`${value}T00:00:00`);
+  return toDateInput(new Date(date.getFullYear(), date.getMonth(), 1));
+};
+
+const monthEnd = (value) => {
+  const date = new Date(`${value}T00:00:00`);
+  return toDateInput(new Date(date.getFullYear(), date.getMonth() + 1, 0));
+};
+
+const weekStart = (value) => {
+  const date = new Date(`${value}T00:00:00`);
+  const day = date.getDay();
+  date.setDate(date.getDate() + (day === 0 ? -6 : 1 - day));
+  return toDateInput(date);
+};
+
+const weekEnd = (value) => addDays(weekStart(value), 6);
+
+const displayDate = (value) => {
   if (!value) return "-";
 
-  const date = new Date(
-    `${String(value).slice(0, 10)}T00:00:00`
-  );
+  const date = new Date(`${String(value).slice(0, 10)}T00:00:00`);
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleDateString("en-IN", {
     day: "2-digit",
@@ -65,14 +70,12 @@ const formatDisplayDate = (value) => {
   });
 };
 
-const formatApprovalDate = (value) => {
+const displayDateTime = (value) => {
   if (!value) return "-";
 
-  const date = new Date(value);
+  const date = new Date(String(value).replace(" ", "T"));
 
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
+  if (Number.isNaN(date.getTime())) return value;
 
   return date.toLocaleString("en-IN", {
     day: "2-digit",
@@ -83,350 +86,288 @@ const formatApprovalDate = (value) => {
   });
 };
 
-const getInitials = (name) =>
-  String(name || "U")
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
+const displayTime = (value) => {
+  if (!value || value === "-") return "-";
 
-const normalizeStatus = (value) =>
-  String(value || "")
-    .trim()
-    .toLowerCase();
+  const [hour, minute] = String(value).slice(0, 8).split(":").map(Number);
+
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+
+  const displayHour = hour % 12 || 12;
+  const period = hour >= 12 ? "PM" : "AM";
+
+  return `${String(displayHour).padStart(2, "0")}:${String(minute).padStart(
+    2,
+    "0"
+  )} ${period}`;
+};
+
+const dayName = (value) =>
+  new Date(`${value}T00:00:00`).toLocaleDateString("en-IN", {
+    weekday: "short",
+  });
+
+const normalize = (value) => String(value || "").trim().toLowerCase();
 
 const titleCase = (value) =>
   String(value || "")
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (letter) =>
-      letter.toUpperCase()
-    );
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
-const getStatusStyle = (status) => {
-  const value =
-    normalizeStatus(status);
+const HR_DEPARTMENTS = [
+  "Administration",
+  "ADV",
+  "Cans",
+  "Consumer Goods",
+  "Corporate Office",
+  "Creatives",
+  "Crunzzo",
+  "Engineering",
+  "Finance",
+  "Formulation Team",
+  "General",
+  "IT",
+  "Nutracare",
+  "POS",
+  "Sales",
+  "Valencia Engineers Group",
+];
 
-  if (value === "present") {
-    return {
-      background: "#dcfce7",
-      color: "#166534",
-      border: "1px solid #bbf7d0",
-    };
-  }
+/* =========================================================
+   STATUS
+========================================================= */
 
-  if (value === "late") {
-    return {
-      background: "#fef3c7",
-      color: "#92400e",
-      border: "1px solid #fde68a",
-    };
-  }
+const StatusBadge = ({ value }) => {
+  const status = normalize(value);
 
-  if (
-    value === "half day" ||
-    value === "half day leave"
+  let type = "neutral";
+
+  if (["present", "approved"].includes(status)) type = "success";
+  else if (["rejected", "absent"].includes(status)) type = "danger";
+  else if (status === "pending") type = "warning";
+  else if (status === "field visit") type = "purple";
+  else if (status.includes("leave")) type = "blue";
+  else if (
+    ["late", "half day", "needs review", "no punch", "escalated"].includes(
+      status
+    )
   ) {
-    return {
-      background: "#ede9fe",
-      color: "#6d28d9",
-      border: "1px solid #ddd6fe",
-    };
+    type = "orange";
   }
 
-  if (value === "absent") {
-    return {
-      background: "#fee2e2",
-      color: "#991b1b",
-      border: "1px solid #fecaca",
-    };
-  }
-
-  if (value === "needs review") {
-    return {
-      background: "#fff7ed",
-      color: "#c2410c",
-      border: "1px solid #fed7aa",
-    };
-  }
-
-  if (value === "no punch") {
-    return {
-      background: "#f1f5f9",
-      color: "#475569",
-      border: "1px solid #cbd5e1",
-    };
-  }
-
-  if (value.includes("leave")) {
-    return {
-      background: "#e0f2fe",
-      color: "#0369a1",
-      border: "1px solid #bae6fd",
-    };
-  }
-
-  if (value === "field visit") {
-    return {
-      background: "#ffedd5",
-      color: "#c2410c",
-      border: "1px solid #fed7aa",
-    };
-  }
-
-  if (value === "weekly off") {
-    return {
-      background: "#f8fafc",
-      color: "#64748b",
-      border: "1px solid #e2e8f0",
-    };
-  }
-
-  if (value === "holiday") {
-    return {
-      background: "#fce7f3",
-      color: "#be185d",
-      border: "1px solid #fbcfe8",
-    };
-  }
-
-  return {
-    background: "#f8fafc",
-    color: "#475569",
-    border: "1px solid #e2e8f0",
-  };
+  return (
+    <span className={`hr-status hr-status-${type}`}>
+      {value || "-"}
+    </span>
+  );
 };
 
 /* =========================================================
-   METRIC CARD
+   COMPONENT
 ========================================================= */
 
-const MetricCard = ({
-  label,
-  value,
-  icon,
-  active,
-  onClick,
-}) => (
-  <button
-    type="button"
-    onClick={onClick}
-    style={{
-      ...styles.metricCard,
-      ...(active
-        ? styles.metricCardActive
-        : {}),
-    }}
-  >
-    <div
-      style={{
-        ...styles.metricIcon,
-        ...(active
-          ? styles.metricIconActive
-          : {}),
-      }}
-    >
-      {icon}
-    </div>
+export default function HrAttendance() {
+  const today = todayString();
+  const fileInputRef = useRef(null);
 
-    <div>
-      <div style={styles.metricLabel}>
-        {label}
-      </div>
+  const [activeTab, setActiveTab] = useState("attendance");
 
-      <strong style={styles.metricValue}>
-        {value ?? 0}
-      </strong>
-    </div>
-  </button>
-);
+  const [selectedDate, setSelectedDate] = useState(today);
+  const [rangeMode, setRangeMode] = useState("day");
+  const [fromDate, setFromDate] = useState(today);
+  const [toDate, setToDate] = useState(today);
 
-/* =========================================================
-   HR ATTENDANCE
-========================================================= */
+  const [records, setRecords] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [summary, setSummary] = useState({});
 
-const HrAttendance = () => {
-  const fileInputRef =
-    useRef(null);
-
-  const initialRangeRef =
-    useRef(false);
-
-  const [activeOverview, setActiveOverview] =
-    useState("attendance");
-
-  const [quickFilter, setQuickFilter] =
-    useState("all");
-
-  const [importing, setImporting] =
-    useState(false);
-
-  const [exporting, setExporting] =
-    useState(false);
-
-  const [
-    showExportMenu,
-    setShowExportMenu,
-  ] = useState(false);
-
-  const [
-    showAddModal,
-    setShowAddModal,
-  ] = useState(false);
-
-  const [saving, setSaving] =
-    useState(false);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  const [error, setError] =
-    useState("");
-
-  const [records, setRecords] =
-    useState([]);
-
-  const [users, setUsers] =
-    useState([]);
-
-  const [summary, setSummary] =
-    useState({});
-
-  const [
-    biometricRange,
-    setBiometricRange,
-  ] = useState({
-    first_date: null,
-    last_date: null,
+  const [leaveApplications, setLeaveApplications] = useState([]);
+  const [leaveSummary, setLeaveSummary] = useState({
+    total: 0,
+    pending: 0,
+    escalated: 0,
+    approved: 0,
+    rejected: 0,
   });
 
-  const [search, setSearch] =
-    useState("");
+  const [fieldVisits, setFieldVisits] = useState([]);
+  const [fieldSummary, setFieldSummary] = useState({
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    employees: 0,
+    locations: 0,
+  });
 
-  const [department, setDepartment] =
-    useState("all");
+  const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("all");
+  const [status, setStatus] = useState("all");
 
-  const [status, setStatus] =
-    useState("all");
+  const [leaveStatus, setLeaveStatus] = useState("all");
+  const [leaveType, setLeaveType] = useState("all");
 
-  const [fromDate, setFromDate] =
-    useState(getMonthStart());
+  const [fieldStatus, setFieldStatus] = useState("all");
 
-  const [toDate, setToDate] =
-    useState(formatToday());
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    page_size: 100,
+    total_records: 0,
+    total_pages: 1,
+  });
 
-  const [
-    attendanceForm,
-    setAttendanceForm,
-  ] = useState({
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const [showExport, setShowExport] = useState(false);
+  const [showAddAttendance, setShowAddAttendance] = useState(false);
+
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [reviewRemark, setReviewRemark] = useState("");
+  const [reviewingLeaveId, setReviewingLeaveId] = useState(null);
+
+  const [toast, setToast] = useState(null);
+  const [error, setError] = useState("");
+
+  const [attendanceForm, setAttendanceForm] = useState({
     employee_id: "",
-    attendance_date: formatToday(),
+    attendance_date: today,
     check_in_time: "",
     check_out_time: "",
     status: "present",
+    custom_status: "",
     remarks: "",
   });
+
+  /* =========================================================
+     TOAST
+  ========================================================= */
+
+  const notify = (message, type = "success") => {
+    setToast({ message, type });
+
+    window.setTimeout(() => {
+      setToast(null);
+    }, 3200);
+  };
 
   /* =========================================================
      FETCH
   ========================================================= */
 
-  const fetchAttendance = async (
+  const fetchAttendance = async ({
+    nextPage = 1,
     startDate = fromDate,
     endDate = toDate,
-    initializeRange = false
-  ) => {
+    searchValue = search,
+    departmentValue = department,
+    statusValue = status,
+  } = {}) => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await api.get(
-        "/hr-attendance",
-        {
-          params: {
-            from_date: startDate,
-            to_date: endDate,
-          },
-        }
-      );
-
-      const data =
-        response.data || {};
-
-      setRecords(
-        data.records || []
-      );
-
-      setUsers(
-        data.users || []
-      );
-
-      setSummary(
-        data.summary || {}
-      );
-
-      const range =
-        data.biometric_range || {};
-
-      setBiometricRange({
-        first_date:
-          range.first_date || null,
-
-        last_date:
-          range.last_date || null,
+      const response = await api.get("/hr-attendance", {
+        params: {
+          from_date: startDate,
+          to_date: endDate,
+          page: nextPage,
+          page_size: 100,
+          search: searchValue.trim(),
+          department: departmentValue === "all" ? "" : departmentValue,
+          status: statusValue === "all" ? "" : statusValue,
+        },
       });
 
-      /*
-        Default HR page:
-        first biometric date → today.
+      const data = response.data || {};
+      const attendanceRows = Array.isArray(data.records) ? data.records : [];
 
-        Backend avoids fake absence after the
-        latest biometric import date.
-      */
+      setRecords(attendanceRows);
+      setUsers(Array.isArray(data.users) ? data.users : []);
+      setSummary(data.summary || {});
 
-      if (
-        initializeRange &&
-        !initialRangeRef.current &&
-        range.first_date
-      ) {
-        initialRangeRef.current = true;
-
-        const automaticFrom =
-          range.first_date;
-
-        const automaticTo =
-          formatToday();
-
-        setFromDate(
-          automaticFrom
-        );
-
-        setToDate(
-          automaticTo
-        );
-
-        if (
-          automaticFrom !== startDate ||
-          automaticTo !== endDate
-        ) {
-          await fetchAttendance(
-            automaticFrom,
-            automaticTo,
-            false
-          );
-        }
-      }
-    } catch (err) {
-      console.error(
-        "HR Attendance:",
-        err
+      setLeaveApplications(
+        Array.isArray(data.leave_applications) ? data.leave_applications : []
       );
 
+      setLeaveSummary(
+        data.leave_application_summary || {
+          total: 0,
+          pending: 0,
+          escalated: 0,
+          approved: 0,
+          rejected: 0,
+        }
+      );
+
+      /*
+        Backend will later return all field_visits.
+        Until then approved attendance-linked visits still display.
+      */
+      const fallbackVisits = attendanceRows
+        .filter((row) => row.field_visit_id)
+        .map((row) => ({
+          visit_id: row.field_visit_id,
+          employee_id: row.user_id,
+          employee_name: row.full_name,
+          employee_code: row.employee_code,
+          department_name: row.department_name,
+          role_name: row.role_name || "Employee",
+          visit_type: row.field_visit_type,
+          visit_date: row.attendance_date,
+          duration_type: row.field_visit_duration,
+          half_day_session: row.field_visit_half_day_session,
+          start_time: row.field_visit_start_time,
+          end_time: row.field_visit_end_time,
+          location: row.field_visit_location,
+          status: "approved",
+          reviewed_by_name: row.approved_by_name,
+          comment: row.field_visit_reason,
+          review_remark: row.field_visit_review_remark,
+        }));
+
+      const visits = Array.isArray(data.field_visits)
+        ? data.field_visits
+        : fallbackVisits;
+
+      setFieldVisits(visits);
+
+      if (data.field_visit_summary) {
+        setFieldSummary(data.field_visit_summary);
+      } else {
+        const statuses = visits.map((item) => normalize(item.status));
+
+        setFieldSummary({
+          total: visits.length,
+          pending: statuses.filter((item) => item === "pending").length,
+          approved: statuses.filter((item) => item === "approved").length,
+          rejected: statuses.filter((item) => item === "rejected").length,
+          employees: new Set(
+            visits.map((item) => item.employee_id).filter(Boolean)
+          ).size,
+          locations: new Set(
+            visits.map((item) => item.location).filter(Boolean)
+          ).size,
+        });
+      }
+
+      const nextPagination = data.pagination || {
+        page: nextPage,
+        page_size: 100,
+        total_records: 0,
+        total_pages: 1,
+      };
+
+      setPagination(nextPagination);
+      setPage(nextPagination.page || nextPage);
+    } catch (err) {
+      console.error("HR Attendance:", err);
+
       setError(
-        err?.response?.data?.message ||
-          "Failed to load HR attendance."
+        err?.response?.data?.message || "Failed to load HR attendance."
       );
     } finally {
       setLoading(false);
@@ -434,2415 +375,1391 @@ const HrAttendance = () => {
   };
 
   useEffect(() => {
-    fetchAttendance(
-      getMonthStart(),
-      formatToday(),
-      true
-    );
+    fetchAttendance({
+      nextPage: 1,
+      startDate: today,
+      endDate: today,
+      searchValue: "",
+      departmentValue: "all",
+      statusValue: "all",
+    });
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* =========================================================
-     DEPARTMENTS
+     EMAIL DEEP LINK
   ========================================================= */
 
-  const departments =
-    useMemo(() => {
-      return Array.from(
-        new Set(
-          users
-            .map(
-              (user) =>
-                user.department_name
-            )
-            .filter(Boolean)
-        )
-      ).sort();
-    }, [users]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
 
-  /* =========================================================
-     FIELD VISIT STATS
-  ========================================================= */
-
-  const fieldVisitStats =
-    useMemo(() => {
-      const visits =
-        records.filter(
-          (record) =>
-            Boolean(
-              record.field_visit_id
-            )
-        );
-
-      const employeeIds =
-        new Set(
-          visits.map(
-            (record) =>
-              record.user_id
-          )
-        );
-
-      const locations =
-        new Set(
-          visits
-            .map(
-              (record) =>
-                record.field_visit_location
-            )
-            .filter(Boolean)
-        );
-
-      return {
-        visits:
-          visits.length,
-
-        employees:
-          employeeIds.size,
-
-        locations:
-          locations.size,
-      };
-    }, [records]);
-
-  /* =========================================================
-     QUICK FILTER
-  ========================================================= */
-
-  const matchesQuickFilter = (
-    record,
-    filter
-  ) => {
-    const finalStatus =
-      normalizeStatus(
-        record.final_status
-      );
-
-    switch (filter) {
-      case "present":
-        return finalStatus === "present";
-
-      case "late":
-        return finalStatus === "late";
-
-      case "half_day":
-        return (
-          finalStatus === "half day" ||
-          finalStatus === "half day leave"
-        );
-
-      case "absent":
-        return finalStatus === "absent";
-
-      case "no_punch":
-        return finalStatus === "no punch";
-
-      case "needs_review":
-        return finalStatus === "needs review";
-
-      case "field_visit":
-        return Boolean(
-          record.field_visit_id
-        );
-
-      case "leave":
-        return Boolean(
-          record.leave_id
-        );
-
-      case "sick_leave":
-        return (
-          record.leave_code === "sick"
-        );
-
-      case "casual_leave":
-        return (
-          record.leave_code === "casual"
-        );
-
-      case "privileged_leave":
-        return (
-          record.leave_code ===
-          "mandatory"
-        );
-
-      case "festival_leave":
-        return (
-          record.leave_code ===
-          "festival"
-        );
-
-      case "unpaid_leave":
-        return (
-          record.leave_code ===
-          "unpaid"
-        );
-
-      default:
-        return true;
+    if (params.get("view") === "leave") {
+      setActiveTab("leave");
     }
+  }, []);
+
+  useEffect(() => {
+    if (!leaveApplications.length) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const leaveId = Number(params.get("openLeave") || 0);
+
+    if (!leaveId) return;
+
+    const leave = leaveApplications.find(
+      (item) => Number(item.leave_id) === leaveId
+    );
+
+    if (!leave) return;
+
+    setActiveTab("leave");
+    setSelectedLeave(leave);
+    setReviewRemark(leave.review_remark || "");
+  }, [leaveApplications]);
+
+  /* =========================================================
+     DATE
+  ========================================================= */
+
+  const loadDay = (date) => {
+    setSelectedDate(date);
+    setRangeMode("day");
+    setFromDate(date);
+    setToDate(date);
+    setPage(1);
+
+    fetchAttendance({
+      nextPage: 1,
+      startDate: date,
+      endDate: date,
+    });
+  };
+
+  const loadToday = () => loadDay(today);
+
+  const loadWeek = (anchor = selectedDate) => {
+    const start = weekStart(anchor);
+    let end = weekEnd(anchor);
+
+    if (end > today) end = today;
+
+    setSelectedDate(anchor);
+    setRangeMode("week");
+    setFromDate(start);
+    setToDate(end);
+    setPage(1);
+
+    fetchAttendance({
+      nextPage: 1,
+      startDate: start,
+      endDate: end,
+    });
+  };
+
+  const loadMonth = (anchor = selectedDate) => {
+    const start = monthStart(anchor);
+    let end = monthEnd(anchor);
+
+    if (start <= today && end > today) end = today;
+
+    setSelectedDate(anchor);
+    setRangeMode("month");
+    setFromDate(start);
+    setToDate(end);
+    setPage(1);
+
+    fetchAttendance({
+      nextPage: 1,
+      startDate: start,
+      endDate: end,
+    });
+  };
+
+  const loadSelectedMonth = (monthValue) => {
+    if (!monthValue) return;
+    loadMonth(`${monthValue}-01`);
+  };
+
+  const navigatePeriod = (direction) => {
+    if (rangeMode === "month") {
+      const date = new Date(`${selectedDate}T00:00:00`);
+      date.setMonth(date.getMonth() + direction);
+
+      loadMonth(toDateInput(date));
+      return;
+    }
+
+    if (rangeMode === "week") {
+      loadWeek(addDays(selectedDate, direction * 7));
+      return;
+    }
+
+    loadDay(addDays(selectedDate, direction * 7));
+  };
+
+  const dateStrip = useMemo(
+    () =>
+      Array.from({ length: 7 }, (_, index) =>
+        addDays(selectedDate, index - 3)
+      ),
+    [selectedDate]
+  );
+
+  /* =========================================================
+     OPTIONS / FILTERS
+  ========================================================= */
+
+  const departments = useMemo(() => {
+    const fromUsers = users.map((user) => user.department_name).filter(Boolean);
+
+    return [...new Set([...HR_DEPARTMENTS, ...fromUsers])].sort();
+  }, [users]);
+
+  const filteredLeaves = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return leaveApplications.filter((leave) => {
+      const searchable = [
+        leave.employee_name,
+        leave.employee_code,
+        leave.employee_email,
+        leave.department_name,
+        leave.designation,
+        leave.leave_type,
+        leave.display_status,
+        leave.reason,
+        leave.reviewed_by_name,
+        leave.review_remark,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (term && !searchable.includes(term)) return false;
+
+      if (
+        department !== "all" &&
+        leave.department_name !== department
+      ) {
+        return false;
+      }
+
+      if (
+        leaveStatus !== "all" &&
+        leave.display_status !== leaveStatus
+      ) {
+        return false;
+      }
+
+      if (leaveType !== "all" && leave.leave_code !== leaveType) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [leaveApplications, search, department, leaveStatus, leaveType]);
+
+  const filteredFieldVisits = useMemo(() => {
+    const term = search.trim().toLowerCase();
+
+    return fieldVisits.filter((visit) => {
+      const searchable = [
+        visit.employee_name,
+        visit.employee_code,
+        visit.employee_email,
+        visit.department_name,
+        visit.role_name,
+        visit.visit_type,
+        visit.location,
+        visit.status,
+        visit.reviewed_by_name,
+        visit.comment,
+        visit.review_remark,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (term && !searchable.includes(term)) return false;
+
+      if (
+        department !== "all" &&
+        visit.department_name !== department
+      ) {
+        return false;
+      }
+
+      if (
+        fieldStatus !== "all" &&
+        normalize(visit.status) !== fieldStatus
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [fieldVisits, search, department, fieldStatus]);
+
+  const applyFilters = () => {
+    setPage(1);
+    fetchAttendance({ nextPage: 1 });
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setDepartment("all");
+    setStatus("all");
+    setLeaveStatus("all");
+    setLeaveType("all");
+    setFieldStatus("all");
+    setPage(1);
+
+    fetchAttendance({
+      nextPage: 1,
+      searchValue: "",
+      departmentValue: "all",
+      statusValue: "all",
+    });
   };
 
   /* =========================================================
-     FILTERED RECORDS
+     DISPLAY
   ========================================================= */
 
-  const filteredRecords =
-    useMemo(() => {
-      const term =
-        search
-          .trim()
-          .toLowerCase();
+  const attendanceTime = (record) => {
+    if (record.final_status === "Field Visit") {
+      const start = displayTime(record.field_visit_start_time);
+      const end = displayTime(record.field_visit_end_time);
 
-      return records.filter(
-        (record) => {
-          const searchable =
-            [
-              record.full_name,
-              record.email,
-              record.employee_code,
-              record.department_name,
-              record.designation,
-              record.final_status,
-              record.leave_type,
-              record.field_visit_type,
-              record.field_visit_location,
-              record.approved_by_name,
-            ]
-              .filter(Boolean)
-              .join(" ")
-              .toLowerCase();
+      if (start !== "-" || end !== "-") return `${start} – ${end}`;
 
-          const matchesSearch =
-            !term ||
-            searchable.includes(term);
+      return record.field_visit_duration
+        ? titleCase(record.field_visit_duration)
+        : "-";
+    }
 
-          const matchesDepartment =
-            department === "all" ||
-            record.department_name ===
-              department;
+    if (record.leave_id) {
+      if (record.leave_duration === "Half Day") {
+        return record.leave_session
+          ? `Half Day · ${titleCase(record.leave_session)}`
+          : "Half Day";
+      }
 
-          const matchesStatus =
-            status === "all" ||
-            normalizeStatus(
-              record.final_status
-            ) === status;
+      return "Full Day";
+    }
 
-          const matchesQuick =
-            matchesQuickFilter(
-              record,
-              quickFilter
-            );
+    const start = displayTime(record.check_in_time);
+    const end = displayTime(record.check_out_time);
 
-          return (
-            matchesSearch &&
-            matchesDepartment &&
-            matchesStatus &&
-            matchesQuick
-          );
+    if (start === "-" && end === "-") return "-";
+
+    return `${start} – ${end}`;
+  };
+
+  const leaveVisit = (record) =>
+    record.leave_type ||
+    record.field_visit_type ||
+    (record.field_visit_id ? "Field Visit" : "-");
+
+  const recordRemark = (record) =>
+    record.leave_reason ||
+    record.field_visit_reason ||
+    record.attendance_remarks ||
+    record.detail ||
+    "-";
+
+  const visitDuration = (visit) => {
+    if (visit.duration_type) {
+      const value = titleCase(visit.duration_type);
+
+      return visit.half_day_session
+        ? `${value} · ${titleCase(visit.half_day_session)}`
+        : value;
+    }
+
+    const start = displayTime(visit.start_time);
+    const end = displayTime(visit.end_time);
+
+    if (start !== "-" || end !== "-") return `${start} – ${end}`;
+
+    return "-";
+  };
+
+  /* =========================================================
+     LEAVE REVIEW
+  ========================================================= */
+
+  const reviewLeave = async (leave, nextStatus) => {
+    if (leave.display_status !== "Pending") return;
+
+    if (nextStatus === "rejected" && !reviewRemark.trim()) {
+      notify(
+        "Please enter an approval/rejection remark before rejecting.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      setReviewingLeaveId(leave.leave_id);
+
+      const response = await api.patch(
+        `/admin-leaves/${leave.leave_id}/status`,
+        {
+          status: nextStatus,
+          review_remark: reviewRemark.trim(),
         }
       );
-    }, [
-      records,
-      search,
-      department,
-      status,
-      quickFilter,
-    ]);
 
-  /* =========================================================
-     OVERVIEW FILTER
-  ========================================================= */
+      notify(
+        response.data?.message ||
+          (nextStatus === "approved"
+            ? "Leave approved successfully."
+            : "Leave rejected successfully.")
+      );
 
-  const applyQuickFilter = (
-    value
-  ) => {
-    setQuickFilter(value);
-    setStatus("all");
-  };
+      setSelectedLeave(null);
+      setReviewRemark("");
 
-  const showAll = () => {
-    setQuickFilter("all");
-    setStatus("all");
+      await fetchAttendance({ nextPage: page });
+    } catch (err) {
+      notify(
+        err?.response?.data?.message || "Failed to review leave.",
+        "error"
+      );
+    } finally {
+      setReviewingLeaveId(null);
+    }
   };
 
   /* =========================================================
      ADD ATTENDANCE
   ========================================================= */
 
-  const handleAddAttendance =
-    () => {
-      setAttendanceForm({
-        employee_id: "",
-        attendance_date:
-          formatToday(),
-        check_in_time: "",
-        check_out_time: "",
-        status: "present",
-        remarks: "",
-      });
+  const openAddAttendance = () => {
+    setAttendanceForm({
+      employee_id: "",
+      attendance_date: selectedDate,
+      check_in_time: "",
+      check_out_time: "",
+      status: "present",
+      custom_status: "",
+      remarks: "",
+    });
 
-      setShowAddModal(true);
-    };
+    setShowAddAttendance(true);
+  };
 
-  const saveAttendance =
-    async () => {
-      try {
-        if (
-          !attendanceForm.employee_id
-        ) {
-          alert(
-            "Please select an employee."
-          );
+  const saveAttendance = async () => {
+    if (!attendanceForm.employee_id) {
+      notify("Please select an employee.", "error");
+      return;
+    }
 
-          return;
-        }
+    if (!attendanceForm.attendance_date) {
+      notify("Please select a date.", "error");
+      return;
+    }
 
-        if (
-          !attendanceForm.attendance_date
-        ) {
-          alert(
-            "Please select a date."
-          );
+    if (
+      attendanceForm.status === "custom" &&
+      !attendanceForm.custom_status.trim()
+    ) {
+      notify("Please enter the custom attendance status.", "error");
+      return;
+    }
 
-          return;
-        }
+    try {
+      setSaving(true);
 
-        setSaving(true);
+      /*
+        Existing status enum stays safe.
+        Backend will store custom_status separately.
+      */
+      const payload = {
+        ...attendanceForm,
+        status:
+          attendanceForm.status === "custom"
+            ? "present"
+            : attendanceForm.status,
+        custom_status:
+          attendanceForm.status === "custom"
+            ? attendanceForm.custom_status.trim()
+            : "",
+      };
 
-        const response =
-          await api.post(
-            "/hr-attendance",
-            attendanceForm
-          );
+      const response = await api.post("/hr-attendance", payload);
 
-        alert(
-          response.data?.message ||
-            "Attendance saved successfully."
-        );
+      notify(response.data?.message || "Attendance saved successfully.");
 
-        setShowAddModal(false);
+      setShowAddAttendance(false);
 
-        await fetchAttendance();
-      } catch (err) {
-        alert(
-          err?.response?.data?.message ||
-            "Failed to save attendance."
-        );
-      } finally {
-        setSaving(false);
-      }
-    };
+      await fetchAttendance({ nextPage: page });
+    } catch (err) {
+      notify(
+        err?.response?.data?.message || "Failed to save attendance.",
+        "error"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   /* =========================================================
-     IMPORT
+     IMPORT / EXPORT
   ========================================================= */
 
   const handleImport = () => {
     if (importing) return;
 
-    if (fileInputRef.current) {
-      fileInputRef.current.value =
-        "";
+    fileInputRef.current.value = "";
+    fileInputRef.current.click();
+  };
 
-      fileInputRef.current.click();
+  const importAttendance = async (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    const extension = String(file.name || "").toLowerCase();
+
+    if (
+      !extension.endsWith(".xlsx") &&
+      !extension.endsWith(".xls") &&
+      !extension.endsWith(".csv")
+    ) {
+      notify("Please select an Excel or CSV file.", "error");
+      return;
+    }
+
+    try {
+      setImporting(true);
+
+      const formData = new FormData();
+      formData.append("file", file, file.name);
+
+      const response = await api.post("/hr-attendance/import", formData, {
+        timeout: 120000,
+      });
+
+      const result = response.data || {};
+
+      notify(
+        `Import complete — Inserted: ${result.inserted_rows || 0}, Updated: ${
+          result.updated_rows || 0
+        }, Duplicates: ${result.duplicate_rows || 0}, Unmatched: ${
+          result.unmatched_rows || 0
+        }, Skipped: ${result.skipped_rows || 0}`
+      );
+
+      await fetchAttendance({ nextPage: 1 });
+    } catch (err) {
+      notify(
+        err?.response?.data?.message || "Attendance import failed.",
+        "error"
+      );
+    } finally {
+      setImporting(false);
+      fileInputRef.current.value = "";
     }
   };
 
-  const handleImportFile =
-    async (event) => {
-      const file =
-        event.target.files?.[0];
+  const exportAttendance = async (format) => {
+    try {
+      setExporting(true);
+      setShowExport(false);
 
-      if (!file) return;
+      const response = await api.get("/hr-attendance/export", {
+        params: {
+          from_date: fromDate,
+          to_date: toDate,
+          format,
+        },
+        responseType: "blob",
+      });
 
-      const fileName =
-        String(
-          file.name || ""
-        ).toLowerCase();
+      const blob = new Blob([response.data], {
+        type: response.headers["content-type"],
+      });
 
-      const valid =
-        fileName.endsWith(".xlsx") ||
-        fileName.endsWith(".xls") ||
-        fileName.endsWith(".csv");
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
 
-      if (!valid) {
-        alert(
-          "Please select an Excel or CSV attendance file."
-        );
+      link.href = url;
+      link.download = `hr-attendance-${fromDate}-to-${toDate}.${format}`;
 
-        event.target.value = "";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
 
-        return;
-      }
-
-      try {
-        setImporting(true);
-
-        const formData =
-          new FormData();
-
-        formData.append(
-          "file",
-          file,
-          file.name
-        );
-
-        const response =
-          await api.post(
-            "/hr-attendance/import",
-            formData,
-            {
-              transformRequest: [
-                (data) => data,
-              ],
-
-              headers: {
-                "Content-Type":
-                  undefined,
-              },
-
-              timeout:
-                120000,
-            }
-          );
-
-        const result =
-          response.data || {};
-
-        alert(
-`Attendance import completed.
-
-Inserted: ${result.inserted_rows || 0}
-Updated: ${result.updated_rows || 0}
-Duplicates Skipped: ${result.duplicate_rows || 0}
-Unmatched Rows: ${result.unmatched_rows || 0}
-Skipped Rows: ${result.skipped_rows || 0}`
-        );
-
-        await fetchAttendance();
-      } catch (err) {
-        console.error(
-          "HR Attendance Import:",
-          err
-        );
-
-        alert(
-          err?.response?.data?.message ||
-            "Attendance import failed."
-        );
-      } finally {
-        setImporting(false);
-
-        if (
-          fileInputRef.current
-        ) {
-          fileInputRef.current.value =
-            "";
-        }
-      }
-    };
-
-  /* =========================================================
-     EXPORT
-  ========================================================= */
-
-  const handleExport =
-    async (exportFormat) => {
-      try {
-        setExporting(true);
-        setShowExportMenu(false);
-
-        const response =
-          await api.get(
-            "/hr-attendance/export",
-            {
-              params: {
-                from_date:
-                  fromDate,
-
-                to_date:
-                  toDate,
-
-                format:
-                  exportFormat,
-              },
-
-              responseType:
-                "blob",
-            }
-          );
-
-        const type =
-          exportFormat === "csv"
-            ? "text/csv;charset=utf-8"
-            : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-
-        const blob =
-          new Blob(
-            [response.data],
-            { type }
-          );
-
-        const url =
-          window.URL.createObjectURL(
-            blob
-          );
-
-        const link =
-          document.createElement("a");
-
-        link.href = url;
-
-        link.download =
-          `hr-attendance-${fromDate}-to-${toDate}.${exportFormat}`;
-
-        document.body.appendChild(
-          link
-        );
-
-        link.click();
-        link.remove();
-
-        window.URL.revokeObjectURL(
-          url
-        );
-      } catch (err) {
-        console.error(
-          "HR Attendance export:",
-          err
-        );
-
-        let message =
-          "Failed to export attendance.";
-
-        try {
-          if (
-            err?.response?.data instanceof Blob
-          ) {
-            const text =
-              await err.response.data.text();
-
-            const parsed =
-              JSON.parse(text);
-
-            message =
-              parsed?.message ||
-              message;
-          }
-        } catch {}
-
-        alert(message);
-      } finally {
-        setExporting(false);
-      }
-    };
-
-  /* =========================================================
-     RENDER OVERVIEW
-  ========================================================= */
-
-  const renderOverview = () => {
-    if (
-      activeOverview === "leave"
-    ) {
-      return (
-        <>
-          <div style={styles.overviewHeading}>
-            <div>
-              <h2 style={styles.overviewTitle}>
-                Leave Overview
-              </h2>
-
-              <p style={styles.overviewSubtitle}>
-                Approved RMS leave records for the selected period.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              style={styles.showAllButton}
-              onClick={showAll}
-            >
-              Show All
-            </button>
-          </div>
-
-          <div style={styles.leaveMetrics}>
-            <MetricCard
-              label="All Leave"
-              value={summary.leave}
-              icon={
-                <CalendarDays
-                  size={19}
-                />
-              }
-              active={
-                quickFilter ===
-                "leave"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "leave"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Sick Leave"
-              value={
-                summary.sick_leave
-              }
-              icon={
-                <CalendarDays
-                  size={19}
-                />
-              }
-              active={
-                quickFilter ===
-                "sick_leave"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "sick_leave"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Casual Leave"
-              value={
-                summary.casual_leave
-              }
-              icon={
-                <CalendarDays
-                  size={19}
-                />
-              }
-              active={
-                quickFilter ===
-                "casual_leave"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "casual_leave"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Privileged Leave"
-              value={
-                summary.privileged_leave
-              }
-              icon={
-                <CalendarDays
-                  size={19}
-                />
-              }
-              active={
-                quickFilter ===
-                "privileged_leave"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "privileged_leave"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Festival Leave"
-              value={
-                summary.festival_leave
-              }
-              icon={
-                <CalendarDays
-                  size={19}
-                />
-              }
-              active={
-                quickFilter ===
-                "festival_leave"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "festival_leave"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Unpaid Leave"
-              value={
-                summary.unpaid_leave
-              }
-              icon={
-                <CalendarDays
-                  size={19}
-                />
-              }
-              active={
-                quickFilter ===
-                "unpaid_leave"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "unpaid_leave"
-                )
-              }
-            />
-          </div>
-        </>
-      );
+      window.URL.revokeObjectURL(url);
+    } catch {
+      notify("Failed to export attendance.", "error");
+    } finally {
+      setExporting(false);
     }
-
-    if (
-      activeOverview ===
-      "field_visit"
-    ) {
-      return (
-        <>
-          <div style={styles.overviewHeading}>
-            <div>
-              <h2 style={styles.overviewTitle}>
-                Field Visits
-              </h2>
-
-              <p style={styles.overviewSubtitle}>
-                Approved field visits recorded through RMS.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              style={styles.showAllButton}
-              onClick={showAll}
-            >
-              Show All
-            </button>
-          </div>
-
-          <div style={styles.fieldMetrics}>
-            <MetricCard
-              label="Approved Visits"
-              value={
-                fieldVisitStats.visits
-              }
-              icon={
-                <MapPin size={19} />
-              }
-              active={
-                quickFilter ===
-                "field_visit"
-              }
-              onClick={() =>
-                applyQuickFilter(
-                  "field_visit"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Employees"
-              value={
-                fieldVisitStats.employees
-              }
-              icon={
-                <Users size={19} />
-              }
-              active={false}
-              onClick={() =>
-                applyQuickFilter(
-                  "field_visit"
-                )
-              }
-            />
-
-            <MetricCard
-              label="Locations"
-              value={
-                fieldVisitStats.locations
-              }
-              icon={
-                <MapPin size={19} />
-              }
-              active={false}
-              onClick={() =>
-                applyQuickFilter(
-                  "field_visit"
-                )
-              }
-            />
-          </div>
-        </>
-      );
-    }
-
-    return (
-      <>
-        <div style={styles.overviewHeading}>
-          <div>
-            <h2 style={styles.overviewTitle}>
-              Attendance Overview
-            </h2>
-
-            <p style={styles.overviewSubtitle}>
-              Click a metric to filter the register below.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            style={styles.showAllButton}
-            onClick={showAll}
-          >
-            Show All
-          </button>
-        </div>
-
-        <div style={styles.attendanceMetrics}>
-          <MetricCard
-            label="Employees"
-            value={summary.employees}
-            icon={
-              <Users size={19} />
-            }
-            active={
-              quickFilter === "all"
-            }
-            onClick={showAll}
-          />
-
-          <MetricCard
-            label="Present"
-            value={summary.present}
-            icon={
-              <CheckCircle2
-                size={19}
-              />
-            }
-            active={
-              quickFilter ===
-              "present"
-            }
-            onClick={() =>
-              applyQuickFilter(
-                "present"
-              )
-            }
-          />
-
-          <MetricCard
-            label="Late"
-            value={summary.late}
-            icon={
-              <Timer size={19} />
-            }
-            active={
-              quickFilter === "late"
-            }
-            onClick={() =>
-              applyQuickFilter("late")
-            }
-          />
-
-          <MetricCard
-            label="Half Day"
-            value={summary.half_day}
-            icon={
-              <Clock3 size={19} />
-            }
-            active={
-              quickFilter ===
-              "half_day"
-            }
-            onClick={() =>
-              applyQuickFilter(
-                "half_day"
-              )
-            }
-          />
-
-          <MetricCard
-            label="Absent"
-            value={summary.absent}
-            icon={
-              <XCircle size={19} />
-            }
-            active={
-              quickFilter ===
-              "absent"
-            }
-            onClick={() =>
-              applyQuickFilter(
-                "absent"
-              )
-            }
-          />
-
-          <MetricCard
-            label="No Punch"
-            value={summary.no_punch}
-            icon={
-              <Clock3 size={19} />
-            }
-            active={
-              quickFilter ===
-              "no_punch"
-            }
-            onClick={() =>
-              applyQuickFilter(
-                "no_punch"
-              )
-            }
-          />
-
-          <MetricCard
-            label="Needs Review"
-            value={
-              summary.needs_review
-            }
-            icon={
-              <AlertTriangle
-                size={19}
-              />
-            }
-            active={
-              quickFilter ===
-              "needs_review"
-            }
-            onClick={() =>
-              applyQuickFilter(
-                "needs_review"
-              )
-            }
-          />
-        </div>
-      </>
-    );
   };
 
   /* =========================================================
-     UI
+     PAGINATION
+  ========================================================= */
+
+  const changePage = (nextPage) => {
+    if (
+      nextPage < 1 ||
+      nextPage > pagination.total_pages ||
+      nextPage === page
+    ) {
+      return;
+    }
+
+    fetchAttendance({ nextPage });
+  };
+
+  /* =========================================================
+     RENDER
   ========================================================= */
 
   return (
-    <div style={styles.page}>
+    <div className="hr-page">
+      {toast && (
+        <div className={`hr-toast hr-toast-${toast.type}`}>
+          {toast.message}
+        </div>
+      )}
+
       <input
         ref={fileInputRef}
-        name="file"
         type="file"
         accept=".xlsx,.xls,.csv"
-        onChange={handleImportFile}
-        style={{
-          display: "none",
-        }}
+        hidden
+        onChange={importAttendance}
       />
 
-      {/* HEADER */}
-
-      <div style={styles.header}>
+      <header className="hr-header">
         <div>
-          <h1 style={styles.title}>
-            HR Attendance
-          </h1>
-
-          <p style={styles.subtitle}>
-            Organization-wide attendance, leave and field visit register.
-          </p>
-
-          {biometricRange.last_date && (
-            <p style={styles.rangeNote}>
-              Biometric data available:{" "}
-              {formatDisplayDate(
-                biometricRange.first_date
-              )}
-              {" to "}
-              {formatDisplayDate(
-                biometricRange.last_date
-              )}
-            </p>
-          )}
+          <h1>HR Attendance</h1>
+          <p>Attendance, leave and field visit management</p>
         </div>
 
-        <div style={styles.headerActions}>
+        <div className="hr-header-actions">
           <button
-            type="button"
-            style={styles.secondaryButton}
-            onClick={() =>
-              fetchAttendance(
-                fromDate,
-                toDate
-              )
-            }
+            className="hr-button secondary"
+            onClick={() => fetchAttendance({ nextPage: page })}
           >
-            <RefreshCw size={17} />
+            <RefreshCw size={16} />
             Refresh
           </button>
 
           <button
-            type="button"
-            style={styles.secondaryButton}
-            disabled={importing}
+            className="hr-button secondary"
             onClick={handleImport}
+            disabled={importing}
           >
-            <FileSpreadsheet
-              size={17}
-            />
-
-            {importing
-              ? "Importing..."
-              : "Import"}
+            <Upload size={16} />
+            {importing ? "Importing..." : "Import"}
           </button>
 
-          <div style={styles.exportWrap}>
+          <div className="hr-export">
             <button
-              type="button"
-              style={styles.secondaryButton}
+              className="hr-button secondary"
+              onClick={() => setShowExport((current) => !current)}
               disabled={exporting}
-              onClick={() =>
-                setShowExportMenu(
-                  (previous) =>
-                    !previous
-                )
-              }
             >
-              <Download size={17} />
-
-              {exporting
-                ? "Exporting..."
-                : "Export"}
+              <Download size={16} />
+              Export
             </button>
 
-            {showExportMenu && (
-              <div style={styles.exportMenu}>
-                <button
-                  type="button"
-                  style={styles.exportMenuButton}
-                  onClick={() =>
-                    handleExport("xlsx")
-                  }
-                >
-                  <FileSpreadsheet
-                    size={16}
-                  />
-                  Export Excel
+            {showExport && (
+              <div className="hr-export-menu">
+                <button onClick={() => exportAttendance("xlsx")}>
+                  <FileSpreadsheet size={15} />
+                  Excel
                 </button>
 
-                <button
-                  type="button"
-                  style={styles.exportMenuButton}
-                  onClick={() =>
-                    handleExport("csv")
-                  }
-                >
-                  <Download size={16} />
-                  Export CSV
+                <button onClick={() => exportAttendance("csv")}>
+                  <Download size={15} />
+                  CSV
                 </button>
               </div>
             )}
           </div>
 
-          <button
-            type="button"
-            style={styles.primaryButton}
-            onClick={
-              handleAddAttendance
-            }
-          >
-            <UserPlus size={17} />
+          <button className="hr-button primary" onClick={openAddAttendance}>
+            <Plus size={16} />
             Add Attendance
           </button>
         </div>
+      </header>
+
+      {error && <div className="hr-error">{error}</div>}
+
+      {/* TABS */}
+
+      <div className="hr-tabs">
+        <Tab
+          active={activeTab === "attendance"}
+          icon={<CheckCircle2 size={16} />}
+          label="Attendance"
+          onClick={() => setActiveTab("attendance")}
+        />
+
+        <Tab
+          active={activeTab === "leave"}
+          icon={<CalendarDays size={16} />}
+          label="Leave"
+          onClick={() => setActiveTab("leave")}
+        />
+
+        <Tab
+          active={activeTab === "field"}
+          icon={<MapPin size={16} />}
+          label="Field Visits"
+          onClick={() => setActiveTab("field")}
+        />
       </div>
 
-      {error && (
-        <div style={styles.errorBox}>
-          {error}
+      {/* DATE CONTROLS */}
+
+      <div className="hr-date-bar">
+        <button className="hr-arrow" onClick={() => navigatePeriod(-1)}>
+          <ChevronLeft size={17} />
+        </button>
+
+        <div className="hr-date-strip">
+          {dateStrip.map((date) => (
+            <button
+              key={date}
+              className={`hr-day ${
+                rangeMode === "day" && selectedDate === date ? "active" : ""
+              }`}
+              onClick={() => loadDay(date)}
+            >
+              <strong>{date.slice(8, 10)}</strong>
+              <span>{dayName(date)}</span>
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* OVERVIEW NAVIGATION */}
-
-      <div style={styles.overviewTabs}>
-        <button
-          type="button"
-          style={{
-            ...styles.overviewTab,
-            ...(activeOverview ===
-            "attendance"
-              ? styles.overviewTabActive
-              : {}),
-          }}
-          onClick={() => {
-            setActiveOverview(
-              "attendance"
-            );
-            showAll();
-          }}
-        >
-          <CheckCircle2
-            size={17}
-          />
-          Attendance Overview
+        <button className="hr-arrow" onClick={() => navigatePeriod(1)}>
+          <ChevronRight size={17} />
         </button>
 
         <button
-          type="button"
-          style={{
-            ...styles.overviewTab,
-            ...(activeOverview ===
-            "leave"
-              ? styles.overviewTabActive
-              : {}),
-          }}
-          onClick={() => {
-            setActiveOverview("leave");
-            showAll();
-          }}
+          className={`hr-range ${
+            rangeMode === "day" && selectedDate === today ? "active" : ""
+          }`}
+          onClick={loadToday}
         >
-          <CalendarDays
-            size={17}
-          />
-          Leave Overview
+          Today
         </button>
 
         <button
-          type="button"
-          style={{
-            ...styles.overviewTab,
-            ...(activeOverview ===
-            "field_visit"
-              ? styles.overviewTabActive
-              : {}),
-          }}
-          onClick={() => {
-            setActiveOverview(
-              "field_visit"
-            );
-            showAll();
-          }}
+          className={`hr-range ${rangeMode === "week" ? "active" : ""}`}
+          onClick={() => loadWeek()}
         >
-          <MapPin size={17} />
-          Field Visits
+          This Week
         </button>
-      </div>
 
-      {/* ACTIVE OVERVIEW */}
+        <button
+          className={`hr-range ${rangeMode === "month" ? "active" : ""}`}
+          onClick={() => loadMonth()}
+        >
+          This Month
+        </button>
 
-      <div style={styles.overviewCard}>
-        {renderOverview()}
+        <input
+          className="hr-month-picker"
+          type="month"
+          value={selectedDate.slice(0, 7)}
+          onChange={(event) => loadSelectedMonth(event.target.value)}
+        />
       </div>
 
       {/* FILTERS */}
 
-      <div style={styles.filterCard}>
-        <div style={styles.searchWrap}>
-          <Search size={18} />
+      <div className="hr-filters">
+        <div className="hr-search">
+          <Search size={17} />
 
           <input
             value={search}
-            onChange={(event) =>
-              setSearch(
-                event.target.value
-              )
-            }
-            placeholder="Search employee, code, department..."
-            style={styles.searchInput}
+            placeholder="Search employee..."
+            onChange={(event) => setSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") applyFilters();
+            }}
           />
         </div>
 
         <select
           value={department}
-          onChange={(event) =>
-            setDepartment(
-              event.target.value
-            )
-          }
-          style={styles.select}
+          onChange={(event) => setDepartment(event.target.value)}
         >
-          <option value="all">
-            All Departments
-          </option>
+          <option value="all">All Departments</option>
 
           {departments.map((item) => (
-            <option
-              key={item}
-              value={item}
-            >
+            <option key={item} value={item}>
               {item}
             </option>
           ))}
         </select>
 
-        <select
-          value={status}
-          onChange={(event) => {
-            setStatus(
-              event.target.value
-            );
+        {activeTab === "attendance" && (
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="Present">Present</option>
+            <option value="Late">Late</option>
+            <option value="Half Day">Half Day</option>
+            <option value="Absent">Absent</option>
+            <option value="No Punch">No Punch</option>
+            <option value="Needs Review">Needs Review</option>
+            <option value="Field Visit">Field Visit</option>
+            <option value="Sick Leave">Sick Leave</option>
+            <option value="Casual Leave">Casual Leave</option>
+            <option value="Privileged Leave">Privileged Leave</option>
+            <option value="Festival Leave">Festival Leave</option>
+            <option value="Unpaid Leave">Unpaid Leave</option>
+            <option value="Weekly Off">Weekly Off</option>
+            <option value="Holiday">Holiday</option>
+          </select>
+        )}
 
-            setQuickFilter("all");
-          }}
-          style={styles.select}
-        >
-          <option value="all">
-            All Status
-          </option>
+        {activeTab === "leave" && (
+          <>
+            <select
+              value={leaveStatus}
+              onChange={(e) => setLeaveStatus(e.target.value)}
+            >
+              <option value="all">All Leave Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Escalated">Escalated</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
 
-          <option value="present">
-            Present
-          </option>
+            <select
+              value={leaveType}
+              onChange={(e) => setLeaveType(e.target.value)}
+            >
+              <option value="all">All Leave Types</option>
+              <option value="sick">Sick Leave</option>
+              <option value="casual">Casual Leave</option>
+              <option value="mandatory">Privileged Leave</option>
+              <option value="festival">Festival Leave</option>
+              <option value="unpaid">Unpaid Leave</option>
+            </select>
+          </>
+        )}
 
-          <option value="late">
-            Late
-          </option>
+        {activeTab === "field" && (
+          <select
+            value={fieldStatus}
+            onChange={(e) => setFieldStatus(e.target.value)}
+          >
+            <option value="all">All Visit Status</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        )}
 
-          <option value="half day">
-            Half Day
-          </option>
-
-          <option value="absent">
-            Absent
-          </option>
-
-          <option value="no punch">
-            No Punch
-          </option>
-
-          <option value="needs review">
-            Needs Review
-          </option>
-
-          <option value="field visit">
-            Field Visit
-          </option>
-
-          <option value="sick leave">
-            Sick Leave
-          </option>
-
-          <option value="casual leave">
-            Casual Leave
-          </option>
-
-          <option value="privileged leave">
-            Privileged Leave
-          </option>
-
-          <option value="festival leave">
-            Festival Leave
-          </option>
-
-          <option value="unpaid leave">
-            Unpaid Leave
-          </option>
-
-          <option value="weekly off">
-            Weekly Off
-          </option>
-
-          <option value="holiday">
-            Holiday
-          </option>
-        </select>
-
-        <input
-          type="date"
-          value={fromDate}
-          onChange={(event) =>
-            setFromDate(
-              event.target.value
-            )
-          }
-          style={styles.dateInput}
-        />
-
-        <input
-          type="date"
-          value={toDate}
-          onChange={(event) =>
-            setToDate(
-              event.target.value
-            )
-          }
-          style={styles.dateInput}
-        />
-
-        <button
-          type="button"
-          style={styles.applyButton}
-          onClick={() => {
-            showAll();
-
-            fetchAttendance(
-              fromDate,
-              toDate
-            );
-          }}
-        >
+        <button className="hr-filter-apply" onClick={applyFilters}>
           Apply
+        </button>
+
+        <button className="hr-filter-clear" onClick={clearFilters}>
+          Clear
         </button>
       </div>
 
-      {/* REGISTER */}
+      {/* ATTENDANCE */}
 
-      <div style={styles.tableCard}>
-        <div style={styles.tableTop}>
-          <div>
-            <div style={styles.registerTitleRow}>
-              <h2 style={styles.sectionTitle}>
-                Attendance Register
-              </h2>
-
-              {quickFilter !== "all" && (
-                <span style={styles.filterBadge}>
-                  {titleCase(
-                    quickFilter
-                  )}
-                </span>
-              )}
-            </div>
-
-            <p style={styles.sectionSubtitle}>
-              {filteredRecords.length} records visible
-            </p>
+      {activeTab === "attendance" && (
+        <>
+          <div className="hr-metrics seven">
+            <Metric label="Employees" value={summary.employees || 0} />
+            <Metric label="Present" value={summary.present || 0} />
+            <Metric label="Field Visit" value={summary.field_visit || 0} />
+            <Metric label="Leave" value={summary.leave || 0} />
+            <Metric label="Absent" value={summary.absent || 0} />
+            <Metric label="Late" value={summary.late || 0} />
+            <Metric label="Needs Review" value={summary.needs_review || 0} />
           </div>
 
-          {quickFilter !== "all" && (
-            <button
-              type="button"
-              style={styles.showAllButton}
-              onClick={showAll}
-            >
-              <X size={14} />
-              Show All
-            </button>
-          )}
-        </div>
+          <section className="hr-card">
+            <CardHeader
+              title="Attendance Register"
+              subtitle={
+                fromDate === toDate
+                  ? displayDate(fromDate)
+                  : `${displayDate(fromDate)} – ${displayDate(toDate)}`
+              }
+              right={`${pagination.total_records || 0} records`}
+            />
 
-        <div style={styles.tableScroll}>
-          <table style={styles.table}>
-            <thead>
-              <tr>
-                <th style={styles.th}>
-                  Employee
-                </th>
+            <div className="hr-attendance-grid hr-table-head">
+              <span>Employee</span>
+              <span>Department</span>
+              <span>Status</span>
+              <span>Time / Duration</span>
+              <span>Leave / Visit</span>
+              <span>Remark</span>
+              <span>Reviewed By</span>
+            </div>
 
-                <th style={styles.th}>
-                  Department
-                </th>
+            {loading ? (
+              <Empty text="Loading attendance..." />
+            ) : records.length === 0 ? (
+              <Empty text="No attendance records found." />
+            ) : (
+              records.map((record, index) => (
+                <div
+                  className="hr-attendance-grid hr-table-row"
+                  key={`${record.user_id}-${record.attendance_date}-${index}`}
+                >
+                  <Employee
+                    name={record.full_name}
+                    code={record.employee_code}
+                  />
 
-                <th style={styles.th}>
-                  Date
-                </th>
+                  <span>{record.department_name || "-"}</span>
 
-                <th style={styles.th}>
-                  Day
-                </th>
+                  <div>
+                    <StatusBadge
+                      value={record.custom_status || record.final_status}
+                    />
+                  </div>
 
-                <th style={styles.th}>
-                  First Punch
-                </th>
+                  <span>{attendanceTime(record)}</span>
 
-                <th style={styles.th}>
-                  Last Punch
-                </th>
+                  <span>{leaveVisit(record)}</span>
 
-                <th style={styles.th}>
-                  Total Time
-                </th>
+                  <span className="ellipsis" title={recordRemark(record)}>
+                    {recordRemark(record)}
+                  </span>
 
-                <th style={styles.th}>
-                  Status
-                </th>
+                  <span>{record.approved_by_name || "-"}</span>
+                </div>
+              ))
+            )}
 
-                <th style={styles.th}>
-                  Leave
-                </th>
+            <Pagination
+              page={page}
+              totalPages={pagination.total_pages || 1}
+              totalRecords={pagination.total_records || 0}
+              onChange={changePage}
+            />
+          </section>
+        </>
+      )}
 
-                <th style={styles.th}>
-                  Field Visit
-                </th>
+      {/* LEAVE */}
 
-                <th style={styles.th}>
-                  Approved By
-                </th>
+      {activeTab === "leave" && (
+        <>
+          <div className="hr-metrics five">
+            <Metric label="All Leave" value={leaveSummary.total || 0} />
+            <Metric label="Pending" value={leaveSummary.pending || 0} />
+            <Metric label="Escalated" value={leaveSummary.escalated || 0} />
+            <Metric label="Approved" value={leaveSummary.approved || 0} />
+            <Metric label="Rejected" value={leaveSummary.rejected || 0} />
+          </div>
 
-                <th style={styles.th}>
-                  Approved At
-                </th>
+          <section className="hr-card">
+            <CardHeader
+              title="Leave Applications"
+              subtitle="Pending, escalated, approved and rejected leave applications"
+              right={`${filteredLeaves.length} applications`}
+            />
 
-                <th style={styles.th}>
-                  Remark
-                </th>
-              </tr>
-            </thead>
+            <div className="hr-leave-grid hr-table-head">
+              <span>Employee</span>
+              <span>Department</span>
+              <span>Leave</span>
+              <span>Dates</span>
+              <span>Status</span>
+              <span>Reviewed / Escalated By</span>
+              <span>Action</span>
+            </div>
 
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td
-                    colSpan={13}
-                    style={styles.emptyTd}
+            {filteredLeaves.length === 0 ? (
+              <Empty text="No leave applications found." />
+            ) : (
+              filteredLeaves.map((leave) => (
+                <div className="hr-leave-grid hr-table-row" key={leave.leave_id}>
+                  <Employee
+                    name={leave.employee_name}
+                    code={leave.employee_code}
+                  />
+
+                  <span>{leave.department_name || "-"}</span>
+                  <span>{leave.leave_type || "-"}</span>
+
+                  <span>
+                    {displayDate(leave.start_date)}
+                    {leave.start_date !== leave.end_date &&
+                      ` – ${displayDate(leave.end_date)}`}
+                  </span>
+
+                  <div>
+                    <StatusBadge value={leave.display_status} />
+                  </div>
+
+                  <span>
+                    {leave.reviewed_by_name ||
+                      (leave.display_status === "Escalated"
+                        ? "Final review pending"
+                        : "-")}
+                  </span>
+
+                  <button
+                    className="hr-view-button"
+                    onClick={() => {
+                      setSelectedLeave(leave);
+                      setReviewRemark(leave.review_remark || "");
+                    }}
                   >
-                    Loading attendance...
-                  </td>
-                </tr>
-              ) : filteredRecords.length ===
-                0 ? (
-                <tr>
-                  <td
-                    colSpan={13}
-                    style={styles.emptyTd}
-                  >
-                    <div style={styles.emptyState}>
-                      <div style={styles.emptyIcon}>
-                        <Search size={24} />
-                      </div>
+                    <Eye size={14} />
+                    View
+                  </button>
+                </div>
+              ))
+            )}
+          </section>
+        </>
+      )}
 
-                      <strong>
-                        No records found
-                      </strong>
+      {/* FIELD VISITS */}
 
-                      <span>
-                        Change the filter or click Show All.
-                      </span>
+      {activeTab === "field" && (
+        <>
+          <div className="hr-metrics six">
+            <Metric label="Total Visits" value={fieldSummary.total || 0} />
+            <Metric label="Pending" value={fieldSummary.pending || 0} />
+            <Metric label="Approved" value={fieldSummary.approved || 0} />
+            <Metric label="Rejected" value={fieldSummary.rejected || 0} />
+            <Metric label="Employees" value={fieldSummary.employees || 0} />
+            <Metric label="Locations" value={fieldSummary.locations || 0} />
+          </div>
 
-                      <button
-                        type="button"
-                        style={styles.emptyButton}
-                        onClick={showAll}
-                      >
-                        Show All Records
-                      </button>
-                    </div>
-                  </td>
-                </tr>
+          <section className="hr-card">
+            <CardHeader
+              title="Field Visits"
+              subtitle="Pending, approved and rejected field visits"
+              right={`${filteredFieldVisits.length} visits`}
+            />
+
+            <div className="hr-horizontal-scroll">
+              <div className="hr-field-grid hr-table-head">
+                <span>Employee</span>
+                <span>Department</span>
+                <span>Role</span>
+                <span>Visit Type</span>
+                <span>Date</span>
+                <span>Duration</span>
+                <span>Location</span>
+                <span>Status</span>
+                <span>Reviewed By</span>
+                <span>Description</span>
+                <span>Approval/Rejection Remark</span>
+              </div>
+
+              {filteredFieldVisits.length === 0 ? (
+                <Empty text="No field visits found." />
               ) : (
-                filteredRecords.map(
-                  (record, index) => {
-                    const badgeStyle =
-                      getStatusStyle(
-                        record.final_status
-                      );
+                filteredFieldVisits.map((visit, index) => (
+                  <div
+                    className="hr-field-grid hr-table-row"
+                    key={visit.visit_id || index}
+                  >
+                    <Employee
+                      name={visit.employee_name}
+                      code={visit.employee_code}
+                    />
 
-                    return (
-                      <tr
-                        key={`${record.user_id}-${record.attendance_date}-${index}`}
-                      >
-                        <td style={styles.td}>
-                          <div style={styles.employeeCell}>
-                            <div style={styles.avatar}>
-                              {getInitials(
-                                record.full_name
-                              )}
-                            </div>
+                    <span>{visit.department_name || "-"}</span>
+                    <span>{visit.role_name || "-"}</span>
+                    <span>{visit.visit_type || "-"}</span>
+                    <span>{displayDate(visit.visit_date)}</span>
+                    <span>{visitDuration(visit)}</span>
 
-                            <div>
-                              <strong style={styles.employeeName}>
-                                {record.full_name ||
-                                  "-"}
-                              </strong>
+                    <span className="ellipsis" title={visit.location || "-"}>
+                      {visit.location || "-"}
+                    </span>
 
-                              <div style={styles.employeeCode}>
-                                {record.employee_code ||
-                                  "-"}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
+                    <div>
+                      <StatusBadge value={titleCase(visit.status)} />
+                    </div>
 
-                        <td style={styles.td}>
-                          {record.department_name ||
-                            "-"}
-                        </td>
+                    <span>{visit.reviewed_by_name || "-"}</span>
 
-                        <td style={styles.td}>
-                          {formatDisplayDate(
-                            record.attendance_date
-                          )}
-                        </td>
+                    <span className="ellipsis" title={visit.comment || "-"}>
+                      {visit.comment || "-"}
+                    </span>
 
-                        <td style={styles.td}>
-                          {record.day_name ||
-                            "-"}
-                        </td>
-
-                        <td style={styles.td}>
-                          {record.check_in_time ||
-                            "-"}
-                        </td>
-
-                        <td style={styles.td}>
-                          {record.check_out_time ||
-                            "-"}
-                        </td>
-
-                        <td style={styles.td}>
-                          {record.working_hours ||
-                            "-"}
-                        </td>
-
-                        <td style={styles.td}>
-                          <span
-                            style={{
-                              ...styles.statusBadge,
-                              ...badgeStyle,
-                            }}
-                          >
-                            {record.final_status ||
-                              "-"}
-                          </span>
-                        </td>
-
-                        <td style={styles.td}>
-                          {record.leave_type ? (
-                            <div style={styles.detailBlock}>
-                              <strong>
-                                {record.leave_type}
-                              </strong>
-
-                              {record.leave_duration && (
-                                <span>
-                                  {record.leave_duration}
-                                </span>
-                              )}
-
-                              {record.leave_session && (
-                                <span>
-                                  {record.leave_session}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-
-                        <td style={styles.td}>
-                          {record.field_visit_id ? (
-                            <div style={styles.detailBlock}>
-                              <strong>
-                                {record.field_visit_type ||
-                                  "Field Visit"}
-                              </strong>
-
-                              {record.field_visit_location && (
-                                <span>
-                                  {record.field_visit_location}
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            "-"
-                          )}
-                        </td>
-
-                        <td style={styles.td}>
-                          {record.approved_by_name ||
-                            "-"}
-                        </td>
-
-                        <td style={styles.td}>
-                          {formatApprovalDate(
-                            record.approved_at
-                          )}
-                        </td>
-
-                        <td style={styles.td}>
-                          <div style={styles.remarkCell}>
-                            {record.leave_reason ||
-                              record.field_visit_reason ||
-                              record.attendance_remarks ||
-                              record.detail ||
-                              "-"}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  }
-                )
+                    <span
+                      className="ellipsis"
+                      title={visit.review_remark || "-"}
+                    >
+                      {visit.review_remark || "-"}
+                    </span>
+                  </div>
+                ))
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* ADD ATTENDANCE MODAL */}
-
-      {showAddModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <div style={styles.modalHeader}>
-              <div>
-                <h2 style={styles.modalTitle}>
-                  Add Attendance
-                </h2>
-
-                <p style={styles.modalSubtitle}>
-                  Add or correct an employee attendance record.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                style={styles.closeButton}
-                onClick={() =>
-                  setShowAddModal(
-                    false
-                  )
-                }
-              >
-                ×
-              </button>
             </div>
+          </section>
+        </>
+      )}
 
-            <div style={styles.formGrid}>
-              <div style={styles.fullField}>
-                <label style={styles.label}>
-                  Employee
-                </label>
+      {/* ADD ATTENDANCE */}
 
-                <select
-                  style={styles.formInput}
-                  value={
-                    attendanceForm.employee_id
-                  }
-                  onChange={(event) =>
-                    setAttendanceForm({
-                      ...attendanceForm,
+      {showAddAttendance && (
+        <Modal
+          title="Add Attendance"
+          subtitle="Add or correct an attendance record"
+          onClose={() => setShowAddAttendance(false)}
+        >
+          <div className="hr-form">
+            <label>Employee</label>
 
-                      employee_id:
-                        event.target.value,
-                    })
-                  }
-                >
-                  <option value="">
-                    Select Employee
-                  </option>
+            <select
+              value={attendanceForm.employee_id}
+              onChange={(event) =>
+                setAttendanceForm((current) => ({
+                  ...current,
+                  employee_id: event.target.value,
+                }))
+              }
+            >
+              <option value="">Select Employee</option>
 
-                  {users.map(
-                    (user) => (
-                      <option
-                        key={
-                          user.user_id
-                        }
-                        value={
-                          user.user_id
-                        }
-                      >
-                        {user.full_name}
-                        {" — "}
-                        {user.employee_code ||
-                          "No Code"}
-                        {" — "}
-                        {user.department_name ||
-                          "No Department"}
-                      </option>
-                    )
-                  )}
-                </select>
-              </div>
+              {users.map((user) => (
+                <option key={user.user_id} value={user.user_id}>
+                  {user.full_name} — {user.employee_code}
+                </option>
+              ))}
+            </select>
 
+            <label>Date</label>
+
+            <input
+              type="date"
+              value={attendanceForm.attendance_date}
+              onChange={(event) =>
+                setAttendanceForm((current) => ({
+                  ...current,
+                  attendance_date: event.target.value,
+                }))
+              }
+            />
+
+            <div className="hr-form-two">
               <div>
-                <label style={styles.label}>
-                  Date
-                </label>
-
-                <input
-                  type="date"
-                  style={styles.formInput}
-                  value={
-                    attendanceForm.attendance_date
-                  }
-                  onChange={(event) =>
-                    setAttendanceForm({
-                      ...attendanceForm,
-
-                      attendance_date:
-                        event.target.value,
-                    })
-                  }
-                />
-              </div>
-
-              <div>
-                <label style={styles.label}>
-                  Status
-                </label>
-
-                <select
-                  style={styles.formInput}
-                  value={
-                    attendanceForm.status
-                  }
-                  onChange={(event) =>
-                    setAttendanceForm({
-                      ...attendanceForm,
-
-                      status:
-                        event.target.value,
-                    })
-                  }
-                >
-                  <option value="present">
-                    Present
-                  </option>
-
-                  <option value="late">
-                    Late
-                  </option>
-
-                  <option value="half_day">
-                    Half Day
-                  </option>
-
-                  <option value="absent">
-                    Absent
-                  </option>
-
-                  <option value="holiday">
-                    Holiday
-                  </option>
-                </select>
-              </div>
-
-              <div>
-                <label style={styles.label}>
-                  First Punch
-                </label>
+                <label>First Punch</label>
 
                 <input
                   type="time"
-                  style={styles.formInput}
-                  value={
-                    attendanceForm.check_in_time
-                  }
+                  value={attendanceForm.check_in_time}
                   onChange={(event) =>
-                    setAttendanceForm({
-                      ...attendanceForm,
-
-                      check_in_time:
-                        event.target.value,
-                    })
+                    setAttendanceForm((current) => ({
+                      ...current,
+                      check_in_time: event.target.value,
+                    }))
                   }
                 />
               </div>
 
               <div>
-                <label style={styles.label}>
-                  Last Punch
-                </label>
+                <label>Last Punch</label>
 
                 <input
                   type="time"
-                  style={styles.formInput}
-                  value={
-                    attendanceForm.check_out_time
-                  }
+                  value={attendanceForm.check_out_time}
                   onChange={(event) =>
-                    setAttendanceForm({
-                      ...attendanceForm,
-
-                      check_out_time:
-                        event.target.value,
-                    })
+                    setAttendanceForm((current) => ({
+                      ...current,
+                      check_out_time: event.target.value,
+                    }))
                   }
-                />
-              </div>
-
-              <div style={styles.fullField}>
-                <label style={styles.label}>
-                  Remark
-                </label>
-
-                <textarea
-                  rows={3}
-                  style={{
-                    ...styles.formInput,
-                    paddingTop: "10px",
-                    resize: "vertical",
-                  }}
-                  value={
-                    attendanceForm.remarks
-                  }
-                  onChange={(event) =>
-                    setAttendanceForm({
-                      ...attendanceForm,
-
-                      remarks:
-                        event.target.value,
-                    })
-                  }
-                  placeholder="Example: Missing biometric punch / attendance correction"
                 />
               </div>
             </div>
 
-            <div style={styles.modalFooter}>
-              <button
-                type="button"
-                style={styles.cancelButton}
-                onClick={() =>
-                  setShowAddModal(
-                    false
-                  )
-                }
-              >
-                Cancel
-              </button>
+            <label>Status</label>
 
-              <button
-                type="button"
-                style={styles.primaryButton}
-                disabled={saving}
-                onClick={
-                  saveAttendance
-                }
-              >
-                {saving
-                  ? "Saving..."
-                  : "Save Attendance"}
-              </button>
-            </div>
+            <select
+              value={attendanceForm.status}
+              onChange={(event) =>
+                setAttendanceForm((current) => ({
+                  ...current,
+                  status: event.target.value,
+                  custom_status:
+                    event.target.value === "custom"
+                      ? current.custom_status
+                      : "",
+                }))
+              }
+            >
+              <option value="present">Present</option>
+              <option value="late">Late</option>
+              <option value="half_day">Half Day</option>
+              <option value="absent">Absent</option>
+              <option value="holiday">Holiday</option>
+              <option value="custom">Other / Custom Status</option>
+            </select>
+
+            {attendanceForm.status === "custom" && (
+              <>
+                <label>Custom Status</label>
+
+                <input
+                  type="text"
+                  maxLength={100}
+                  placeholder="Example: Work From Home"
+                  value={attendanceForm.custom_status}
+                  onChange={(event) =>
+                    setAttendanceForm((current) => ({
+                      ...current,
+                      custom_status: event.target.value,
+                    }))
+                  }
+                />
+              </>
+            )}
+
+            <label>Remark</label>
+
+            <textarea
+              rows={4}
+              value={attendanceForm.remarks}
+              onChange={(event) =>
+                setAttendanceForm((current) => ({
+                  ...current,
+                  remarks: event.target.value,
+                }))
+              }
+            />
           </div>
-        </div>
+
+          <div className="hr-modal-footer">
+            <button
+              className="hr-button secondary"
+              onClick={() => setShowAddAttendance(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="hr-button primary"
+              onClick={saveAttendance}
+              disabled={saving}
+            >
+              {saving ? "Saving..." : "Save Attendance"}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* LEAVE DETAILS */}
+
+      {selectedLeave && (
+        <Modal
+          title="Leave Details"
+          subtitle="Leave application information"
+          onClose={() => {
+            setSelectedLeave(null);
+            setReviewRemark("");
+          }}
+        >
+          <div className="hr-details">
+            <Detail label="Employee" value={selectedLeave.employee_name} />
+            <Detail
+              label="Employee Code"
+              value={selectedLeave.employee_code}
+            />
+            <Detail
+              label="Department"
+              value={selectedLeave.department_name}
+            />
+            <Detail label="Role" value={selectedLeave.role_name} />
+            <Detail label="Leave Type" value={selectedLeave.leave_type} />
+            <Detail
+              label="From"
+              value={displayDate(selectedLeave.start_date)}
+            />
+            <Detail label="To" value={displayDate(selectedLeave.end_date)} />
+            <Detail label="Days" value={selectedLeave.total_days} />
+            <Detail label="Reason" value={selectedLeave.reason} />
+            <Detail label="Status" value={selectedLeave.display_status} />
+            <Detail
+              label="Reviewed By"
+              value={selectedLeave.reviewed_by_name}
+            />
+            <Detail
+              label="Reviewed At"
+              value={displayDateTime(selectedLeave.reviewed_at)}
+            />
+            <Detail
+              label="Review Remark"
+              value={selectedLeave.review_remark}
+            />
+          </div>
+
+          {selectedLeave.display_status === "Pending" && (
+            <div className="hr-review-box">
+              <label>Approval / Rejection Remark</label>
+
+              <textarea
+                rows={4}
+                placeholder="Enter review remark"
+                value={reviewRemark}
+                onChange={(event) => setReviewRemark(event.target.value)}
+              />
+            </div>
+          )}
+
+          <div className="hr-modal-footer">
+            {selectedLeave.display_status === "Pending" && (
+              <>
+                <button
+                  className="hr-button danger"
+                  disabled={reviewingLeaveId === selectedLeave.leave_id}
+                  onClick={() => reviewLeave(selectedLeave, "rejected")}
+                >
+                  Reject Leave
+                </button>
+
+                <button
+                  className="hr-button approve"
+                  disabled={reviewingLeaveId === selectedLeave.leave_id}
+                  onClick={() => reviewLeave(selectedLeave, "approved")}
+                >
+                  <CheckCircle2 size={16} />
+
+                  {reviewingLeaveId === selectedLeave.leave_id
+                    ? "Saving..."
+                    : "Approve Leave"}
+                </button>
+              </>
+            )}
+
+            <button
+              className="hr-button secondary"
+              onClick={() => {
+                setSelectedLeave(null);
+                setReviewRemark("");
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
-};
+}
 
 /* =========================================================
-   STYLES
+   SMALL COMPONENTS
 ========================================================= */
 
-const styles = {
-  page: {
-    width: "100%",
-    padding: "20px 22px 30px",
-    boxSizing: "border-box",
-    background: "#f7f8fb",
-    minHeight: "100vh",
-  },
-
-  header: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: "20px",
-    marginBottom: "18px",
-    flexWrap: "wrap",
-  },
-
-  title: {
-    margin: 0,
-    color: "#101828",
-    fontSize: "34px",
-    lineHeight: 1.1,
-    fontWeight: 900,
-  },
-
-  subtitle: {
-    margin: "6px 0 0",
-    color: "#667085",
-    fontSize: "14px",
-    fontWeight: 600,
-  },
-
-  rangeNote: {
-    margin: "5px 0 0",
-    color: "#98a2b3",
-    fontSize: "11px",
-    fontWeight: 700,
-  },
-
-  headerActions: {
-    display: "flex",
-    gap: "9px",
-    alignItems: "center",
-    flexWrap: "wrap",
-  },
-
-  primaryButton: {
-    minHeight: "42px",
-    padding: "0 16px",
-    border: 0,
-    borderRadius: "10px",
-    background: "#ff5733",
-    color: "#fff",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "7px",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-
-  secondaryButton: {
-    minHeight: "42px",
-    padding: "0 14px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "10px",
-    background: "#fff",
-    color: "#344054",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "7px",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-
-  errorBox: {
-    padding: "12px 14px",
-    marginBottom: "16px",
-    borderRadius: "10px",
-    border: "1px solid #fecaca",
-    background: "#fef2f2",
-    color: "#b91c1c",
-    fontWeight: 700,
-  },
-
-  /* TABS */
-
-  overviewTabs: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    background: "#fff",
-    border: "1px solid #e4e7ec",
-    borderRadius: "13px",
-    overflow: "hidden",
-    marginBottom: "14px",
-  },
-
-  overviewTab: {
-    height: "48px",
-    border: 0,
-    borderRight: "1px solid #eef0f3",
-    background: "#fff",
-    color: "#667085",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "8px",
-    cursor: "pointer",
-    fontSize: "13px",
-    fontWeight: 800,
-  },
-
-  overviewTabActive: {
-    background: "#fff7f4",
-    color: "#e54726",
-    boxShadow: "inset 0 -3px 0 #ff5733",
-  },
-
-  /* OVERVIEW */
-
-  overviewCard: {
-    background: "#fff",
-    border: "1px solid #e4e7ec",
-    borderRadius: "15px",
-    padding: "17px 18px",
-    marginBottom: "14px",
-  },
-
-  overviewHeading: {
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: "12px",
-    marginBottom: "14px",
-  },
-
-  overviewTitle: {
-    margin: 0,
-    color: "#101828",
-    fontSize: "18px",
-    fontWeight: 900,
-  },
-
-  overviewSubtitle: {
-    margin: "4px 0 0",
-    color: "#667085",
-    fontSize: "12px",
-    fontWeight: 600,
-  },
-
-  attendanceMetrics: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(7, minmax(0, 1fr))",
-    gap: "10px",
-  },
-
-  leaveMetrics: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(6, minmax(0, 1fr))",
-    gap: "10px",
-  },
-
-  fieldMetrics: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(3, minmax(0, 220px))",
-    gap: "10px",
-  },
-
-  metricCard: {
-    minHeight: "72px",
-    width: "100%",
-    border: "1px solid #eaecf0",
-    borderRadius: "11px",
-    background: "#fafbfc",
-    padding: "11px 12px",
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
-    cursor: "pointer",
-    textAlign: "left",
-  },
-
-  metricCardActive: {
-    border: "1px solid #ff5733",
-    background: "#fff7f4",
-    boxShadow: "0 0 0 2px rgba(255,87,51,.05)",
-  },
-
-  metricIcon: {
-    width: "38px",
-    height: "38px",
-    borderRadius: "10px",
-    background: "#fff1ed",
-    color: "#ff5733",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-  },
-
-  metricIconActive: {
-    background: "#ff5733",
-    color: "#fff",
-  },
-
-  metricLabel: {
-    color: "#667085",
-    fontSize: "11px",
-    fontWeight: 800,
-    lineHeight: 1.15,
-  },
-
-  metricValue: {
-    display: "block",
-    marginTop: "2px",
-    color: "#101828",
-    fontSize: "21px",
-    fontWeight: 900,
-  },
-
-  showAllButton: {
-    minHeight: "34px",
-    padding: "0 11px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "8px",
-    background: "#fff",
-    color: "#475467",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "5px",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-
-  /* FILTERS */
-
-  filterCard: {
-    display: "grid",
-    gridTemplateColumns:
-      "minmax(260px, 1fr) 190px 190px 160px 160px 90px",
-    gap: "9px",
-    background: "#fff",
-    border: "1px solid #e4e7ec",
-    borderRadius: "14px",
-    padding: "11px",
-    marginBottom: "14px",
-  },
-
-  searchWrap: {
-    minHeight: "42px",
-    padding: "0 12px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "9px",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    color: "#98a2b3",
-  },
-
-  searchInput: {
-    width: "100%",
-    border: 0,
-    outline: 0,
-    background: "transparent",
-    color: "#101828",
-    fontSize: "13px",
-  },
-
-  select: {
-    minHeight: "42px",
-    padding: "0 10px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "9px",
-    background: "#fff",
-    color: "#344054",
-    outline: 0,
-    fontWeight: 700,
-  },
-
-  dateInput: {
-    minHeight: "42px",
-    padding: "0 10px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "9px",
-    background: "#fff",
-    color: "#344054",
-    outline: 0,
-    fontWeight: 700,
-  },
-
-  applyButton: {
-    minHeight: "42px",
-    border: 0,
-    borderRadius: "9px",
-    background: "#101828",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-
-  /* TABLE */
-
-  tableCard: {
-    background: "#fff",
-    border: "1px solid #e4e7ec",
-    borderRadius: "15px",
-    overflow: "hidden",
-  },
-
-  tableTop: {
-    minHeight: "62px",
-    padding: "13px 16px",
-    borderBottom: "1px solid #eaecf0",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "12px",
-  },
-
-  registerTitleRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-
-  sectionTitle: {
-    margin: 0,
-    color: "#101828",
-    fontSize: "18px",
-    fontWeight: 900,
-  },
-
-  sectionSubtitle: {
-    margin: "3px 0 0",
-    color: "#667085",
-    fontSize: "11px",
-    fontWeight: 600,
-  },
-
-  filterBadge: {
-    padding: "4px 8px",
-    borderRadius: "999px",
-    background: "#fff1ed",
-    color: "#d73d1e",
-    fontSize: "10px",
-    fontWeight: 900,
-  },
-
-  tableScroll: {
-    width: "100%",
-    maxHeight: "calc(100vh - 355px)",
-    overflow: "auto",
-  },
-
-  table: {
-    width: "100%",
-    minWidth: "1750px",
-    borderCollapse: "separate",
-    borderSpacing: 0,
-  },
-
-  th: {
-    position: "sticky",
-    top: 0,
-    zIndex: 2,
-    padding: "11px 12px",
-    borderBottom: "1px solid #eaecf0",
-    background: "#f9fafb",
-    color: "#667085",
-    textAlign: "left",
-    whiteSpace: "nowrap",
-    fontSize: "10px",
-    fontWeight: 900,
-  },
-
-  td: {
-    padding: "10px 12px",
-    borderBottom: "1px solid #f2f4f7",
-    color: "#344054",
-    verticalAlign: "middle",
-    fontSize: "11px",
-    fontWeight: 650,
-  },
-
-  employeeCell: {
-    minWidth: "190px",
-    display: "flex",
-    alignItems: "center",
-    gap: "9px",
-  },
-
-  avatar: {
-    width: "32px",
-    height: "32px",
-    borderRadius: "8px",
-    background: "#101828",
-    color: "#fff",
-    display: "grid",
-    placeItems: "center",
-    flexShrink: 0,
-    fontSize: "10px",
-    fontWeight: 900,
-  },
-
-  employeeName: {
-    display: "block",
-    color: "#101828",
-    fontSize: "11px",
-    whiteSpace: "nowrap",
-  },
-
-  employeeCode: {
-    marginTop: "2px",
-    color: "#98a2b3",
-    fontSize: "9px",
-  },
-
-  statusBadge: {
-    minHeight: "24px",
-    padding: "0 8px",
-    borderRadius: "999px",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    whiteSpace: "nowrap",
-    fontSize: "9px",
-    fontWeight: 900,
-  },
-
-  detailBlock: {
-    minWidth: "110px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "2px",
-    color: "#475467",
-    fontSize: "9px",
-  },
-
-  remarkCell: {
-    maxWidth: "240px",
-    color: "#667085",
-    whiteSpace: "normal",
-    lineHeight: 1.35,
-  },
-
-  emptyTd: {
-    padding: 0,
-    textAlign: "center",
-  },
-
-  emptyState: {
-    minHeight: "210px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "column",
-    gap: "7px",
-    color: "#667085",
-  },
-
-  emptyIcon: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "12px",
-    background: "#f2f4f7",
-    color: "#98a2b3",
-    display: "grid",
-    placeItems: "center",
-  },
-
-  emptyButton: {
-    marginTop: "5px",
-    minHeight: "34px",
-    padding: "0 12px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "8px",
-    background: "#fff",
-    color: "#344054",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-
-  /* MODAL */
-
-  modalOverlay: {
-    position: "fixed",
-    inset: 0,
-    zIndex: 9999,
-    padding: "20px",
-    background: "rgba(16,24,40,.45)",
-    display: "grid",
-    placeItems: "center",
-  },
-
-  modal: {
-    width: "100%",
-    maxWidth: "650px",
-    background: "#fff",
-    borderRadius: "18px",
-    overflow: "hidden",
-    boxShadow:
-      "0 25px 70px rgba(16,24,40,.22)",
-  },
-
-  modalHeader: {
-    padding: "18px 20px",
-    borderBottom: "1px solid #eaecf0",
-    display: "flex",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: "12px",
-  },
-
-  modalTitle: {
-    margin: 0,
-    color: "#101828",
-    fontSize: "21px",
-    fontWeight: 900,
-  },
-
-  modalSubtitle: {
-    margin: "4px 0 0",
-    color: "#667085",
-    fontSize: "12px",
-  },
-
-  closeButton: {
-    width: "32px",
-    height: "32px",
-    border: 0,
-    borderRadius: "8px",
-    background: "#f2f4f7",
-    color: "#475467",
-    cursor: "pointer",
-    fontSize: "20px",
-  },
-
-  formGrid: {
-    padding: "19px 20px",
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(2, minmax(0, 1fr))",
-    gap: "14px",
-  },
-
-  fullField: {
-    gridColumn: "1 / -1",
-  },
-
-  label: {
-    display: "block",
-    marginBottom: "6px",
-    color: "#475467",
-    fontSize: "11px",
-    fontWeight: 800,
-  },
-
-  formInput: {
-    width: "100%",
-    minHeight: "40px",
-    padding: "0 10px",
-    boxSizing: "border-box",
-    border: "1px solid #dfe3ea",
-    borderRadius: "9px",
-    background: "#fff",
-    color: "#101828",
-    outline: 0,
-  },
-
-  modalFooter: {
-    padding: "14px 20px",
-    borderTop: "1px solid #eaecf0",
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: "9px",
-  },
-
-  cancelButton: {
-    minHeight: "40px",
-    padding: "0 15px",
-    border: "1px solid #dfe3ea",
-    borderRadius: "9px",
-    background: "#fff",
-    color: "#344054",
-    cursor: "pointer",
-    fontWeight: 800,
-  },
-
-  /* EXPORT */
-
-  exportWrap: {
-    position: "relative",
-  },
-
-  exportMenu: {
-    position: "absolute",
-    top: "calc(100% + 7px)",
-    right: 0,
-    zIndex: 100,
-    width: "175px",
-    padding: "6px",
-    background: "#fff",
-    border: "1px solid #e4e7ec",
-    borderRadius: "10px",
-    boxShadow:
-      "0 15px 35px rgba(16,24,40,.14)",
-  },
-
-  exportMenuButton: {
-    width: "100%",
-    minHeight: "37px",
-    padding: "0 10px",
-    border: 0,
-    borderRadius: "7px",
-    background: "transparent",
-    color: "#344054",
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    cursor: "pointer",
-    textAlign: "left",
-    fontWeight: 700,
-  },
-};
-
-export default HrAttendance;
+function Tab({ active, icon, label, onClick }) {
+  return (
+    <button className={`hr-tab ${active ? "active" : ""}`} onClick={onClick}>
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function Metric({ label, value }) {
+  return (
+    <div className="hr-metric">
+      <strong>{value}</strong>
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function Employee({ name, code }) {
+  return (
+    <div className="hr-employee">
+      <strong>{name || "-"}</strong>
+      <small>{code || "-"}</small>
+    </div>
+  );
+}
+
+function Empty({ text }) {
+  return <div className="hr-empty">{text}</div>;
+}
+
+function CardHeader({ title, subtitle, right }) {
+  return (
+    <div className="hr-card-header">
+      <div>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+
+      {right && <strong>{right}</strong>}
+    </div>
+  );
+}
+
+function Detail({ label, value }) {
+  return (
+    <div className="hr-detail">
+      <span>{label}</span>
+      <strong>{value || "-"}</strong>
+    </div>
+  );
+}
+
+function Modal({ title, subtitle, onClose, children }) {
+  return (
+    <div className="hr-overlay">
+      <div className="hr-modal">
+        <div className="hr-modal-header">
+          <div>
+            <h3>{title}</h3>
+            <p>{subtitle}</p>
+          </div>
+
+          <button onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function Pagination({ page, totalPages, totalRecords, onChange }) {
+  return (
+    <div className="hr-pagination">
+      <span>{totalRecords} records</span>
+
+      <div>
+        <button disabled={page <= 1} onClick={() => onChange(page - 1)}>
+          <ChevronLeft size={16} />
+        </button>
+
+        <strong>
+          {page} / {totalPages}
+        </strong>
+
+        <button
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+        >
+          <ChevronRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}

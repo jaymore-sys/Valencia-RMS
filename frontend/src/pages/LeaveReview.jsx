@@ -195,7 +195,10 @@ const LeaveReview = () => {
         */
 
         const target =
-          `/leave-approvals?openLeave=${leaveId}`;
+  email ===
+  "rathika.haleangadi@valencianutrition.com"
+    ? `/employee/hr-attendance?view=leave&openLeave=${leaveId}`
+    : `/leave-approvals?openLeave=${leaveId}`;
 
         /*
           Remove any old login redirect so

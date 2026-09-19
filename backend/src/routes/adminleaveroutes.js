@@ -123,10 +123,15 @@ const allowLeaveApprover = (
     email ===
     PREMAL_LEAVE_EMAIL;
 
-  if (
-    !isAdmin &&
-    !isPremal
-  ) {
+    const isRathika =
+  email ===
+  RATHIKA_LEAVE_EMAIL;
+
+ if (
+  !isAdmin &&
+  !isPremal &&
+  !isRathika
+) {
     return res
       .status(403)
       .json({

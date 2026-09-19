@@ -12,10 +12,9 @@ const PREMAL_LEAVE_EMAIL =
 const RATHIKA_LEAVE_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
 
-
-
 const GLOBAL_LEAVE_APPROVER_EMAILS = [
   PREMAL_LEAVE_EMAIL,
+  RATHIKA_LEAVE_EMAIL,
 ];
 
 const GLOBAL_LEAVE_VIEWER_EMAILS = [
@@ -145,10 +144,7 @@ if (
 
     can_review_leave:
   isGlobalApprover ||
-  (
-    isDepartmentAdmin &&
-    email !== RATHIKA_LEAVE_EMAIL
-  ),
+  isDepartmentAdmin,
   },
 };
 };
