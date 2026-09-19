@@ -1463,15 +1463,10 @@ return (
   </button>
 
 {(
-  String(
-    admin?.role_name || ""
-  )
+  String(admin?.role_name || "")
     .trim()
     .toLowerCase() === "admin" &&
-  !admin?.is_global_leave_approver &&
-  String(
-    admin?.email || ""
-  )
+  String(admin?.email || "")
     .trim()
     .toLowerCase() !==
     "rathika.haleangadi@valencianutrition.com"
@@ -1480,9 +1475,7 @@ return (
     type="button"
     style={styles.furtherBtn}
     onClick={() =>
-      requestReview(
-        "further_approval"
-      )
+      requestReview("further_approval")
     }
     disabled={reviewing}
   >
