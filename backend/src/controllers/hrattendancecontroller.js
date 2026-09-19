@@ -903,6 +903,107 @@ const buildHrAttendanceData = async (
     ]
   );
 
+  /* =========================================================
+   HR FIELD VISIT LIST
+   ALL STATUSES / ALL DATES
+========================================================= */
+
+const [hrFieldVisitRows] = await db.query(
+  `
+  SELECT
+    fv.visit_id,
+    fv.employee_id,
+
+    fv.visit_type,
+
+    DATE_FORMAT(
+      fv.visit_date,
+      '%Y-%m-%d'
+    ) AS visit_date,
+
+    fv.duration_type,
+    fv.half_day_session,
+    fv.start_time,
+    fv.end_time,
+
+    fv.location,
+    fv.comment,
+    fv.status,
+
+    fv.reviewed_by,
+    fv.review_remark,
+
+    DATE_FORMAT(
+      fv.reviewed_at,
+      '%Y-%m-%d %H:%i:%s'
+    ) AS reviewed_at,
+
+    employee.employee_code,
+    employee.full_name AS employee_name,
+    employee.email AS employee_email,
+    employee.designation,
+    employee.department_id,
+
+    department.department_name,
+    role.role_name,
+
+    reviewer.full_name AS reviewed_by_name,
+    reviewer.email AS reviewed_by_email
+
+  FROM employee_field_visits fv
+
+  INNER JOIN users employee
+    ON employee.user_id = fv.employee_id
+
+  LEFT JOIN departments department
+    ON department.department_id =
+       employee.department_id
+
+  LEFT JOIN roles role
+    ON role.role_id =
+       employee.role_id
+
+  LEFT JOIN users reviewer
+    ON reviewer.user_id =
+       fv.reviewed_by
+
+  WHERE
+    fv.employee_id IN (${placeholders})
+
+    AND LOWER(
+      TRIM(fv.status)
+    ) IN (
+      'pending',
+      'approved',
+      'rejected'
+    )
+
+  ORDER BY
+    CASE
+      WHEN LOWER(
+        TRIM(fv.status)
+      ) = 'pending'
+      THEN 1
+
+      WHEN LOWER(
+        TRIM(fv.status)
+      ) = 'approved'
+      THEN 2
+
+      WHEN LOWER(
+        TRIM(fv.status)
+      ) = 'rejected'
+      THEN 3
+
+      ELSE 4
+    END,
+
+    fv.visit_date DESC,
+    fv.visit_id DESC
+  `,
+  userIds
+);
+
   const visitIds =
     fieldVisitRows
       .map((visit) => Number(visit.visit_id))
@@ -1505,6 +1606,130 @@ const buildHrAttendanceData = async (
       leave.review_remark || null,
   }));
 
+
+  const hrFieldVisits = hrFieldVisitRows.map(
+  (visit) => ({
+    visit_id: visit.visit_id,
+    employee_id: visit.employee_id,
+
+    employee_name:
+      visit.employee_name,
+
+    employee_code:
+      visit.employee_code,
+
+    employee_email:
+      visit.employee_email,
+
+    designation:
+      visit.designation,
+
+    department_id:
+      visit.department_id,
+
+    department_name:
+      visit.department_name,
+
+    role_name:
+      visit.role_name,
+
+    visit_type:
+      visit.visit_type,
+
+    visit_date:
+      visit.visit_date,
+
+    duration_type:
+      visit.duration_type,
+
+    half_day_session:
+      visit.half_day_session,
+
+    start_time:
+      visit.start_time,
+
+    end_time:
+      visit.end_time,
+
+    location:
+      visit.location,
+
+    status:
+      visit.status,
+
+    reviewed_by:
+      visit.reviewed_by,
+
+    reviewed_by_name:
+      visit.reviewed_by_name || null,
+
+    reviewed_by_email:
+      visit.reviewed_by_email || null,
+
+    reviewed_at:
+      visit.reviewed_at || null,
+
+    comment:
+      visit.comment || null,
+
+    review_remark:
+      visit.review_remark || null,
+  })
+);
+
+const fieldVisitSummary = {
+  total:
+    hrFieldVisits.length,
+
+  pending:
+    hrFieldVisits.filter(
+      (item) =>
+        String(item.status)
+          .toLowerCase() ===
+        "pending"
+    ).length,
+
+  approved:
+    hrFieldVisits.filter(
+      (item) =>
+        String(item.status)
+          .toLowerCase() ===
+        "approved"
+    ).length,
+
+  rejected:
+    hrFieldVisits.filter(
+      (item) =>
+        String(item.status)
+          .toLowerCase() ===
+        "rejected"
+    ).length,
+
+  employees:
+    new Set(
+      hrFieldVisits
+        .map(
+          (item) =>
+            Number(
+              item.employee_id
+            )
+        )
+        .filter(Boolean)
+    ).size,
+
+  locations:
+    new Set(
+      hrFieldVisits
+        .map(
+          (item) =>
+            String(
+              item.location || ""
+            ).trim()
+        )
+        .filter(Boolean)
+    ).size,
+};
+
   const leaveApplicationSummary = {
     total: leaveApplications.length,
 
@@ -1533,25 +1758,32 @@ const buildHrAttendanceData = async (
       ).length,
   };
 
-  return {
-    users,
-    records,
-    summary,
+return {
+  users,
+  records,
+  summary,
 
-    leave_applications:
-      leaveApplications,
+  leave_applications:
+    leaveApplications,
 
-    leave_application_summary:
-      leaveApplicationSummary,
+  leave_application_summary:
+    leaveApplicationSummary,
 
-    biometric_range: {
-      first_date:
-        biometricFirstDate,
+  field_visits:
+    hrFieldVisits,
 
-      last_date:
-        biometricLastDate,
-    },
-  };
+  field_visit_summary:
+    fieldVisitSummary,
+
+  biometric_range: {
+    first_date:
+      biometricFirstDate,
+
+    last_date:
+      biometricLastDate,
+  },
+};
+
 };
 
 /* =========================================================
@@ -1661,6 +1893,21 @@ const getHrAttendance = async (req, res) => {
           approved: 0,
           rejected: 0,
         },
+
+        field_visits:
+  result.field_visits || [],
+
+field_visit_summary:
+  result.field_visit_summary || {
+    total: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    employees: 0,
+    locations: 0,
+  },
+
+
 
       pagination: {
         page:
