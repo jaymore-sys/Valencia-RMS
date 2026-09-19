@@ -555,6 +555,23 @@ const getEmployeeLeaveSummary =
 
             ${reviewRemarkSelect},
 
+            la.revert_status,
+la.revert_reason,
+
+DATE_FORMAT(
+  la.revert_requested_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS revert_requested_at,
+
+la.revert_reviewed_by,
+
+DATE_FORMAT(
+  la.revert_reviewed_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS revert_reviewed_at,
+
+la.revert_review_remark,
+
             la.reviewed_by,
 
             DATE_FORMAT(
@@ -571,13 +588,23 @@ const getEmployeeLeaveSummary =
               AS reviewed_by_name,
 
             reviewer.email
-              AS reviewed_by_email
+  AS reviewed_by_email,
+
+revert_reviewer.full_name
+  AS revert_reviewed_by_name,
+
+revert_reviewer.email
+  AS revert_reviewed_by_email
 
           FROM leave_applications la
 
           LEFT JOIN users reviewer
             ON reviewer.user_id =
               la.reviewed_by
+
+              LEFT JOIN users revert_reviewer
+  ON revert_reviewer.user_id =
+    la.revert_reviewed_by
 
           WHERE
             la.employee_id = ?
@@ -1244,10 +1271,10 @@ if (
           WHERE
             employee_id = ?
 
-            AND status IN (
-              'pending',
-              'approved'
-            )
+           AND COALESCE(
+  revert_status,
+  'none'
+) <> 'approved'
 
             AND NOT (
               end_date < ?
@@ -2161,6 +2188,578 @@ Valencia RMS
     }
   };
 
+
+  /*
+========================================================
+REQUEST LEAVE REVERT
+
+PATCH /api/employee-leaves/:leaveId/revert-request
+========================================================
+*/
+
+const requestLeaveRevert =
+  async (req, res) => {
+    try {
+      const employeeId =
+        Number(
+          req.user?.user_id || 0
+        );
+
+      const leaveId =
+        Number(
+          req.params.leaveId || 0
+        );
+
+      const revertReason =
+        String(
+          req.body?.revert_reason ||
+          req.body?.reason ||
+          ""
+        ).trim();
+
+      if (
+        !employeeId ||
+        !leaveId
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Invalid leave application.",
+          });
+      }
+
+      if (!revertReason) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Please enter a reason for reverting this leave.",
+          });
+      }
+
+      const [leaveRows] =
+        await db.query(
+          `
+          SELECT
+            la.leave_id,
+            la.employee_id,
+            la.leave_type,
+            la.start_date,
+            la.end_date,
+            la.total_days,
+            la.status,
+
+            COALESCE(
+              la.revert_status,
+              'none'
+            ) AS revert_status,
+
+            u.full_name
+              AS employee_name,
+
+            u.email
+              AS employee_email,
+
+            u.department_id,
+
+            d.department_name,
+
+            r.role_name
+              AS applicant_role
+
+          FROM leave_applications la
+
+          INNER JOIN users u
+            ON u.user_id =
+              la.employee_id
+
+          LEFT JOIN departments d
+            ON d.department_id =
+              u.department_id
+
+          LEFT JOIN roles r
+            ON r.role_id =
+              u.role_id
+
+          WHERE
+            la.leave_id = ?
+
+            AND la.employee_id = ?
+
+          LIMIT 1
+          `,
+          [
+            leaveId,
+            employeeId,
+          ]
+        );
+
+      if (!leaveRows.length) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+            message:
+              "Leave application not found.",
+          });
+      }
+
+      const leave =
+        leaveRows[0];
+
+      const leaveStatus =
+        String(
+          leave.status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const revertStatus =
+        String(
+          leave.revert_status ||
+          "none"
+        )
+          .trim()
+          .toLowerCase();
+
+      /*
+      Only Pending or Approved leave
+      can be reverted.
+
+      Rejected leave consumed no balance,
+      therefore it does not require revert.
+      */
+
+      if (
+        ![
+          "pending",
+          "approved",
+        ].includes(
+          leaveStatus
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "Only pending or approved leave can be reverted.",
+          });
+      }
+
+      if (
+        revertStatus ===
+        "pending"
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "A revert request is already pending for this leave.",
+          });
+      }
+
+      if (
+        revertStatus ===
+        "approved"
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+            message:
+              "This leave has already been reverted.",
+          });
+      }
+
+      /*
+      A previously rejected revert may
+      be requested again.
+      */
+
+      await db.query(
+        `
+        UPDATE leave_applications
+
+        SET
+          revert_status = 'pending',
+          revert_reason = ?,
+          revert_requested_at = NOW(),
+
+          revert_reviewed_by = NULL,
+          revert_reviewed_at = NULL,
+          revert_review_remark = NULL
+
+        WHERE leave_id = ?
+          AND employee_id = ?
+        `,
+        [
+          revertReason,
+          leaveId,
+          employeeId,
+        ]
+      );
+
+      /*
+      ================================================
+      EMAIL RECIPIENTS
+
+      Employee / Administrator:
+      -> Premal
+      -> Department Admin(s)
+      -> Rathika CC
+
+      Admin requesting own revert:
+      -> Premal
+      -> Rathika CC
+
+      Same routing principle as normal Leave.
+      ================================================
+      */
+
+      const applicantRole =
+        String(
+          leave.applicant_role ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const isAdminApplicant =
+        applicantRole ===
+        "admin";
+
+      let departmentAdmins = [];
+
+      if (!isAdminApplicant) {
+        try {
+          departmentAdmins =
+            await getDepartmentAdmins(
+              employeeId,
+              leave.department_id
+            );
+        } catch (
+          reviewerError
+        ) {
+          console.error(
+            "Revert reviewer lookup failed:",
+            reviewerError.message
+          );
+
+          departmentAdmins = [];
+        }
+      }
+
+      const toRecipients = [
+        ...new Set(
+          [
+            PREMAL_LEAVE_EMAIL,
+
+            ...(
+              isAdminApplicant
+                ? []
+                : departmentAdmins.map(
+                    (item) =>
+                      item.email
+                  )
+            ),
+          ]
+            .map((email) =>
+              String(
+                email || ""
+              )
+                .trim()
+                .toLowerCase()
+            )
+            .filter(Boolean)
+        ),
+      ];
+
+      const ccRecipients = [
+        RATHIKA_LEAVE_EMAIL,
+      ]
+        .map((email) =>
+          String(
+            email || ""
+          )
+            .trim()
+            .toLowerCase()
+        )
+        .filter(
+          (email) =>
+            email &&
+            !toRecipients.includes(
+              email
+            )
+        );
+
+      const leaveLabel =
+        getLeaveLabel(
+          leave.leave_type
+        );
+
+      try {
+        await sendMail({
+          to: toRecipients,
+
+          cc: ccRecipients,
+
+          subject:
+            `Leave Revert Request - ${leaveLabel} - ${leave.employee_name}`,
+
+          text: `
+Dear Sir/Ma'am,
+
+A leave revert request has been submitted through Valencia RMS.
+
+Employee: ${leave.employee_name || "-"}
+Employee Email: ${leave.employee_email || "-"}
+Department: ${leave.department_name || "-"}
+
+Leave Type: ${leaveLabel}
+From: ${String(leave.start_date).slice(0, 10)}
+To: ${String(leave.end_date).slice(0, 10)}
+Leave Days: ${leave.total_days}
+Current Leave Status: ${leaveStatus}
+
+Revert Reason:
+${revertReason}
+
+The leave revert request is currently Pending and requires review.
+
+Regards,
+Valencia RMS
+          `.trim(),
+
+          html: `
+            <div
+              style="
+                font-family:Arial,sans-serif;
+                line-height:1.6;
+                color:#111827;
+              "
+            >
+              <h2
+                style="
+                  color:#ff5733;
+                  margin-bottom:8px;
+                "
+              >
+                Leave Revert Request
+              </h2>
+
+              <p>
+                A leave revert request has been submitted
+                through Valencia RMS and requires review.
+              </p>
+
+              <table
+                style="
+                  border-collapse:collapse;
+                  width:100%;
+                  max-width:650px;
+                "
+              >
+                <tr>
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    <strong>Employee</strong>
+                  </td>
+
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    ${leave.employee_name || "-"}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    <strong>Department</strong>
+                  </td>
+
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    ${leave.department_name || "-"}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    <strong>Leave Type</strong>
+                  </td>
+
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    ${leaveLabel}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    <strong>From</strong>
+                  </td>
+
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    ${String(
+                      leave.start_date
+                    ).slice(
+                      0,
+                      10
+                    )}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    <strong>To</strong>
+                  </td>
+
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    ${String(
+                      leave.end_date
+                    ).slice(
+                      0,
+                      10
+                    )}
+                  </td>
+                </tr>
+
+                <tr>
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    <strong>Revert Reason</strong>
+                  </td>
+
+                  <td
+                    style="
+                      padding:8px;
+                      border:1px solid #dddddd;
+                    "
+                  >
+                    ${revertReason}
+                  </td>
+                </tr>
+              </table>
+
+              <p>
+                The revert request is currently
+                <strong>Pending</strong>.
+              </p>
+
+              <p>
+                Regards,<br />
+                Valencia RMS
+              </p>
+            </div>
+          `,
+
+          replyTo:
+            leave.employee_email ||
+            undefined,
+        });
+      } catch (emailError) {
+        /*
+        Revert request is already saved.
+        Email failure must not undo it.
+        */
+
+        console.error(
+          "Leave revert email failed:",
+          emailError.message
+        );
+      }
+
+      return res.json({
+        success: true,
+
+        message:
+          "Leave revert request submitted successfully.",
+
+        leave_id:
+          leaveId,
+
+        revert_status:
+          "pending",
+      });
+    } catch (error) {
+      console.error(
+        "Request leave revert error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            "Failed to submit leave revert request.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    }
+  };
+
+
 /*
 ========================================================
 GET HOLIDAY CALENDAR
@@ -2457,6 +3056,7 @@ const toggleEmployeeOptionalHoliday =
 module.exports = {
   getEmployeeLeaveSummary,
   applyEmployeeLeave,
+  requestLeaveRevert,
   getEmployeeHolidayCalendar,
   toggleEmployeeOptionalHoliday,
 };

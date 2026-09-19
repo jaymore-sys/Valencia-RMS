@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
   RefreshCw,
+  RotateCcw,
   Send,
   X,
 } from "lucide-react";
@@ -395,6 +396,7 @@ const BalanceCard = ({
 const HistoryTable = ({
   loading,
   applications,
+  onRevert,
 }) => {
   if (loading) {
     return (
@@ -465,10 +467,17 @@ const HistoryTable = ({
             <th
               style={{
                 ...styles.tableHeadCell,
-                ...styles.lastHeadCell,
               }}
             >
               Applied On
+            </th>
+            <th
+              style={{
+                ...styles.tableHeadCell,
+                ...styles.lastHeadCell,
+              }}
+            >
+              Action
             </th>
           </tr>
         </thead>
@@ -480,6 +489,14 @@ const HistoryTable = ({
                 application.status ||
                 "pending"
               ).toLowerCase();
+
+              const revertStatus =
+                String(
+                  application.revert_status ||
+                  "none"
+                )
+                  .trim()
+                  .toLowerCase();
 
               return (
                 <tr
@@ -583,20 +600,70 @@ const HistoryTable = ({
                     </span>
                   </td>
 
-                  <td
-                    style={{
-                      ...styles.tableCell,
-                      ...styles.lastTableCell,
-                    }}
-                  >
-                    {application.applied_at
-                      ? formatDisplayDate(
-                        String(
-                          application.applied_at
-                        ).slice(0, 10)
-                      )
-                      : "-"}
-                  </td>
+                 <td style={styles.tableCell}>
+  {application.applied_at
+    ? formatDisplayDate(
+        String(
+          application.applied_at
+        ).slice(0, 10)
+      )
+    : "-"}
+</td>
+
+<td
+  style={{
+    ...styles.tableCell,
+    ...styles.lastTableCell,
+  }}
+>
+  {["pending", "approved"].includes(status) ? (
+    revertStatus === "pending" ? (
+      <strong
+        style={{
+          color: "#d97706",
+        }}
+      >
+        Revert Requested
+      </strong>
+    ) : revertStatus === "approved" ? (
+      <strong
+        style={{
+          color: "#15803d",
+        }}
+      >
+        Reverted
+      </strong>
+    ) : (
+      <button
+        type="button"
+        onClick={() =>
+          onRevert(application)
+        }
+        style={{
+          border: 0,
+          borderRadius: "10px",
+          padding: "9px 12px",
+          background: "#f59e0b",
+          color: "#ffffff",
+          fontWeight: 900,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        <RotateCcw size={15} />
+
+        {revertStatus === "rejected"
+          ? "Request Again"
+          : "Revert Leave"}
+      </button>
+    )
+  ) : (
+    "-"
+  )}
+</td>
+
                 </tr>
               );
             }
@@ -665,6 +732,11 @@ const EmployeeLeaveApplications =
       festivalDropdownOpen,
       setFestivalDropdownOpen,
     ] = useState(false);
+    const [revertLeave, setRevertLeave] =
+  useState(null);
+
+const [revertReason, setRevertReason] =
+  useState("");
 
 
     const POLICY_START_DATE =
@@ -1530,7 +1602,58 @@ must be applied at least 15 days prior.
       }
     };
 
-    const casualAvailable = Number(
+
+const handleRevertLeave = (application) => {
+  setRevertLeave(application);
+  setRevertReason("");
+  setError("");
+};
+
+const submitRevertLeave = async () => {
+  if (!revertLeave) return;
+
+  if (!revertReason.trim()) {
+    setError(
+      "Please enter the reason for reverting this leave."
+    );
+    return;
+  }
+
+  try {
+    setSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    const response = await api.patch(
+      `/employee-leaves/${revertLeave.leave_id}/revert-request`,
+      {
+        revert_reason:
+          revertReason.trim(),
+      }
+    );
+
+    setSuccess(
+      response.data?.message ||
+        "Leave revert request submitted successfully."
+    );
+
+    setRevertLeave(null);
+    setRevertReason("");
+
+    await fetchLeaveData();
+  } catch (err) {
+    setError(
+      err?.response?.data?.message ||
+        "Failed to submit leave revert request."
+    );
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+const casualAvailable = Number(
+
+    
       balances.casual?.available ??
       balances.casual?.remaining ??
       0
@@ -1783,10 +1906,125 @@ must be applied at least 15 days prior.
             applications={
               filteredApplications
             }
+            onRevert={handleRevertLeave}
           />
         </section>
+        {revertLeave && (
+  <div
+    style={styles.modalOverlay}
+    onClick={() => {
+      if (!submitting) {
+        setRevertLeave(null);
+        setRevertReason("");
+        setError("");
+      }
+    }}
+  >
+    <div
+      style={styles.modal}
+      onClick={(event) =>
+        event.stopPropagation()
+      }
+    >
+      <button
+        type="button"
+        style={styles.closeBtn}
+        onClick={() => {
+          setRevertLeave(null);
+          setRevertReason("");
+          setError("");
+        }}
+        disabled={submitting}
+      >
+        <X size={20} />
+      </button>
+
+      <h2 style={styles.modalTitle}>
+        Revert Leave
+      </h2>
+
+      <p style={styles.modalSubtitle}>
+        {getLeaveLabel(
+          revertLeave.leave_type
+        )}
+        {" · "}
+        {formatDisplayDate(
+          revertLeave.start_date
+        )}
+        {" → "}
+        {formatDisplayDate(
+          revertLeave.end_date
+        )}
+      </p>
+
+      {error && (
+        <div style={styles.modalError}>
+          {error}
+        </div>
+      )}
+
+      <label style={styles.field}>
+        <span>
+          Reason for Reverting Leave
+        </span>
+
+        <textarea
+          style={styles.textarea}
+          value={revertReason}
+          onChange={(event) => {
+            setRevertReason(
+              event.target.value
+            );
+            setError("");
+          }}
+          placeholder="Enter reason..."
+          disabled={submitting}
+          autoFocus
+        />
+      </label>
+
+      <div style={styles.modalActions}>
+        <button
+          type="button"
+          style={styles.cancelBtn}
+          disabled={submitting}
+          onClick={() => {
+            setRevertLeave(null);
+            setRevertReason("");
+            setError("");
+          }}
+        >
+          Cancel
+        </button>
+
+        <button
+          type="button"
+          style={
+            submitting
+              ? styles.disabledSubmitBtn
+              : styles.submitBtn
+          }
+          disabled={
+            submitting ||
+            !revertReason.trim()
+          }
+          onClick={submitRevertLeave}
+        >
+          <RotateCcw size={18} />
+
+          {submitting
+            ? "Submitting..."
+            : "Send Revert Request"}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
 
         {showHolidayCalendar && (
+          
           <div
             style={
               styles.modalOverlay
@@ -2168,6 +2406,8 @@ must be applied at least 15 days prior.
                                   const isSelected =
                                     form.start_date ===
                                     holiday.date;
+
+                                  
 
                                   return (
                                     <button

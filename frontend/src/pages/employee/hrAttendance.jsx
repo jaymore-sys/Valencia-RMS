@@ -531,6 +531,10 @@ export default function HrAttendance() {
         leave.reason,
         leave.reviewed_by_name,
         leave.review_remark,
+        leave.revert_status,
+leave.revert_reason,
+leave.revert_reviewed_by_name,
+leave.revert_review_remark,
       ]
         .filter(Boolean)
         .join(" ")
@@ -732,6 +736,68 @@ export default function HrAttendance() {
       setReviewingLeaveId(null);
     }
   };
+
+  const reviewLeaveRevert = async (
+  leave,
+  nextStatus
+) => {
+  if (
+    String(
+      leave.revert_status || ""
+    ).toLowerCase() !== "pending"
+  ) {
+    return;
+  }
+
+  if (
+    nextStatus === "rejected" &&
+    !reviewRemark.trim()
+  ) {
+    notify(
+      "Please enter a remark before rejecting the revert request.",
+      "error"
+    );
+
+    return;
+  }
+
+  try {
+    setReviewingLeaveId(
+      leave.leave_id
+    );
+
+    const response =
+      await api.patch(
+        `/admin-leaves/${leave.leave_id}/revert`,
+        {
+          status: nextStatus,
+
+          review_remark:
+            reviewRemark.trim(),
+        }
+      );
+
+    notify(
+      response.data?.message ||
+        "Revert request updated successfully."
+    );
+
+    setSelectedLeave(null);
+    setReviewRemark("");
+
+    await fetchAttendance({
+      nextPage: page,
+    });
+  } catch (err) {
+    notify(
+      err?.response?.data?.message ||
+        "Failed to review revert request.",
+      "error"
+    );
+  } finally {
+    setReviewingLeaveId(null);
+  }
+};
 
   /* =========================================================
      ADD ATTENDANCE
@@ -1133,10 +1199,22 @@ export default function HrAttendance() {
               onChange={(e) => setLeaveStatus(e.target.value)}
             >
               <option value="all">All Leave Status</option>
-              <option value="Pending">Pending</option>
-              <option value="Escalated">Escalated</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
+<option value="Pending">Pending</option>
+<option value="Escalated">Escalated</option>
+<option value="Approved">Approved</option>
+<option value="Rejected">Rejected</option>
+
+<option value="Revert Applied">
+  Revert Applied
+</option>
+
+<option value="Reverted">
+  Reverted
+</option>
+
+<option value="Revert Rejected">
+  Revert Rejected
+</option>
             </select>
 
             <select
@@ -1605,9 +1683,134 @@ export default function HrAttendance() {
               label="Review Remark"
               value={selectedLeave.review_remark}
             />
+            {selectedLeave.revert_status &&
+  selectedLeave.revert_status !==
+    "none" && (
+    <>
+      <Detail
+        label="Revert Status"
+        value={
+          selectedLeave.display_status
+        }
+      />
+
+      <Detail
+        label="Revert Requested By"
+        value={
+          selectedLeave.employee_name
+        }
+      />
+
+      <Detail
+        label="Revert Requested On"
+        value={displayDateTime(
+          selectedLeave
+            .revert_requested_at
+        )}
+      />
+
+      <Detail
+        label="Revert Reason"
+        value={
+          selectedLeave.revert_reason
+        }
+      />
+
+      {selectedLeave.revert_status !==
+        "pending" && (
+        <>
+          <Detail
+            label="Revert Reviewed By"
+            value={
+              selectedLeave
+                .revert_reviewed_by_name
+            }
+          />
+
+          <Detail
+            label="Revert Reviewed On"
+            value={displayDateTime(
+              selectedLeave
+                .revert_reviewed_at
+            )}
+          />
+
+          <Detail
+            label="Revert Review Remark"
+            value={
+              selectedLeave
+                .revert_review_remark
+            }
+          />
+        </>
+      )}
+    </>
+)}
           </div>
 
-          {selectedLeave.display_status === "Pending" && (
+          {selectedLeave.revert_status ===
+  "pending" && (
+  <>
+    <div className="hr-review-box">
+      <label>
+        Revert Approval / Rejection Remark
+      </label>
+
+      <textarea
+        rows={4}
+        placeholder="Required when rejecting. Optional when approving."
+        value={reviewRemark}
+        onChange={(event) =>
+          setReviewRemark(
+            event.target.value
+          )
+        }
+      />
+    </div>
+
+    <div className="hr-modal-footer">
+      <button
+        className="hr-button danger"
+        disabled={
+          reviewingLeaveId ===
+          selectedLeave.leave_id
+        }
+        onClick={() =>
+          reviewLeaveRevert(
+            selectedLeave,
+            "rejected"
+          )
+        }
+      >
+        Reject Revert
+      </button>
+
+      <button
+        className="hr-button approve"
+        disabled={
+          reviewingLeaveId ===
+          selectedLeave.leave_id
+        }
+        onClick={() =>
+          reviewLeaveRevert(
+            selectedLeave,
+            "approved"
+          )
+        }
+      >
+        <CheckCircle2 size={16} />
+
+        {reviewingLeaveId ===
+        selectedLeave.leave_id
+          ? "Saving..."
+          : "Approve Revert"}
+      </button>
+    </div>
+  </>
+)}
+
+          {selectedLeave.display_status === "Pending" &&
+  selectedLeave.revert_status !== "pending" && (
             <div className="hr-review-box">
               <label>Approval / Rejection Remark</label>
 
@@ -1621,7 +1824,8 @@ export default function HrAttendance() {
           )}
 
           <div className="hr-modal-footer">
-            {selectedLeave.display_status === "Pending" && (
+            {selectedLeave.display_status === "Pending" &&
+  selectedLeave.revert_status !== "pending" && (
               <>
                 <button
                   className="hr-button danger"

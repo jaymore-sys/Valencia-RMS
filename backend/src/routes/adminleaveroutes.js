@@ -8,6 +8,7 @@ const {
   getAdminLeaveApplications,
   reviewLeaveApplication,
   furtherApproveLeaveApplication,
+  reviewLeaveRevertRequest,
 } = require(
   "../controllers/adminleavecontroller"
 );
@@ -16,17 +17,21 @@ const router = express.Router();
 
 /*
 ========================================================
-LEAVE VIEW ACCESS
+LEAVE ACCESS
 
 Can VIEW:
-1. Normal Admin
+1. Department Admin
 2. Premal
 3. Rathika
 
-Rathika = VIEW ONLY
+Can APPROVE / REJECT:
+1. Department Admin
+2. Premal
+3. Rathika
 
-Manish does not use this Admin route
-for normal Employee / Administrator leave.
+Department restrictions and self-review
+restrictions are validated again inside
+adminleavecontroller.js.
 ========================================================
 */
 
@@ -79,6 +84,7 @@ const allowLeaveViewer = (
       .status(403)
       .json({
         success: false,
+
         message:
           "You are not authorized to access leave applications.",
       });
@@ -90,12 +96,6 @@ const allowLeaveViewer = (
 /*
 ========================================================
 APPROVE / REJECT ACCESS
-
-Can ACT:
-1. Normal Admin
-2. Premal
-
-Rathika = NO ACTION
 ========================================================
 */
 
@@ -123,19 +123,20 @@ const allowLeaveApprover = (
     email ===
     PREMAL_LEAVE_EMAIL;
 
-    const isRathika =
-  email ===
-  RATHIKA_LEAVE_EMAIL;
+  const isRathika =
+    email ===
+    RATHIKA_LEAVE_EMAIL;
 
- if (
-  !isAdmin &&
-  !isPremal &&
-  !isRathika
-) {
+  if (
+    !isAdmin &&
+    !isPremal &&
+    !isRathika
+  ) {
     return res
       .status(403)
       .json({
         success: false,
+
         message:
           "You are not authorized to review leave applications.",
       });
@@ -147,12 +148,6 @@ const allowLeaveApprover = (
 /*
 ========================================================
 FURTHER APPROVAL ACCESS
-
-Only Department Admin initiates
-Further Approval.
-
-Final department validation is also
-handled inside adminleavecontroller.js.
 ========================================================
 */
 
@@ -174,6 +169,7 @@ const allowDepartmentAdmin = (
       .status(403)
       .json({
         success: false,
+
         message:
           "Only a Department Admin can send a leave application for Further Approval.",
       });
@@ -190,41 +186,69 @@ GET LEAVE APPLICATIONS
 
 router.get(
   "/",
+
   authMiddleware,
+
   allowLeaveViewer,
+
   getAdminLeaveApplications
 );
 
 router.get(
   "/applications",
+
   authMiddleware,
+
   allowLeaveViewer,
+
   getAdminLeaveApplications
 );
 
 /*
 ========================================================
-APPROVE / REJECT
+APPROVE / REJECT ORIGINAL LEAVE
 ========================================================
 */
 
 router.patch(
   "/:leaveId/status",
+
   authMiddleware,
+
   allowLeaveApprover,
+
   reviewLeaveApplication
 );
 
 /*
 ========================================================
-FURTHER APPROVAL
+APPROVE / REJECT LEAVE REVERT REQUEST
+========================================================
+*/
+
+router.patch(
+  "/:leaveId/revert",
+
+  authMiddleware,
+
+  allowLeaveApprover,
+
+  reviewLeaveRevertRequest
+);
+
+/*
+========================================================
+FURTHER APPROVAL / ESCALATE
 ========================================================
 */
 
 router.patch(
   "/:leaveId/further-approval",
+
   authMiddleware,
+
   allowDepartmentAdmin,
+
   furtherApproveLeaveApplication
 );
 

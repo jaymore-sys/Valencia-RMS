@@ -145,12 +145,30 @@ const AdminLeaveApplications = () => {
 
     return "Full Day";
   };
-  const getStatusLabel = (leave) => {
+ const getStatusLabel = (leave) => {
   const status = String(
     leave?.status || "pending"
   )
     .trim()
     .toLowerCase();
+
+  const revertStatus = String(
+    leave?.revert_status || "none"
+  )
+    .trim()
+    .toLowerCase();
+
+  if (revertStatus === "pending") {
+    return "Revert Applied";
+  }
+
+  if (revertStatus === "approved") {
+    return "Reverted";
+  }
+
+  if (revertStatus === "rejected") {
+    return "Revert Rejected";
+  }
 
   if (
     status === "pending" &&
@@ -578,6 +596,54 @@ if (
       }
     };
 
+   const handleRevertReview = async (
+  action
+) => {
+  if (!selectedLeave) return;
+
+  if (
+    action === "rejected" &&
+    !reviewRemark.trim()
+  ) {
+    setModalError(
+      "Please enter a reason before rejecting the revert request."
+    );
+    return;
+  }
+
+  try {
+    setReviewing(true);
+    setModalError("");
+
+    const response =
+      await api.patch(
+        `/admin-leaves/${selectedLeave.leave_id}/revert`,
+        {
+          status: action,
+          review_remark:
+            reviewRemark.trim(),
+        }
+      );
+
+    setSuccess(
+      response.data?.message ||
+        "Revert request updated successfully."
+    );
+
+    setSelectedLeave(null);
+    setReviewRemark("");
+
+    await fetchLeaves();
+  } catch (err) {
+    setModalError(
+      err?.response?.data?.message ||
+        "Failed to review revert request."
+    );
+  } finally {
+    setReviewing(false);
+  }
+};
+
   const cards = [
     {
       key: "total",
@@ -990,13 +1056,23 @@ return (
                           style={{
                             ...styles.statusBadge,
 
-                            ...(leave.status ===
-                            "approved"
-                              ? styles.approvedBadge
-                              : leave.status ===
-                                "rejected"
-                              ? styles.rejectedBadge
-                              : styles.pendingBadge),
+                            ...(String(
+  leave.revert_status || "none"
+).toLowerCase() === "pending"
+  ? styles.pendingBadge
+  : String(
+      leave.revert_status || "none"
+    ).toLowerCase() === "approved"
+  ? styles.approvedBadge
+  : String(
+      leave.revert_status || "none"
+    ).toLowerCase() === "rejected"
+  ? styles.rejectedBadge
+  : leave.status === "approved"
+  ? styles.approvedBadge
+  : leave.status === "rejected"
+  ? styles.rejectedBadge
+  : styles.pendingBadge),
                           }}
                         >
                           {getStatusLabel(leave)}
@@ -1201,6 +1277,107 @@ return (
                   "-"}
               </p>
             </div>
+
+          {selectedLeave.revert_status &&
+  selectedLeave.revert_status !== "none" && (
+    <div style={styles.reasonBox}>
+      <span>Revert Request</span>
+
+      <p>
+        <strong>Status:</strong>{" "}
+        {selectedLeave.revert_status}
+      </p>
+
+      <p>
+        <strong>Reason:</strong>{" "}
+        {selectedLeave.revert_reason || "-"}
+      </p>
+
+     {selectedLeave.revert_status ===
+  "pending" && (
+  <>
+    <label
+      style={{
+        ...styles.remarkField,
+        marginTop: "14px",
+      }}
+    >
+      <span>
+        Revert Review Remark
+      </span>
+
+      <textarea
+        value={reviewRemark}
+        onChange={(event) => {
+          setReviewRemark(
+            event.target.value
+          );
+          setModalError("");
+        }}
+        placeholder="Required when rejecting. Optional when approving."
+        disabled={reviewing}
+      />
+    </label>
+
+    <div
+      style={{
+        display: "flex",
+        gap: "10px",
+        marginTop: "12px",
+      }}
+    >
+      <button
+        type="button"
+        style={styles.approveBtn}
+        onClick={() =>
+          handleRevertReview(
+            "approved"
+          )
+        }
+        disabled={reviewing}
+      >
+        <Check size={18} />
+        Approve Revert
+      </button>
+
+      <button
+        type="button"
+        style={styles.rejectBtn}
+        onClick={() =>
+          handleRevertReview(
+            "rejected"
+          )
+        }
+        disabled={reviewing}
+      >
+        <XCircle size={18} />
+        Reject Revert
+      </button>
+    </div>
+  </>
+)}
+      {selectedLeave.revert_status !==
+        "pending" && (
+        <>
+          <p>
+            <strong>
+              Reviewed By:
+            </strong>{" "}
+            {selectedLeave
+              .revert_reviewed_by_name ||
+              "-"}
+          </p>
+
+          <p>
+            <strong>Remark:</strong>{" "}
+            {selectedLeave
+              .revert_review_remark ||
+              "-"}
+          </p>
+        </>
+      )}
+    </div>
+  )}  
 
             {selectedBalance && (
               <section

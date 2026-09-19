@@ -171,23 +171,57 @@ const getLeaveLabel = (leaveType) => {
 };
 
 const getHrLeaveDisplayStatus = (leave) => {
-  const status = String(leave?.status || "")
+  const status = String(
+    leave?.status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const revertStatus = String(
+    leave?.revert_status || "none"
+  )
     .trim()
     .toLowerCase();
 
   const escalated =
-    Number(leave?.escalated_for_approval || 0) === 1;
+    Number(
+      leave?.escalated_for_approval || 0
+    ) === 1;
 
-  if (status === "pending" && escalated) {
+  if (revertStatus === "pending") {
+    return "Revert Applied";
+  }
+
+  if (revertStatus === "approved") {
+    return "Reverted";
+  }
+
+  if (revertStatus === "rejected") {
+    return "Revert Rejected";
+  }
+
+  if (
+    status === "pending" &&
+    escalated
+  ) {
     return "Escalated";
   }
 
-  if (status === "pending") return "Pending";
-  if (status === "approved") return "Approved";
-  if (status === "rejected") return "Rejected";
+  if (status === "pending") {
+    return "Pending";
+  }
+
+  if (status === "approved") {
+    return "Approved";
+  }
+
+  if (status === "rejected") {
+    return "Rejected";
+  }
 
   return status || "-";
 };
+
 
 /* =========================================================
    IMPORT HELPERS
@@ -735,7 +769,8 @@ const buildHrAttendanceData = async (
 
     WHERE la.employee_id IN (${placeholders})
       AND LOWER(TRIM(la.status)) = 'approved'
-      AND la.start_date <= ?
+AND COALESCE(la.revert_status, 'none') <> 'approved'
+AND la.start_date <= ?
       AND la.end_date >= ?
     `,
     [
@@ -757,6 +792,26 @@ const buildHrAttendanceData = async (
     la.reason,
     la.status,
     la.review_remark,
+    COALESCE(
+  la.revert_status,
+  'none'
+) AS revert_status,
+
+la.revert_reason,
+
+DATE_FORMAT(
+  la.revert_requested_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS revert_requested_at,
+
+la.revert_reviewed_by,
+
+DATE_FORMAT(
+  la.revert_reviewed_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS revert_reviewed_at,
+
+la.revert_review_remark,
     COALESCE(
       la.escalated_for_approval,
       0
@@ -804,7 +859,13 @@ const buildHrAttendanceData = async (
     reviewer.email AS reviewed_by_email,
 
     escalator.full_name AS escalated_by_name,
-    escalator.email AS escalated_by_email
+   escalator.email AS escalated_by_email,
+
+revert_reviewer.full_name
+  AS revert_reviewed_by_name,
+
+revert_reviewer.email
+  AS revert_reviewed_by_email
 
   FROM leave_applications la
 
@@ -823,6 +884,10 @@ const buildHrAttendanceData = async (
 
   LEFT JOIN users escalator
     ON escalator.user_id = la.escalated_by
+
+    LEFT JOIN users revert_reviewer
+  ON revert_reviewer.user_id =
+     la.revert_reviewed_by
 
   WHERE
     la.employee_id IN (${placeholders})
@@ -1572,6 +1637,29 @@ const [hrFieldVisitRows] = await db.query(
   });
 
   const leaveApplications = hrLeaveRows.map((leave) => ({
+    revert_status:
+  leave.revert_status || "none",
+
+revert_reason:
+  leave.revert_reason || null,
+
+revert_requested_at:
+  leave.revert_requested_at || null,
+
+revert_reviewed_by:
+  leave.revert_reviewed_by || null,
+
+revert_reviewed_by_name:
+  leave.revert_reviewed_by_name || null,
+
+revert_reviewed_by_email:
+  leave.revert_reviewed_by_email || null,
+
+revert_reviewed_at:
+  leave.revert_reviewed_at || null,
+
+revert_review_remark:
+  leave.revert_review_remark || null,
     leave_id: leave.leave_id,
     employee_id: leave.employee_id,
     employee_code: leave.employee_code,

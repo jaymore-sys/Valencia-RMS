@@ -266,9 +266,14 @@ const getAnnualUsage = async (
 
         AND start_date >= ?
 
-        AND start_date <= ?
+       AND start_date <= ?
 
-        ${excludeSql}
+AND COALESCE(
+  revert_status,
+  'none'
+) <> 'approved'
+
+${excludeSql}
       `,
       parameters
     );
@@ -354,9 +359,14 @@ const getPrivilegedUsage =
           AND leave_type = 'mandatory'
 
           AND start_date >=
-            '${POLICY_START_DATE}'
+  '${POLICY_START_DATE}'
 
-          ${excludeSql}
+AND COALESCE(
+  revert_status,
+  'none'
+) <> 'approved'
+
+${excludeSql}
         `,
         parameters
       );
@@ -478,7 +488,13 @@ const getHistoricalExtraConsumed =
         WHERE employee_id = ?
           AND leave_type = ?
           AND status = 'approved'
-          AND start_date >= ?
+
+AND COALESCE(
+  revert_status,
+  'none'
+) <> 'approved'
+
+AND start_date >= ?
           AND YEAR(start_date) < ?
 
         GROUP BY

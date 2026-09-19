@@ -299,6 +299,24 @@ la.review_remark,
 
 la.escalated_for_approval,
 la.escalated_by,
+la.escalation_remark,
+
+la.revert_status,
+la.revert_reason,
+
+DATE_FORMAT(
+  la.revert_requested_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS revert_requested_at,
+
+la.revert_reviewed_by,
+
+DATE_FORMAT(
+  la.revert_reviewed_at,
+  '%Y-%m-%d %H:%i:%s'
+) AS revert_reviewed_at,
+
+la.revert_review_remark,
 
 DATE_FORMAT(
   la.escalated_at,
@@ -337,7 +355,13 @@ escalator.full_name
   AS escalated_by_name,
 
 escalator.email
-  AS escalated_by_email
+  AS escalated_by_email,
+
+revert_reviewer.full_name
+  AS revert_reviewed_by_name,
+
+revert_reviewer.email
+  AS revert_reviewed_by_email
 
         FROM leave_applications la
 
@@ -361,17 +385,31 @@ escalator.email
   ON escalator.user_id =
     la.escalated_by
 
+    LEFT JOIN users revert_reviewer
+  ON revert_reviewer.user_id =
+    la.revert_reviewed_by
+
         WHERE ${whereParts.join(
           " AND "
         )}
 
         ORDER BY
           CASE
-            WHEN la.status = 'pending'
-            THEN 1
+            WHEN
+  la.status = 'pending'
+  AND COALESCE(
+    la.revert_status,
+    'none'
+  ) <> 'approved'
+THEN 1
 
-            WHEN la.status = 'approved'
-            THEN 2
+            WHEN
+  la.status = 'approved'
+  AND COALESCE(
+    la.revert_status,
+    'none'
+  ) <> 'approved'
+THEN 1
 
             WHEN la.status = 'rejected'
             THEN 3
@@ -457,16 +495,26 @@ const [summaryRows] =
 
       SUM(
         CASE
-          WHEN la.status = 'pending'
-          THEN 1
+          WHEN
+  la.status = 'pending'
+  AND COALESCE(
+    la.revert_status,
+    'none'
+  ) <> 'approved'
+THEN 1
           ELSE 0
         END
       ) AS pending,
 
       SUM(
         CASE
-          WHEN la.status = 'approved'
-          THEN 1
+          WHEN
+  la.status = 'approved'
+  AND COALESCE(
+    la.revert_status,
+    'none'
+  ) <> 'approved'
+THEN 1
           ELSE 0
         END
       ) AS approved,
@@ -769,6 +817,11 @@ const [leaveRows] =
 la.status,
 la.escalated_for_approval,
 
+COALESCE(
+  la.revert_status,
+  'none'
+) AS revert_status,
+
 la.duration_type,
       la.half_day_session,
 
@@ -837,6 +890,44 @@ la.duration_type,
 
     const leave =
       leaveRows[0];
+
+      const revertStatus =
+  String(
+    leave.revert_status ||
+    "none"
+  )
+    .trim()
+    .toLowerCase();
+
+if (
+  revertStatus === "pending"
+) {
+  await connection.rollback();
+
+  return res
+    .status(409)
+    .json({
+      success: false,
+
+      message:
+        "This leave has a pending revert request. Review the revert request first.",
+    });
+}
+
+if (
+  revertStatus === "approved"
+) {
+  await connection.rollback();
+
+  return res
+    .status(400)
+    .json({
+      success: false,
+
+      message:
+        "This leave has already been reverted.",
+    });
+}
       if (
   Number(
     leave.escalated_for_approval
@@ -1255,6 +1346,880 @@ Valencia RMS
   }
 };
 
+/*
+========================================================
+APPROVE / REJECT LEAVE REVERT REQUEST
+
+PATCH /api/admin-leaves/:leaveId/revert
+========================================================
+*/
+
+const reviewLeaveRevertRequest =
+  async (req, res) => {
+    let connection;
+
+    try {
+      connection =
+        await db.getConnection();
+
+      const reviewerUserId =
+        Number(
+          req.user?.user_id || 0
+        );
+
+      const leaveId =
+        Number(
+          req.params.leaveId || 0
+        );
+
+      let action =
+        String(
+          req.body?.status ||
+          req.body?.action ||
+          ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const reviewRemark =
+        String(
+          req.body
+            ?.review_remark ||
+          req.body?.remark ||
+          ""
+        ).trim();
+
+      if (
+        action === "approve"
+      ) {
+        action = "approved";
+      }
+
+      if (
+        action === "reject"
+      ) {
+        action = "rejected";
+      }
+
+      if (
+        !Number.isFinite(
+          leaveId
+        ) ||
+        leaveId <= 0
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid leave application ID.",
+          });
+      }
+
+      if (
+        ![
+          "approved",
+          "rejected",
+        ].includes(action)
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Revert status must be approved or rejected.",
+          });
+      }
+
+      if (
+        action ===
+          "rejected" &&
+        !reviewRemark
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Please enter a reason before rejecting the revert request.",
+          });
+      }
+
+      const {
+        admin,
+        error,
+      } =
+        await getLoggedInAdmin(
+          reviewerUserId
+        );
+
+      if (error) {
+        return res
+          .status(error.status)
+          .json({
+            success: false,
+
+            message:
+              error.message,
+          });
+      }
+
+      if (
+        !admin.can_review_leave
+      ) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+
+            message:
+              "You are not authorized to review leave revert requests.",
+          });
+      }
+
+      await connection
+        .beginTransaction();
+
+      /*
+      ================================================
+      SAME ACCESS RULES AS NORMAL LEAVE REVIEW
+      ================================================
+      */
+
+      const whereParts = [
+        "la.leave_id = ?",
+      ];
+
+      const values = [
+        leaveId,
+      ];
+
+      if (
+        admin
+          .is_global_leave_approver
+      ) {
+        whereParts.push(`
+          LOWER(
+            TRIM(
+              employee_role.role_name
+            )
+          ) IN (
+            'employee',
+            'admin',
+            'administrator'
+          )
+        `);
+      } else {
+        whereParts.push(`
+          LOWER(
+            TRIM(
+              employee_role.role_name
+            )
+          ) = 'employee'
+        `);
+
+        whereParts.push(`
+          (
+            EXISTS (
+              SELECT 1
+
+              FROM user_departments
+                employee_ud
+
+              WHERE
+                employee_ud.user_id =
+                  employee.user_id
+
+                AND
+                employee_ud.department_id
+                IN (
+                  SELECT
+                    admin_ud.department_id
+
+                  FROM user_departments
+                    admin_ud
+
+                  WHERE
+                    admin_ud.user_id = ?
+                )
+            )
+
+            OR employee.department_id IN (
+              SELECT
+                admin_ud.department_id
+
+              FROM user_departments
+                admin_ud
+
+              WHERE
+                admin_ud.user_id = ?
+            )
+
+            OR EXISTS (
+              SELECT 1
+
+              FROM user_departments
+                employee_ud
+
+              WHERE
+                employee_ud.user_id =
+                  employee.user_id
+
+                AND
+                employee_ud.department_id = ?
+            )
+
+            OR employee.department_id = ?
+          )
+        `);
+
+        values.push(
+          admin.user_id,
+          admin.user_id,
+          admin.department_id,
+          admin.department_id
+        );
+      }
+
+      const [leaveRows] =
+        await connection.query(
+          `
+          SELECT
+            la.leave_id,
+            la.employee_id,
+            la.leave_type,
+            la.total_days,
+            la.reason,
+            la.status,
+
+            COALESCE(
+              la.revert_status,
+              'none'
+            ) AS revert_status,
+
+            la.revert_reason,
+
+            DATE_FORMAT(
+              la.start_date,
+              '%Y-%m-%d'
+            ) AS start_date,
+
+            DATE_FORMAT(
+              la.end_date,
+              '%Y-%m-%d'
+            ) AS end_date,
+
+            employee.full_name
+              AS employee_name,
+
+            employee.email
+              AS employee_email,
+
+            employee.department_id,
+
+            d.department_name,
+
+            employee_role.role_name
+              AS applicant_role
+
+          FROM leave_applications la
+
+          INNER JOIN users employee
+            ON employee.user_id =
+              la.employee_id
+
+          INNER JOIN roles
+            employee_role
+            ON employee_role.role_id =
+              employee.role_id
+
+          LEFT JOIN departments d
+            ON d.department_id =
+              employee.department_id
+
+          WHERE
+            ${whereParts.join(
+              " AND "
+            )}
+
+          LIMIT 1
+
+          FOR UPDATE
+          `,
+          values
+        );
+
+      if (
+        !leaveRows.length
+      ) {
+        await connection
+          .rollback();
+
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Leave application not found.",
+          });
+      }
+
+      const leave =
+        leaveRows[0];
+
+      /*
+      Reviewer cannot approve their
+      own revert request.
+      */
+
+      if (
+        Number(
+          leave.employee_id
+        ) ===
+        Number(
+          admin.user_id
+        )
+      ) {
+        await connection
+          .rollback();
+
+        return res
+          .status(403)
+          .json({
+            success: false,
+
+            message:
+              "You cannot review your own leave revert request.",
+          });
+      }
+
+      const leaveStatus =
+        String(
+          leave.status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      const revertStatus =
+        String(
+          leave.revert_status ||
+          "none"
+        )
+          .trim()
+          .toLowerCase();
+
+      /*
+      Only original Pending or Approved
+      Leave can have a Revert Request.
+      */
+
+      if (
+        ![
+          "pending",
+          "approved",
+        ].includes(
+          leaveStatus
+        )
+      ) {
+        await connection
+          .rollback();
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "This leave application cannot be reverted.",
+          });
+      }
+
+      if (
+        revertStatus !==
+        "pending"
+      ) {
+        await connection
+          .rollback();
+
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              revertStatus ===
+                "approved"
+                ? "This leave has already been reverted."
+                : revertStatus ===
+                    "rejected"
+                ? "This revert request has already been rejected."
+                : "There is no pending revert request for this leave.",
+          });
+      }
+
+      /*
+      ================================================
+      UPDATE REVERT REQUEST
+      ================================================
+      */
+
+      await connection.query(
+        `
+        UPDATE leave_applications
+
+        SET
+          revert_status = ?,
+          revert_reviewed_by = ?,
+          revert_reviewed_at = NOW(),
+          revert_review_remark = ?
+
+        WHERE leave_id = ?
+        `,
+        [
+          action,
+          admin.user_id,
+          reviewRemark ||
+            null,
+          leaveId,
+        ]
+      );
+
+      await connection.commit();
+
+      /*
+      ================================================
+      AFTER APPROVAL
+
+      Balance automatically returns because
+      leavepolicy.js ignores:
+      revert_status = 'approved'
+      ================================================
+      */
+
+      let updatedBalance =
+        null;
+
+      if (
+        action ===
+          "approved" &&
+        leave.leave_type !==
+          "unpaid"
+      ) {
+        try {
+          const leaveYear =
+            Number(
+              String(
+                leave.start_date
+              ).slice(
+                0,
+                4
+              )
+            );
+
+          const balances =
+            await buildLeaveBalances(
+              db,
+              leave.employee_id,
+              leaveYear
+            );
+
+          updatedBalance =
+            balances[
+              leave.leave_type
+            ] ||
+            null;
+        } catch (
+          balanceError
+        ) {
+          console.error(
+            "Revert balance refresh failed:",
+            balanceError.message
+          );
+        }
+      }
+
+      /*
+      ================================================
+      EMAIL RESULT TO EMPLOYEE
+      ================================================
+      */
+
+      let emailResult = {
+        sent: false,
+        skipped: false,
+      };
+
+      try {
+        const leaveLabel =
+          getLeaveLabel(
+            leave.leave_type
+          );
+
+        const reviewerName =
+          admin.full_name ||
+          "Valencia RMS";
+
+        const actionLabel =
+          action ===
+          "approved"
+            ? "APPROVED"
+            : "REJECTED";
+
+        const mailResponse =
+          await sendMail({
+            to: [
+              leave.employee_email,
+            ],
+
+            subject:
+              action ===
+              "approved"
+                ? `Leave Revert Approved - ${leave.employee_name}`
+                : `Leave Revert Rejected - ${leave.employee_name}`,
+
+            text: `
+Dear ${leave.employee_name || "Employee"},
+
+Your leave revert request has been ${action}.
+
+Leave Type: ${leaveLabel}
+From: ${leave.start_date}
+To: ${leave.end_date}
+Leave Days: ${leave.total_days}
+
+Revert Reason:
+${leave.revert_reason || "-"}
+
+Revert Status: ${actionLabel}
+Reviewed By: ${reviewerName}
+Review Remark: ${reviewRemark || "-"}
+
+${
+  action === "approved"
+    ? "The leave has been reverted and the applicable leave balance has been restored."
+    : "The original leave application remains unchanged."
+}
+
+Regards,
+Valencia RMS
+            `.trim(),
+
+            html: `
+              <div
+                style="
+                  font-family:Arial,sans-serif;
+                  line-height:1.6;
+                  color:#111827;
+                  max-width:700px;
+                "
+              >
+                <h2>
+                  Leave Revert ${
+                    action ===
+                    "approved"
+                      ? "Approved"
+                      : "Rejected"
+                  }
+                </h2>
+
+                <p>
+                  Dear ${
+                    leave.employee_name ||
+                    "Employee"
+                  },
+                </p>
+
+                <p>
+                  Your leave revert
+                  request has been
+                  <strong>
+                    ${action}
+                  </strong>.
+                </p>
+
+                <table
+                  style="
+                    width:100%;
+                    border-collapse:collapse;
+                    margin:18px 0;
+                  "
+                >
+                  <tr>
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      <strong>
+                        Leave Type
+                      </strong>
+                    </td>
+
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      ${leaveLabel}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      <strong>
+                        From
+                      </strong>
+                    </td>
+
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      ${leave.start_date}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      <strong>
+                        To
+                      </strong>
+                    </td>
+
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      ${leave.end_date}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      <strong>
+                        Revert Reason
+                      </strong>
+                    </td>
+
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      ${
+                        leave.revert_reason ||
+                        "-"
+                      }
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      <strong>
+                        Reviewed By
+                      </strong>
+                    </td>
+
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      ${reviewerName}
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      <strong>
+                        Review Remark
+                      </strong>
+                    </td>
+
+                    <td
+                      style="
+                        border:1px solid #ddd;
+                        padding:8px;
+                      "
+                    >
+                      ${
+                        reviewRemark ||
+                        "-"
+                      }
+                    </td>
+                  </tr>
+                </table>
+
+                ${
+                  action ===
+                  "approved"
+                    ? `
+                      <p>
+                        The leave has
+                        been reverted
+                        and the applicable
+                        leave balance has
+                        been restored.
+                      </p>
+                    `
+                    : `
+                      <p>
+                        The original leave
+                        application remains
+                        unchanged.
+                      </p>
+                    `
+                }
+
+                <p>
+                  Regards,<br />
+                  Valencia RMS
+                </p>
+              </div>
+            `,
+          });
+
+        emailResult = {
+          sent:
+            !mailResponse
+              ?.skipped,
+
+          skipped:
+            Boolean(
+              mailResponse
+                ?.skipped
+            ),
+
+          messageId:
+            mailResponse
+              ?.messageId ||
+            null,
+
+          recipients: [
+            leave.employee_email,
+          ],
+        };
+      } catch (
+        emailError
+      ) {
+        console.error(
+          "Leave revert result email failed:",
+          emailError
+            .message
+        );
+
+        emailResult = {
+          sent: false,
+
+          skipped: false,
+
+          error:
+            emailError
+              .message,
+        };
+      }
+
+      return res.json({
+        success: true,
+
+        message:
+          action ===
+          "approved"
+            ? "Leave reverted successfully. Employee leave balance has been restored."
+            : "Leave revert request rejected.",
+
+        leave_id:
+          leaveId,
+
+        original_leave_status:
+          leaveStatus,
+
+        revert_status:
+          action,
+
+        revert_review_remark:
+          reviewRemark,
+
+        balance:
+          updatedBalance,
+
+        email:
+          emailResult,
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection
+            .rollback();
+        } catch {
+          // Ignore rollback error.
+        }
+      }
+
+      console.error(
+        "Review leave revert request error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            "Failed to review leave revert request.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  };
+
 const furtherApproveLeaveApplication = async (
   req,
   res
@@ -1426,8 +2391,12 @@ if (
           la.total_days,
           la.reason,
           la.status,
-
           la.escalated_for_approval,
+
+          COALESCE(
+  la.revert_status,
+  'none'
+) AS revert_status,
 
           DATE_FORMAT(
             la.start_date,
@@ -1494,6 +2463,46 @@ d.department_name,
 
     const leave =
       leaveRows[0];
+
+      const revertStatus =
+  String(
+    leave.revert_status ||
+    "none"
+  )
+    .trim()
+    .toLowerCase();
+
+if (
+  revertStatus === "pending"
+) {
+  await connection.rollback();
+
+  return res
+    .status(409)
+    .json({
+      success: false,
+
+      message:
+        "This leave has a pending revert request and cannot be escalated.",
+    });
+}
+
+if (
+  revertStatus === "approved"
+) {
+  await connection.rollback();
+
+  return res
+    .status(400)
+    .json({
+      success: false,
+
+      message:
+        "This leave has already been reverted.",
+    });
+}
+
+     
 
     if (
       String(
@@ -2061,5 +3070,6 @@ cc:
 module.exports = {
   getAdminLeaveApplications,
   reviewLeaveApplication,
-   furtherApproveLeaveApplication,
+  reviewLeaveRevertRequest,
+  furtherApproveLeaveApplication,
 };
