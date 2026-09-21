@@ -2325,7 +2325,7 @@ const requestLeaveRevert =
 
 const revertDeadline =
   appliedAt +
-  24 * 60 * 60 * 1000;
+  7 * 24 * 60 * 60 * 1000;
 
 if (
   !appliedAt ||
@@ -2336,7 +2336,7 @@ if (
     .json({
       success: false,
       message:
-        "The revert period for this leave has expired. Leave can only be reverted within 24 hours of applying.",
+  "The revert period for this leave has expired. Leave can only be reverted within 7 days of applying.",
     });
 }  
 

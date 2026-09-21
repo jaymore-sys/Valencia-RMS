@@ -511,7 +511,7 @@ const canRequestRevert =
   appliedAt > 0 &&
   Date.now() <=
     appliedAt +
-      24 * 60 * 60 * 1000;
+      7 * 24 * 60 * 60 * 1000;
 
               return (
                 <tr
