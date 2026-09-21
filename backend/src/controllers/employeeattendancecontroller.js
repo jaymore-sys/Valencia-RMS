@@ -1122,47 +1122,91 @@ half_day_session,
        EMPLOYEE'S DEPARTMENT
     ========================= */
 
-    const [adminRows] =
-      await db.query(
-        `
-        SELECT DISTINCT
-          u.user_id,
-          u.full_name,
+   const [adminRows] =
+  await db.query(
+    `
+      SELECT DISTINCT
+        u.user_id,
+        u.full_name,
+        u.email
+
+      FROM users u
+
+      INNER JOIN roles r
+        ON r.role_id = u.role_id
+
+      WHERE
+        LOWER(
+          r.role_name
+        ) = 'admin'
+
+        AND LOWER(
+          COALESCE(
+            u.status,
+            'active'
+          )
+        ) != 'deleted'
+
+        AND u.email IS NOT NULL
+
+        AND TRIM(
           u.email
+        ) != ''
 
-        FROM users u
+        AND (
+          EXISTS (
+            SELECT 1
 
-        INNER JOIN roles r
-          ON r.role_id =
-             u.role_id
+            FROM user_departments admin_ud
 
-        WHERE
-          u.department_id = ?
+            WHERE
+              admin_ud.user_id = u.user_id
 
-          AND LOWER(
-            r.role_name
-          ) = 'admin'
+              AND admin_ud.department_id IN (
+                SELECT
+                  employee_ud.department_id
 
-          AND LOWER(
-            COALESCE(
-              u.status,
-              'active'
-            )
-          ) != 'deleted'
+                FROM user_departments employee_ud
 
-          AND u.email IS NOT NULL
+                WHERE
+                  employee_ud.user_id = ?
+              )
+          )
 
-          AND TRIM(
-            u.email
-          ) != ''
+          OR u.department_id IN (
+            SELECT
+              employee_ud.department_id
 
-        ORDER BY
-          u.full_name ASC
-        `,
-        [
-          employee.department_id,
-        ]
-      );
+            FROM user_departments employee_ud
+
+            WHERE
+              employee_ud.user_id = ?
+          )
+
+          OR EXISTS (
+            SELECT 1
+
+            FROM user_departments admin_ud
+
+            WHERE
+              admin_ud.user_id = u.user_id
+
+              AND admin_ud.department_id = ?
+          )
+
+          OR u.department_id = ?
+        )
+
+      ORDER BY
+        u.full_name ASC
+    `,
+    [
+      employeeId,
+      employeeId,
+      employee.department_id,
+      employee.department_id,
+    ]
+  );
 
     const adminEmails = [
       ...new Set(
