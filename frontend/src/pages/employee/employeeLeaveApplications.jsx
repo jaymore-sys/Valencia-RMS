@@ -498,6 +498,21 @@ const HistoryTable = ({
                   .trim()
                   .toLowerCase();
 
+              const appliedAt = application.applied_at
+  ? new Date(
+      String(application.applied_at).replace(
+        " ",
+        "T"
+      )
+    ).getTime()
+  : 0;
+
+const canRequestRevert =
+  appliedAt > 0 &&
+  Date.now() <=
+    appliedAt +
+      24 * 60 * 60 * 1000;
+
               return (
                 <tr
                   key={
@@ -617,51 +632,58 @@ const HistoryTable = ({
   }}
 >
   {["pending", "approved"].includes(status) ? (
-    revertStatus === "pending" ? (
-      <strong
-        style={{
-          color: "#d97706",
-        }}
-      >
-        Revert Requested
-      </strong>
-    ) : revertStatus === "approved" ? (
-      <strong
-        style={{
-          color: "#15803d",
-        }}
-      >
-        Reverted
-      </strong>
-    ) : (
-      <button
-        type="button"
-        onClick={() =>
-          onRevert(application)
-        }
-        style={{
-          border: 0,
-          borderRadius: "10px",
-          padding: "9px 12px",
-          background: "#f59e0b",
-          color: "#ffffff",
-          fontWeight: 900,
-          cursor: "pointer",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: "6px",
-        }}
-      >
-        <RotateCcw size={15} />
+  revertStatus === "pending" ? (
+    <strong
+      style={{
+        color: "#d97706",
+        fontSize: "12px",
+      }}
+    >
+      Revert Requested
+    </strong>
+  ) : revertStatus === "approved" ? (
+    <strong
+      style={{
+        color: "#15803d",
+        fontSize: "12px",
+      }}
+    >
+      Reverted
+    </strong>
+  ) : canRequestRevert ? (
+    <button
+      type="button"
+      onClick={() =>
+        onRevert(application)
+      }
+      style={{
+        border: 0,
+        borderRadius: "7px",
+        padding: "6px 9px",
+        background: "#f59e0b",
+        color: "#ffffff",
+        fontSize: "12px",
+        fontWeight: 800,
+        cursor: "pointer",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "4px",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <RotateCcw size={12} />
 
-        {revertStatus === "rejected"
-          ? "Request Again"
-          : "Revert Leave"}
-      </button>
-    )
+      {revertStatus === "rejected"
+        ? "Request Again"
+        : "Revert Leave"}
+    </button>
   ) : (
     "-"
-  )}
+  )
+) : (
+  "-"
+)}
 </td>
 
                 </tr>
@@ -1643,9 +1665,11 @@ const submitRevertLeave = async () => {
     await fetchLeaveData();
   } catch (err) {
     setError(
-      err?.response?.data?.message ||
-        "Failed to submit leave revert request."
-    );
+  err?.response?.data?.sqlMessage ||
+  err?.response?.data?.error ||
+  err?.response?.data?.message ||
+  "Failed to submit leave revert request."
+);
   } finally {
     setSubmitting(false);
   }

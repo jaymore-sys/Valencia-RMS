@@ -62,6 +62,10 @@ const getAssignableUsersHandler = pickController(
   "getUsersForProjects"
 );
 
+const getDivisionsHandler = pickController(
+  "getProjectDivisions"
+);
+
 const createMainTaskHandler = pickController(
   "createMainTask",
   "addMainTask",
@@ -90,6 +94,12 @@ router.get("/users", ...adminOnly, getAssignableUsersHandler);
 router.get("/all-users", ...adminOnly, getAssignableUsersHandler);
 router.get("/project-users", ...adminOnly, getAssignableUsersHandler);
 
+
+router.get(
+  "/divisions",
+  ...adminOnly,
+  getDivisionsHandler
+);
 // Project listing route aliases
 router.get("/", ...adminOnly, getProjectsHandler);
 router.get("/projects", ...adminOnly, getProjectsHandler);

@@ -349,6 +349,61 @@ const departmentCondition = "";
     });
   }
 };
+/*
+========================================================
+GET PROJECT DIVISIONS
+
+Divisions come directly from Administrator Departments.
+========================================================
+*/
+
+const getProjectDivisions = async (
+  req,
+  res
+) => {
+  try {
+    const [departments] =
+      await db.query(
+        `
+        SELECT
+          department_id,
+          department_name
+
+        FROM departments
+
+        WHERE
+          TRIM(
+            COALESCE(
+              department_name,
+              ''
+            )
+          ) <> ''
+
+        ORDER BY
+          department_name ASC
+        `
+      );
+
+    return res.status(200).json({
+      success: true,
+      divisions: departments,
+    });
+  } catch (error) {
+    console.error(
+      "Get project divisions error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to fetch project divisions.",
+      error: error.message,
+      sqlMessage:
+        error.sqlMessage || null,
+    });
+  }
+};
 
 /*
 ========================================================
@@ -2670,6 +2725,7 @@ const exportAdminProjectsCsv = async (req, res) => {
 
 module.exports = {
   getAdminProjects,
+  getProjectDivisions,
   exportAdminProjectsCsv,
 
   getDepartmentProjects:

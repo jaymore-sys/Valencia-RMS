@@ -2241,61 +2241,62 @@ const requestLeaveRevert =
       }
 
       const [leaveRows] =
-        await db.query(
-          `
-          SELECT
-            la.leave_id,
-            la.employee_id,
-            la.leave_type,
-            la.start_date,
-            la.end_date,
-            la.total_days,
-            la.status,
+  await db.query(
+    `
+    SELECT
+      la.leave_id,
+      la.employee_id,
+      la.leave_type,
+      la.start_date,
+      la.end_date,
+      la.total_days,
+      la.status,
 
-            COALESCE(
-              la.revert_status,
-              'none'
-            ) AS revert_status,
+      DATE_FORMAT(
+        la.applied_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS applied_at,
 
-            u.full_name
-              AS employee_name,
+      COALESCE(
+        la.revert_status,
+        'none'
+      ) AS revert_status,
 
-            u.email
-              AS employee_email,
+      u.full_name AS employee_name,
+      u.email AS employee_email,
+      u.department_id,
 
-            u.department_id,
+      d.department_name,
 
-            d.department_name,
+      r.role_name AS applicant_role
 
-            r.role_name
-              AS applicant_role
+    FROM leave_applications la
 
-          FROM leave_applications la
+    INNER JOIN users u
+      ON u.user_id =
+        la.employee_id
 
-          INNER JOIN users u
-            ON u.user_id =
-              la.employee_id
+    LEFT JOIN departments d
+      ON d.department_id =
+        u.department_id
 
-          LEFT JOIN departments d
-            ON d.department_id =
-              u.department_id
+    LEFT JOIN roles r
+      ON r.role_id =
+        u.role_id
 
-          LEFT JOIN roles r
-            ON r.role_id =
-              u.role_id
+    WHERE
+      la.leave_id = ?
+      AND la.employee_id = ?
 
-          WHERE
-            la.leave_id = ?
+    LIMIT 1
+    `,
+    [
+      leaveId,
+      employeeId,
+    ]
+  );
 
-            AND la.employee_id = ?
-
-          LIMIT 1
-          `,
-          [
-            leaveId,
-            employeeId,
-          ]
-        );
+    
 
       if (!leaveRows.length) {
         return res
@@ -2309,6 +2310,35 @@ const requestLeaveRevert =
 
       const leave =
         leaveRows[0];
+
+      const appliedAt =
+  leave.applied_at
+    ? new Date(
+        String(
+          leave.applied_at
+        ).replace(
+          " ",
+          "T"
+        )
+      ).getTime()
+    : 0;
+
+const revertDeadline =
+  appliedAt +
+  24 * 60 * 60 * 1000;
+
+if (
+  !appliedAt ||
+  Date.now() > revertDeadline
+) {
+  return res
+    .status(400)
+    .json({
+      success: false,
+      message:
+        "The revert period for this leave has expired. Leave can only be reverted within 24 hours of applying.",
+    });
+}  
 
       const leaveStatus =
         String(

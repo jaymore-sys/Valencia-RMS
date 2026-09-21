@@ -18,17 +18,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import * as XLSX from "xlsx";
-const PROJECT_DIVISIONS = [
-  "POS",
-  "NutraCare",
-  "ADV",
-  "Cans",
-  "PET",
-  "Crunzo",
-  "VBSW",
-  "VNL",
-  
-];
+
 
 const asArray = (value) => {
   if (Array.isArray(value)) return value;
@@ -325,6 +315,7 @@ const tryDelete = async (urls) => {
 const AdminProjects = () => {
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
+  const [divisions, setDivisions] = useState([]);
 
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -444,9 +435,32 @@ const fetchUsers = async () => {
 };
 
   useEffect(() => {
-    fetchProjects();
-    fetchUsers();
-  }, []);
+  fetchProjects();
+  fetchUsers();
+  fetchDivisions();
+}, []);
+
+
+const fetchDivisions = async () => {
+  try {
+    const response = await api.get(
+      "/admin-projects/divisions"
+    );
+
+    const data = getApiData(response);
+
+    setDivisions(
+      asArray(data.divisions)
+    );
+  } catch (err) {
+    console.error(
+      "Fetch project divisions error:",
+      err
+    );
+
+    setDivisions([]);
+  }
+};
 
   const filteredProjects = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -1694,11 +1708,14 @@ summaryRows.push([]);
   >
     <option value="">Select Division</option>
 
-    {PROJECT_DIVISIONS.map((division) => (
-      <option key={division} value={division}>
-        {division}
-      </option>
-    ))}
+    {divisions.map((division) => (
+  <option
+    key={division.department_id}
+    value={division.department_name}
+  >
+    {division.department_name}
+  </option>
+))}
   </select>
 </label>
 
