@@ -158,7 +158,11 @@ const isCurrentMonth = (dateValue) => {
   return dateString.startsWith(`${currentYear}-${currentMonth}`);
 };
 
-const EmployeeAttendance = () => {
+const EmployeeAttendance = ({
+  mode = "attendance",
+}) => {
+  const fieldVisitsOnly =
+    mode === "fieldVisits";
   const [profile, setProfile] = useState({});
   const [summary, setSummary] = useState({
     total_records: 0,
@@ -175,8 +179,11 @@ const EmployeeAttendance = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [attendanceView, setAttendanceView] =
-    useState("attendance");
-
+  useState(
+    fieldVisitsOnly
+      ? "fieldVisits"
+      : "attendance"
+  );
   const [fieldVisits, setFieldVisits] = useState([]);
 
   const [visitSummary, setVisitSummary] = useState({
@@ -504,40 +511,9 @@ const EmployeeAttendance = () => {
   return (
     <div style={styles.page}>
       <div style={styles.topActions}>
-        <div style={styles.viewSwitch}>
-          <button
-            type="button"
-            style={{
-              ...styles.viewSwitchBtn,
-              ...(attendanceView === "attendance"
-                ? styles.viewSwitchActive
-                : {}),
-            }}
-            onClick={() =>
-              setAttendanceView("attendance")
-            }
-          >
-            Attendance
-          </button>
+        
 
-          <button
-            type="button"
-            style={{
-              ...styles.viewSwitchBtn,
-              ...(attendanceView === "fieldVisits"
-                ? styles.viewSwitchActive
-                : {}),
-            }}
-            onClick={() => {
-              setAttendanceView("fieldVisits");
-              fetchFieldVisits();
-            }}
-          >
-            Field Visits
-          </button>
-        </div>
-
-        {attendanceView === "fieldVisits" && (
+        {fieldVisitsOnly && (
           <button
             type="button"
             style={styles.addVisitBtn}
@@ -556,15 +532,12 @@ const EmployeeAttendance = () => {
           type="button"
           style={styles.refreshBtn}
           onClick={() => {
-            if (
-              attendanceView ===
-              "fieldVisits"
-            ) {
-              fetchFieldVisits();
-            } else {
-              fetchAttendance();
-            }
-          }}
+  if (fieldVisitsOnly) {
+    fetchFieldVisits();
+  } else {
+    fetchAttendance();
+  }
+}}
         >
           <RefreshCw size={18} />
           Refresh
@@ -602,7 +575,7 @@ const EmployeeAttendance = () => {
           </strong>
         </div>
       </section>
-      {attendanceView === "attendance" && (
+      {!fieldVisitsOnly && (
         <>
 
           <div style={styles.tabs}>
@@ -745,7 +718,7 @@ const EmployeeAttendance = () => {
           </section>
         </>
       )}
-      {attendanceView === "fieldVisits" && (
+      {fieldVisitsOnly && (
         <>
           {visitError && (
             <div style={styles.errorBox}>

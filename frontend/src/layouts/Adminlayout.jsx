@@ -17,6 +17,7 @@ import {
   LogOut,
   User,
   Users,
+  MapPin,
 } from "lucide-react";
 
 import valenciaLogo from "../assets/VNL_logo.webp";
@@ -172,6 +173,19 @@ const AdminLayout = () => {
             <CalendarCheck size={20} />
             <span>Attendance</span>
           </NavLink>
+
+          <NavLink
+  to="/admin/field-visits"
+  className={({ isActive }) =>
+    isActive ? "active" : ""
+  }
+  title="Field Visits"
+>
+  <MapPin size={20} />
+  <span>Field Visits</span>
+</NavLink>
+
+
 
           <NavLink
             to="/admin/leave-applications"

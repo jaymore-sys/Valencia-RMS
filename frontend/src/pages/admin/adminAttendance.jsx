@@ -71,8 +71,17 @@ const SummaryBox = ({ label, value, compact = false }) => {
   );
 };
 
-const AdminAttendance = () => {
-  const [activeTab, setActiveTab] = useState("myAttendance");
+const AdminAttendance = ({
+  mode = "attendance",
+}) => {
+  const fieldVisitsOnly =
+    mode === "fieldVisits";
+  const [activeTab, setActiveTab] =
+  useState(
+    fieldVisitsOnly
+      ? "fieldVisits"
+      : "myAttendance"
+  );
 
   const [myAttendance, setMyAttendance] = useState(null);
   const [employeeSummary, setEmployeeSummary] = useState([]);
@@ -109,19 +118,25 @@ const AdminAttendance = () => {
     comment: "",
   });
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("fieldVisitToken");
-    const tab = params.get("tab");
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
 
-    if (token) {
-      setFieldVisitToken(token);
-    }
+  const token =
+    params.get("fieldVisitToken");
 
-    if (tab === "fieldVisits" || token) {
-      setActiveTab("fieldVisits");
-      fetchFieldVisits();
-    }
-  }, []);
+  if (token) {
+    setFieldVisitToken(token);
+  }
+
+  if (
+    fieldVisitsOnly ||
+    token
+  ) {
+    setActiveTab("fieldVisits");
+  }
+}, [fieldVisitsOnly]);
 
   const fetchAttendance = async () => {
     try {
@@ -391,6 +406,18 @@ const AdminAttendance = () => {
     fetchAttendance();
   }, []);
 
+  useEffect(() => {
+  if (
+    fieldVisitsOnly &&
+    myAttendance
+  ) {
+    fetchFieldVisits();
+  }
+}, [
+  fieldVisitsOnly,
+  myAttendance?.user_id,
+]);
+
   const filteredEmployees = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
 
@@ -559,7 +586,8 @@ const AdminAttendance = () => {
     <div style={styles.page}>
       {error && <div style={styles.errorBox}>{error}</div>}
 
-      <section style={styles.tabBlock}>
+      {!fieldVisitsOnly && (
+  <section style={styles.tabBlock}>
         <button
           type="button"
           style={
@@ -584,23 +612,9 @@ const AdminAttendance = () => {
           Employee Summary
         </button>
 
-        <button
-          type="button"
-          style={
-            activeTab === "fieldVisits"
-              ? styles.activeTabButton
-              : styles.tabButton
-          }
-          onClick={() => {
-            setActiveTab("fieldVisits");
-            setVisitError("");
-            setVisitMessage("");
-            fetchFieldVisits();
-          }}
-        >
-          Field Visits
-        </button>
-      </section>
+        
+       </section>
+)}
 
       {activeTab === "myAttendance" && (
         <section style={styles.contentBlock}>
@@ -735,8 +749,8 @@ const AdminAttendance = () => {
           )}
         </section>
       )}
-      {activeTab === "fieldVisits" && (
-        <section style={styles.contentBlock}>
+      {fieldVisitsOnly && (
+  <section style={styles.contentBlock}>
           {/* HEADER */}
           <div style={styles.visitHeader}>
             <div>

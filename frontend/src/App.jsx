@@ -47,6 +47,7 @@ import EmployeeProfile from "./pages/employee/employeeProfile";
 import EmployeeAttendance from "./pages/employee/employeeAttendance";
 
 import EmployeeLeaveApplications from "./pages/employee/employeeLeaveApplications";
+import EmployeeFieldVisits from "./pages/employee/employeeFieldVisits";
 import HrAttendance from "./pages/employee/hrAttendance";
 /* ================= ADMIN ================= */
 
@@ -67,7 +68,7 @@ import AdminUsers from "./pages/admin/adminUsers";
 import AdminAttendance from "./pages/admin/adminAttendance";
 
 import AdminLeaveApplications from "./pages/admin/adminLeaveApplications";
-
+import AdminFieldVisits from "./pages/admin/adminFieldVisits";
 /* ================= SUPERADMIN ================= */
 
 import SuperadminLayout from "./layouts/Superadminlayout";
@@ -113,8 +114,7 @@ const getStoredUser = () => {
 function FieldVisitReviewRedirect() {
   const token = window.location.pathname.split("/field-visit-review/")[1];
 
-  const target = `/admin/attendance?tab=fieldVisits&fieldVisitToken=${token}`;
-
+const target = `/admin/field-visits?fieldVisitToken=${token}`;
   const authToken =
     sessionStorage.getItem("token") ||
     localStorage.getItem("token");
@@ -519,6 +519,13 @@ const App = () => {
         />
 
         <Route
+  path="field-visits"
+  element={
+    <EmployeeFieldVisits />
+  }
+/>
+
+        <Route
           path="hr-attendance"
           element={
             <HrProtectedRoute>
@@ -608,6 +615,13 @@ const App = () => {
             <AdminAttendance />
           }
         />
+
+        <Route
+  path="field-visits"
+  element={
+    <AdminFieldVisits />
+  }
+/>
 
         <Route
           path="leave-applications"

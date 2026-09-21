@@ -7,8 +7,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
-  FolderKanban,
+   FolderKanban,
   LogOut,
+  MapPin,
   User,
   UsersRound
 } from "lucide-react";
@@ -151,6 +152,17 @@ const isHR = HR_EMAILS.includes(
             <CalendarCheck size={20} />
             <span>Attendance</span>
           </NavLink>
+
+          <NavLink
+  to="/employee/field-visits"
+  className={({ isActive }) =>
+    isActive ? "active" : ""
+  }
+  title="Field Visits"
+>
+  <MapPin size={20} />
+  <span>Field Visits</span>
+</NavLink>
 
           {isHR && (
   <NavLink
