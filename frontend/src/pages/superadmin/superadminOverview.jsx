@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
+import NotificationBell from "../../components/NotificationBell";
 import "./superadminOverview.css";
 
 /* =====================================================
@@ -630,14 +631,24 @@ const SuperadminOverview = () => {
           </p>
         </div>
 
-        <button
-          type="button"
-          className="sa-ov-primary-btn"
-          onClick={fetchOverview}
-        >
-          <RefreshCw size={17} />
-          Refresh
-        </button>
+       <div
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  }}
+>
+  <NotificationBell />
+
+  <button
+    type="button"
+    className="sa-ov-primary-btn"
+    onClick={fetchOverview}
+  >
+    <RefreshCw size={17} />
+    Refresh
+  </button>
+</div>
       </div>
 
       {message && (

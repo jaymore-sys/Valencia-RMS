@@ -251,13 +251,17 @@ const calculateInclusiveDays = (
   startDate,
   endDate
 ) => {
-  const startParts = String(startDate)
-    .split("-")
-    .map(Number);
 
-  const endParts = String(endDate)
-    .split("-")
-    .map(Number);
+  const startParts =
+    String(startDate)
+      .split("-")
+      .map(Number);
+
+  const endParts =
+    String(endDate)
+      .split("-")
+      .map(Number);
+
 
   if (
     startParts.length !== 3 ||
@@ -266,32 +270,70 @@ const calculateInclusiveDays = (
     return 0;
   }
 
-  const start = Date.UTC(
-    startParts[0],
-    startParts[1] - 1,
-    startParts[2]
-  );
 
-  const end = Date.UTC(
-    endParts[0],
-    endParts[1] - 1,
-    endParts[2]
-  );
+  const start =
+    new Date(
+      Date.UTC(
+        startParts[0],
+        startParts[1] - 1,
+        startParts[2]
+      )
+    );
+
+
+  const end =
+    new Date(
+      Date.UTC(
+        endParts[0],
+        endParts[1] - 1,
+        endParts[2]
+      )
+    );
+
 
   if (
-    Number.isNaN(start) ||
-    Number.isNaN(end) ||
+    Number.isNaN(
+      start.getTime()
+    ) ||
+    Number.isNaN(
+      end.getTime()
+    ) ||
     end < start
   ) {
     return 0;
   }
 
-  return (
-    Math.floor(
-      (end - start) /
-        (24 * 60 * 60 * 1000)
-    ) + 1
-  );
+
+  let workingDays = 0;
+
+  const current =
+    new Date(start);
+
+
+  while (
+    current <= end
+  ) {
+
+    /*
+    Sunday = 0
+
+    Sundays are weekly offs
+    and must not consume leave.
+    */
+    if (
+      current.getUTCDay() !== 0
+    ) {
+      workingDays += 1;
+    }
+
+
+    current.setUTCDate(
+      current.getUTCDate() + 1
+    );
+  }
+
+
+  return workingDays;
 };
 
 const getIndiaToday = () => {
@@ -1088,6 +1130,27 @@ const applyEmployeeLeave =
               startDate,
               endDate
             );
+
+            if (
+  durationType === "half_day"
+) {
+  const selectedDay =
+    new Date(
+      `${startDate}T00:00:00`
+    ).getDay();
+
+  if (
+    selectedDay === 0
+  ) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+        message:
+          "Sunday is a weekly off and cannot be applied as leave.",
+      });
+  }
+}
 
       if (
         totalDays <= 0

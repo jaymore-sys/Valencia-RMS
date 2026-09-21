@@ -323,8 +323,7 @@ const departmentCondition = "";
     r.role_name,
     ''
   )
-) IN ('employee', 'administrator')
-
+) IN ('employee', 'administrator', 'admin')
       ORDER BY
         u.full_name ASC
       `,
@@ -1215,10 +1214,11 @@ const createAdminProject = async (
                 r.role_name,
                 ''
               )
-            ) IN (
-              'employee',
-              'administrator'
-            )
+           ) IN (
+  'employee',
+  'administrator',
+  'admin'
+)
         `,
         [assigneeIds]
       );

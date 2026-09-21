@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import AdminReviewPopup from "./AdminReviewPopup";
-
+import NotificationBell from "../../components/NotificationBell";
 
 const statusLabels = {
   todo: "To Do",
@@ -550,8 +550,25 @@ const AdminOverview = () => {
   }
 
   return (
-    <div style={styles.page}>
-      {message && <div style={styles.warning}>{message}</div>}
+  <div style={styles.page}>
+
+    <div
+  style={{
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginBottom: "18px",
+    paddingRight: "14px",
+  }}
+>
+  <NotificationBell />
+</div>
+
+    {message && (
+      <div style={styles.warning}>
+        {message}
+      </div>
+    )}
 
       <section style={styles.statsGrid}>
   <div
@@ -775,11 +792,11 @@ const AdminOverview = () => {
             </h2>
 
             <p
-              style={{
-                ...styles.sectionSubtitle,
-                marginBottom: 0,
-              }}
-            >
+  style={{
+    ...styles.sectionSubtitle,
+    margin: "7px 0 0",
+  }}
+>
               Main tasks submitted by employees and waiting
               for your review.
             </p>

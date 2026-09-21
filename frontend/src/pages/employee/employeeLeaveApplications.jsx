@@ -793,13 +793,26 @@ const [revertReason, setRevertReason] =
         }
 
         if (
-          form.duration_type ===
-          "half_day"
-        ) {
-          return form.start_date
-            ? 0.5
-            : 0;
-        }
+  form.duration_type ===
+  "half_day"
+) {
+  if (!form.start_date) {
+    return 0;
+  }
+
+  const selectedDate =
+    new Date(
+      `${form.start_date}T00:00:00`
+    );
+
+  if (
+    selectedDate.getDay() === 0
+  ) {
+    return 0;
+  }
+
+  return 0.5;
+}
 
         if (
           !form.start_date ||
@@ -828,16 +841,26 @@ const [revertReason, setRevertReason] =
           return 0;
         }
 
-        return (
-          Math.floor(
-            (end.getTime() -
-              start.getTime()) /
-            (1000 *
-              60 *
-              60 *
-              24)
-          ) + 1
-        );
+        let workingDays = 0;
+
+const current =
+  new Date(start);
+
+while (
+  current <= end
+) {
+  if (
+    current.getDay() !== 0
+  ) {
+    workingDays += 1;
+  }
+
+  current.setDate(
+    current.getDate() + 1
+  );
+}
+
+return workingDays;
       }, [
         selectedLeaveType,
         form.start_date,

@@ -5,7 +5,8 @@ require("dotenv").config();
 const db = require("./config/db");
 
 const authRoutes = require("./routes/authroutes");
-
+const notificationRoutes =
+  require("./routes/notificationroutes");
 const administratorRoutes = require("./routes/administratorroutes");
 const adminRoutes = require("./routes/adminroutes");
 const administratorLeaveRoutes = require(
@@ -427,7 +428,10 @@ app.use(
 calendarRoutes
 );
 
-
+app.use(
+  "/api/notifications",
+  notificationRoutes
+);
 
 
 
