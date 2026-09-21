@@ -1555,7 +1555,18 @@ try {
       const admin =
         reviewUsers[0] ||
         {};
-     const finalLeaveRecipients = [
+     /*
+======================================================
+DEFAULT LEAVE MAIL RECIPIENTS
+
+Keep existing system exactly as fallback:
+- Premal
+- Department Admin(s) for non-Admin applicant
+- Rathika in CC
+======================================================
+*/
+
+let finalLeaveRecipients = [
   ...new Set(
     [
       PREMAL_LEAVE_EMAIL,
@@ -1578,7 +1589,7 @@ try {
   ),
 ];
 
-const finalCcRecipients = [
+let finalCcRecipients = [
   ...new Set(
     [
       RATHIKA_LEAVE_EMAIL,
@@ -1597,6 +1608,103 @@ const finalCcRecipients = [
       )
   ),
 ];
+
+
+/*
+======================================================
+CHECK PER-USER CUSTOM MAIL RECIPIENT OVERRIDE
+
+If Administrator has saved custom Leave recipients
+for this user, those recipients replace the default
+mail routing.
+
+This changes email delivery ONLY.
+Approval permissions remain unchanged.
+======================================================
+*/
+
+try {
+  const [customRecipientRows] =
+    await db.query(
+      `
+      SELECT DISTINCT
+        recipient.email
+
+      FROM user_mail_recipient_overrides override_row
+
+      INNER JOIN users recipient
+        ON recipient.user_id =
+           override_row.recipient_user_id
+
+      WHERE
+        override_row.source_user_id = ?
+
+        AND override_row.mail_type =
+            'leave'
+
+        AND LOWER(
+          COALESCE(
+            recipient.status,
+            'active'
+          )
+        ) = 'active'
+
+        AND recipient.email IS NOT NULL
+
+        AND TRIM(
+          recipient.email
+        ) != ''
+
+      ORDER BY
+        recipient.full_name ASC
+      `,
+      [employeeId]
+    );
+
+  const customLeaveRecipients = [
+    ...new Set(
+      customRecipientRows
+        .map((row) =>
+          String(
+            row.email || ""
+          )
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (
+    customLeaveRecipients.length >
+    0
+  ) {
+    finalLeaveRecipients =
+      customLeaveRecipients;
+
+    /*
+    Custom Mail To selection is treated
+    as the full recipient list.
+
+    Do not automatically add Rathika,
+    Premal or Department Admin(s) once
+    a custom override exists.
+    */
+
+    finalCcRecipients = [];
+  }
+} catch (mailOverrideError) {
+  /*
+  If custom lookup fails for any reason,
+  keep the existing default email logic.
+  Do not block the leave application.
+  */
+
+  console.error(
+    "Leave custom mail recipient lookup failed:",
+    mailOverrideError.message
+  );
+}
       /*
       ======================================================
       EMAIL

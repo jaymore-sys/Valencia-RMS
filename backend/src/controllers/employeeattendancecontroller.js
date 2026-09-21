@@ -1242,51 +1242,176 @@ half_day_session,
        NOT added to the approval email.
       */
 
-      let toEmails = [
-        ...adminEmails,
-      ];
+/*
+========================================================
+DEFAULT FIELD VISIT MAIL RECIPIENTS
 
-      let ccEmails = [
+Existing system:
+TO = Department Admin(s)
+CC = Rathika
+
+If no Department Admin exists:
+TO = Rathika
+========================================================
+*/
+
+let toEmails = [
+  ...adminEmails,
+];
+
+let ccEmails = [
   HR_FIELD_VISIT_EMAIL,
 ];
 
-      // Remove duplicates across TO and CC.
-      toEmails = [
-        ...new Set(
-          toEmails
-            .map((email) =>
-              String(email || "")
-                .trim()
-                .toLowerCase()
-            )
-            .filter(Boolean)
-        ),
-      ];
 
-      ccEmails = [
-        ...new Set(
-          ccEmails
-            .map((email) =>
-              String(email || "")
-                .trim()
-                .toLowerCase()
-            )
-            .filter(
-              (email) =>
-                email &&
-                !toEmails.includes(email)
-            )
-        ),
-      ];
+/*
+--------------------------------------------------------
+NORMALIZE DEFAULT RECIPIENTS
+--------------------------------------------------------
+*/
 
-      // If no department Admin is configured,
-      // fixed recipients must still receive the request.
-      if (toEmails.length === 0) {
+toEmails = [
+  ...new Set(
+    toEmails
+      .map((email) =>
+        String(email || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+  ),
+];
+
+ccEmails = [
+  ...new Set(
+    ccEmails
+      .map((email) =>
+        String(email || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(
+        (email) =>
+          email &&
+          !toEmails.includes(email)
+      )
+  ),
+];
+
+
+/*
+--------------------------------------------------------
+DEFAULT FALLBACK
+
+If no Department Admin exists,
+Rathika still receives the request.
+--------------------------------------------------------
+*/
+
+if (toEmails.length === 0) {
   toEmails = [
     HR_FIELD_VISIT_EMAIL,
   ];
 
   ccEmails = [];
+}
+
+
+/*
+========================================================
+CHECK PER-USER CUSTOM FIELD VISIT MAIL RECIPIENTS
+
+If Administrator has saved custom recipients for
+this user, those recipients completely replace the
+normal Field Visit email routing.
+
+This changes email delivery only.
+Approval permissions remain unchanged.
+========================================================
+*/
+
+try {
+  const [customRecipientRows] =
+    await db.query(
+      `
+      SELECT DISTINCT
+        recipient.email
+
+      FROM user_mail_recipient_overrides override_row
+
+      INNER JOIN users recipient
+        ON recipient.user_id =
+           override_row.recipient_user_id
+
+      WHERE
+        override_row.source_user_id = ?
+
+        AND override_row.mail_type =
+            'field_visit'
+
+        AND LOWER(
+          COALESCE(
+            recipient.status,
+            'active'
+          )
+        ) = 'active'
+
+        AND recipient.email IS NOT NULL
+
+        AND TRIM(
+          recipient.email
+        ) != ''
+
+      ORDER BY
+        recipient.full_name ASC
+      `,
+      [
+        employee.user_id,
+      ]
+    );
+
+  const customFieldVisitRecipients = [
+    ...new Set(
+      customRecipientRows
+        .map((row) =>
+          String(
+            row.email || ""
+          )
+            .trim()
+            .toLowerCase()
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  if (
+    customFieldVisitRecipients.length >
+    0
+  ) {
+    toEmails =
+      customFieldVisitRecipients;
+
+    /*
+    Once a custom Mail To list exists,
+    do not automatically add Rathika
+    or Department Admin(s).
+    */
+
+    ccEmails = [];
+  }
+} catch (mailOverrideError) {
+  /*
+  If custom recipient lookup fails,
+  keep the normal existing Field Visit
+  email recipients.
+
+  Do not block Field Visit submission.
+  */
+
+  console.error(
+    "Field Visit custom mail recipient lookup failed:",
+    mailOverrideError.message
+  );
 }
 
 const durationLabel =

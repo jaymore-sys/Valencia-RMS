@@ -2033,3 +2033,462 @@
     width: 100%;
   }
 }
+
+
+
+
+/* =========================================================
+   ADMINISTRATOR USER MAIL RECIPIENT MANAGEMENT
+========================================================= */
+
+.administrator-mail-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+
+  width: 100vw !important;
+  height: 100vh !important;
+
+  z-index: 3000000 !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  padding: 24px !important;
+
+  background: rgba(15, 23, 42, 0.52) !important;
+  backdrop-filter: blur(2px) !important;
+}
+
+
+/* =========================================================
+   MAIL MODAL
+========================================================= */
+
+.administrator-mail-modal {
+  position: relative !important;
+
+  width: min(900px, calc(100vw - 48px)) !important;
+  max-width: 900px !important;
+
+  max-height: calc(100vh - 48px) !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 18px !important;
+
+  box-shadow:
+    0 28px 70px rgba(15, 23, 42, 0.24) !important;
+
+  overflow: hidden !important;
+}
+
+
+/* =========================================================
+   MAIL MODAL HEADER
+========================================================= */
+
+.administrator-mail-modal-header {
+  flex: 0 0 auto !important;
+
+  min-height: 82px !important;
+
+  padding: 18px 22px !important;
+
+  border-bottom: 1px solid #e4e7ec !important;
+
+  background: #ffffff !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  gap: 18px !important;
+}
+
+.administrator-mail-modal-header h2 {
+  margin: 0 !important;
+
+  color: #101828 !important;
+
+  font-size: 20px !important;
+  line-height: 1.2 !important;
+  font-weight: 900 !important;
+}
+
+.administrator-mail-modal-header p {
+  margin: 5px 0 0 !important;
+
+  color: #667085 !important;
+
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+}
+
+.administrator-mail-modal-header > button {
+  flex: 0 0 36px !important;
+
+  width: 36px !important;
+  height: 36px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 10px !important;
+
+  background: #ffffff !important;
+  color: #475467 !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  cursor: pointer !important;
+
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease !important;
+}
+
+.administrator-mail-modal-header > button:hover:not(:disabled) {
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+}
+
+.administrator-mail-modal-header > button:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+
+
+/* =========================================================
+   MAIL MODAL BODY
+========================================================= */
+
+.administrator-mail-modal-body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+
+  padding: 20px 22px 22px !important;
+
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+
+  background: #f8fafc !important;
+
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.administrator-mail-modal-body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+
+/* =========================================================
+   MAIL GROUP
+========================================================= */
+
+.administrator-mail-group {
+  padding: 18px !important;
+
+  margin-bottom: 16px !important;
+
+  background: #ffffff !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 14px !important;
+}
+
+.administrator-mail-group:last-of-type {
+  margin-bottom: 0 !important;
+}
+
+.administrator-mail-group-heading {
+  margin-bottom: 14px !important;
+}
+
+.administrator-mail-group-heading h3 {
+  margin: 0 !important;
+
+  color: #101828 !important;
+
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.administrator-mail-group-heading p {
+  margin: 4px 0 0 !important;
+
+  color: #98a2b3 !important;
+
+  font-size: 10.5px !important;
+  line-height: 1.45 !important;
+  font-weight: 600 !important;
+}
+
+
+/* =========================================================
+   MAIL USERS GRID
+========================================================= */
+
+.administrator-mail-users-grid {
+  display: grid !important;
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr)) !important;
+
+  gap: 10px !important;
+}
+
+
+/* =========================================================
+   MAIL USER CARD
+========================================================= */
+
+.administrator-mail-user-card {
+  min-width: 0 !important;
+  min-height: 74px !important;
+
+  padding: 12px 13px !important;
+
+  border: 1px solid #dfe3e8 !important;
+  border-radius: 12px !important;
+
+  background: #ffffff !important;
+
+  display: flex !important;
+  align-items: flex-start !important;
+
+  gap: 10px !important;
+
+  cursor: pointer !important;
+
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease !important;
+}
+
+.administrator-mail-user-card:hover {
+  border-color: #fdba74 !important;
+  background: #fffaf8 !important;
+}
+
+.administrator-mail-user-card.selected {
+  border-color: #ff5733 !important;
+
+  background: #fff5f1 !important;
+
+  box-shadow:
+    0 0 0 2px rgba(255, 87, 51, 0.07) !important;
+}
+
+
+/* Hide native checkbox */
+.administrator-mail-user-card input {
+  display: none !important;
+}
+
+
+/* =========================================================
+   CUSTOM CHECKBOX
+========================================================= */
+
+.administrator-mail-checkbox {
+  flex: 0 0 22px !important;
+
+  width: 22px !important;
+  height: 22px !important;
+
+  margin-top: 1px !important;
+
+  border: 1px solid #d0d5dd !important;
+  border-radius: 6px !important;
+
+  background: #ffffff !important;
+  color: #ffffff !important;
+
+  display: grid !important;
+  place-items: center !important;
+
+  font-size: 11px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+}
+
+.administrator-mail-user-card.selected
+  .administrator-mail-checkbox {
+  border-color: #ff5733 !important;
+  background: #ff5733 !important;
+}
+
+
+/* =========================================================
+   USER COPY
+========================================================= */
+
+.administrator-mail-user-copy {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+
+  display: flex !important;
+  flex-direction: column !important;
+
+  gap: 3px !important;
+}
+
+.administrator-mail-user-copy strong {
+  width: 100% !important;
+
+  color: #101828 !important;
+
+  font-size: 11.5px !important;
+  line-height: 1.35 !important;
+  font-weight: 900 !important;
+
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.administrator-mail-user-copy small {
+  width: 100% !important;
+
+  color: #667085 !important;
+
+  font-size: 9.5px !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.administrator-mail-user-copy small:last-child {
+  color: #98a2b3 !important;
+}
+
+
+/* =========================================================
+   MAIL MODAL ACTIONS
+========================================================= */
+
+.administrator-mail-modal-actions {
+  margin-top: 18px !important;
+
+  padding-top: 16px !important;
+
+  border-top: 1px solid #e4e7ec !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+
+  gap: 10px !important;
+}
+
+.administrator-mail-modal-actions
+  .administrator-action-btn,
+.administrator-mail-modal-actions
+  .administrator-primary-btn {
+  min-height: 40px !important;
+
+  padding: 0 14px !important;
+
+  border-radius: 10px !important;
+
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  gap: 7px !important;
+
+  font-size: 10.5px !important;
+  font-weight: 900 !important;
+
+  cursor: pointer !important;
+}
+
+.administrator-mail-modal-actions
+  .administrator-primary-btn {
+  border: 1px solid #ff5733 !important;
+
+  background: #ff5733 !important;
+  color: #ffffff !important;
+}
+
+.administrator-mail-modal-actions
+  .administrator-primary-btn:hover:not(:disabled) {
+  background: #e94b2c !important;
+  border-color: #e94b2c !important;
+}
+
+.administrator-mail-modal-actions button:disabled {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+}
+
+
+/* =========================================================
+   RESPONSIVE MAIL MODAL
+========================================================= */
+
+@media (max-width: 768px) {
+  .administrator-mail-modal-backdrop {
+    align-items: flex-end !important;
+
+    padding: 12px !important;
+  }
+
+  .administrator-mail-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    max-height: 92vh !important;
+
+    border-radius: 16px !important;
+  }
+
+  .administrator-mail-users-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .administrator-mail-modal-actions {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+  }
+
+  .administrator-mail-modal-actions
+    .administrator-action-btn,
+  .administrator-mail-modal-actions
+    .administrator-primary-btn {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .administrator-mail-modal-header {
+    padding: 16px !important;
+  }
+
+  .administrator-mail-modal-body {
+    padding: 14px !important;
+  }
+
+  .administrator-mail-group {
+    padding: 14px !important;
+  }
+
+  .administrator-mail-user-card {
+    min-height: 68px !important;
+    padding: 11px !important;
+  }
+}

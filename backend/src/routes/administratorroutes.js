@@ -36,6 +36,9 @@ const {
   setAdministratorUserPassword,
   deleteAdministratorUser,
 
+  getAdministratorUserMailRecipients,
+  updateAdministratorUserMailRecipients,
+
   getAdministratorUserLeaveBalances,
   addAdministratorUserExtraLeave,
   reduceAdministratorUserLeave,
@@ -255,6 +258,24 @@ router.delete(
   authMiddleware,
   requireJayAdministrator,
   deleteAdministratorUser
+);
+
+/* =========================================================
+   USER MAIL RECIPIENT MANAGEMENT
+========================================================= */
+
+router.get(
+  "/users/:userId/mail-recipients",
+  authMiddleware,
+  requireJayAdministrator,
+  getAdministratorUserMailRecipients
+);
+
+router.put(
+  "/users/:userId/mail-recipients",
+  authMiddleware,
+  requireJayAdministrator,
+  updateAdministratorUserMailRecipients
 );
 
 /* =========================================================

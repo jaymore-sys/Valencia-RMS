@@ -8,6 +8,18 @@ const {
 
 const DEFAULT_USER_PASSWORD = "Valencia@123";
 
+/*
+========================================================
+MAIL RECIPIENT CONFIGURATION
+========================================================
+*/
+
+const PREMAL_MAIL_EMAIL =
+  "premal.mehta@valencianutrition.com";
+
+const RATHIKA_MAIL_EMAIL =
+  "rathika.haleangadi@valencianutrition.com";
+
 const PROJECT_STATUSES = [
   "not_started",
   "ongoing",
@@ -3703,6 +3715,928 @@ const deleteAdministratorUser = async (req, res) => {
 
 /*
 ========================================================
+ADMINISTRATOR USER MAIL RECIPIENT MANAGEMENT
+========================================================
+*/
+
+const getAdministratorUserMailRecipients =
+  async (req, res) => {
+    try {
+      const userId =
+        Number(req.params.userId);
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid user ID is required.",
+        });
+      }
+
+      /*
+      ------------------------------------------------------
+      GET SELECTED USER
+      ------------------------------------------------------
+      */
+
+      const [userRows] =
+        await db.query(
+          `
+          SELECT
+            u.user_id,
+            u.full_name,
+            u.email,
+            u.department_id,
+            u.status,
+            r.role_name
+
+          FROM users u
+
+          LEFT JOIN roles r
+            ON r.role_id =
+               u.role_id
+
+          WHERE
+            u.user_id = ?
+
+            AND COALESCE(
+              u.status,
+              'active'
+            ) != 'deleted'
+
+          LIMIT 1
+          `,
+          [userId]
+        );
+
+      if (!userRows.length) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "User not found.",
+        });
+      }
+
+      const selectedUser =
+        userRows[0];
+
+      const selectedRole =
+        String(
+          selectedUser.role_name ||
+            ""
+        )
+          .trim()
+          .toLowerCase();
+
+      /*
+      ------------------------------------------------------
+      ALL USERS AVAILABLE FOR SELECTION
+
+      Any active RMS user with an email can be selected.
+      ------------------------------------------------------
+      */
+
+      const [availableUsers] =
+        await db.query(
+          `
+          SELECT
+            u.user_id,
+            u.employee_code,
+            u.full_name,
+            u.email,
+            u.department_id,
+            d.department_name,
+            r.role_name
+
+          FROM users u
+
+          LEFT JOIN roles r
+            ON r.role_id =
+               u.role_id
+
+          LEFT JOIN departments d
+            ON d.department_id =
+               u.department_id
+
+          WHERE
+            LOWER(
+              COALESCE(
+                u.status,
+                'active'
+              )
+            ) = 'active'
+
+            AND u.email IS NOT NULL
+
+            AND TRIM(
+              u.email
+            ) != ''
+
+          ORDER BY
+            u.full_name ASC
+          `
+        );
+
+      /*
+      ------------------------------------------------------
+      EXISTING CUSTOM OVERRIDES
+      ------------------------------------------------------
+      */
+
+      const [overrideRows] =
+        await db.query(
+          `
+          SELECT
+            mail_type,
+            recipient_user_id
+
+          FROM user_mail_recipient_overrides
+
+          WHERE
+            source_user_id = ?
+
+          ORDER BY
+            override_id ASC
+          `,
+          [userId]
+        );
+
+      const leaveOverrideIds =
+        overrideRows
+          .filter(
+            (row) =>
+              row.mail_type ===
+              "leave"
+          )
+          .map(
+            (row) =>
+              Number(
+                row.recipient_user_id
+              )
+          );
+
+      const fieldVisitOverrideIds =
+        overrideRows
+          .filter(
+            (row) =>
+              row.mail_type ===
+              "field_visit"
+          )
+          .map(
+            (row) =>
+              Number(
+                row.recipient_user_id
+              )
+          );
+
+      const hasLeaveOverride =
+        leaveOverrideIds.length > 0;
+
+      const hasFieldVisitOverride =
+        fieldVisitOverrideIds.length >
+        0;
+
+      /*
+      ------------------------------------------------------
+      DEFAULT LEAVE RECIPIENTS
+
+      Existing current logic:
+
+      Employee / Administrator
+      -> Premal
+      -> relevant Department Admin(s)
+      -> Rathika
+
+      Admin
+      -> Premal
+      -> Rathika
+
+      This only determines what should appear selected
+      before a custom override has been saved.
+      ------------------------------------------------------
+      */
+
+      const defaultLeaveIds = [];
+
+      const premalUser =
+        availableUsers.find(
+          (user) =>
+            String(
+              user.email || ""
+            )
+              .trim()
+              .toLowerCase() ===
+            PREMAL_MAIL_EMAIL
+        );
+
+      const rathikaUser =
+        availableUsers.find(
+          (user) =>
+            String(
+              user.email || ""
+            )
+              .trim()
+              .toLowerCase() ===
+            RATHIKA_MAIL_EMAIL
+        );
+
+      if (premalUser) {
+        defaultLeaveIds.push(
+          Number(
+            premalUser.user_id
+          )
+        );
+      }
+
+      /*
+      Current leave logic does not add
+      Department Admin(s) for an Admin applicant.
+      */
+
+      if (
+        selectedRole !== "admin"
+      ) {
+        const [departmentAdminRows] =
+          await db.query(
+            `
+            SELECT DISTINCT
+              admin_user.user_id
+
+            FROM users admin_user
+
+            INNER JOIN roles admin_role
+              ON admin_role.role_id =
+                 admin_user.role_id
+
+            WHERE
+              LOWER(
+                TRIM(
+                  admin_role.role_name
+                )
+              ) = 'admin'
+
+              AND LOWER(
+                COALESCE(
+                  admin_user.status,
+                  'active'
+                )
+              ) = 'active'
+
+              AND admin_user.email
+                  IS NOT NULL
+
+              AND TRIM(
+                admin_user.email
+              ) != ''
+
+              AND (
+                EXISTS (
+                  SELECT 1
+
+                  FROM user_departments
+                    admin_ud
+
+                  WHERE
+                    admin_ud.user_id =
+                      admin_user.user_id
+
+                    AND
+                    admin_ud.department_id
+                    IN (
+                      SELECT
+                        employee_ud.department_id
+
+                      FROM user_departments
+                        employee_ud
+
+                      WHERE
+                        employee_ud.user_id = ?
+                    )
+                )
+
+                OR
+                admin_user.department_id
+                IN (
+                  SELECT
+                    employee_ud.department_id
+
+                  FROM user_departments
+                    employee_ud
+
+                  WHERE
+                    employee_ud.user_id = ?
+                )
+
+                OR EXISTS (
+                  SELECT 1
+
+                  FROM user_departments
+                    admin_ud
+
+                  WHERE
+                    admin_ud.user_id =
+                      admin_user.user_id
+
+                    AND
+                    admin_ud.department_id = ?
+                )
+
+                OR
+                admin_user.department_id = ?
+              )
+            `,
+            [
+              userId,
+              userId,
+              selectedUser.department_id,
+              selectedUser.department_id,
+            ]
+          );
+
+        departmentAdminRows.forEach(
+          (row) => {
+            defaultLeaveIds.push(
+              Number(row.user_id)
+            );
+          }
+        );
+      }
+
+      if (rathikaUser) {
+        defaultLeaveIds.push(
+          Number(
+            rathikaUser.user_id
+          )
+        );
+      }
+
+      /*
+      ------------------------------------------------------
+      DEFAULT FIELD VISIT RECIPIENTS
+
+      Existing current logic:
+      -> Admin(s) of primary department
+      -> Rathika
+
+      If no department Admin exists:
+      -> Rathika
+      ------------------------------------------------------
+      */
+
+      const defaultFieldVisitIds =
+        [];
+
+      const [fieldVisitAdminRows] =
+        await db.query(
+          `
+          SELECT DISTINCT
+            u.user_id
+
+          FROM users u
+
+          INNER JOIN roles r
+            ON r.role_id =
+               u.role_id
+
+          WHERE
+            u.department_id = ?
+
+            AND LOWER(
+              TRIM(
+                r.role_name
+              )
+            ) = 'admin'
+
+            AND LOWER(
+              COALESCE(
+                u.status,
+                'active'
+              )
+            ) != 'deleted'
+
+            AND u.email IS NOT NULL
+
+            AND TRIM(
+              u.email
+            ) != ''
+
+          ORDER BY
+            u.full_name ASC
+          `,
+          [
+            selectedUser.department_id,
+          ]
+        );
+
+      fieldVisitAdminRows.forEach(
+        (row) => {
+          defaultFieldVisitIds.push(
+            Number(row.user_id)
+          );
+        }
+      );
+
+      if (rathikaUser) {
+        defaultFieldVisitIds.push(
+          Number(
+            rathikaUser.user_id
+          )
+        );
+      }
+
+      /*
+      ------------------------------------------------------
+      REMOVE DUPLICATES
+      ------------------------------------------------------
+      */
+
+      const cleanDefaultLeaveIds = [
+        ...new Set(
+          defaultLeaveIds.filter(
+            Boolean
+          )
+        ),
+      ];
+
+      const cleanDefaultFieldVisitIds =
+        [
+          ...new Set(
+            defaultFieldVisitIds.filter(
+              Boolean
+            )
+          ),
+        ];
+
+      /*
+      ------------------------------------------------------
+      FINAL SELECTIONS
+
+      If override exists:
+      use override.
+
+      Otherwise:
+      show current default recipients selected.
+      ------------------------------------------------------
+      */
+
+      const selectedLeaveRecipientIds =
+        hasLeaveOverride
+          ? [
+              ...new Set(
+                leaveOverrideIds
+              ),
+            ]
+          : cleanDefaultLeaveIds;
+
+      const selectedFieldVisitRecipientIds =
+        hasFieldVisitOverride
+          ? [
+              ...new Set(
+                fieldVisitOverrideIds
+              ),
+            ]
+          : cleanDefaultFieldVisitIds;
+
+      return res.json({
+        success: true,
+
+        user: {
+          user_id:
+            selectedUser.user_id,
+
+          full_name:
+            selectedUser.full_name,
+
+          email:
+            selectedUser.email,
+
+          role_name:
+            selectedUser.role_name,
+
+          department_id:
+            selectedUser.department_id,
+        },
+
+        available_users:
+          availableUsers,
+
+        leave: {
+          has_override:
+            hasLeaveOverride,
+
+          recipient_user_ids:
+            selectedLeaveRecipientIds,
+
+          default_recipient_user_ids:
+            cleanDefaultLeaveIds,
+        },
+
+        field_visit: {
+          has_override:
+            hasFieldVisitOverride,
+
+          recipient_user_ids:
+            selectedFieldVisitRecipientIds,
+
+          default_recipient_user_ids:
+            cleanDefaultFieldVisitIds,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "getAdministratorUserMailRecipients error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          "Failed to load mail recipients.",
+
+        error:
+          error.message,
+
+        sqlMessage:
+          error.sqlMessage || null,
+      });
+    }
+  };
+
+
+const updateAdministratorUserMailRecipients =
+  async (req, res) => {
+    let connection;
+
+    try {
+      connection =
+        await db.getConnection();
+
+      const userId =
+        Number(req.params.userId);
+
+      const administratorUserId =
+        Number(
+          req.user?.user_id
+        );
+
+      if (
+        !Number.isInteger(userId) ||
+        userId <= 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Valid user ID is required.",
+        });
+      }
+
+      /*
+      Expected body:
+
+      {
+        leave_recipient_user_ids: [1, 2, 3],
+        field_visit_recipient_user_ids: [2, 5]
+      }
+      */
+
+      const leaveRecipientIds = [
+        ...new Set(
+          (
+            Array.isArray(
+              req.body
+                ?.leave_recipient_user_ids
+            )
+              ? req.body
+                  .leave_recipient_user_ids
+              : []
+          )
+            .map(Number)
+            .filter(
+              (id) =>
+                Number.isInteger(id) &&
+                id > 0
+            )
+        ),
+      ];
+
+      const fieldVisitRecipientIds =
+        [
+          ...new Set(
+            (
+              Array.isArray(
+                req.body
+                  ?.field_visit_recipient_user_ids
+              )
+                ? req.body
+                    .field_visit_recipient_user_ids
+                : []
+            )
+              .map(Number)
+              .filter(
+                (id) =>
+                  Number.isInteger(
+                    id
+                  ) &&
+                  id > 0
+              )
+          ),
+        ];
+
+      /*
+      We require at least one recipient
+      for each mail flow.
+
+      This also lets:
+      "no rows"
+      continue meaning:
+      "use normal default logic".
+      */
+
+      if (
+        leaveRecipientIds.length ===
+        0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select at least one Leave Application mail recipient.",
+        });
+      }
+
+      if (
+        fieldVisitRecipientIds.length ===
+        0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Please select at least one Field Visit mail recipient.",
+        });
+      }
+
+      await connection.beginTransaction();
+
+      /*
+      ------------------------------------------------------
+      CHECK SOURCE USER
+      ------------------------------------------------------
+      */
+
+      const [sourceRows] =
+        await connection.query(
+          `
+          SELECT user_id
+
+          FROM users
+
+          WHERE
+            user_id = ?
+
+            AND COALESCE(
+              status,
+              'active'
+            ) != 'deleted'
+
+          LIMIT 1
+          `,
+          [userId]
+        );
+
+      if (!sourceRows.length) {
+        await connection.rollback();
+
+        return res.status(404).json({
+          success: false,
+          message:
+            "User not found.",
+        });
+      }
+
+      /*
+      ------------------------------------------------------
+      VALIDATE ALL SELECTED RECIPIENT USERS
+      ------------------------------------------------------
+      */
+
+      const allRecipientIds = [
+        ...new Set([
+          ...leaveRecipientIds,
+          ...fieldVisitRecipientIds,
+        ]),
+      ];
+
+      const placeholders =
+        allRecipientIds
+          .map(() => "?")
+          .join(",");
+
+      const [validRecipientRows] =
+        await connection.query(
+          `
+          SELECT
+            user_id
+
+          FROM users
+
+          WHERE
+            user_id IN (
+              ${placeholders}
+            )
+
+            AND LOWER(
+              COALESCE(
+                status,
+                'active'
+              )
+            ) = 'active'
+
+            AND email IS NOT NULL
+
+            AND TRIM(email) != ''
+          `,
+          allRecipientIds
+        );
+
+      const validIds =
+        new Set(
+          validRecipientRows.map(
+            (row) =>
+              Number(
+                row.user_id
+              )
+          )
+        );
+
+      const invalidIds =
+        allRecipientIds.filter(
+          (id) =>
+            !validIds.has(id)
+        );
+
+      if (
+        invalidIds.length > 0
+      ) {
+        await connection.rollback();
+
+        return res.status(400).json({
+          success: false,
+          message:
+            "One or more selected mail recipients are invalid, deleted, blocked, or do not have an email address.",
+        });
+      }
+
+      /*
+      ------------------------------------------------------
+      REMOVE OLD CUSTOM SETTINGS
+      ------------------------------------------------------
+      */
+
+      await connection.query(
+        `
+        DELETE FROM
+          user_mail_recipient_overrides
+
+        WHERE
+          source_user_id = ?
+        `,
+        [userId]
+      );
+
+      /*
+      ------------------------------------------------------
+      SAVE LEAVE RECIPIENTS
+      ------------------------------------------------------
+      */
+
+      for (
+        const recipientUserId
+        of leaveRecipientIds
+      ) {
+        await connection.query(
+          `
+          INSERT INTO
+            user_mail_recipient_overrides
+          (
+            source_user_id,
+            mail_type,
+            recipient_user_id,
+            created_by
+          )
+
+          VALUES
+          (
+            ?,
+            'leave',
+            ?,
+            ?
+          )
+          `,
+          [
+            userId,
+            recipientUserId,
+            administratorUserId,
+          ]
+        );
+      }
+
+      /*
+      ------------------------------------------------------
+      SAVE FIELD VISIT RECIPIENTS
+      ------------------------------------------------------
+      */
+
+      for (
+        const recipientUserId
+        of fieldVisitRecipientIds
+      ) {
+        await connection.query(
+          `
+          INSERT INTO
+            user_mail_recipient_overrides
+          (
+            source_user_id,
+            mail_type,
+            recipient_user_id,
+            created_by
+          )
+
+          VALUES
+          (
+            ?,
+            'field_visit',
+            ?,
+            ?
+          )
+          `,
+          [
+            userId,
+            recipientUserId,
+            administratorUserId,
+          ]
+        );
+      }
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+
+        message:
+          "Mail recipients updated successfully.",
+
+        user_id:
+          userId,
+
+        leave_recipient_user_ids:
+          leaveRecipientIds,
+
+        field_visit_recipient_user_ids:
+          fieldVisitRecipientIds,
+      });
+    } catch (error) {
+      if (connection) {
+        try {
+          await connection.rollback();
+        } catch (
+          rollbackError
+        ) {
+          console.error(
+            "MAIL RECIPIENT ROLLBACK ERROR:",
+            rollbackError
+          );
+        }
+      }
+
+      console.error(
+        "updateAdministratorUserMailRecipients error:",
+        error
+      );
+
+      return res.status(500).json({
+        success: false,
+
+        message:
+          "Failed to update mail recipients.",
+
+        error:
+          error.message,
+
+        sqlMessage:
+          error.sqlMessage || null,
+      });
+    } finally {
+      if (connection) {
+        connection.release();
+      }
+    }
+  };
+
+/*
+========================================================
 ADMINISTRATOR USER LEAVE MANAGEMENT
 ========================================================
 */
@@ -5176,6 +6110,9 @@ module.exports = {
   resetAdministratorUserPassword,
   setAdministratorUserPassword,
   deleteAdministratorUser,
+
+  getAdministratorUserMailRecipients,
+  updateAdministratorUserMailRecipients,
 
   getAdministratorUserLeaveBalances,
   addAdministratorUserExtraLeave,

@@ -4,6 +4,7 @@ import {
   Eye,
   EyeOff,
   Lock,
+  Mail,
   MinusCircle,
   Plus,
   RefreshCw,
@@ -108,6 +109,26 @@ const AdministratorUsers = () => {
   const [reduceStartDate, setReduceStartDate] = useState("");
   const [reduceEndDate, setReduceEndDate] = useState("");
   const [savingReduceLeave, setSavingReduceLeave] = useState(false);
+
+  const [showMailRecipientsModal, setShowMailRecipientsModal] =
+    useState(false);
+
+  const [mailRecipientUsers, setMailRecipientUsers] =
+    useState([]);
+
+  const [leaveMailRecipientIds, setLeaveMailRecipientIds] =
+    useState([]);
+
+  const [
+    fieldVisitMailRecipientIds,
+    setFieldVisitMailRecipientIds,
+  ] = useState([]);
+
+  const [loadingMailRecipients, setLoadingMailRecipients] =
+    useState(false);
+
+  const [savingMailRecipients, setSavingMailRecipients] =
+    useState(false);
 
   const [showAddDepartment, setShowAddDepartment] = useState(false);
 
@@ -416,6 +437,13 @@ const AdministratorUsers = () => {
     setReduceStartDate("");
     setReduceEndDate("");
 
+    setShowMailRecipientsModal(false);
+    setMailRecipientUsers([]);
+    setLeaveMailRecipientIds([]);
+    setFieldVisitMailRecipientIds([]);
+    setLoadingMailRecipients(false);
+    setSavingMailRecipients(false);
+
     setMessage("");
   };
 
@@ -447,6 +475,13 @@ const AdministratorUsers = () => {
     setReduceStartDate("");
     setReduceEndDate("");
     setSavingReduceLeave(false);
+
+    setShowMailRecipientsModal(false);
+    setMailRecipientUsers([]);
+    setLeaveMailRecipientIds([]);
+    setFieldVisitMailRecipientIds([]);
+    setLoadingMailRecipients(false);
+    setSavingMailRecipients(false);
 
     setUpdatingRole(false);
     setUpdatingDetails(false);
@@ -746,6 +781,180 @@ const AdministratorUsers = () => {
     setReduceStartDate("");
     setReduceEndDate("");
   };
+
+  const openMailRecipientsModal =
+    async () => {
+      if (!selectedUser) {
+        return;
+      }
+
+      try {
+        setLoadingMailRecipients(true);
+        setMessage("");
+
+        const response =
+          await api.get(
+            `/administrator/users/${selectedUser.user_id}/mail-recipients`
+          );
+
+        setMailRecipientUsers(
+          response.data.available_users ||
+            []
+        );
+
+        setLeaveMailRecipientIds(
+          (
+            response.data.leave
+              ?.recipient_user_ids ||
+            []
+          ).map(Number)
+        );
+
+        setFieldVisitMailRecipientIds(
+          (
+            response.data.field_visit
+              ?.recipient_user_ids ||
+            []
+          ).map(Number)
+        );
+
+        setShowMailRecipientsModal(
+          true
+        );
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to load mail recipients."
+        );
+      } finally {
+        setLoadingMailRecipients(false);
+      }
+    };
+
+  const closeMailRecipientsModal =
+    () => {
+      if (
+        savingMailRecipients ||
+        loadingMailRecipients
+      ) {
+        return;
+      }
+
+      setShowMailRecipientsModal(false);
+      setMailRecipientUsers([]);
+      setLeaveMailRecipientIds([]);
+      setFieldVisitMailRecipientIds([]);
+    };
+
+  const toggleLeaveMailRecipient =
+    (userId) => {
+      const id =
+        Number(userId);
+
+      setLeaveMailRecipientIds(
+        (previous) => {
+          if (
+            previous.includes(id)
+          ) {
+            return previous.filter(
+              (item) =>
+                item !== id
+            );
+          }
+
+          return [
+            ...previous,
+            id,
+          ];
+        }
+      );
+    };
+
+  const toggleFieldVisitMailRecipient =
+    (userId) => {
+      const id =
+        Number(userId);
+
+      setFieldVisitMailRecipientIds(
+        (previous) => {
+          if (
+            previous.includes(id)
+          ) {
+            return previous.filter(
+              (item) =>
+                item !== id
+            );
+          }
+
+          return [
+            ...previous,
+            id,
+          ];
+        }
+      );
+    };
+
+  const saveMailRecipients =
+    async () => {
+      if (!selectedUser) {
+        return;
+      }
+
+      if (
+        leaveMailRecipientIds.length ===
+        0
+      ) {
+        setMessage(
+          "Please select at least one Leave Application mail recipient."
+        );
+
+        return;
+      }
+
+      if (
+        fieldVisitMailRecipientIds.length ===
+        0
+      ) {
+        setMessage(
+          "Please select at least one Field Visit mail recipient."
+        );
+
+        return;
+      }
+
+      try {
+        setSavingMailRecipients(true);
+        setMessage("");
+
+        const response =
+          await api.put(
+            `/administrator/users/${selectedUser.user_id}/mail-recipients`,
+            {
+              leave_recipient_user_ids:
+                leaveMailRecipientIds,
+
+              field_visit_recipient_user_ids:
+                fieldVisitMailRecipientIds,
+            }
+          );
+
+        setMessage(
+          response.data.message ||
+            "Mail recipients updated successfully."
+        );
+
+        setShowMailRecipientsModal(false);
+      } catch (error) {
+        setMessage(
+          error.response?.data?.error ||
+            error.response?.data?.message ||
+            "Failed to update mail recipients."
+        );
+      } finally {
+        setSavingMailRecipients(false);
+      }
+    };
 
   const saveReducedLeave =
     async () => {
@@ -2089,6 +2298,47 @@ const AdministratorUsers = () => {
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">
                   <h3>
+                    Select Mail To
+                  </h3>
+
+                  <p>
+                    Choose who should receive this user's Leave Application and Field Visit emails.
+                  </p>
+                </div>
+
+                <div className="administrator-leave-action-row">
+                  <div className="administrator-leave-action-copy">
+                    <strong>
+                      Configure mail recipients
+                    </strong>
+
+                    <span>
+                      Current default recipients are already selected unless a custom list has been saved.
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="administrator-primary-btn"
+                    onClick={
+                      openMailRecipientsModal
+                    }
+                    disabled={
+                      loadingMailRecipients
+                    }
+                  >
+                    <Mail size={16} />
+
+                    {loadingMailRecipients
+                      ? "Loading..."
+                      : "Select Mail To"}
+                  </button>
+                </div>
+              </section>
+
+              <section className="administrator-dialog-section">
+                <div className="administrator-dialog-section-heading">
+                  <h3>
                     Set New Password
                   </h3>
 
@@ -2419,6 +2669,243 @@ const AdministratorUsers = () => {
                     {savingExtraLeave
                       ? "Adding..."
                       : "Confirm"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      {showMailRecipientsModal &&
+        selectedUser && (
+          <div
+            className="administrator-mail-modal-backdrop"
+            onMouseDown={
+              closeMailRecipientsModal
+            }
+          >
+            <div
+              className="administrator-mail-modal"
+              onMouseDown={(
+                event
+              ) =>
+                event.stopPropagation()
+              }
+            >
+              <div className="administrator-mail-modal-header">
+                <div>
+                  <h2>
+                    Select Mail To
+                  </h2>
+
+                  <p>
+                    {
+                      selectedUser.full_name
+                    }
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={
+                    closeMailRecipientsModal
+                  }
+                  disabled={
+                    savingMailRecipients
+                  }
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="administrator-mail-modal-body">
+                <div className="administrator-mail-group">
+                  <div className="administrator-mail-group-heading">
+                    <h3>
+                      Leave Application
+                    </h3>
+
+                    <p>
+                      Select who should receive leave application emails for this user.
+                    </p>
+                  </div>
+
+                  <div className="administrator-mail-users-grid">
+                    {mailRecipientUsers.map(
+                      (user) => {
+                        const userId =
+                          Number(
+                            user.user_id
+                          );
+
+                        const selected =
+                          leaveMailRecipientIds.includes(
+                            userId
+                          );
+
+                        return (
+                          <label
+                            key={`leave-${userId}`}
+                            className={
+                              selected
+                                ? "administrator-mail-user-card selected"
+                                : "administrator-mail-user-card"
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                selected
+                              }
+                              onChange={() =>
+                                toggleLeaveMailRecipient(
+                                  userId
+                                )
+                              }
+                            />
+
+                            <span className="administrator-mail-checkbox">
+                              {selected
+                                ? "✓"
+                                : ""}
+                            </span>
+
+                            <span className="administrator-mail-user-copy">
+                              <strong>
+                                {
+                                  user.full_name
+                                }
+                              </strong>
+
+                              <small>
+                                {
+                                  user.email
+                                }
+                              </small>
+
+                              <small>
+                                {user.role_name ||
+                                  "-"}
+                                {user.department_name
+                                  ? ` • ${user.department_name}`
+                                  : ""}
+                              </small>
+                            </span>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+
+                <div className="administrator-mail-group">
+                  <div className="administrator-mail-group-heading">
+                    <h3>
+                      Field Visit
+                    </h3>
+
+                    <p>
+                      Select who should receive Field Visit emails for this user.
+                    </p>
+                  </div>
+
+                  <div className="administrator-mail-users-grid">
+                    {mailRecipientUsers.map(
+                      (user) => {
+                        const userId =
+                          Number(
+                            user.user_id
+                          );
+
+                        const selected =
+                          fieldVisitMailRecipientIds.includes(
+                            userId
+                          );
+
+                        return (
+                          <label
+                            key={`field-${userId}`}
+                            className={
+                              selected
+                                ? "administrator-mail-user-card selected"
+                                : "administrator-mail-user-card"
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={
+                                selected
+                              }
+                              onChange={() =>
+                                toggleFieldVisitMailRecipient(
+                                  userId
+                                )
+                              }
+                            />
+
+                            <span className="administrator-mail-checkbox">
+                              {selected
+                                ? "✓"
+                                : ""}
+                            </span>
+
+                            <span className="administrator-mail-user-copy">
+                              <strong>
+                                {
+                                  user.full_name
+                                }
+                              </strong>
+
+                              <small>
+                                {
+                                  user.email
+                                }
+                              </small>
+
+                              <small>
+                                {user.role_name ||
+                                  "-"}
+                                {user.department_name
+                                  ? ` • ${user.department_name}`
+                                  : ""}
+                              </small>
+                            </span>
+                          </label>
+                        );
+                      }
+                    )}
+                  </div>
+                </div>
+
+                <div className="administrator-mail-modal-actions">
+                  <button
+                    type="button"
+                    className="administrator-action-btn"
+                    onClick={
+                      closeMailRecipientsModal
+                    }
+                    disabled={
+                      savingMailRecipients
+                    }
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    className="administrator-primary-btn"
+                    onClick={
+                      saveMailRecipients
+                    }
+                    disabled={
+                      savingMailRecipients
+                    }
+                  >
+                    <Save size={16} />
+
+                    {savingMailRecipients
+                      ? "Saving..."
+                      : "Save Mail To"}
                   </button>
                 </div>
               </div>
