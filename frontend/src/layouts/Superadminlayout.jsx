@@ -18,6 +18,7 @@ import {
   Users,
   MapPin,
   ClipboardCheck,
+  UserRound,
 } from "lucide-react";
 
 import vnlLogo from "../assets/VNL_logo.webp";
@@ -333,6 +334,17 @@ const SuperadminLayout = () => {
             </span>
 
           </NavLink>
+
+          <NavLink
+  to="/superadmin/profile"
+  title="Profile"
+>
+  <UserRound />
+
+  <span>
+    Profile
+  </span>
+</NavLink>
 
 
 

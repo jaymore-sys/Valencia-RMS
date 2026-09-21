@@ -123,15 +123,17 @@ const getAdminProfile = async (req, res) => {
 
     const [rows] = await db.query(
       `
-      SELECT 
-        u.user_id,
-        u.employee_code,
-        u.full_name,
-        u.email,
-        u.designation,
-        u.department_id,
-        r.role_name,
-        d.department_name
+      SELECT  
+  u.user_id, 
+  u.employee_code, 
+  u.full_name, 
+  u.email,
+  u.phone,
+  u.designation,
+  u.status,
+  u.department_id, 
+  r.role_name, 
+  d.department_name 
       FROM users u
       LEFT JOIN roles r 
         ON u.role_id = r.role_id
@@ -168,16 +170,18 @@ if (
 }
 
     return res.status(200).json({
-      admin: {
-        user_id: admin.user_id,
-        employee_code: admin.employee_code,
-        full_name: admin.full_name,
-        email: admin.email,
-        department_id: admin.department_id,
-        department_name: admin.department_name,
-        designation: admin.designation,
-        role_name: admin.role_name,
-      },
+      admin: { 
+  user_id: admin.user_id, 
+  employee_code: admin.employee_code, 
+  full_name: admin.full_name, 
+  email: admin.email,
+  phone: admin.phone,
+  department_id: admin.department_id, 
+  department_name: admin.department_name, 
+  designation: admin.designation,
+  status: admin.status,
+  role_name: admin.role_name, 
+},
     });
   } catch (error) {
     console.error("Get admin profile error:", error);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -189,6 +189,41 @@ const SuperadminProfile = () => {
     profile?.role ||
     "superadmin";
 
+  const superadminDepartment =
+  profile?.department_name ||
+  profile?.department ||
+  "-";
+
+const otherDetails = useMemo(() => {
+  return [
+    {
+      label: "Designation",
+      value: profile?.designation || "-",
+    },
+    {
+      label: "Employee Code",
+      value:
+        profile?.employee_code ||
+        profile?.employee_id ||
+        profile?.user_id ||
+        "-",
+    },
+    {
+      label: "Phone",
+      value:
+        profile?.phone ||
+        profile?.mobile ||
+        "-",
+    },
+    {
+      label: "Status",
+      value:
+        profile?.status ||
+        "Active",
+    },
+  ];
+}, [profile]);  
+
 
   return (
     <div style={styles.page}>
@@ -233,14 +268,14 @@ const SuperadminProfile = () => {
 
 
           <div style={styles.badgeRow}>
-            <span
-              style={
-                styles.roleBadge
-              }
-            >
-              {superadminRole}
-            </span>
-          </div>
+  <span style={styles.roleBadge}>
+    {superadminRole}
+  </span>
+
+  <span style={styles.departmentBadge}>
+    {superadminDepartment}
+  </span>
+</div>
 
 
           <button
@@ -260,6 +295,34 @@ const SuperadminProfile = () => {
         </div>
       </section>
 
+      <section style={styles.detailsBlock}>
+  <div style={styles.sectionHeader}>
+    <h2 style={styles.sectionTitle}>
+      Employee Details
+    </h2>
+
+    <p style={styles.sectionSubtitle}>
+      Additional account and employee information.
+    </p>
+  </div>
+
+  <div style={styles.detailsGrid}>
+    {otherDetails.map((item) => (
+      <div
+        style={styles.detailCard}
+        key={item.label}
+      >
+        <span style={styles.detailLabel}>
+          {item.label}
+        </span>
+
+        <strong style={styles.detailValue}>
+          {item.value}
+        </strong>
+      </div>
+    ))}
+  </div>
+</section>
 
       {showPasswordBox && (
 
@@ -677,6 +740,77 @@ const styles = {
     textTransform:
       "capitalize",
   },
+
+  departmentBadge: {
+  background: "#fff1ed",
+  color: "#ff5733",
+  borderRadius: "999px",
+  padding: "10px 18px",
+  fontSize: "14px",
+  fontWeight: 900,
+},
+
+detailsBlock: {
+  width: "100%",
+  background: "#ffffff",
+  borderRadius: "28px",
+  padding: "34px",
+  boxShadow:
+    "0 18px 46px rgba(15, 23, 42, 0.07)",
+  marginTop: "28px",
+},
+
+sectionHeader: {
+  marginBottom: "24px",
+},
+
+sectionTitle: {
+  margin: "0 0 8px",
+  color: "#111827",
+  fontSize: "32px",
+  fontWeight: 900,
+},
+
+sectionSubtitle: {
+  margin: 0,
+  color: "#64748b",
+  fontSize: "16px",
+  fontWeight: 700,
+},
+
+detailsGrid: {
+  display: "grid",
+  gridTemplateColumns:
+    "repeat(4, minmax(0, 1fr))",
+  gap: "18px",
+},
+
+detailCard: {
+  background: "#f8fafc",
+  border: "1px solid #e5e7eb",
+  borderRadius: "20px",
+  padding: "24px",
+  minHeight: "118px",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center",
+  gap: "10px",
+},
+
+detailLabel: {
+  color: "#64748b",
+  fontSize: "14px",
+  fontWeight: 900,
+},
+
+detailValue: {
+  color: "#111827",
+  fontSize: "19px",
+  fontWeight: 900,
+  lineHeight: 1.35,
+  overflowWrap: "anywhere",
+  textTransform: "none",
+},
 
 
   passwordButton: {

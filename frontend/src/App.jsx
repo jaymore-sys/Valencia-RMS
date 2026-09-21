@@ -88,7 +88,7 @@ import SuperadminCalendar from "./pages/superadmin/superadminCalendar";
 
 import SuperadminAttendance from "./pages/superadmin/superadminAttendance";
 import SuperadminLeaveApplications from "./pages/superadmin/superadminLeaveApplications";
-
+import SuperadminProfile from "./pages/superadmin/superadminProfile";
 /* ========================================================
    AUTH HELPERS
 ======================================================== */
@@ -724,6 +724,12 @@ const App = () => {
           element={
             <SuperadminFieldVisits />
           }
+        />
+
+        <Route
+          path="profile"
+          element={
+            <SuperadminProfile />}
         />
 
       </Route>
