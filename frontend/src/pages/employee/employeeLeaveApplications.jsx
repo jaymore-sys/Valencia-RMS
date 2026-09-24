@@ -1212,17 +1212,20 @@ return workingDays;
     };
 
     const openApplyModal = (
-      leaveType
-    ) => {
-      setSelectedLeaveType(
-        leaveType
-      );
+  leaveType
+) => {
+  setSelectedLeaveType(
+    leaveType
+  );
 
-      resetForm();
+  setForm({
+    ...EMPTY_FORM,
+    duration_type: "full_day",
+  });
 
-      setError("");
-      setSuccess("");
-    };
+  setError("");
+  setSuccess("");
+};
 
     const closeApplyModal = () => {
       if (submitting) return;
@@ -1314,6 +1317,29 @@ return workingDays;
       START DATE
       ========================================
       */
+
+      if (
+  selectedLeaveType === "casual" &&
+  form.duration_type === "half_day"
+) {
+  setError(
+    "Casual Leave can only be applied as Full Day."
+  );
+
+  return;
+}
+
+if (
+  selectedLeaveType === "sick" &&
+  form.duration_type === "half_day" &&
+  form.start_date !== getTodayDate()
+) {
+  setError(
+    "Half Day Sick Leave can only be applied for today."
+  );
+
+  return;
+}
 
       if (!form.start_date) {
         setError(
@@ -2617,274 +2643,295 @@ const casualAvailable = Number(
                       </label>
                     )}
 
-                  <div
-                    style={
-                      styles.formSection
-                    }
-                  >
-                    <span
-                      style={
-                        styles.formSectionLabel
-                      }
-                    >
-                      Leave Duration
-                    </span>
+                   {/* ==============================
+    DATE SELECTION
+============================== */}
 
+<div
+  style={
+    form.duration_type === "half_day"
+      ? styles.singleDateGrid
+      : styles.formGrid
+  }
+>
+  <label
+    style={
+      styles.field
+    }
+  >
+    <span>
+      {form.duration_type === "half_day"
+        ? "Leave Date"
+        : "From Date"}
+    </span>
+
+    <input
+      type="date"
+      min={
+        selectedMinimumLeaveDate
+      }
+      style={
+        styles.input
+      }
+      value={
+        form.start_date
+      }
+      onChange={(event) => {
+        const value =
+          event.target.value;
+
+        setForm((previous) => {
+          const sickFutureDate =
+            selectedLeaveType === "sick" &&
+            value !== getTodayDate();
+
+          const mustUseFullDay =
+            selectedLeaveType === "casual" ||
+            sickFutureDate;
+
+          const nextDuration =
+            mustUseFullDay
+              ? "full_day"
+              : previous.duration_type;
+
+          return {
+            ...previous,
+
+            start_date:
+              value,
+
+            duration_type:
+              nextDuration,
+
+            half_day_session:
+              mustUseFullDay
+                ? "first_half"
+                : previous.half_day_session,
+
+            end_date:
+              nextDuration === "half_day"
+                ? value
+                : previous.end_date &&
+                  previous.end_date < value
+                  ? ""
+                  : previous.end_date,
+          };
+        });
+
+        setError("");
+      }}
+    />
+  </label>
+
+  {form.duration_type === "full_day" && (
+    <label
+      style={
+        styles.field
+      }
+    >
+      <span>
+        To Date
+      </span>
+
+      <input
+        type="date"
+        min={
+          form.start_date ||
+          selectedMinimumLeaveDate
+        }
+        max={
+          selectedLeaveType === "mandatory" &&
+          privilegedMaxEndDate
+            ? privilegedMaxEndDate
+            : undefined
+        }
+        style={
+          styles.input
+        }
+        value={
+          form.end_date
+        }
+        onChange={(event) => {
+          const value =
+            event.target.value;
+
+          if (
+            selectedLeaveType === "mandatory" &&
+            privilegedMaxEndDate &&
+            value > privilegedMaxEndDate
+          ) {
+            setError(
+              `You only have ${formatDays(
+                selectedAvailable
+              )} day(s) of Privileged Leave available. Please select a shorter leave duration.`
+            );
+
+            return;
+          }
+
+          setError("");
+
+          setForm(
+            (previous) => ({
+              ...previous,
+              end_date: value,
+            })
+          );
+        }}
+      />
+    </label>
+  )}
+</div>
+
+{/* ==============================
+    LEAVE DURATION
+============================== */}
+
+{selectedLeaveType !== "casual" && (
+  <div
+    style={
+      styles.formSection
+    }
+  >
+    <span
+      style={
+        styles.formSectionLabel
+      }
+    >
+      Leave Duration
+    </span>
+
+    <div
+      style={
+        styles.optionGrid
+      }
+    >
+      <button
+        type="button"
+        style={
+          form.duration_type === "full_day"
+            ? styles.activeOptionBtn
+            : styles.optionBtn
+        }
+        onClick={() =>
+          handleDurationChange(
+            "full_day"
+          )
+        }
+      >
+        Full Day
+      </button>
+
+      {(
+        selectedLeaveType !== "sick" ||
+        form.start_date === getTodayDate()
+      ) && (
+        <button
+          type="button"
+          style={
+            form.duration_type === "half_day"
+              ? styles.activeOptionBtn
+              : styles.optionBtn
+          }
+          onClick={() =>
+            handleDurationChange(
+              "half_day"
+            )
+          }
+        >
+          Half Day
+        </button>
+      )}
+    </div>
+  </div>
+)}
+
+{/* ==============================
+    HALF DAY SESSION
+============================== */}
+
+{form.duration_type === "half_day" &&
+  selectedLeaveType !== "casual" && (
+    <div
+      style={
+        styles.formSection
+      }
+    >
+      <span
+        style={
+          styles.formSectionLabel
+        }
+      >
+        Half-Day Session
+      </span>
+
+      <div
+        style={
+          styles.optionGrid
+        }
+      >
+        <button
+          type="button"
+          style={
+            form.half_day_session === "first_half"
+              ? styles.activeOptionBtn
+              : styles.optionBtn
+          }
+          onClick={() =>
+            setForm(
+              (previous) => ({
+                ...previous,
+
+                half_day_session:
+                  "first_half",
+              })
+            )
+          }
+        >
+          First Half
+        </button>
+
+        <button
+          type="button"
+          style={
+            form.half_day_session === "second_half"
+              ? styles.activeOptionBtn
+              : styles.optionBtn
+          }
+          onClick={() =>
+            setForm(
+              (previous) => ({
+                ...previous,
+
+                half_day_session:
+                  "second_half",
+              })
+            )
+          }
+        >
+          Second Half
+        </button>
+      </div>
+    </div>
+  )}
                     <div
-                      style={
-                        styles.optionGrid
-                      }
-                    >
-                      <button
-                        type="button"
-                        style={
-                          form.duration_type ===
-                            "full_day"
-                            ? styles.activeOptionBtn
-                            : styles.optionBtn
-                        }
-                        onClick={() =>
-                          handleDurationChange(
-                            "full_day"
-                          )
-                        }
-                      >
-                        Full Day
-                      </button>
+  style={
+    styles.daysBox
+  }
+>
+  <span>
+    Leave Days
+  </span>
 
-                      <button
-                        type="button"
-                        style={
-                          form.duration_type ===
-                            "half_day"
-                            ? styles.activeOptionBtn
-                            : styles.optionBtn
-                        }
-                        onClick={() =>
-                          handleDurationChange(
-                            "half_day"
-                          )
-                        }
-                      >
-                        Half Day
-                      </button>
-                    </div>
-                  </div>
+  <strong>
+    {formatDays(
+      calculateDays
+    )}
+  </strong>
+</div>
 
-                  {form.duration_type ===
-                    "half_day" && (
-                      <div
-                        style={
-                          styles.formSection
-                        }
-                      >
-                        <span
-                          style={
-                            styles.formSectionLabel
-                          }
-                        >
-                          Half-Day
-                          Session
-                        </span>
-
-                        <div
-                          style={
-                            styles.optionGrid
-                          }
-                        >
-                          <button
-                            type="button"
-                            style={
-                              form.half_day_session ===
-                                "first_half"
-                                ? styles.activeOptionBtn
-                                : styles.optionBtn
-                            }
-                            onClick={() =>
-                              setForm(
-                                (
-                                  previous
-                                ) => ({
-                                  ...previous,
-
-                                  half_day_session:
-                                    "first_half",
-                                })
-                              )
-                            }
-                          >
-                            First Half
-                          </button>
-
-                          <button
-                            type="button"
-                            style={
-                              form.half_day_session ===
-                                "second_half"
-                                ? styles.activeOptionBtn
-                                : styles.optionBtn
-                            }
-                            onClick={() =>
-                              setForm(
-                                (
-                                  previous
-                                ) => ({
-                                  ...previous,
-
-                                  half_day_session:
-                                    "second_half",
-                                })
-                              )
-                            }
-                          >
-                            Second Half
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                  <div
-                    style={
-                      form.duration_type ===
-                        "half_day"
-                        ? styles.singleDateGrid
-                        : styles.formGrid
-                    }
-                  >
-                    <label
-                      style={
-                        styles.field
-                      }
-                    >
-                      <span>
-                        {form.duration_type ===
-                          "half_day"
-                          ? "Leave Date"
-                          : "From Date"}
-                      </span>
-
-                      <input
-                        type="date"
-                        min={
-                          selectedMinimumLeaveDate
-                        }
-                        style={
-                          styles.input
-                        }
-                        value={
-                          form.start_date
-                        }
-                        onChange={(
-                          event
-                        ) => {
-                          const value =
-                            event
-                              .target
-                              .value;
-
-                          setForm(
-                            (
-                              previous
-                            ) => ({
-                              ...previous,
-
-                              start_date:
-                                value,
-
-                              end_date:
-                                previous.duration_type ===
-                                  "half_day"
-                                  ? value
-                                  : previous.end_date &&
-                                    previous.end_date <
-                                    value
-                                    ? ""
-                                    : previous.end_date,
-                            })
-                          );
-                        }}
-                      />
-                    </label>
-
-                    {form.duration_type ===
-                      "full_day" && (
-                        <label
-                          style={
-                            styles.field
-                          }
-                        >
-                          <span>
-                            To Date
-                          </span>
-
-                          <input
-                            type="date"
-                            min={
-                              form.start_date ||
-                              selectedMinimumLeaveDate
-                            }
-                            max={
-                              selectedLeaveType ===
-                                "mandatory" &&
-                                privilegedMaxEndDate
-                                ? privilegedMaxEndDate
-                                : undefined
-                            }
-                            style={
-                              styles.input
-                            }
-                            value={
-                              form.end_date
-                            }
-                            onChange={(event) => {
-                              const value =
-                                event.target.value;
-
-                              if (
-                                selectedLeaveType ===
-                                "mandatory" &&
-                                privilegedMaxEndDate &&
-                                value >
-                                privilegedMaxEndDate
-                              ) {
-                                setError(
-                                  `You only have ${formatDays(
-                                    selectedAvailable
-                                  )} day(s) of Privileged Leave available. Please select a shorter leave duration.`
-                                );
-
-                                return;
-                              }
-
-                              setError("");
-
-                              setForm(
-                                (previous) => ({
-                                  ...previous,
-                                  end_date: value,
-                                })
-                              );
-                            }}
-                          />
-                        </label>
-                      )}
-                  </div>
-
-                  <div
-                    style={
-                      styles.daysBox
-                    }
-                  >
-                    <span>
-                      Leave Days
-                    </span>
-
-                    <strong>
-                      {formatDays(
-                        calculateDays
-                      )}
-                    </strong>
-                  </div>
+                    
+                  
 
                   {calculateDays >
                     0 &&

@@ -913,6 +913,49 @@ const applyEmployeeLeave =
               "The new Leave policy starts from 01-09-2026.",
           });
       }
+const today =
+  getIndiaToday();
+
+/*
+======================================================
+SICK / CASUAL HALF DAY RULES
+
+Sick Leave:
+- Half Day allowed only for today
+
+Casual Leave:
+- Half Day not allowed
+======================================================
+*/
+
+if (
+  leaveType === "sick" &&
+  durationType === "half_day" &&
+  startDate !== today
+) {
+  return res
+    .status(400)
+    .json({
+      success: false,
+
+      message:
+        "Half Day Sick Leave can only be applied for today.",
+    });
+}
+
+if (
+  leaveType === "casual" &&
+  durationType === "half_day"
+) {
+  return res
+    .status(400)
+    .json({
+      success: false,
+
+      message:
+        "Casual Leave can only be applied as Full Day.",
+    });
+}
 
       
 
