@@ -428,6 +428,16 @@ const currentUserId = Number(
     end_date: "",
   });
 
+  const [editingSubtaskId, setEditingSubtaskId] = useState(null);
+const [savingSubtaskEdit, setSavingSubtaskEdit] = useState(false);
+
+const [editSubtaskForm, setEditSubtaskForm] = useState({
+  title: "",
+  description: "",
+  start_date: "",
+  end_date: "",
+});
+
   const shouldTryNextEndpoint = (err) => {
     const status = err?.response?.status;
     return status === 404 || status === 405;
@@ -776,6 +786,136 @@ setModalSuccess(
       setSavingSubtask(false);
     }
   };
+
+  const startEditSubtask = (subtask) => {
+  setEditingSubtaskId(getSubtaskId(subtask));
+
+  setEditSubtaskForm({
+    title: subtask.task_title || "",
+    description: subtask.task_description || "",
+    start_date: formatDateForInput(subtask.start_date),
+    end_date: formatDateForInput(subtask.due_date),
+  });
+
+  setModalError("");
+  setModalSuccess("");
+};
+
+const cancelEditSubtask = () => {
+  setEditingSubtaskId(null);
+
+  setEditSubtaskForm({
+    title: "",
+    description: "",
+    start_date: "",
+    end_date: "",
+  });
+};
+
+const saveSubtaskEdit = async (subtask) => {
+  const subtaskId = getSubtaskId(subtask);
+
+  if (!subtaskId || savingSubtaskEdit) return;
+
+  const title = editSubtaskForm.title.trim();
+
+  if (!title) {
+    setModalError("Subtask title is required.");
+    return;
+  }
+
+  if (
+    !editSubtaskForm.start_date ||
+    !editSubtaskForm.end_date
+  ) {
+    setModalError(
+      "Subtask start date and deadline are required."
+    );
+    return;
+  }
+
+  if (
+    editSubtaskForm.start_date >
+    editSubtaskForm.end_date
+  ) {
+    setModalError(
+      "Subtask start date cannot be after its deadline."
+    );
+    return;
+  }
+
+  if (
+    selectedTask?.start_date &&
+    editSubtaskForm.start_date <
+      selectedTask.start_date
+  ) {
+    setModalError(
+      "Subtask start date cannot be before the Main Task start date."
+    );
+    return;
+  }
+
+  if (
+    selectedTask?.due_date &&
+    editSubtaskForm.end_date >
+      selectedTask.due_date
+  ) {
+    setModalError(
+      "Subtask deadline cannot exceed the Main Task deadline."
+    );
+    return;
+  }
+
+  try {
+    setSavingSubtaskEdit(true);
+    setModalError("");
+    setModalSuccess("");
+
+    await callFirstWorkingPatch(
+      [
+        {
+          method: "patch",
+          url: `/employee-tasks/subtasks/${subtaskId}`,
+        },
+        {
+          method: "put",
+          url: `/employee-tasks/subtasks/${subtaskId}`,
+        },
+      ],
+      {
+        task_title: title,
+        task_description:
+          editSubtaskForm.description.trim(),
+        start_date:
+          editSubtaskForm.start_date,
+        due_date:
+          editSubtaskForm.end_date,
+        end_date:
+          editSubtaskForm.end_date,
+      }
+    );
+
+    cancelEditSubtask();
+
+    await fetchTasks();
+
+    if (selectedTask) {
+      await fetchTaskDetails(selectedTask);
+    }
+
+    setModalSuccess(
+      "Subtask updated successfully."
+    );
+  } catch (err) {
+    setModalError(
+      err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        "Failed to update Subtask."
+    );
+  } finally {
+    setSavingSubtaskEdit(false);
+  }
+};
 
     const requestMarkSubtaskDone = (subtask) => {
   const subtaskId = getSubtaskId(subtask);
@@ -1463,6 +1603,41 @@ if (selectedTask) {
   </div>
 )}
 
+{normalizeStatus(
+  selectedTask.status,
+  selectedTask.progress
+) === "on_hold" && (
+  <>
+    <div style={styles.detailBox}>
+      <span>On Hold Reason</span>
+
+      <strong>
+        {selectedTask.review_note || "-"}
+      </strong>
+    </div>
+
+    <div style={styles.detailBox}>
+      <span>Put On Hold By</span>
+
+      <strong>
+        {selectedTask.reviewed_by_name || "-"}
+      </strong>
+    </div>
+
+    <div style={styles.detailBox}>
+      <span>Put On Hold At</span>
+
+      <strong>
+        {selectedTask.reviewed_at
+          ? new Date(
+              selectedTask.reviewed_at
+            ).toLocaleString("en-IN")
+          : "-"}
+      </strong>
+    </div>
+  </>
+)}
+
               <div style={styles.detailBox}>
                 <span>Assigned By</span>
                 <strong>{getAssignedByName(selectedTask)}</strong>
@@ -1640,78 +1815,265 @@ if (selectedTask) {
               ) : (
                 <div style={styles.subtaskList}>
                   {selectedTask.subtasks.map((subtask) => {
-                    const checked = Number(subtask.is_checked) === 1;
-const subtaskDeadline = getDeadlineInfo(subtask);
+  const checked =
+    Number(subtask.is_checked) === 1;
 
-const currentUser = JSON.parse(
-  sessionStorage.getItem("user") ||
-  localStorage.getItem("user") ||
-  "{}"
-);
+  const subtaskDeadline =
+    getDeadlineInfo(subtask);
 
-const canModifySubtask =
-  Number(subtask.assigned_to_user_id) === Number(currentUser?.user_id);
+  const canModifySubtask =
+    Number(subtask.assigned_to_user_id) ===
+    Number(currentUserId);
 
-                    return (
-                      <div style={styles.subtaskItem} key={subtask.task_id}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          disabled={
-                            checked ||
-                            !canModifySubtask ||
-                            [
-                              "under_review",
-                              "completed",
-                              "rejected",
-                              "on_hold",
-                            ].includes(selectedTaskStatus)
-                          }
-                          onChange={() => requestMarkSubtaskDone(subtask)}
-                          style={styles.checkbox}
-                        />
+  const isEditing =
+    Number(editingSubtaskId) ===
+    Number(subtask.task_id);
 
-                        <div style={styles.subtaskContent}>
-                          <h4 style={styles.subtaskTitle}>{subtask.task_title}</h4>
-                          <p style={styles.subtaskAssigned}>
-                            Assigned by: {getSubtaskAssignedByName(subtask)}
-                          </p>
+  const canEditSubtask =
+    canModifySubtask &&
+    !checked &&
+    ![
+      "under_review",
+      "completed",
+      "rejected",
+      "on_hold",
+    ].includes(selectedTaskStatus);
 
-                          {subtask.task_description && (
-                            <p style={styles.subtaskDescription}>
-                              {subtask.task_description}
-                            </p>
-                          )}
+  return (
+    <div
+      style={styles.subtaskItem}
+      key={subtask.task_id}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        disabled={
+          checked ||
+          !canModifySubtask ||
+          selectedTaskStatus !== "ongoing"
+        }
+        onChange={() =>
+          requestMarkSubtaskDone(subtask)
+        }
+        style={styles.checkbox}
+      />
 
-                          <div style={styles.subtaskDateLine}>
-                            <span>
-                              {formatDisplayDate(subtask.start_date)} → {formatDisplayDate(subtask.due_date)}
-                            </span>
+      <div style={styles.subtaskContent}>
+        {isEditing ? (
+          <>
+            <input
+              style={styles.input}
+              value={editSubtaskForm.title}
+              onChange={(event) =>
+                setEditSubtaskForm(
+                  (previous) => ({
+                    ...previous,
+                    title: event.target.value,
+                  })
+                )
+              }
+              placeholder="Subtask title"
+            />
 
-                            {!checked && (
-                              <span
-                                style={{
-                                  ...styles.smallDeadlineBadge,
-                                  ...getDeadlineBadgeStyle(subtaskDeadline.tone),
-                                }}
-                              >
-                                {subtaskDeadline.label}
-                              </span>
-                            )}
-                          </div>
-                        </div>
+            <textarea
+              style={{
+                ...styles.textarea,
+                marginTop: "8px",
+              }}
+              value={
+                editSubtaskForm.description
+              }
+              onChange={(event) =>
+                setEditSubtaskForm(
+                  (previous) => ({
+                    ...previous,
+                    description:
+                      event.target.value,
+                  })
+                )
+              }
+              placeholder="Description"
+            />
 
-                        <span
-                          style={{
-                            ...styles.statusBadge,
-                            ...(checked ? styles.doneBadge : {}),
-                          }}
-                        >
-                          {checked ? "Done" : formatStatus(subtask.status, subtask.progress)}
-                        </span>
-                      </div>
-                    );
-                  })}
+            <div
+              style={{
+                ...styles.formGrid,
+                marginTop: "8px",
+              }}
+            >
+              <input
+                type="date"
+                style={styles.input}
+                min={
+                  selectedTask.start_date ||
+                  undefined
+                }
+                max={
+                  selectedTask.due_date ||
+                  undefined
+                }
+                value={
+                  editSubtaskForm.start_date
+                }
+                onChange={(event) =>
+                  setEditSubtaskForm(
+                    (previous) => ({
+                      ...previous,
+                      start_date:
+                        event.target.value,
+                      end_date:
+                        previous.end_date &&
+                        previous.end_date <
+                          event.target.value
+                          ? ""
+                          : previous.end_date,
+                    })
+                  )
+                }
+              />
+
+              <input
+                type="date"
+                style={styles.input}
+                min={
+                  editSubtaskForm.start_date ||
+                  selectedTask.start_date ||
+                  undefined
+                }
+                max={
+                  selectedTask.due_date ||
+                  undefined
+                }
+                value={
+                  editSubtaskForm.end_date
+                }
+                onChange={(event) =>
+                  setEditSubtaskForm(
+                    (previous) => ({
+                      ...previous,
+                      end_date:
+                        event.target.value,
+                    })
+                  )
+                }
+              />
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "8px",
+                marginTop: "9px",
+              }}
+            >
+              <button
+                type="button"
+                style={styles.primaryActionBtn}
+                disabled={savingSubtaskEdit}
+                onClick={() =>
+                  saveSubtaskEdit(subtask)
+                }
+              >
+                {savingSubtaskEdit
+                  ? "Saving..."
+                  : "Save"}
+              </button>
+
+              <button
+                type="button"
+                style={styles.iconActionBtn}
+                disabled={savingSubtaskEdit}
+                onClick={cancelEditSubtask}
+              >
+                Cancel
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <h4 style={styles.subtaskTitle}>
+              {subtask.task_title}
+            </h4>
+
+            <p style={styles.subtaskAssigned}>
+              Assigned by:{" "}
+              {getSubtaskAssignedByName(
+                subtask
+              )}
+            </p>
+
+            {subtask.task_description && (
+              <p
+                style={
+                  styles.subtaskDescription
+                }
+              >
+                {subtask.task_description}
+              </p>
+            )}
+
+            <div
+              style={styles.subtaskDateLine}
+            >
+              <span>
+                {formatDisplayDate(
+                  subtask.start_date
+                )}{" "}
+                →{" "}
+                {formatDisplayDate(
+                  subtask.due_date
+                )}
+              </span>
+
+              {!checked && (
+                <span
+                  style={{
+                    ...styles.smallDeadlineBadge,
+                    ...getDeadlineBadgeStyle(
+                      subtaskDeadline.tone
+                    ),
+                  }}
+                >
+                  {subtaskDeadline.label}
+                </span>
+              )}
+
+              {canEditSubtask && (
+                <button
+                  type="button"
+                  style={styles.iconActionBtn}
+                  onClick={() =>
+                    startEditSubtask(
+                      subtask
+                    )
+                  }
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      <span
+        style={{
+          ...styles.statusBadge,
+          ...(checked
+            ? styles.doneBadge
+            : {}),
+        }}
+      >
+        {checked
+          ? "Done"
+          : formatStatus(
+              subtask.status,
+              subtask.progress
+            )}
+      </span>
+    </div>
+  );
+})}
                 </div>
               )}
             </div>

@@ -81,7 +81,12 @@ const getStatusLabel = (status) => {
 
 const canEditMainTasks = (status) => {
   const value = normalizeStatus(status);
-  return value === "to_do" || value === "in_progress";
+
+  return [
+    "to_do",
+    "in_progress",
+    "under_review",
+  ].includes(value);
 };
 
 const getUserId = (user) => {
@@ -213,11 +218,19 @@ const normalizeProject = (project) => {
 
   return {
     ...project,
+
+    division_id:
+      project.division_id ||
+      project.project_division_id ||
+      "",
+
     division:
-  project.division ||
-  project.project_division ||
-  project.category ||
-  "-",
+      project.division ||
+      project.project_division ||
+      project.category ||
+      "-",
+
+
     project_id: project.project_id || project.id,
     project_title:
       project.project_title ||
@@ -339,22 +352,24 @@ const AdminProjects = () => {
   const [reviewSuccess, setReviewSuccess] = useState("");
 
   const [newProject, setNewProject] = useState({
-  project_title: "",
-  division: "",
-  start_date: "",
-  end_date: "",
-  project_description: "",
-  assignee_ids: [],
-});
+    project_title: "",
+    division_id: "",
+    division: "",
+    start_date: "",
+    end_date: "",
+    project_description: "",
+    assignee_ids: [],
+  });
 
   const [editProject, setEditProject] = useState({
-  project_title: "",
-  division: "",
-  start_date: "",
-  end_date: "",
-  project_description: "",
-  assignee_ids: [],
-});
+    project_title: "",
+    division_id: "",
+    division: "",
+    start_date: "",
+    end_date: "",
+    project_description: "",
+    assignee_ids: [],
+  });
 
   const [newMainTask, setNewMainTask] = useState({
     task_title: "",
@@ -371,6 +386,41 @@ const AdminProjects = () => {
     due_date: "",
     assignee_ids: [],
   });
+
+  const [showInterdepartmentModal, setShowInterdepartmentModal] = useState(false);
+const [showInterdepartmentRequestsModal, setShowInterdepartmentRequestsModal] =
+  useState(false);
+const [showInterdepartmentReviewModal, setShowInterdepartmentReviewModal] =
+  useState(false);
+
+const [interdepartmentDepartments, setInterdepartmentDepartments] = useState([]);
+const [interdepartmentDivisions, setInterdepartmentDivisions] = useState([]);
+const [interdepartmentEmployees, setInterdepartmentEmployees] = useState([]);
+const [selectedInterdepartmentRequest, setSelectedInterdepartmentRequest] =
+  useState(null);
+
+const [interdepartmentLoading, setInterdepartmentLoading] = useState(false);
+const [interdepartmentProjectId, setInterdepartmentProjectId] = useState(null);
+
+const [interdepartmentRequests, setInterdepartmentRequests] = useState({
+  incoming: [],
+  outgoing: [],
+});
+
+const [interdepartmentForm, setInterdepartmentForm] = useState({
+  requested_department_id: "",
+  requested_division_id: "",
+  work_description: "",
+  requested_start_date: "",
+  requested_end_date: "",
+});
+
+const [interdepartmentReview, setInterdepartmentReview] = useState({
+  employee_ids: [],
+  approved_start_date: "",
+  approved_end_date: "",
+  review_note: "",
+});
 
   const fetchProjects = async () => {
     setLoading(true);
@@ -401,8 +451,8 @@ const AdminProjects = () => {
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to fetch projects."
+        err.response?.data?.error ||
+        "Failed to fetch projects."
       );
 
       return [];
@@ -411,56 +461,57 @@ const AdminProjects = () => {
     }
   };
 
-const fetchUsers = async () => {
-  try {
-    const response = await api.get("/admin-projects/assignable-users");
-    const data = getApiData(response);
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/admin-projects/assignable-users");
+      const data = getApiData(response);
 
-    const userRows =
-      data.users ||
-      data.employees ||
-      data.rows ||
-      data;
+      const userRows =
+        data.users ||
+        data.employees ||
+        data.rows ||
+        data;
 
-    setUsers(dedupeUsers(asArray(userRows)));
-  } catch (err) {
-    console.error("Fetch assignable department employees error:", err);
-    setUsers([]);
-    setError(
-      err.response?.data?.message ||
+      setUsers(dedupeUsers(asArray(userRows)));
+    } catch (err) {
+      console.error("Fetch assignable department employees error:", err);
+      setUsers([]);
+      setError(
+        err.response?.data?.message ||
         err.response?.data?.error ||
         "Failed to fetch department employees."
-    );
-  }
-};
+      );
+    }
+  };
 
   useEffect(() => {
   fetchProjects();
   fetchUsers();
   fetchDivisions();
+  fetchInterdepartmentRequests();
 }, []);
 
 
-const fetchDivisions = async () => {
-  try {
-    const response = await api.get(
-      "/admin-projects/divisions"
-    );
+  const fetchDivisions = async () => {
+    try {
+      const response = await api.get(
+        "/admin-projects/divisions"
+      );
 
-    const data = getApiData(response);
+      const data = getApiData(response);
 
-    setDivisions(
-      asArray(data.divisions)
-    );
-  } catch (err) {
-    console.error(
-      "Fetch project divisions error:",
-      err
-    );
+      setDivisions(
+        asArray(data.divisions)
+      );
+    } catch (err) {
+      console.error(
+        "Fetch project divisions error:",
+        err
+      );
 
-    setDivisions([]);
-  }
-};
+      setDivisions([]);
+    }
+  };
 
   const filteredProjects = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -595,13 +646,33 @@ const fetchDivisions = async () => {
     setReviewError("");
     setReviewSuccess("");
 
-setEditProject({
-  project_title: normalizedProject.project_title || "",
-  division: normalizedProject.division || "",
-      start_date: normalizeDateForInput(normalizedProject.start_date),
-      end_date: normalizeDateForInput(normalizedProject.end_date),
-      project_description: normalizedProject.project_description || "",
-      assignee_ids: [...new Set(assigneeIds)],
+    setEditProject({
+      project_title:
+        normalizedProject.project_title || "",
+
+      division_id:
+        normalizedProject.division_id
+          ? String(normalizedProject.division_id)
+          : "",
+
+      division:
+        normalizedProject.division || "",
+
+      start_date:
+        normalizeDateForInput(
+          normalizedProject.start_date
+        ),
+
+      end_date:
+        normalizeDateForInput(
+          normalizedProject.end_date
+        ),
+
+      project_description:
+        normalizedProject.project_description || "",
+
+      assignee_ids:
+        [...new Set(assigneeIds)],
     });
 
     setNewMainTask({
@@ -636,9 +707,10 @@ setEditProject({
 
   const resetAssignForm = () => {
     setNewProject({
-  project_title: "",
-  division: "",
-  start_date: "",
+      project_title: "",
+      division_id: "",
+      division: "",
+      start_date: "",
       end_date: "",
       project_description: "",
       assignee_ids: [],
@@ -754,66 +826,105 @@ setEditProject({
     });
   };
 
-  const createProject = async () => {
-    setError("");
-    setSuccessMessage("");
+  const validateNewProject = () => {
+  if (!newProject.project_title.trim()) {
+    return "Project title is required.";
+  }
 
-    if (!newProject.project_title.trim()) {
-      setError("Project title is required.");
-      return;
-    }
+  if (!newProject.division_id) {
+    return "Select a Project Division.";
+  }
 
-    if (!newProject.start_date || !newProject.end_date) {
-      setError("Project start date and deadline are required.");
-      return;
-    }
+  if (!newProject.start_date || !newProject.end_date) {
+    return "Project start date and deadline are required.";
+  }
 
-    if (newProject.start_date > newProject.end_date) {
-      setError("Project start date cannot be after project deadline.");
-      return;
-    }
+  if (newProject.start_date > newProject.end_date) {
+    return "Project start date cannot be after project deadline.";
+  }
 
-    if (!newProject.assignee_ids.length) {
-      setError("Select at least one project assignee.");
-      return;
-    }
+  if (!newProject.assignee_ids.length) {
+    return "Select at least one project assignee.";
+  }
 
-    setActionLoading(true);
+  return "";
+};
 
-    try {
-      const payload = {
-        project_title: newProject.project_title.trim(),
-        division: newProject.division,
-        title: newProject.project_title.trim(),
-        project_description: newProject.project_description.trim(),
-        description: newProject.project_description.trim(),
-        start_date: newProject.start_date,
-        due_date: newProject.end_date,
-        end_date: newProject.end_date,
-        assignee_ids: newProject.assignee_ids,
-        assignees: newProject.assignee_ids,
-        project_assignees: newProject.assignee_ids,
-      };
+const getNewProjectPayload = () => ({
+  project_title: newProject.project_title.trim(),
+  title: newProject.project_title.trim(),
+  division_id: Number(newProject.division_id),
+  division: newProject.division,
+  project_description: newProject.project_description.trim(),
+  description: newProject.project_description.trim(),
+  start_date: newProject.start_date,
+  due_date: newProject.end_date,
+  end_date: newProject.end_date,
+  assignee_ids: newProject.assignee_ids,
+  assignees: newProject.assignee_ids,
+  project_assignees: newProject.assignee_ids,
+});
 
-      const response = await tryPost(
-        ["/admin-projects", "/admin-projects/projects", "/admin-projects/create"],
-        payload
-      );
+const createProjectRecord = async () => {
+  const response = await tryPost(
+    [
+      "/admin-projects",
+      "/admin-projects/projects",
+      "/admin-projects/create",
+    ],
+    getNewProjectPayload()
+  );
 
-      setSuccessMessage(response?.data?.message || "Project created successfully.");
-      setShowAssignModal(false);
-      resetAssignForm();
-      await fetchProjects();
-    } catch (err) {
-      setError(
-        err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to create project."
-      );
-    } finally {
-      setActionLoading(false);
-    }
+  const data = getApiData(response);
+  const projectId =
+    response?.data?.project_id ||
+    data?.project_id ||
+    data?.id;
+
+  if (!projectId) {
+    throw new Error("Project was created but Project ID was not returned.");
+  }
+
+  return {
+    response,
+    projectId: Number(projectId),
   };
+};
+
+const createProject = async () => {
+  setError("");
+  setSuccessMessage("");
+
+  const validationError = validateNewProject();
+
+  if (validationError) {
+    setError(validationError);
+    return;
+  }
+
+  setActionLoading(true);
+
+  try {
+    const { response } = await createProjectRecord();
+
+    setSuccessMessage(
+      response?.data?.message || "Project created successfully."
+    );
+
+    setShowAssignModal(false);
+    resetAssignForm();
+    await fetchProjects();
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to create project."
+    );
+  } finally {
+    setActionLoading(false);
+  }
+};
 
   const updateProject = async () => {
     if (!selectedProject?.project_id) return;
@@ -825,7 +936,10 @@ setEditProject({
       setError("Project title is required.");
       return;
     }
-
+    if (!editProject.division_id) {
+      setError("Select a Project Division.");
+      return;
+    }
     if (!editProject.start_date || !editProject.end_date) {
       setError("Project start date and deadline are required.");
       return;
@@ -848,7 +962,11 @@ setEditProject({
 
       const payload = {
         project_title: editProject.project_title.trim(),
-        division: editProject.division,
+        division_id:
+          Number(editProject.division_id),
+
+        division:
+          editProject.division,
         title: editProject.project_title.trim(),
         project_description: editProject.project_description.trim(),
         description: editProject.project_description.trim(),
@@ -878,8 +996,8 @@ setEditProject({
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to update project."
+        err.response?.data?.error ||
+        "Failed to update project."
       );
     } finally {
       setActionLoading(false);
@@ -914,8 +1032,8 @@ setEditProject({
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to delete project."
+        err.response?.data?.error ||
+        "Failed to delete project."
       );
     } finally {
       setActionLoading(false);
@@ -1013,8 +1131,8 @@ setEditProject({
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to add main task."
+        err.response?.data?.error ||
+        "Failed to add main task."
       );
     } finally {
       setActionLoading(false);
@@ -1108,13 +1226,393 @@ setEditProject({
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to update main task."
+        err.response?.data?.error ||
+        "Failed to update main task."
       );
     } finally {
       setActionLoading(false);
     }
   };
+
+  const resetInterdepartmentForm = () => {
+  setInterdepartmentForm({
+    requested_department_id: "",
+    requested_division_id: "",
+    work_description: "",
+    requested_start_date: "",
+    requested_end_date: "",
+  });
+};
+
+const fetchInterdepartmentRequests = async () => {
+  try {
+    const response = await api.get(
+      "/admin-projects/interdepartment/requests"
+    );
+
+    const data = getApiData(response);
+
+    const result = {
+      incoming: asArray(data.incoming),
+      outgoing: asArray(data.outgoing),
+    };
+
+    setInterdepartmentRequests(result);
+    return result;
+  } catch (err) {
+    console.error("Fetch Interdepartment requests error:", err);
+
+    const result = {
+      incoming: [],
+      outgoing: [],
+    };
+
+    setInterdepartmentRequests(result);
+    return result;
+  }
+};
+
+const openInterdepartmentRequestModal = async () => {
+  setError("");
+  setSuccessMessage("");
+
+  const validationError = validateNewProject();
+
+  if (validationError) {
+    setError(validationError);
+    return;
+  }
+
+  setInterdepartmentLoading(true);
+
+  try {
+    const response = await api.get(
+      "/admin-projects/interdepartment/departments"
+    );
+
+    const data = getApiData(response);
+
+    setInterdepartmentDepartments(asArray(data.departments));
+    setInterdepartmentDivisions(asArray(data.divisions));
+
+    setInterdepartmentForm({
+      requested_department_id: "",
+      requested_division_id: "",
+      work_description: "",
+      requested_start_date: newProject.start_date,
+      requested_end_date: newProject.end_date,
+    });
+
+    setInterdepartmentProjectId(null);
+    setShowAssignModal(false);
+    setShowInterdepartmentModal(true);
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to load Interdepartment options."
+    );
+  } finally {
+    setInterdepartmentLoading(false);
+  }
+};
+
+const closeInterdepartmentRequestModal = () => {
+  setShowInterdepartmentModal(false);
+
+  if (interdepartmentProjectId) {
+    /*
+    Project was already created before the request failed.
+    Do not reopen Assign Project because that could create
+    the same Project again.
+    */
+    setInterdepartmentProjectId(null);
+    resetAssignForm();
+    resetInterdepartmentForm();
+    fetchProjects();
+    return;
+  }
+
+  resetInterdepartmentForm();
+  setShowAssignModal(true);
+};
+
+const sendInterdepartmentRequest = async () => {
+  setError("");
+  setSuccessMessage("");
+
+  if (!interdepartmentForm.requested_department_id) {
+    setError("Select the requested Department.");
+    return;
+  }
+
+  if (!interdepartmentForm.requested_division_id) {
+    setError("Select the requested Division.");
+    return;
+  }
+
+  if (!interdepartmentForm.work_description.trim()) {
+    setError("Enter the work required in detail.");
+    return;
+  }
+
+  if (
+    !interdepartmentForm.requested_start_date ||
+    !interdepartmentForm.requested_end_date
+  ) {
+    setError("Requested start date and end date are required.");
+    return;
+  }
+
+  if (
+    interdepartmentForm.requested_start_date >
+    interdepartmentForm.requested_end_date
+  ) {
+    setError("Requested start date cannot be after requested end date.");
+    return;
+  }
+
+  if (interdepartmentForm.requested_start_date < newProject.start_date) {
+    setError("Requested work cannot start before the Project start date.");
+    return;
+  }
+
+  if (interdepartmentForm.requested_end_date > newProject.end_date) {
+    setError("Requested work cannot finish after the Project deadline.");
+    return;
+  }
+
+  setInterdepartmentLoading(true);
+
+  let projectId = interdepartmentProjectId;
+
+  try {
+    /*
+    First create the normal Project only once.
+    If the request API fails afterward, projectId stays
+    stored so retrying does not create a duplicate Project.
+    */
+    if (!projectId) {
+      const created = await createProjectRecord();
+
+      projectId = created.projectId;
+      setInterdepartmentProjectId(projectId);
+    }
+
+    const response = await api.post(
+      "/admin-projects/interdepartment/requests",
+      {
+        project_id: projectId,
+        requested_department_id: Number(
+          interdepartmentForm.requested_department_id
+        ),
+        requested_division_id: Number(
+          interdepartmentForm.requested_division_id
+        ),
+        work_description: interdepartmentForm.work_description.trim(),
+        requested_start_date: interdepartmentForm.requested_start_date,
+        requested_end_date: interdepartmentForm.requested_end_date,
+      }
+    );
+
+    setSuccessMessage(
+      response?.data?.message ||
+        "Project created and Interdepartment Work Request sent successfully."
+    );
+
+    setShowInterdepartmentModal(false);
+    setShowAssignModal(false);
+
+    setInterdepartmentProjectId(null);
+    resetInterdepartmentForm();
+    resetAssignForm();
+
+    await Promise.all([
+      fetchProjects(),
+      fetchInterdepartmentRequests(),
+    ]);
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        "Failed to send Interdepartment Work Request."
+    );
+  } finally {
+    setInterdepartmentLoading(false);
+  }
+};
+
+const openInterdepartmentRequestsModal = async () => {
+  setError("");
+  setInterdepartmentLoading(true);
+
+  try {
+    await fetchInterdepartmentRequests();
+    setShowInterdepartmentRequestsModal(true);
+  } finally {
+    setInterdepartmentLoading(false);
+  }
+};
+
+const openInterdepartmentReviewModal = async (request) => {
+  if (!request?.request_id) return;
+
+  setError("");
+  setInterdepartmentLoading(true);
+
+  try {
+    const response = await api.get(
+      `/admin-projects/interdepartment/requests/${request.request_id}/employees`
+    );
+
+    const data = getApiData(response);
+
+    setInterdepartmentEmployees(
+      dedupeUsers(asArray(data.employees))
+    );
+
+    const fullRequest = {
+      ...request,
+      ...(data.request || {}),
+    };
+
+    setSelectedInterdepartmentRequest(fullRequest);
+
+    setInterdepartmentReview({
+      employee_ids: [],
+      approved_start_date:
+        fullRequest.requested_start_date || "",
+      approved_end_date:
+        fullRequest.requested_end_date || "",
+      review_note: "",
+    });
+
+    setShowInterdepartmentRequestsModal(false);
+    setShowInterdepartmentReviewModal(true);
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to load department employees."
+    );
+  } finally {
+    setInterdepartmentLoading(false);
+  }
+};
+
+const toggleInterdepartmentEmployee = (userId) => {
+  const value = String(userId);
+
+  setInterdepartmentReview((previous) => {
+    const selected = new Set(previous.employee_ids.map(String));
+
+    selected.has(value)
+      ? selected.delete(value)
+      : selected.add(value);
+
+    return {
+      ...previous,
+      employee_ids: [...selected],
+    };
+  });
+};
+
+const submitInterdepartmentReview = async (action) => {
+  if (!selectedInterdepartmentRequest?.request_id) return;
+
+  setError("");
+  setSuccessMessage("");
+
+  if (
+    action === "reject" &&
+    !interdepartmentReview.review_note.trim()
+  ) {
+    setError("Enter a rejection reason.");
+    return;
+  }
+
+  if (action === "approve") {
+    if (!interdepartmentReview.employee_ids.length) {
+      setError("Select at least one employee.");
+      return;
+    }
+
+    if (
+      !interdepartmentReview.approved_start_date ||
+      !interdepartmentReview.approved_end_date
+    ) {
+      setError("Approved start date and end date are required.");
+      return;
+    }
+
+    if (
+      interdepartmentReview.approved_start_date >
+      interdepartmentReview.approved_end_date
+    ) {
+      setError("Approved start date cannot be after approved end date.");
+      return;
+    }
+  }
+
+  setInterdepartmentLoading(true);
+
+  try {
+    const payload = {
+      action,
+      review_note: interdepartmentReview.review_note.trim(),
+    };
+
+    if (action === "approve") {
+      payload.employee_ids = interdepartmentReview.employee_ids;
+      payload.approved_start_date =
+        interdepartmentReview.approved_start_date;
+      payload.approved_end_date =
+        interdepartmentReview.approved_end_date;
+    }
+
+    const response = await api.put(
+      `/admin-projects/interdepartment/requests/${selectedInterdepartmentRequest.request_id}/review`,
+      payload
+    );
+
+    setSuccessMessage(
+      response?.data?.message ||
+        `Request ${
+          action === "approve" ? "approved" : "rejected"
+        } successfully.`
+    );
+
+    const projectId =
+      selectedInterdepartmentRequest.project_id;
+
+    setShowInterdepartmentReviewModal(false);
+    setSelectedInterdepartmentRequest(null);
+    setInterdepartmentEmployees([]);
+
+    await Promise.all([
+      fetchInterdepartmentRequests(),
+      fetchProjects(),
+    ]);
+
+    if (
+      selectedProject?.project_id &&
+      String(selectedProject.project_id) === String(projectId)
+    ) {
+      await refreshSelectedProject(projectId);
+    }
+  } catch (err) {
+    setError(
+      err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Failed to review Interdepartment Work Request."
+    );
+  } finally {
+    setInterdepartmentLoading(false);
+  }
+};
+
+
 
   const handleProjectReviewAction = async (action) => {
     if (!selectedProject?.project_id || reviewActionLoading) return;
@@ -1159,245 +1657,245 @@ setEditProject({
 
       setReviewError(
         err.response?.data?.message ||
-          err.response?.data?.error ||
-          "Failed to update project review."
+        err.response?.data?.error ||
+        "Failed to update project review."
       );
     } finally {
       setReviewActionLoading(false);
     }
   };
   const formatExportDuration = (seconds) => {
-  const s = Math.max(0, Number(seconds || 0));
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h) return `${h}h ${m}m`;
-  if (m) return `${m}m ${sec}s`;
-  return `${sec}s`;
-};
+    const s = Math.max(0, Number(seconds || 0));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    if (h) return `${h}h ${m}m`;
+    if (m) return `${m}m ${sec}s`;
+    return `${sec}s`;
+  };
 
-const formatExportDate = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-};
-
-const formatExportTime = (value) => {
-  if (!value) return "-";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleTimeString("en-IN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-};
-
-const exportProjectData = async () => {
-  try {
-    setActionLoading(true);
-    setError("");
-    setSuccessMessage("");
-
-    const usersResponse = await api.get("/admin/users");
-    const departmentUsers = usersResponse?.data?.users || [];
-
-    const responses = await Promise.all(
-      departmentUsers.map(async (user) => {
-        const userId = user.user_id || user.id;
-        if (!userId) return null;
-
-        try {
-          const response = await api.get(
-            `/admin/users/${userId}/time-summary`
-          );
-          return response?.data || null;
-        } catch (error) {
-          console.error(`Could not load time for employee ${userId}`, error);
-          return null;
-        }
-      })
-    );
-
-    const summaries = responses.filter(Boolean);
-    const projectMap = new Map();
-
-    projects.forEach((project) => {
-      projectMap.set(String(project.project_id), {
-        project_id: project.project_id,
-        project_title: project.project_title || "Untitled Project",
-status: getStatusLabel(project.status),
-start_date: project.start_date || "",
-end_date: project.end_date || "",
-department: project.department_name || "-",
-division: project.division || "-",
-total_seconds: 0,
-        employees: new Map(),
-        tasks: new Map(),
-        sessions: [],
-      });
+  const formatExportDate = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     });
+  };
 
-    summaries.forEach((summary) => {
-      const employee = summary.employee || {};
+  const formatExportTime = (value) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  };
 
-      (summary.projects || []).forEach((project) => {
-        const key = String(project.project_id);
+  const exportProjectData = async () => {
+    try {
+      setActionLoading(true);
+      setError("");
+      setSuccessMessage("");
 
-        if (!projectMap.has(key)) {
-          projectMap.set(key, {
-            project_id: project.project_id,
-            project_title: project.project_title || "Untitled Project",
-            status: "-",
-            start_date: "",
-            end_date: "",
-            department: employee.department_name || "-",
-            division: project.division || "-",
-            total_seconds: 0,
-            employees: new Map(),
-            tasks: new Map(),
-            sessions: [],
-          });
-        }
+      const usersResponse = await api.get("/admin/users");
+      const departmentUsers = usersResponse?.data?.users || [];
 
-        const p = projectMap.get(key);
+      const responses = await Promise.all(
+        departmentUsers.map(async (user) => {
+          const userId = user.user_id || user.id;
+          if (!userId) return null;
 
-        (project.tasks || []).forEach((task) => {
-          const taskSeconds = Number(task.total_seconds || 0);
-          p.total_seconds += taskSeconds;
+          try {
+            const response = await api.get(
+              `/admin/users/${userId}/time-summary`
+            );
+            return response?.data || null;
+          } catch (error) {
+            console.error(`Could not load time for employee ${userId}`, error);
+            return null;
+          }
+        })
+      );
 
-          const employeeKey = String(
-            employee.user_id || employee.employee_code || employee.full_name
-          );
+      const summaries = responses.filter(Boolean);
+      const projectMap = new Map();
 
-          if (!p.employees.has(employeeKey)) {
-            p.employees.set(employeeKey, {
-              name: employee.full_name || "-",
-              code: employee.employee_code || "-",
-              seconds: 0,
+      projects.forEach((project) => {
+        projectMap.set(String(project.project_id), {
+          project_id: project.project_id,
+          project_title: project.project_title || "Untitled Project",
+          status: getStatusLabel(project.status),
+          start_date: project.start_date || "",
+          end_date: project.end_date || "",
+          department: project.department_name || "-",
+          division: project.division || "-",
+          total_seconds: 0,
+          employees: new Map(),
+          tasks: new Map(),
+          sessions: [],
+        });
+      });
+
+      summaries.forEach((summary) => {
+        const employee = summary.employee || {};
+
+        (summary.projects || []).forEach((project) => {
+          const key = String(project.project_id);
+
+          if (!projectMap.has(key)) {
+            projectMap.set(key, {
+              project_id: project.project_id,
+              project_title: project.project_title || "Untitled Project",
+              status: "-",
+              start_date: "",
+              end_date: "",
+              department: employee.department_name || "-",
+              division: project.division || "-",
+              total_seconds: 0,
+              employees: new Map(),
+              tasks: new Map(),
+              sessions: [],
             });
           }
 
-          p.employees.get(employeeKey).seconds += taskSeconds;
+          const p = projectMap.get(key);
 
-          const taskKey = String(task.task_id);
+          (project.tasks || []).forEach((task) => {
+            const taskSeconds = Number(task.total_seconds || 0);
+            p.total_seconds += taskSeconds;
 
-          if (!p.tasks.has(taskKey)) {
-            p.tasks.set(taskKey, {
-              title: task.task_title || "Untitled Task",
-              status: getStatusLabel(task.status),
-              seconds: 0,
-            });
-          }
+            const employeeKey = String(
+              employee.user_id || employee.employee_code || employee.full_name
+            );
 
-          p.tasks.get(taskKey).seconds += taskSeconds;
+            if (!p.employees.has(employeeKey)) {
+              p.employees.set(employeeKey, {
+                name: employee.full_name || "-",
+                code: employee.employee_code || "-",
+                seconds: 0,
+              });
+            }
 
-          (task.sessions || []).forEach((session) => {
-            p.sessions.push({
-              Project: p.project_title,
-              Employee: employee.full_name || "-",
-              "Employee Code": employee.employee_code || "-",
-              Task: task.task_title || "-",
-              "Task Status": getStatusLabel(task.status),
-              Date: formatExportDate(session.started_at),
-              "Start Time": formatExportTime(session.started_at),
-              "End Time": session.currently_running
-                ? "Running"
-                : formatExportTime(session.ended_at),
-              Duration: formatExportDuration(session.seconds_worked),
-              "Duration Seconds": Number(session.seconds_worked || 0),
-              Reason: session.currently_running
-                ? "Running"
-                : String(session.end_reason || "-").replace(/_/g, " "),
-              "Session ID": session.session_id,
+            p.employees.get(employeeKey).seconds += taskSeconds;
+
+            const taskKey = String(task.task_id);
+
+            if (!p.tasks.has(taskKey)) {
+              p.tasks.set(taskKey, {
+                title: task.task_title || "Untitled Task",
+                status: getStatusLabel(task.status),
+                seconds: 0,
+              });
+            }
+
+            p.tasks.get(taskKey).seconds += taskSeconds;
+
+            (task.sessions || []).forEach((session) => {
+              p.sessions.push({
+                Project: p.project_title,
+                Employee: employee.full_name || "-",
+                "Employee Code": employee.employee_code || "-",
+                Task: task.task_title || "-",
+                "Task Status": getStatusLabel(task.status),
+                Date: formatExportDate(session.started_at),
+                "Start Time": formatExportTime(session.started_at),
+                "End Time": session.currently_running
+                  ? "Running"
+                  : formatExportTime(session.ended_at),
+                Duration: formatExportDuration(session.seconds_worked),
+                "Duration Seconds": Number(session.seconds_worked || 0),
+                Reason: session.currently_running
+                  ? "Running"
+                  : String(session.end_reason || "-").replace(/_/g, " "),
+                "Session ID": session.session_id,
+              });
             });
           });
         });
       });
-    });
 
-    const workbook = XLSX.utils.book_new();
-    const summaryRows = [];
+      const workbook = XLSX.utils.book_new();
+      const summaryRows = [];
 
-    Array.from(projectMap.values()).forEach((project, index) => {
-      if (index) summaryRows.push([], []);
+      Array.from(projectMap.values()).forEach((project, index) => {
+        if (index) summaryRows.push([], []);
 
-      summaryRows.push([`PROJECT: ${project.project_title}`]);
-      summaryRows.push([]);
-      summaryRows.push(["Project Status", project.status]);
-summaryRows.push(["Start Date", project.start_date || "-"]);
-summaryRows.push(["End Date", project.end_date || "-"]);
-summaryRows.push(["Department", project.department || "-"]);
-summaryRows.push(["Division", project.division || "-"]);
-summaryRows.push([]);
-      summaryRows.push([
-        "Total Tracked Time",
-        formatExportDuration(project.total_seconds),
-      ]);
-      summaryRows.push(["Employees Worked", project.employees.size]);
-      summaryRows.push(["Tasks Worked", project.tasks.size]);
-      summaryRows.push([]);
-      summaryRows.push(["EMPLOYEE BREAKDOWN"]);
-      summaryRows.push(["Employee", "Employee Code", "Tracked Time"]);
+        summaryRows.push([`PROJECT: ${project.project_title}`]);
+        summaryRows.push([]);
+        summaryRows.push(["Project Status", project.status]);
+        summaryRows.push(["Start Date", project.start_date || "-"]);
+        summaryRows.push(["End Date", project.end_date || "-"]);
+        summaryRows.push(["Department", project.department || "-"]);
+        summaryRows.push(["Division", project.division || "-"]);
+        summaryRows.push([]);
+        summaryRows.push([
+          "Total Tracked Time",
+          formatExportDuration(project.total_seconds),
+        ]);
+        summaryRows.push(["Employees Worked", project.employees.size]);
+        summaryRows.push(["Tasks Worked", project.tasks.size]);
+        summaryRows.push([]);
+        summaryRows.push(["EMPLOYEE BREAKDOWN"]);
+        summaryRows.push(["Employee", "Employee Code", "Tracked Time"]);
 
-      const employees = Array.from(project.employees.values()).sort(
-        (a, b) => b.seconds - a.seconds
+        const employees = Array.from(project.employees.values()).sort(
+          (a, b) => b.seconds - a.seconds
+        );
+
+        if (!employees.length) {
+          summaryRows.push(["No employee time recorded", "-", "0s"]);
+        } else {
+          employees.forEach((employee) => {
+            summaryRows.push([
+              employee.name,
+              employee.code,
+              formatExportDuration(employee.seconds),
+            ]);
+          });
+        }
+
+        summaryRows.push([]);
+        summaryRows.push(["TASK BREAKDOWN"]);
+        summaryRows.push(["Task", "Status", "Tracked Time"]);
+
+        const tasks = Array.from(project.tasks.values()).sort(
+          (a, b) => b.seconds - a.seconds
+        );
+
+        if (!tasks.length) {
+          summaryRows.push(["No task time recorded", "-", "0s"]);
+        } else {
+          tasks.forEach((task) => {
+            summaryRows.push([
+              task.title,
+              task.status,
+              formatExportDuration(task.seconds),
+            ]);
+          });
+        }
+      });
+
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+      summarySheet["!cols"] = [
+        { wch: 38 },
+        { wch: 24 },
+        { wch: 20 },
+      ];
+
+      const allSessions = Array.from(projectMap.values()).flatMap(
+        (project) => project.sessions
       );
 
-      if (!employees.length) {
-        summaryRows.push(["No employee time recorded", "-", "0s"]);
-      } else {
-        employees.forEach((employee) => {
-          summaryRows.push([
-            employee.name,
-            employee.code,
-            formatExportDuration(employee.seconds),
-          ]);
-        });
-      }
-
-      summaryRows.push([]);
-      summaryRows.push(["TASK BREAKDOWN"]);
-      summaryRows.push(["Task", "Status", "Tracked Time"]);
-
-      const tasks = Array.from(project.tasks.values()).sort(
-        (a, b) => b.seconds - a.seconds
-      );
-
-      if (!tasks.length) {
-        summaryRows.push(["No task time recorded", "-", "0s"]);
-      } else {
-        tasks.forEach((task) => {
-          summaryRows.push([
-            task.title,
-            task.status,
-            formatExportDuration(task.seconds),
-          ]);
-        });
-      }
-    });
-
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
-    summarySheet["!cols"] = [
-      { wch: 38 },
-      { wch: 24 },
-      { wch: 20 },
-    ];
-
-    const allSessions = Array.from(projectMap.values()).flatMap(
-      (project) => project.sessions
-    );
-
-    const sessionsSheet = XLSX.utils.json_to_sheet(
-      allSessions.length
-        ? allSessions
-        : [
+      const sessionsSheet = XLSX.utils.json_to_sheet(
+        allSessions.length
+          ? allSessions
+          : [
             {
               Project: "No work sessions recorded",
               Employee: "-",
@@ -1413,61 +1911,61 @@ summaryRows.push([]);
               "Session ID": "-",
             },
           ]
-    );
+      );
 
-    sessionsSheet["!cols"] = [
-      { wch: 30 },
-      { wch: 24 },
-      { wch: 16 },
-      { wch: 30 },
-      { wch: 18 },
-      { wch: 14 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 16 },
-      { wch: 18 },
-      { wch: 20 },
-      { wch: 12 },
-    ];
+      sessionsSheet["!cols"] = [
+        { wch: 30 },
+        { wch: 24 },
+        { wch: 16 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 16 },
+        { wch: 18 },
+        { wch: 20 },
+        { wch: 12 },
+      ];
 
-    if (sessionsSheet["!ref"]) {
-      sessionsSheet["!autofilter"] = {
-        ref: sessionsSheet["!ref"],
-      };
-    }
+      if (sessionsSheet["!ref"]) {
+        sessionsSheet["!autofilter"] = {
+          ref: sessionsSheet["!ref"],
+        };
+      }
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      summarySheet,
-      "Project Summary"
-    );
+      XLSX.utils.book_append_sheet(
+        workbook,
+        summarySheet,
+        "Project Summary"
+      );
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      sessionsSheet,
-      "Work Sessions"
-    );
+      XLSX.utils.book_append_sheet(
+        workbook,
+        sessionsSheet,
+        "Work Sessions"
+      );
 
-    const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
 
-    XLSX.writeFile(
-      workbook,
-      `Valencia-Project-Time-Report-${today}.xlsx`
-    );
+      XLSX.writeFile(
+        workbook,
+        `Valencia-Project-Time-Report-${today}.xlsx`
+      );
 
-    setSuccessMessage("Project time report exported successfully.");
-  } catch (error) {
-    console.error("Export project data error:", error);
+      setSuccessMessage("Project time report exported successfully.");
+    } catch (error) {
+      console.error("Export project data error:", error);
 
-    setError(
-      error?.response?.data?.message ||
+      setError(
+        error?.response?.data?.message ||
         error?.message ||
         "Failed to export project time report."
-    );
-  } finally {
-    setActionLoading(false);
-  }
-};
+      );
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const kanbanColumns = [
     {
@@ -1535,6 +2033,34 @@ summaryRows.push([]);
           <Plus size={19} />
           Assign New Project
         </button>
+
+        <button
+  type="button"
+  style={styles.exportButton}
+  onClick={openInterdepartmentRequestsModal}
+  disabled={interdepartmentLoading}
+>
+  <Eye size={19} />
+
+  Interdepartment Requests
+
+  {interdepartmentRequests.incoming.filter(
+    (request) =>
+      String(request.status || "").toLowerCase() === "pending"
+  ).length > 0 && (
+    <>
+      {" "}
+      (
+      {
+        interdepartmentRequests.incoming.filter(
+          (request) =>
+            String(request.status || "").toLowerCase() === "pending"
+        ).length
+      }
+      )
+    </>
+  )}
+</button>
 
         <button
           type="button"
@@ -1660,8 +2186,8 @@ summaryRows.push([]);
       </section>
 
       {showAssignModal && (
-  <div style={styles.modalOverlay}>
-    <div style={styles.assignModal}>
+        <div style={styles.modalOverlay}>
+          <div style={styles.assignModal}>
             <button
               type="button"
               style={styles.closeButton}
@@ -1693,31 +2219,51 @@ summaryRows.push([]);
                   placeholder="Example: Website Optimization"
                 />
               </label>
-              
+
               <label style={styles.field}>
-  <span>Project Division</span>
+                <span>Project Division</span>
 
-  <select
-    value={newProject.division}
-    onChange={(event) =>
-      setNewProject((previous) => ({
-        ...previous,
-        division: event.target.value,
-      }))
-    }
-  >
-    <option value="">Select Division</option>
+                <select
+                  value={newProject.division_id}
+                  onChange={(event) => {
+                    const divisionId =
+                      event.target.value;
 
-    {divisions.map((division) => (
-  <option
-    key={division.department_id}
-    value={division.department_name}
-  >
-    {division.department_name}
-  </option>
-))}
-  </select>
-</label>
+                    const selectedDivision =
+                      divisions.find(
+                        (division) =>
+                          String(
+                            division.division_id
+                          ) ===
+                          String(divisionId)
+                      );
+
+                    setNewProject((previous) => ({
+                      ...previous,
+
+                      division_id:
+                        divisionId,
+
+                      division:
+                        selectedDivision?.division_name ||
+                        "",
+                    }));
+                  }}
+                >
+                  <option value="">
+                    Select Division
+                  </option>
+
+                  {divisions.map((division) => (
+                    <option
+                      key={division.division_id}
+                      value={division.division_id}
+                    >
+                      {division.division_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
               <label style={styles.field}>
                 <span>Project Start Date</span>
@@ -1823,33 +2369,461 @@ summaryRows.push([]);
             </div>
 
             <div style={styles.modalFooter}>
+  <button
+    type="button"
+    style={styles.fullPrimaryButton}
+    onClick={createProject}
+    disabled={actionLoading || interdepartmentLoading}
+  >
+    <CalendarDays size={19} />
+    {actionLoading ? "Assigning..." : "Assign Project"}
+  </button>
 
-<button
-  type="button"
-  style={styles.fullPrimaryButton}
-  onClick={createProject}
-  disabled={actionLoading}
->
-  <CalendarDays size={19} />
-  {actionLoading ? "Assigning..." : "Assign Project"}
-</button>
+  <button
+    type="button"
+    style={styles.projectModalEditButton}
+    onClick={openInterdepartmentRequestModal}
+    disabled={actionLoading || interdepartmentLoading}
+  >
+    <Plus size={18} />
+    {interdepartmentLoading
+      ? "Loading..."
+      : "Request Interdepartment Work"}
+  </button>
 
-
-<button
-  type="button"
-  style={styles.cancelModalButton}
-  onClick={()=>{
-    setShowAssignModal(false);
-    resetAssignForm();
-  }}
->
-  Cancel
-</button>
-
+  <button
+    type="button"
+    style={styles.cancelModalButton}
+    onClick={() => {
+      setShowAssignModal(false);
+      resetAssignForm();
+    }}
+  >
+    Cancel
+  </button>
 </div>
           </div>
         </div>
       )}
+
+      {showInterdepartmentRequestsModal && (
+  <div style={styles.editProjectOverlay}>
+    <div style={styles.editProjectModal}>
+      <div style={styles.floatingCloseLayer}>
+        <button
+          type="button"
+          style={styles.projectModalCloseButton}
+          onClick={() => setShowInterdepartmentRequestsModal(false)}
+        >
+          <X size={22} />
+        </button>
+      </div>
+
+      <div style={styles.editProjectNormalHeader}>
+        <div>
+          <h2 style={styles.modalTitle}>
+            Interdepartment Requests
+          </h2>
+
+          <p style={styles.modalSubtitle}>
+            Review incoming work requests and track requests you sent.
+          </p>
+        </div>
+      </div>
+
+      <section style={styles.editSection}>
+        <h3 style={styles.modalSectionTitle}>
+          Incoming Requests
+        </h3>
+
+        {interdepartmentRequests.incoming.length === 0 ? (
+          <div style={styles.emptyColumn}>
+            No incoming Interdepartment requests.
+          </div>
+        ) : (
+          <div style={styles.mainTaskList}>
+            {interdepartmentRequests.incoming.map((request) => {
+              const status = String(
+                request.status || "pending"
+              ).toLowerCase();
+
+              return (
+                <div
+                  key={request.request_id}
+                  style={styles.mainTaskCard}
+                >
+                  <div style={styles.mainTaskTop}>
+                    <div style={styles.mainTaskTextBlock}>
+                      <h4>{request.project_title}</h4>
+
+                      <p>
+                        <strong>From Department: </strong>
+                        {request.requesting_department_name || "-"}
+                      </p>
+
+                      <p>
+                        <strong>Requested Division: </strong>
+                        {request.requested_division_name || "-"}
+                      </p>
+
+                      <p>
+                        <strong>Project Description: </strong>
+                        {request.project_description || "-"}
+                      </p>
+
+                      <p>
+                        <strong>Work Required: </strong>
+                        {request.work_description || "-"}
+                      </p>
+
+                      <div style={styles.mainTaskDateLine}>
+                        <span>
+                          Start: {request.requested_start_date || "-"}
+                        </span>
+
+                        <span>
+                          End: {request.requested_end_date || "-"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={styles.mainTaskActions}>
+                      <span style={styles.taskStatusBadge}>
+                        {status.replace(/_/g, " ")}
+                      </span>
+
+                      {status === "pending" && (
+                        <button
+                          type="button"
+                          style={styles.smallEditButton}
+                          onClick={() =>
+                            openInterdepartmentReviewModal(request)
+                          }
+                        >
+                          <Eye size={16} />
+                          Review
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      <section style={styles.editSection}>
+        <h3 style={styles.modalSectionTitle}>
+          Requests Sent
+        </h3>
+
+        {interdepartmentRequests.outgoing.length === 0 ? (
+          <div style={styles.emptyColumn}>
+            No Interdepartment requests sent.
+          </div>
+        ) : (
+          <div style={styles.mainTaskList}>
+            {interdepartmentRequests.outgoing.map((request) => (
+              <div
+                key={request.request_id}
+                style={styles.mainTaskCard}
+              >
+                <div style={styles.mainTaskTop}>
+                  <div style={styles.mainTaskTextBlock}>
+                    <h4>{request.project_title}</h4>
+
+                    <p>
+                      <strong>Department: </strong>
+                      {request.requested_department_name || "-"}
+                    </p>
+
+                    <p>
+                      <strong>Division: </strong>
+                      {request.requested_division_name || "-"}
+                    </p>
+
+                    <p>
+                      <strong>Work Required: </strong>
+                      {request.work_description || "-"}
+                    </p>
+
+                    <div style={styles.mainTaskDateLine}>
+                      <span>
+                        Requested:{" "}
+                        {request.requested_start_date || "-"} to{" "}
+                        {request.requested_end_date || "-"}
+                      </span>
+                    </div>
+
+                    {request.approved_start_date && (
+                      <div style={styles.mainTaskDateLine}>
+                        <span>
+                          Approved: {request.approved_start_date} to{" "}
+                          {request.approved_end_date || "-"}
+                        </span>
+                      </div>
+                    )}
+
+                    {request.review_note && (
+                      <p>
+                        <strong>Review Note: </strong>
+                        {request.review_note}
+                      </p>
+                    )}
+
+                    {asArray(request.assignments).length > 0 && (
+                      <div style={styles.taskChips}>
+                        {request.assignments.map((employee) => (
+                          <span
+                            style={styles.chip}
+                            key={employee.assignment_id || employee.employee_id}
+                          >
+                            {employee.full_name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <span style={styles.taskStatusBadge}>
+                    {String(request.status || "pending").replace(
+                      /_/g,
+                      " "
+                    )}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <div style={styles.modalFooter}>
+        <button
+          type="button"
+          style={styles.cancelModalButton}
+          onClick={() => setShowInterdepartmentRequestsModal(false)}
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+      {showInterdepartmentModal && (
+  <div style={styles.editProjectOverlay}>
+    <div style={styles.editProjectModal}>
+      <div style={styles.floatingCloseLayer}>
+        <button
+          type="button"
+          style={styles.projectModalCloseButton}
+          onClick={closeInterdepartmentRequestModal}
+        >
+          <X size={22} />
+        </button>
+      </div>
+
+      <div style={styles.editProjectNormalHeader}>
+        <div>
+          <h2 style={styles.modalTitle}>
+            Request Interdepartment Work
+          </h2>
+
+          <p style={styles.modalSubtitle}>
+            Request another Department / Division to work on{" "}
+            <strong>{newProject.project_title}</strong>.
+          </p>
+        </div>
+      </div>
+
+      {error && (
+  <div style={styles.errorBox}>
+    {error}
+  </div>
+)}
+
+{successMessage && (
+  <div style={styles.successBox}>
+    {successMessage}
+  </div>
+)}
+     
+      <div style={styles.detailsGrid}>
+        <div style={styles.detailBox}>
+          <span style={styles.detailLabel}>Project</span>
+          <strong style={styles.detailValue}>
+            {newProject.project_title || "-"}
+          </strong>
+        </div>
+
+        <div style={styles.detailBox}>
+          <span style={styles.detailLabel}>Project Division</span>
+          <strong style={styles.detailValue}>
+            {newProject.division || "-"}
+          </strong>
+        </div>
+
+        <div style={styles.detailBox}>
+          <span style={styles.detailLabel}>Project Start</span>
+          <strong style={styles.detailValue}>
+            {newProject.start_date || "-"}
+          </strong>
+        </div>
+
+        <div style={styles.detailBox}>
+          <span style={styles.detailLabel}>Project Deadline</span>
+          <strong style={styles.detailValue}>
+            {newProject.end_date || "-"}
+          </strong>
+        </div>
+      </div>
+
+      <label style={styles.field}>
+        <span>Project Description</span>
+        <textarea
+          value={newProject.project_description}
+          readOnly
+        />
+      </label>
+
+      <div style={styles.formGrid}>
+        <label style={styles.field}>
+          <span>Requested Department</span>
+
+          <select
+            value={interdepartmentForm.requested_department_id}
+            onChange={(event) =>
+              setInterdepartmentForm((previous) => ({
+                ...previous,
+                requested_department_id: event.target.value,
+              }))
+            }
+          >
+            <option value="">Select Department</option>
+
+            {interdepartmentDepartments.map((department) => (
+              <option
+                key={department.department_id}
+                value={department.department_id}
+              >
+                {department.department_name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label style={styles.field}>
+          <span>Requested Division</span>
+
+          <select
+            value={interdepartmentForm.requested_division_id}
+            onChange={(event) =>
+              setInterdepartmentForm((previous) => ({
+                ...previous,
+                requested_division_id: event.target.value,
+              }))
+            }
+          >
+            <option value="">Select Division</option>
+
+            {interdepartmentDivisions.map((division) => (
+              <option
+                key={division.division_id}
+                value={division.division_id}
+              >
+                {division.division_name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div />
+      </div>
+
+      <label style={styles.field}>
+        <span>Work Required in Detail</span>
+
+        <textarea
+          value={interdepartmentForm.work_description}
+          onChange={(event) =>
+            setInterdepartmentForm((previous) => ({
+              ...previous,
+              work_description: event.target.value,
+            }))
+          }
+          placeholder="Explain exactly what work is required from this Department / Division..."
+        />
+      </label>
+
+      <div style={styles.formGrid}>
+        <label style={styles.field}>
+          <span>Requested Start Date</span>
+
+          <input
+            type="date"
+            min={newProject.start_date || undefined}
+            max={newProject.end_date || undefined}
+            value={interdepartmentForm.requested_start_date}
+            onChange={(event) =>
+              setInterdepartmentForm((previous) => ({
+                ...previous,
+                requested_start_date: event.target.value,
+              }))
+            }
+          />
+        </label>
+
+        <label style={styles.field}>
+          <span>Requested End Date</span>
+
+          <input
+            type="date"
+            min={
+              interdepartmentForm.requested_start_date ||
+              newProject.start_date ||
+              undefined
+            }
+            max={newProject.end_date || undefined}
+            value={interdepartmentForm.requested_end_date}
+            onChange={(event) =>
+              setInterdepartmentForm((previous) => ({
+                ...previous,
+                requested_end_date: event.target.value,
+              }))
+            }
+          />
+        </label>
+      </div>
+
+      <div style={styles.modalFooter}>
+        <button
+          type="button"
+          style={styles.fullPrimaryButton}
+          onClick={sendInterdepartmentRequest}
+          disabled={interdepartmentLoading}
+        >
+          <Plus size={19} />
+
+          {interdepartmentLoading
+            ? "Sending..."
+            : "Create Project & Send Request"}
+        </button>
+
+        <button
+          type="button"
+          style={styles.cancelModalButton}
+          onClick={closeInterdepartmentRequestModal}
+          disabled={interdepartmentLoading}
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {selectedProject && (
         <div style={styles.modalOverlay}>
@@ -1868,8 +2842,8 @@ summaryRows.push([]);
               <div style={styles.projectModalTitleBlock}>
                 <h2 style={styles.modalTitle}>{selectedProject.project_title}</h2>
                 <p style={styles.modalSubtitle}>
-  View project details, manage tasks, and track project progress.
-</p>
+                  View project details, manage tasks, and track project progress.
+                </p>
               </div>
 
               <button
@@ -1882,6 +2856,18 @@ summaryRows.push([]);
               </button>
             </div>
 
+            {error && (
+  <div style={styles.errorBox}>
+    {error}
+  </div>
+)}
+
+{successMessage && (
+  <div style={styles.successBox}>
+    {successMessage}
+  </div>
+)}
+
             <div style={styles.detailsGrid}>
               <div style={styles.detailBox}>
                 <span style={styles.detailLabel}>Department</span>
@@ -1891,12 +2877,12 @@ summaryRows.push([]);
                 </strong>
               </div>
               <div style={styles.detailBox}>
-  <span style={styles.detailLabel}>Division</span>
+                <span style={styles.detailLabel}>Division</span>
 
-  <strong style={styles.detailValue}>
-    {selectedProject.division || "-"}
-  </strong>
-</div>
+                <strong style={styles.detailValue}>
+                  {selectedProject.division || "-"}
+                </strong>
+              </div>
 
               <div style={styles.detailBox}>
                 <span style={styles.detailLabel}>Created By</span>
@@ -1942,213 +2928,213 @@ summaryRows.push([]);
             </div>
 
             {["under_review", "on_hold"].includes(
-  normalizeStatus(selectedProject.status)
-) && (
-              <section style={styles.reviewActionSection}>
-                <div style={styles.reviewActionHeader}>
-                  <div>
-                    <h3 style={styles.reviewActionTitle}>Project Review</h3>
-                    <p style={styles.reviewActionSubtitle}>
-                      Approve this project, place it on hold, or reject it.
-                    </p>
+              normalizeStatus(selectedProject.status)
+            ) && (
+                <section style={styles.reviewActionSection}>
+                  <div style={styles.reviewActionHeader}>
+                    <div>
+                      <h3 style={styles.reviewActionTitle}>Project Review</h3>
+                      <p style={styles.reviewActionSubtitle}>
+                        Approve this project, place it on hold, or reject it.
+                      </p>
+                    </div>
                   </div>
-                </div>
 
-                {reviewError && (
-                  <div style={styles.reviewInlineError}>{reviewError}</div>
-                )}
+                  {reviewError && (
+                    <div style={styles.reviewInlineError}>{reviewError}</div>
+                  )}
 
-                {reviewSuccess && (
-                  <div style={styles.reviewInlineSuccess}>{reviewSuccess}</div>
-                )}
+                  {reviewSuccess && (
+                    <div style={styles.reviewInlineSuccess}>{reviewSuccess}</div>
+                  )}
 
-                <label style={styles.reviewRemarkField}>
-                  <span>Remark</span>
-                  <textarea
-                    value={reviewRemark}
-                    onChange={(event) => setReviewRemark(event.target.value)}
-                    placeholder="Add your review remark..."
-                    disabled={reviewActionLoading}
+                  <label style={styles.reviewRemarkField}>
+                    <span>Remark</span>
+                    <textarea
+                      value={reviewRemark}
+                      onChange={(event) => setReviewRemark(event.target.value)}
+                      placeholder="Add your review remark..."
+                      disabled={reviewActionLoading}
+                    />
+                  </label>
+
+                  <div style={styles.reviewActionButtons}>
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.approveButton,
+                        ...(reviewActionLoading ? styles.disabledReviewButton : {}),
+                      }}
+                      disabled={reviewActionLoading}
+                      onClick={() => handleProjectReviewAction("done")}
+                    >
+                      <CheckCircle2 size={18} />
+                      {reviewActionLoading ? "Processing..." : "Approve"}
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.holdButton,
+                        ...(reviewActionLoading ? styles.disabledReviewButton : {}),
+                      }}
+                      disabled={reviewActionLoading}
+                      onClick={() => handleProjectReviewAction("on_hold")}
+                    >
+                      <PauseCircle size={18} />
+                      On Hold
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.rejectButton,
+                        ...(reviewActionLoading ? styles.disabledReviewButton : {}),
+                      }}
+                      disabled={reviewActionLoading}
+                      onClick={() => handleProjectReviewAction("reject")}
+                    >
+                      <XCircle size={18} />
+                      Reject
+                    </button>
+                    {normalizeStatus(selectedProject.status) === "on_hold" && (
+                      <button
+                        type="button"
+                        style={{
+                          ...styles.approveButton,
+                          ...(reviewActionLoading ? styles.disabledReviewButton : {}),
+                        }}
+                        disabled={reviewActionLoading}
+                        onClick={() => handleProjectReviewAction("on_hold")}
+                      >
+                        <RefreshCw size={18} />
+                        {reviewActionLoading ? "Processing..." : "Resume"}
+                      </button>
+                    )}
+                  </div>
+                </section>
+              )}
+
+            {canEditMainTasks(selectedProject.status) && (
+              <section style={styles.editSection}>
+                <h3 style={styles.modalSectionTitle}>
+                  <Plus size={21} color="#ff5733" />
+                  Add Main Task
+                </h3>
+
+                <p style={styles.panelSubtitle}>
+                  Select one or more assignees from this project's assignees only.
+                </p>
+
+                <label style={styles.field}>
+                  <span>Main Task Title</span>
+                  <input
+                    value={newMainTask.task_title}
+                    onChange={(event) =>
+                      setNewMainTask((previous) => ({
+                        ...previous,
+                        task_title: event.target.value,
+                      }))
+                    }
+                    placeholder="Example: Frontend dashboard"
                   />
                 </label>
 
-                <div style={styles.reviewActionButtons}>
-                  <button
-                    type="button"
-                    style={{
-                      ...styles.approveButton,
-                      ...(reviewActionLoading ? styles.disabledReviewButton : {}),
-                    }}
-                    disabled={reviewActionLoading}
-                    onClick={() => handleProjectReviewAction("done")}
-                  >
-                    <CheckCircle2 size={18} />
-                    {reviewActionLoading ? "Processing..." : "Approve"}
-                  </button>
+                <label style={styles.field}>
+                  <span>Main Task Description</span>
+                  <textarea
+                    value={newMainTask.task_description}
+                    onChange={(event) =>
+                      setNewMainTask((previous) => ({
+                        ...previous,
+                        task_description: event.target.value,
+                      }))
+                    }
+                    placeholder="Write task details..."
+                  />
+                </label>
 
-                  <button
-                    type="button"
-                    style={{
-                      ...styles.holdButton,
-                      ...(reviewActionLoading ? styles.disabledReviewButton : {}),
-                    }}
-                    disabled={reviewActionLoading}
-                    onClick={() => handleProjectReviewAction("on_hold")}
-                  >
-                    <PauseCircle size={18} />
-                    On Hold
-                  </button>
+                <div style={styles.formGrid}>
+                  <label style={styles.field}>
+                    <span>Main Task Start Date</span>
+                    <input
+                      type="date"
+                      value={newMainTask.start_date}
+                      min={selectedProject.start_date || undefined}
+                      max={selectedProject.end_date || undefined}
+                      onChange={(event) => {
+                        const value = event.target.value;
 
-                  <button
-                    type="button"
-                    style={{
-                      ...styles.rejectButton,
-                      ...(reviewActionLoading ? styles.disabledReviewButton : {}),
-                    }}
-                    disabled={reviewActionLoading}
-                    onClick={() => handleProjectReviewAction("reject")}
-                  >
-                    <XCircle size={18} />
-                    Reject
-                  </button>
-                  {normalizeStatus(selectedProject.status) === "on_hold" && (
-  <button
-    type="button"
-    style={{
-      ...styles.approveButton,
-      ...(reviewActionLoading ? styles.disabledReviewButton : {}),
-    }}
-    disabled={reviewActionLoading}
-    onClick={() => handleProjectReviewAction("on_hold")}
-  >
-    <RefreshCw size={18} />
-    {reviewActionLoading ? "Processing..." : "Resume"}
-  </button>
-)}
+                        setNewMainTask((previous) => ({
+                          ...previous,
+                          start_date: value,
+                          due_date:
+                            previous.due_date && previous.due_date < value
+                              ? ""
+                              : previous.due_date,
+                        }));
+                      }}
+                    />
+                  </label>
+
+                  <label style={styles.field}>
+                    <span>Main Task Deadline</span>
+                    <input
+                      type="date"
+                      value={newMainTask.due_date}
+                      min={newMainTask.start_date || selectedProject.start_date || undefined}
+                      max={selectedProject.end_date || undefined}
+                      onChange={(event) =>
+                        setNewMainTask((previous) => ({
+                          ...previous,
+                          due_date: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
                 </div>
+
+                <div style={styles.taskAssigneeList}>
+                  {currentProjectAssignees.length === 0 ? (
+                    <div style={styles.emptyColumn}>
+                      Select project assignees first.
+                    </div>
+                  ) : (
+                    currentProjectAssignees.map((user) => {
+                      const userId = String(getUserId(user));
+
+                      const checked = newMainTask.assignee_ids
+                        .map(String)
+                        .includes(userId);
+
+                      return (
+                        <label style={styles.taskAssigneeRow} key={userId}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleMainTaskAssignee(userId)}
+                          />
+
+                          <strong>{getUserName(user)}</strong>
+                          <span>{user.department_name || "-"}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  style={styles.fullPrimaryButton}
+                  onClick={addMainTask}
+                  disabled={actionLoading}
+                >
+                  <Plus size={19} />
+                  {actionLoading ? "Adding..." : "Add Main Task"}
+                </button>
+
               </section>
             )}
-
-            {canEditMainTasks(selectedProject.status) && (
-  <section style={styles.editSection}>
-    <h3 style={styles.modalSectionTitle}>
-      <Plus size={21} color="#ff5733" />
-      Add Main Task
-    </h3>
-
-    <p style={styles.panelSubtitle}>
-      Select one or more assignees from this project's assignees only.
-    </p>
-
-    <label style={styles.field}>
-      <span>Main Task Title</span>
-      <input
-        value={newMainTask.task_title}
-        onChange={(event) =>
-          setNewMainTask((previous) => ({
-            ...previous,
-            task_title: event.target.value,
-          }))
-        }
-        placeholder="Example: Frontend dashboard"
-      />
-    </label>
-
-    <label style={styles.field}>
-      <span>Main Task Description</span>
-      <textarea
-        value={newMainTask.task_description}
-        onChange={(event) =>
-          setNewMainTask((previous) => ({
-            ...previous,
-            task_description: event.target.value,
-          }))
-        }
-        placeholder="Write task details..."
-      />
-    </label>
-
-    <div style={styles.formGrid}>
-      <label style={styles.field}>
-        <span>Main Task Start Date</span>
-        <input
-          type="date"
-          value={newMainTask.start_date}
-          min={selectedProject.start_date || undefined}
-          max={selectedProject.end_date || undefined}
-          onChange={(event) => {
-            const value = event.target.value;
-
-            setNewMainTask((previous) => ({
-              ...previous,
-              start_date: value,
-              due_date:
-                previous.due_date && previous.due_date < value
-                  ? ""
-                  : previous.due_date,
-            }));
-          }}
-        />
-      </label>
-
-      <label style={styles.field}>
-        <span>Main Task Deadline</span>
-        <input
-          type="date"
-          value={newMainTask.due_date}
-          min={newMainTask.start_date || selectedProject.start_date || undefined}
-          max={selectedProject.end_date || undefined}
-          onChange={(event) =>
-            setNewMainTask((previous) => ({
-              ...previous,
-              due_date: event.target.value,
-            }))
-          }
-        />
-      </label>
-    </div>
-
-    <div style={styles.taskAssigneeList}>
-      {currentProjectAssignees.length === 0 ? (
-        <div style={styles.emptyColumn}>
-          Select project assignees first.
-        </div>
-      ) : (
-        currentProjectAssignees.map((user) => {
-          const userId = String(getUserId(user));
-
-          const checked = newMainTask.assignee_ids
-            .map(String)
-            .includes(userId);
-
-          return (
-            <label style={styles.taskAssigneeRow} key={userId}>
-              <input
-                type="checkbox"
-                checked={checked}
-                onChange={() => toggleMainTaskAssignee(userId)}
-              />
-
-              <strong>{getUserName(user)}</strong>
-              <span>{user.department_name || "-"}</span>
-            </label>
-          );
-        })
-      )}
-    </div>
-
-    <button
-      type="button"
-      style={styles.fullPrimaryButton}
-      onClick={addMainTask}
-      disabled={actionLoading}
-    >
-      <Plus size={19} />
-      {actionLoading ? "Adding..." : "Add Main Task"}
-    </button>
-
-  </section>
-)}
             <section>
               <h3 style={styles.modalSectionTitle}>Main Tasks</h3>
 
@@ -2181,6 +3167,45 @@ summaryRows.push([]);
                                   </span>
                                 </div>
                               </div>
+
+                             {normalizeStatus(task.status) === "on_hold" && (
+  <div
+    style={{
+      marginTop: "12px",
+      padding: "12px 14px",
+      background: "#f8fafc",
+      border: "1px solid #e5e7eb",
+      borderRadius: "12px",
+      display: "grid",
+      gap: "7px",
+    }}
+  >
+    <div>
+      <strong>On Hold Reason: </strong>
+      <span>
+        {task.review_note || "-"}
+      </span>
+    </div>
+
+    <div>
+      <strong>Put On Hold By: </strong>
+      <span>
+        {task.reviewed_by_name || "-"}
+      </span>
+    </div>
+
+    <div>
+      <strong>Put On Hold At: </strong>
+      <span>
+        {task.reviewed_at
+          ? new Date(
+              task.reviewed_at
+            ).toLocaleString("en-IN")
+          : "-"}
+      </span>
+    </div>
+  </div>
+)} 
 
                               <div style={styles.mainTaskActions}>
                                 <span style={styles.taskStatusBadge}>
@@ -2276,7 +3301,7 @@ summaryRows.push([]);
                                       start_date: value,
                                       due_date:
                                         previous.due_date &&
-                                        previous.due_date < value
+                                          previous.due_date < value
                                           ? ""
                                           : previous.due_date,
                                     }));
@@ -2371,14 +3396,14 @@ summaryRows.push([]);
               )}
             </section>
             <div style={styles.modalFooter}>
-  <button
-    type="button"
-    style={styles.cancelModalButton}
-    onClick={closeProjectDetails}
-  >
-    Cancel
-  </button>
-</div>
+              <button
+                type="button"
+                style={styles.cancelModalButton}
+                onClick={closeProjectDetails}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2435,6 +3460,51 @@ summaryRows.push([]);
                     }))
                   }
                 />
+              </label>
+
+              <label style={styles.field}>
+                <span>Project Division</span>
+
+                <select
+                  value={editProject.division_id}
+                  onChange={(event) => {
+                    const divisionId =
+                      event.target.value;
+
+                    const selectedDivision =
+                      divisions.find(
+                        (division) =>
+                          String(
+                            division.division_id
+                          ) ===
+                          String(divisionId)
+                      );
+
+                    setEditProject((previous) => ({
+                      ...previous,
+
+                      division_id:
+                        divisionId,
+
+                      division:
+                        selectedDivision?.division_name ||
+                        "",
+                    }));
+                  }}
+                >
+                  <option value="">
+                    Select Division
+                  </option>
+
+                  {divisions.map((division) => (
+                    <option
+                      key={division.division_id}
+                      value={division.division_id}
+                    >
+                      {division.division_name}
+                    </option>
+                  ))}
+                </select>
               </label>
 
               <label style={styles.field}>
@@ -2577,6 +3647,251 @@ summaryRows.push([]);
           </div>
         </div>
       )}
+
+      {selectedInterdepartmentRequest &&
+  showInterdepartmentReviewModal && (
+    <div style={styles.editProjectOverlay}>
+      <div style={styles.editProjectModal}>
+        <div style={styles.floatingCloseLayer}>
+          <button
+            type="button"
+            style={styles.projectModalCloseButton}
+            onClick={() => {
+              setShowInterdepartmentReviewModal(false);
+              setSelectedInterdepartmentRequest(null);
+              setInterdepartmentEmployees([]);
+            }}
+          >
+            <X size={22} />
+          </button>
+        </div>
+
+        <div style={styles.editProjectNormalHeader}>
+          <div>
+            <h2 style={styles.modalTitle}>
+              Review Interdepartment Request
+            </h2>
+
+            <p style={styles.modalSubtitle}>
+              {selectedInterdepartmentRequest.project_title}
+            </p>
+          </div>
+        </div>
+
+        <div style={styles.detailsGrid}>
+          <div style={styles.detailBox}>
+            <span style={styles.detailLabel}>From Department</span>
+            <strong style={styles.detailValue}>
+              {selectedInterdepartmentRequest.requesting_department_name ||
+                "-"}
+            </strong>
+          </div>
+
+          <div style={styles.detailBox}>
+            <span style={styles.detailLabel}>Your Department</span>
+            <strong style={styles.detailValue}>
+              {selectedInterdepartmentRequest.requested_department_name ||
+                "-"}
+            </strong>
+          </div>
+
+          <div style={styles.detailBox}>
+            <span style={styles.detailLabel}>Requested Division</span>
+            <strong style={styles.detailValue}>
+              {selectedInterdepartmentRequest.requested_division_name ||
+                "-"}
+            </strong>
+          </div>
+
+          <div style={styles.detailBox}>
+            <span style={styles.detailLabel}>Requested Timeline</span>
+            <strong style={styles.detailDateValue}>
+              <span>
+                {selectedInterdepartmentRequest.requested_start_date ||
+                  "-"}
+              </span>
+
+              <span style={styles.detailDateSeparator}>to</span>
+
+              <span>
+                {selectedInterdepartmentRequest.requested_end_date ||
+                  "-"}
+              </span>
+            </strong>
+          </div>
+        </div>
+
+        <section style={styles.editSection}>
+          <h3 style={styles.modalSectionTitle}>
+            Project Description
+          </h3>
+
+          <p>
+            {selectedInterdepartmentRequest.project_description || "-"}
+          </p>
+        </section>
+
+        <section style={styles.editSection}>
+          <h3 style={styles.modalSectionTitle}>
+            Work Required
+          </h3>
+
+          <p>
+            {selectedInterdepartmentRequest.work_description || "-"}
+          </p>
+        </section>
+
+        <div style={styles.assigneePanel}>
+          <div style={styles.panelHeader}>
+            <div>
+              <h3 style={styles.panelTitle}>
+                Select Employee(s)
+              </h3>
+
+              <p style={styles.panelSubtitle}>
+                Select employees from your Department. Selected:{" "}
+                {interdepartmentReview.employee_ids.length}
+              </p>
+            </div>
+          </div>
+
+          <div style={styles.assigneeList}>
+            {interdepartmentEmployees.length === 0 ? (
+              <div style={styles.emptyColumn}>
+                No active employees found.
+              </div>
+            ) : (
+              interdepartmentEmployees.map((user) => {
+                const userId = String(getUserId(user));
+
+                const checked =
+                  interdepartmentReview.employee_ids
+                    .map(String)
+                    .includes(userId);
+
+                return (
+                  <label
+                    style={styles.assigneeRow}
+                    key={userId}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() =>
+                        toggleInterdepartmentEmployee(userId)
+                      }
+                    />
+
+                    <div style={styles.assigneeAvatar}>
+                      {getInitials(getUserName(user))}
+                    </div>
+
+                    <div style={styles.assigneeInfo}>
+                      <strong>{getUserName(user)}</strong>
+                      <span>{getUserEmail(user)}</span>
+                    </div>
+
+                    <b style={styles.assigneeDept}>
+                      {user.department_name || "-"}
+                    </b>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+
+        <div style={styles.formGrid}>
+          <label style={styles.field}>
+            <span>Approved Start Date</span>
+
+            <input
+              type="date"
+              min={
+                selectedInterdepartmentRequest.project_start_date ||
+                undefined
+              }
+              max={
+                selectedInterdepartmentRequest.project_due_date ||
+                undefined
+              }
+              value={interdepartmentReview.approved_start_date}
+              onChange={(event) =>
+                setInterdepartmentReview((previous) => ({
+                  ...previous,
+                  approved_start_date: event.target.value,
+                }))
+              }
+            />
+          </label>
+
+          <label style={styles.field}>
+            <span>Approved End Date</span>
+
+            <input
+              type="date"
+              min={
+                interdepartmentReview.approved_start_date ||
+                selectedInterdepartmentRequest.project_start_date ||
+                undefined
+              }
+              max={
+                selectedInterdepartmentRequest.project_due_date ||
+                undefined
+              }
+              value={interdepartmentReview.approved_end_date}
+              onChange={(event) =>
+                setInterdepartmentReview((previous) => ({
+                  ...previous,
+                  approved_end_date: event.target.value,
+                }))
+              }
+            />
+          </label>
+        </div>
+
+        <label style={styles.field}>
+          <span>Review Note / Rejection Reason</span>
+
+          <textarea
+            value={interdepartmentReview.review_note}
+            onChange={(event) =>
+              setInterdepartmentReview((previous) => ({
+                ...previous,
+                review_note: event.target.value,
+              }))
+            }
+            placeholder="Optional for approval. Required for rejection."
+          />
+        </label>
+
+        <div style={styles.modalFooter}>
+          <button
+            type="button"
+            style={styles.rejectButton}
+            disabled={interdepartmentLoading}
+            onClick={() => submitInterdepartmentReview("reject")}
+          >
+            <XCircle size={18} />
+            Reject
+          </button>
+
+          <button
+            type="button"
+            style={styles.approveButton}
+            disabled={interdepartmentLoading}
+            onClick={() => submitInterdepartmentReview("approve")}
+          >
+            <CheckCircle2 size={18} />
+
+            {interdepartmentLoading
+              ? "Processing..."
+              : "Approve & Assign Employee"}
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
     </div>
   );
 };
@@ -2596,36 +3911,36 @@ const styles = {
     gap: "14px",
     marginBottom: "26px",
   },
-refreshButton: {
-  border: "none",
-  background: "#ff5733",
-  color: "#ffffff",
-  borderRadius: "14px",
-  padding: "12px 20px",
-  fontSize: "14px",
-  fontWeight: 900,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
-  cursor: "pointer",
-  boxShadow: "0 10px 22px rgba(255, 87, 51, 0.22)",
-},
+  refreshButton: {
+    border: "none",
+    background: "#ff5733",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "12px 20px",
+    fontSize: "14px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    cursor: "pointer",
+    boxShadow: "0 10px 22px rgba(255, 87, 51, 0.22)",
+  },
   assignButton: {
-  border: "none",
-  background: "#ff5733",
-  color: "#ffffff",
-  borderRadius: "14px",
-  padding: "12px 20px",
-  fontSize: "14px",
-  fontWeight: 900,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
-  cursor: "pointer",
-  boxShadow: "0 10px 22px rgba(255, 87, 51, 0.22)",
-},
+    border: "none",
+    background: "#ff5733",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "12px 20px",
+    fontSize: "14px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    cursor: "pointer",
+    boxShadow: "0 10px 22px rgba(255, 87, 51, 0.22)",
+  },
 
   errorBox: {
     background: "#fff1f2",
@@ -2762,35 +4077,35 @@ refreshButton: {
   },
 
   kanbanScroll: {
-  width: "100%",
-  overflowX: "auto",
-  overflowY: "hidden",
-  paddingBottom: "10px",
-},
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+    paddingBottom: "10px",
+  },
 
   kanbanBoard: {
-  display: "grid",
-  gridTemplateColumns: "repeat(6, calc((100vw - 470px) / 3))",
-  gap: "20px",
-  width: "max-content",
-},
+    display: "grid",
+    gridTemplateColumns: "repeat(6, calc((100vw - 470px) / 3))",
+    gap: "20px",
+    width: "max-content",
+  },
 
- kanbanColumn: {
-  width: "calc((100vw - 470px) / 3)",
-  height: "660px",
-  minHeight: "660px",
-  maxHeight: "660px",
+  kanbanColumn: {
+    width: "calc((100vw - 470px) / 3)",
+    height: "660px",
+    minHeight: "660px",
+    maxHeight: "660px",
 
-  boxSizing: "border-box",
-  background: "#ffffff",
-  border: "1px solid #e5e7eb",
-  borderRadius: "22px",
-  padding: "18px",
+    boxSizing: "border-box",
+    background: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "22px",
+    padding: "18px",
 
-  display: "flex",
-  flexDirection: "column",
-  overflow: "hidden",
-},
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+  },
 
   columnHeader: {
     minHeight: "96px",
@@ -2836,18 +4151,18 @@ refreshButton: {
   },
 
   columnBody: {
-  display: "flex",
-  flexDirection: "column",
-  gap: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
 
-  flex: 1,
-  minHeight: 0,
+    flex: 1,
+    minHeight: 0,
 
-  overflowY: "auto",
-  overflowX: "hidden",
+    overflowY: "auto",
+    overflowX: "hidden",
 
-  paddingRight: "6px",
-},
+    paddingRight: "6px",
+  },
 
   emptyColumn: {
     border: "1px dashed #cbd5e1",
@@ -2913,31 +4228,31 @@ refreshButton: {
     boxShadow: "0 24px 60px rgba(15, 23, 42, 0.28)",
   },
 
-  closeButton:{
- position:"absolute",
- top:"20px",
- right:"20px",
- width:"52px",
- height:"52px",
- borderRadius:"16px",
- border:"none",
- background:"#111827",
- color:"#ffffff",
- display:"grid",
- placeItems:"center",
- cursor:"pointer",
- zIndex:1000,
-},
+  closeButton: {
+    position: "absolute",
+    top: "20px",
+    right: "20px",
+    width: "52px",
+    height: "52px",
+    borderRadius: "16px",
+    border: "none",
+    background: "#111827",
+    color: "#ffffff",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    zIndex: 1000,
+  },
 
-floatingCloseLayer: {
-  position: "absolute",
-  top: "20px",
-  right: "20px",
-  zIndex: 1000,
-  height: "52px",
-  width: "52px",
-  pointerEvents: "none",
-},
+  floatingCloseLayer: {
+    position: "absolute",
+    top: "20px",
+    right: "20px",
+    zIndex: 1000,
+    height: "52px",
+    width: "52px",
+    pointerEvents: "none",
+  },
   modalTitle: {
     margin: "0 0 10px",
     color: "#111827",
@@ -2987,20 +4302,20 @@ floatingCloseLayer: {
     flexShrink: 0,
   },
 
-projectModalCloseButton: {
-  width: "52px",
-  height: "52px",
-  minWidth: "52px",
-  borderRadius: "14px",
-  border: "none",
-  background: "#111827",
-  color: "#ffffff",
-  display: "grid",
-  placeItems: "center",
-  cursor: "pointer",
-  boxShadow: "0 10px 24px rgba(15,23,42,0.15)",
-  pointerEvents: "auto",
-},
+  projectModalCloseButton: {
+    width: "52px",
+    height: "52px",
+    minWidth: "52px",
+    borderRadius: "14px",
+    border: "none",
+    background: "#111827",
+    color: "#ffffff",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(15,23,42,0.15)",
+    pointerEvents: "auto",
+  },
   editProjectOverlay: {
     position: "fixed",
     inset: 0,
@@ -3152,116 +4467,116 @@ projectModalCloseButton: {
   },
 
   reviewActionSection: {
-  background: "#f8fafc",
-  border: "1px solid #e5e7eb",
-  borderRadius: "20px",
-  padding: "20px",
-  marginBottom: "24px",
-},
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: "20px",
+    padding: "20px",
+    marginBottom: "24px",
+  },
 
-reviewActionHeader: {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "flex-start",
-  marginBottom: "16px",
-},
+  reviewActionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: "16px",
+  },
 
-reviewActionTitle: {
-  margin: "0 0 6px",
-  color: "#111827",
-  fontSize: "22px",
-  fontWeight: 900,
-},
+  reviewActionTitle: {
+    margin: "0 0 6px",
+    color: "#111827",
+    fontSize: "22px",
+    fontWeight: 900,
+  },
 
-reviewActionSubtitle: {
-  margin: 0,
-  color: "#64748b",
-  fontSize: "14px",
-  fontWeight: 700,
-},
+  reviewActionSubtitle: {
+    margin: 0,
+    color: "#64748b",
+    fontSize: "14px",
+    fontWeight: 700,
+  },
 
-reviewInlineError: {
-  background: "#fff1f2",
-  border: "1px solid #fecdd3",
-  color: "#b91c1c",
-  borderRadius: "14px",
-  padding: "12px 14px",
-  marginBottom: "14px",
-  fontSize: "14px",
-  fontWeight: 800,
-},
+  reviewInlineError: {
+    background: "#fff1f2",
+    border: "1px solid #fecdd3",
+    color: "#b91c1c",
+    borderRadius: "14px",
+    padding: "12px 14px",
+    marginBottom: "14px",
+    fontSize: "14px",
+    fontWeight: 800,
+  },
 
-reviewInlineSuccess: {
-  background: "#dcfce7",
-  border: "1px solid #bbf7d0",
-  color: "#166534",
-  borderRadius: "14px",
-  padding: "12px 14px",
-  marginBottom: "14px",
-  fontSize: "14px",
-  fontWeight: 800,
-},
+  reviewInlineSuccess: {
+    background: "#dcfce7",
+    border: "1px solid #bbf7d0",
+    color: "#166534",
+    borderRadius: "14px",
+    padding: "12px 14px",
+    marginBottom: "14px",
+    fontSize: "14px",
+    fontWeight: 800,
+  },
 
-reviewRemarkField: {
-  display: "flex",
-  flexDirection: "column",
-  gap: "9px",
-  marginBottom: "16px",
-  color: "#111827",
-  fontSize: "14px",
-  fontWeight: 900,
-},
+  reviewRemarkField: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "9px",
+    marginBottom: "16px",
+    color: "#111827",
+    fontSize: "14px",
+    fontWeight: 900,
+  },
 
-reviewActionButtons: {
-  display: "flex",
-  alignItems: "center",
-  gap: "12px",
-  flexWrap: "wrap",
-},
+  reviewActionButtons: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap",
+  },
 
-approveButton: {
-  border: "none",
-  background: "#16a34a",
-  color: "#ffffff",
-  borderRadius: "14px",
-  padding: "13px 20px",
-  fontWeight: 900,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "8px",
-},
+  approveButton: {
+    border: "none",
+    background: "#16a34a",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "13px 20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+  },
 
-holdButton: {
-  border: "none",
-  background: "#111827",
-  color: "#ffffff",
-  borderRadius: "14px",
-  padding: "13px 20px",
-  fontWeight: 900,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "8px",
-},
+  holdButton: {
+    border: "none",
+    background: "#111827",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "13px 20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+  },
 
-rejectButton: {
-  border: "none",
-  background: "#dc2626",
-  color: "#ffffff",
-  borderRadius: "14px",
-  padding: "13px 20px",
-  fontWeight: 900,
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "8px",
-},
+  rejectButton: {
+    border: "none",
+    background: "#dc2626",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "13px 20px",
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+  },
 
-disabledReviewButton: {
-  opacity: 0.65,
-  cursor: "not-allowed",
-},
+  disabledReviewButton: {
+    opacity: 0.65,
+    cursor: "not-allowed",
+  },
 
   editSection: {
     background: "#f8fafc",
@@ -3408,13 +4723,13 @@ disabledReviewButton: {
     fontSize: "14px",
     fontWeight: 900,
   },
-  assignFooterButton:{
-  flex:1,
-},
+  assignFooterButton: {
+    flex: 1,
+  },
 
   fullPrimaryButton: {
-     width:"auto",
-  minWidth:"220px",
+    width: "auto",
+    minWidth: "220px",
     minHeight: "56px",
     border: "none",
     borderRadius: "16px",
@@ -3588,52 +4903,52 @@ disabledReviewButton: {
     fontSize: "12px",
     fontWeight: 900,
   },
-exportButton: {
-  border: "1px solid #111827",
-  background: "#111827",
-  color: "#ffffff",
-  borderRadius: "14px",
-  padding: "12px 20px",
-  fontSize: "14px",
-  fontWeight: 900,
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: "8px",
-  cursor: "pointer",
-  boxShadow: "0 10px 22px rgba(15, 23, 42, 0.14)",
-},
-modalFooter:{
-  display:"flex",
-  justifyContent:"flex-end",
-  alignItems:"center",
-  gap:"14px",
-  marginTop:"30px",
-  paddingTop:"20px",
-  borderTop:"1px solid #e5e7eb",
-},
+  exportButton: {
+    border: "1px solid #111827",
+    background: "#111827",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "12px 20px",
+    fontSize: "14px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    cursor: "pointer",
+    boxShadow: "0 10px 22px rgba(15, 23, 42, 0.14)",
+  },
+  modalFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: "14px",
+    marginTop: "30px",
+    paddingTop: "20px",
+    borderTop: "1px solid #e5e7eb",
+  },
 
-cancelModalButton: {
-  height: "48px",
-  padding: "0 28px",
-  borderRadius: "14px",
-  border: "1px solid #d1d5db",
-  background: "#ffffff",
-  color: "#111827",
-  fontSize: "15px",
-  fontWeight: 900,
-  cursor: "pointer",
-},
-assignModal:{
-  position:"relative",
-  width:"min(1250px, 96vw)",
-  maxHeight:"90vh",
-  background:"#ffffff",
-  borderRadius:"26px",
-  padding:"34px",
-  boxShadow:"0 24px 60px rgba(15,23,42,0.28)",
-  overflowY:"auto",
-},
+  cancelModalButton: {
+    height: "48px",
+    padding: "0 28px",
+    borderRadius: "14px",
+    border: "1px solid #d1d5db",
+    background: "#ffffff",
+    color: "#111827",
+    fontSize: "15px",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  assignModal: {
+    position: "relative",
+    width: "min(1250px, 96vw)",
+    maxHeight: "90vh",
+    background: "#ffffff",
+    borderRadius: "26px",
+    padding: "34px",
+    boxShadow: "0 24px 60px rgba(15,23,42,0.28)",
+    overflowY: "auto",
+  },
 };
 
 export default AdminProjects;

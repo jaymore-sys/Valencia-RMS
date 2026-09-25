@@ -494,6 +494,9 @@ const getAssignedMainTask = async (
 
         creator.email
           AS created_by_email
+          ,
+reviewer.full_name
+  AS reviewed_by_name
 
       FROM tasks t
 
@@ -508,6 +511,10 @@ const getAssignedMainTask = async (
       LEFT JOIN users creator
         ON creator.user_id =
            t.created_by_user_id
+
+           LEFT JOIN users reviewer
+  ON reviewer.user_id =
+     t.reviewed_by_user_id
 
       WHERE
         t.task_id = ?
@@ -1068,14 +1075,12 @@ const recalculateProject = async (
   EVERY Main Task is ready.
   */
 
-  const allReadyForReview =
-    statuses.every(
-      (status) =>
-        [
-          "under_review",
-          "completed",
-        ].includes(status)
-    );
+ const allMainTasksCompleted =
+  statuses.length > 0 &&
+  statuses.every(
+    (status) =>
+      status === "completed"
+  );
 
   const anyStarted =
   statuses.some(
@@ -1086,10 +1091,10 @@ const recalculateProject = async (
   let nextProjectStatus =
     "not_started";
 
-  if (allReadyForReview) {
-    nextProjectStatus =
-      "under_review";
-  } else if (anyStarted) {
+  if (allMainTasksCompleted) {
+  nextProjectStatus =
+    "under_review";
+} else if (anyStarted) {
     nextProjectStatus =
       "ongoing";
   }
@@ -1226,9 +1231,12 @@ const getEmployeeTasks = async (
             AS created_by_name,
 
           creator.email
-            AS created_by_email
+  AS created_by_email,
 
-        FROM tasks mt
+reviewer.full_name
+  AS reviewed_by_name
+
+FROM tasks mt
 
         INNER JOIN task_assignments ta
           ON ta.task_id =
@@ -1241,6 +1249,10 @@ const getEmployeeTasks = async (
         LEFT JOIN users creator
           ON creator.user_id =
              mt.created_by_user_id
+
+             LEFT JOIN users reviewer
+  ON reviewer.user_id =
+     mt.reviewed_by_user_id
 
         WHERE
           ta.employee_id = ?
@@ -2144,6 +2156,227 @@ but Employee B still sees and can complete it.
 ========================================================
 */
 
+
+const updateEmployeeSubtask = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    const userId = getLoggedInUserId(req);
+    const subtaskId = Number(req.params.subtaskId);
+
+    const title = String(
+      req.body.task_title ||
+      req.body.subtask_title ||
+      req.body.title ||
+      ""
+    ).trim();
+
+    const description = String(
+      req.body.task_description ||
+      req.body.subtask_description ||
+      req.body.description ||
+      ""
+    ).trim();
+
+    const startDate = req.body.start_date || null;
+    const dueDate =
+      req.body.due_date ||
+      req.body.end_date ||
+      null;
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask title is required.",
+      });
+    }
+
+    if (!startDate || !dueDate) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask start date and deadline are required.",
+      });
+    }
+
+    if (startDate > dueDate) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask start date cannot be after its deadline.",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      `
+      SELECT
+        st.task_id,
+        st.parent_task_id,
+        st.project_id,
+        st.assigned_to_user_id,
+        st.status,
+        st.is_checked,
+
+        mt.start_date AS main_start_date,
+        mt.due_date AS main_due_date,
+        mt.status AS main_task_status,
+
+        p.status AS project_status
+
+      FROM tasks st
+
+      INNER JOIN tasks mt
+        ON mt.task_id = st.parent_task_id
+
+      INNER JOIN task_assignments ta
+        ON ta.task_id = mt.task_id
+
+      INNER JOIN projects p
+        ON p.project_id = mt.project_id
+
+      WHERE
+        st.task_id = ?
+        AND ta.employee_id = ?
+
+      LIMIT 1
+      `,
+      [subtaskId, userId]
+    );
+
+    if (!rows.length) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "Subtask not found or its Main Task is not assigned to you.",
+      });
+    }
+
+    const subtask = rows[0];
+
+    if (
+      Number(subtask.assigned_to_user_id) !==
+      Number(userId)
+    ) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "You can only edit Subtasks created by you.",
+      });
+    }
+
+    if (
+      Number(subtask.is_checked || 0) === 1 ||
+      normalizeStatus(subtask.status) ===
+        "completed"
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Completed Subtasks cannot be edited.",
+      });
+    }
+
+    if (
+      ["under_review", "completed", "rejected", "on_hold"].includes(
+        normalizeStatus(
+          subtask.main_task_status
+        )
+      )
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "This Subtask cannot be edited while the Main Task is locked.",
+      });
+    }
+
+    if (
+      subtask.main_start_date &&
+      startDate <
+        String(
+          subtask.main_start_date
+        ).slice(0, 10)
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask start date cannot be before the Main Task start date.",
+      });
+    }
+
+    if (
+      subtask.main_due_date &&
+      dueDate >
+        String(
+          subtask.main_due_date
+        ).slice(0, 10)
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask deadline cannot exceed the Main Task deadline.",
+      });
+    }
+
+    await connection.query(
+      `
+      UPDATE tasks
+
+      SET
+        task_title = ?,
+        task_description = ?,
+        start_date = ?,
+        due_date = ?,
+        updated_at = NOW()
+
+      WHERE task_id = ?
+      `,
+      [
+        title,
+        description,
+        startDate,
+        dueDate,
+        subtaskId,
+      ]
+    );
+
+    await connection.commit();
+
+    return res.json({
+      success: true,
+      message:
+        "Subtask updated successfully.",
+    });
+  } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {}
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to update Subtask.",
+      error: error.message,
+    });
+  } finally {
+    connection.release();
+  }
+};
+
 const markEmployeeSubtaskDone = async (
   req,
   res
@@ -2217,6 +2450,24 @@ const markEmployeeSubtaskDone = async (
 
     const subtask =
       rows[0];
+
+      const mainTaskStatus =
+  normalizeStatus(
+    subtask.main_task_status
+  );
+
+if (
+  mainTaskStatus !==
+  "ongoing"
+) {
+  await connection.rollback();
+
+  return res.status(400).json({
+    success: false,
+    message:
+      "Start the Main Task before marking Subtasks as Done.",
+  });
+}
 
     if (
       isMainTaskLocked(
@@ -2305,10 +2556,7 @@ const markEmployeeSubtaskDone = async (
       success: true,
 
       message:
-        recalculated.status ===
-        "under_review"
-          ? "All Subtasks are complete. Main Task moved to Under Review."
-          : "Subtask marked as Done.",
+  "Subtask marked as Done.",
 
       main_task_id:
         subtask.parent_task_id,
@@ -3094,10 +3342,12 @@ EXPORTS
 */
 
 module.exports = {
+  
   getEmployeeTasks,
   getEmployeeTaskDetails,
 
   addEmployeeSubtask,
+  updateEmployeeSubtask,
   markEmployeeSubtaskDone,
 
   startEmployeeTask,

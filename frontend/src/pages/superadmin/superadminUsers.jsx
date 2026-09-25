@@ -32,6 +32,7 @@ const SuperadminUsers = () => {
   const [users, setUsers] = useState([]);
   const [selectedDetails, setSelectedDetails] = useState(null);
   const [search, setSearch] = useState("");
+  const [skillSearch, setSkillSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -79,23 +80,54 @@ const SuperadminUsers = () => {
   useEffect(() => {
     fetchUsers();
   }, []);
+const getSkillsList = (user) => {
+  return String(user?.skills || "")
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+};
 
-  const filteredUsers = useMemo(() => {
-    const value = search.toLowerCase().trim();
 
-    if (!value) return users;
+const filteredUsers = useMemo(() => {
+  const value =
+    search.toLowerCase().trim();
 
-    return users.filter((user) => {
-      return (
-        user.full_name?.toLowerCase().includes(value) ||
-        user.email?.toLowerCase().includes(value) ||
-        user.employee_code?.toLowerCase().includes(value) ||
-        user.department_name?.toLowerCase().includes(value) ||
-        user.designation?.toLowerCase().includes(value) ||
-        user.role_name?.toLowerCase().includes(value)
-      );
-    });
-  }, [users, search]);
+  const skillValue =
+    skillSearch.toLowerCase().trim();
+
+  return users.filter((user) => {
+    const matchesSearch =
+      !value ||
+      [
+        user.full_name,
+        user.email,
+        user.employee_code,
+        user.department_name,
+        user.designation,
+        user.role_name,
+        user.skills,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(value);
+
+    const matchesSkill =
+      !skillValue ||
+      String(user.skills || "")
+        .toLowerCase()
+        .includes(skillValue);
+
+    return (
+      matchesSearch &&
+      matchesSkill
+    );
+  });
+}, [
+  users,
+  search,
+  skillSearch,
+]);
 
   const exportUsersCsv = () => {
     const rows = filteredUsers.map((user) => [
@@ -225,16 +257,45 @@ const SuperadminUsers = () => {
         </div>
       </div>
 
-      <label className="sa-users-search">
-        <Search size={20} />
-        <input
-          type="search"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search users, email, role, department, status..."
-          aria-label="Search users"
-        />
-      </label>
+      <div
+  style={{
+    display: "grid",
+    gridTemplateColumns:
+      "minmax(250px, 1fr) minmax(250px, 1fr)",
+    gap: "12px",
+    marginBottom: "20px",
+  }}
+>
+  <label className="sa-users-search">
+    <Search size={20} />
+
+    <input
+      type="search"
+      value={search}
+      onChange={(event) =>
+        setSearch(event.target.value)
+      }
+      placeholder="Search employee, email, department..."
+      aria-label="Search employees"
+    />
+  </label>
+
+  <label className="sa-users-search">
+    <Search size={20} />
+
+    <input
+      type="search"
+      value={skillSearch}
+      onChange={(event) =>
+        setSkillSearch(
+          event.target.value
+        )
+      }
+      placeholder="Search skill e.g. Excel, Figma, React..."
+      aria-label="Search employee skills"
+    />
+  </label>
+</div>
 
       {message && (
         <div
@@ -257,10 +318,11 @@ const SuperadminUsers = () => {
               <thead>
                 <tr>
                   <th>User</th>
-                  <th>Role</th>
-                  <th>Department</th>
-                  <th>Designation</th>
-                  <th>Tasks</th>
+<th>Role</th>
+<th>Department</th>
+<th>Designation</th>
+<th>Skills</th>
+<th>Tasks</th>
                   <th>Created Tasks</th>
                   <th>Attendance</th>
                   <th>Progress</th>
@@ -313,7 +375,36 @@ const SuperadminUsers = () => {
 
                       <td>{user.department_name || "-"}</td>
                       <td>{user.designation || "-"}</td>
-                      <td>{user.total_tasks || 0}</td>
+
+<td className="sa-users-skills-cell">
+  {getSkillsList(user).length ? (
+    <div className="sa-users-skills-list">
+      {getSkillsList(user)
+        .slice(0, 2)
+        .map((skill) => (
+          <span
+            key={skill}
+            className="sa-users-skill-chip"
+            title={skill}
+          >
+            {skill}
+          </span>
+        ))}
+
+      {getSkillsList(user).length > 2 && (
+        <span className="sa-users-skill-more">
+          +{getSkillsList(user).length - 2}
+        </span>
+      )}
+    </div>
+  ) : (
+    <span className="sa-users-no-skills">
+      —
+    </span>
+  )}
+</td>
+
+<td>{user.total_tasks || 0}</td>
                       <td>{user.created_tasks_count || 0}</td>
                       <td>
                         {user.attendance?.attendance_percentage || 0}%

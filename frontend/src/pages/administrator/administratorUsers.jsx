@@ -64,8 +64,9 @@ const AdministratorUsers = () => {
   const fileInputRef = useRef(null);
 
   const [users, setUsers] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [roles, setRoles] = useState([]);
+const [departments, setDepartments] = useState([]);
+const [divisions, setDivisions] = useState([]);
+const [roles, setRoles] = useState([]);
 
   const [form, setForm] = useState(emptyForm);
 
@@ -84,6 +85,7 @@ const AdministratorUsers = () => {
   const [selectedDesignation, setSelectedDesignation] = useState("");
 
   const [selectedDepartmentIds, setSelectedDepartmentIds] = useState([]);
+  const [selectedDivisionIds, setSelectedDivisionIds] = useState([]);
 
   const [updatingRole, setUpdatingRole] = useState(false);
   const [updatingDetails, setUpdatingDetails] = useState(false);
@@ -137,6 +139,10 @@ const AdministratorUsers = () => {
   );
 
   const [creatingDepartment, setCreatingDepartment] = useState(false);
+  const [showDivisionManager, setShowDivisionManager] = useState(false);
+const [newDivisionName, setNewDivisionName] = useState("");
+const [creatingDivision, setCreatingDivision] = useState(false);
+const [updatingDivisionId, setUpdatingDivisionId] = useState(null);
 
   const visibleDepartments = useMemo(() => {
     return [...departments].sort((a, b) =>
@@ -145,6 +151,26 @@ const AdministratorUsers = () => {
       )
     );
   }, [departments]);
+  const visibleDivisions = useMemo(() => {
+  return [...divisions].sort((a, b) => {
+    const activeDifference =
+      Number(b.is_active) - Number(a.is_active);
+
+    if (activeDifference !== 0) {
+      return activeDifference;
+    }
+
+    return String(a.division_name || "").localeCompare(
+      String(b.division_name || "")
+    );
+  });
+}, [divisions]);
+
+const activeDivisions = useMemo(() => {
+  return visibleDivisions.filter(
+    (division) => Number(division.is_active) === 1
+  );
+}, [visibleDivisions]);
 
   const fetchUsers = async () => {
     try {
@@ -156,8 +182,10 @@ const AdministratorUsers = () => {
       ]);
 
       setUsers(usersResponse.data.users || []);
-      setDepartments(metaResponse.data.departments || []);
-      setRoles(metaResponse.data.roles || []);
+setDepartments(metaResponse.data.departments || []);
+setDivisions(metaResponse.data.divisions || []);
+setRoles(metaResponse.data.roles || []);
+
     } catch (error) {
       setMessage(
         error.response?.data?.error ||
@@ -186,7 +214,8 @@ const AdministratorUsers = () => {
         user.designation?.toLowerCase().includes(value) ||
         user.department_name?.toLowerCase().includes(value) ||
         user.department_names?.toLowerCase().includes(value) ||
-        user.role_name?.toLowerCase().includes(value) ||
+user.division_names?.toLowerCase().includes(value) ||
+user.role_name?.toLowerCase().includes(value) ||
         user.status?.toLowerCase().includes(value)
       );
     });
@@ -402,6 +431,29 @@ const AdministratorUsers = () => {
     return [];
   };
 
+  const getUserDivisionIds = (user) => {
+  if (!user) return [];
+
+  if (Array.isArray(user.division_ids)) {
+    return user.division_ids
+      .map(Number)
+      .filter(Boolean);
+  }
+
+  if (
+    user.division_ids !== undefined &&
+    user.division_ids !== null &&
+    String(user.division_ids).trim() !== ""
+  ) {
+    return String(user.division_ids)
+      .split(",")
+      .map((id) => Number(id.trim()))
+      .filter(Boolean);
+  }
+
+  return [];
+};
+
   const openUserDialog = (user) => {
     setSelectedUser(user);
 
@@ -420,6 +472,10 @@ const AdministratorUsers = () => {
     setSelectedDepartmentIds(
       getUserDepartmentIds(user)
     );
+
+    setSelectedDivisionIds(
+  getUserDivisionIds(user)
+);
 
     setNewPassword("");
     setShowPassword(false);
@@ -455,6 +511,8 @@ const AdministratorUsers = () => {
     setSelectedDesignation("");
 
     setSelectedDepartmentIds([]);
+
+    setSelectedDivisionIds([]);
 
     setNewPassword("");
     setShowPassword(false);
@@ -1093,6 +1151,181 @@ const AdministratorUsers = () => {
     );
   };
 
+  const toggleDivision = (divisionId) => {
+  const id = Number(divisionId);
+
+  setSelectedDivisionIds((previous) => {
+    if (previous.includes(id)) {
+      return previous.filter(
+        (item) => item !== id
+      );
+    }
+
+    return [
+      ...previous,
+      id,
+    ];
+  });
+};
+
+
+const openDivisionManager = async () => {
+  try {
+    setMessage("");
+
+    const response = await api.get(
+      "/administrator/divisions"
+    );
+
+    setDivisions(
+      response.data.divisions || []
+    );
+
+    setNewDivisionName("");
+    setShowDivisionManager(true);
+  } catch (error) {
+    setMessage(
+      error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Failed to load divisions."
+    );
+  }
+};
+
+
+const closeDivisionManager = () => {
+  if (
+    creatingDivision ||
+    updatingDivisionId
+  ) {
+    return;
+  }
+
+  setNewDivisionName("");
+  setShowDivisionManager(false);
+};
+
+
+const createDivision = async (event) => {
+  event.preventDefault();
+
+  const divisionName =
+    newDivisionName.trim();
+
+  if (!divisionName) {
+    setMessage(
+      "Division name is required."
+    );
+    return;
+  }
+
+  try {
+    setCreatingDivision(true);
+    setMessage("");
+
+    const response = await api.post(
+      "/administrator/divisions",
+      {
+        division_name: divisionName,
+      }
+    );
+
+    setMessage(
+      response.data.message ||
+        "Division added successfully."
+    );
+
+    const divisionsResponse =
+      await api.get(
+        "/administrator/divisions"
+      );
+
+    setDivisions(
+      divisionsResponse.data.divisions ||
+        []
+    );
+
+    setNewDivisionName("");
+  } catch (error) {
+    setMessage(
+      error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Failed to add Division."
+    );
+  } finally {
+    setCreatingDivision(false);
+  }
+};
+
+
+const toggleDivisionStatus = async (
+  division
+) => {
+  const divisionId =
+    Number(division.division_id);
+
+  const nextStatus =
+    Number(division.is_active) === 1
+      ? 0
+      : 1;
+
+  try {
+    setUpdatingDivisionId(
+      divisionId
+    );
+
+    setMessage("");
+
+    const response = await api.put(
+      `/administrator/divisions/${divisionId}`,
+      {
+        division_name:
+          division.division_name,
+
+        is_active:
+          nextStatus,
+      }
+    );
+
+    setMessage(
+      response.data.message ||
+        "Division updated successfully."
+    );
+
+    setDivisions((previous) =>
+      previous.map((item) =>
+        Number(item.division_id) ===
+        divisionId
+          ? {
+              ...item,
+              is_active:
+                nextStatus,
+            }
+          : item
+      )
+    );
+
+    if (nextStatus === 0) {
+      setSelectedDivisionIds(
+        (previous) =>
+          previous.filter(
+            (id) =>
+              Number(id) !==
+              divisionId
+          )
+      );
+    }
+  } catch (error) {
+    setMessage(
+      error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Failed to update Division."
+    );
+  } finally {
+    setUpdatingDivisionId(null);
+  }
+};
+
   const handleSingleDepartmentChange =
     (event) => {
       const value =
@@ -1192,15 +1425,23 @@ const AdministratorUsers = () => {
           await api.put(
             `/administrator/users/${selectedUser.user_id}/details`,
             {
-              email:
-                cleanEmail,
+  email:
+    cleanEmail,
 
-              designation:
-                selectedDesignation.trim(),
+  designation:
+    selectedDesignation.trim(),
 
-              department_ids:
-                selectedDepartmentIds,
-            }
+  department_ids:
+    selectedDepartmentIds,
+
+  ...(normalizeRole(selectedRole) ===
+  "admin"
+    ? {
+        division_ids:
+          selectedDivisionIds,
+      }
+    : {}),
+}
           );
 
         setMessage(
@@ -1570,15 +1811,33 @@ const AdministratorUsers = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            className="administrator-add-department-btn"
-            onClick={openAddDepartmentModal}
-          >
-            <Plus size={15} />
+         <div
+  style={{
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  }}
+>
+  <button
+    type="button"
+    className="administrator-add-department-btn"
+    onClick={openAddDepartmentModal}
+  >
+    <Plus size={15} />
 
-            Add Department
-          </button>
+    Add Department
+  </button>
+
+  <button
+    type="button"
+    className="administrator-add-department-btn"
+    onClick={openDivisionManager}
+  >
+    <Plus size={15} />
+
+    Manage Divisions
+  </button>
+</div> 
         </div>
 
         <form
@@ -2130,6 +2389,108 @@ const AdministratorUsers = () => {
                     </select>
                   </div>
                 )}
+
+                {normalizeRole(selectedRole) ===
+  "admin" && (
+  <div
+    className="admin-departments-section"
+    style={{
+      marginTop: "18px",
+    }}
+  >
+    <div className="admin-departments-title-row">
+      <div className="admin-departments-header">
+        <h4>
+          Divisions
+        </h4>
+
+        <p>
+          Select the Divisions this Admin
+          is allowed to manage.
+          Division access is separate
+          from Department access.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        className="administrator-small-add-department-btn"
+        onClick={
+          openDivisionManager
+        }
+      >
+        <Plus size={14} />
+
+        Manage Divisions
+      </button>
+    </div>
+
+    <div className="admin-departments-grid">
+      {activeDivisions.length >
+      0 ? (
+        activeDivisions.map(
+          (division) => {
+            const divisionId =
+              Number(
+                division.division_id
+              );
+
+            const isChecked =
+              selectedDivisionIds.includes(
+                divisionId
+              );
+
+            return (
+              <label
+                key={
+                  division.division_id
+                }
+                className={`admin-department-card ${
+                  isChecked
+                    ? "selected"
+                    : ""
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={
+                    isChecked
+                  }
+                  onChange={() =>
+                    toggleDivision(
+                      divisionId
+                    )
+                  }
+                />
+
+                <span className="admin-department-checkmark">
+                  {isChecked
+                    ? "✓"
+                    : ""}
+                </span>
+
+                <span className="admin-department-name">
+                  {
+                    division.division_name
+                  }
+                </span>
+              </label>
+            );
+          }
+        )
+      ) : (
+        <div
+          style={{
+            color: "#64748b",
+            fontSize: "13px",
+          }}
+        >
+          No active Divisions available.
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
                 <div className="administrator-dialog-save-row">
                   <button
@@ -3507,6 +3868,220 @@ const AdministratorUsers = () => {
           </div>
         </div>
       )}
+
+      {showDivisionManager && (
+  <div
+    className="administrator-department-modal-backdrop"
+    onMouseDown={
+      closeDivisionManager
+    }
+  >
+    <div
+      className="administrator-department-modal"
+      onMouseDown={(event) =>
+        event.stopPropagation()
+      }
+    >
+      <div className="administrator-department-modal-header">
+        <div>
+          <h2>
+            Manage Divisions
+          </h2>
+
+          <p>
+            Create Divisions and control
+            whether they are active.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={
+            closeDivisionManager
+          }
+          disabled={
+            creatingDivision ||
+            Boolean(
+              updatingDivisionId
+            )
+          }
+        >
+          <X size={18} />
+        </button>
+      </div>
+
+      <div className="administrator-department-modal-body">
+        <form
+          onSubmit={
+            createDivision
+          }
+        >
+          <div className="administrator-department-modal-field">
+            <label>
+              New Division
+            </label>
+
+            <input
+              value={
+                newDivisionName
+              }
+              onChange={(event) =>
+                setNewDivisionName(
+                  event.target.value
+                )
+              }
+              placeholder="Example: Crunzzo"
+            />
+          </div>
+
+          <div
+            className="administrator-department-modal-actions"
+            style={{
+              marginBottom: "18px",
+            }}
+          >
+            <button
+              type="submit"
+              className="administrator-modal-add-btn"
+              disabled={
+                creatingDivision ||
+                !newDivisionName.trim()
+              }
+            >
+              <Plus size={15} />
+
+              {creatingDivision
+                ? "Adding..."
+                : "Add Division"}
+            </button>
+          </div>
+        </form>
+
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {visibleDivisions.map(
+            (division) => {
+              const isActive =
+                Number(
+                  division.is_active
+                ) === 1;
+
+              const isUpdating =
+                Number(
+                  updatingDivisionId
+                ) ===
+                Number(
+                  division.division_id
+                );
+
+              return (
+                <div
+                  key={
+                    division.division_id
+                  }
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent:
+                      "space-between",
+                    gap: "12px",
+                    padding:
+                      "12px 14px",
+                    border:
+                      "1px solid #e2e8f0",
+                    borderRadius:
+                      "10px",
+                  }}
+                >
+                  <div>
+                    <strong>
+                      {
+                        division.division_name
+                      }
+                    </strong>
+
+                    <div
+                      style={{
+                        marginTop:
+                          "3px",
+                        fontSize:
+                          "12px",
+                        color:
+                          isActive
+                            ? "#15803d"
+                            : "#64748b",
+                      }}
+                    >
+                      {isActive
+                        ? "Active"
+                        : "Inactive"}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="administrator-action-btn"
+                    onClick={() =>
+                      toggleDivisionStatus(
+                        division
+                      )
+                    }
+                    disabled={
+                      isUpdating
+                    }
+                  >
+                    {isUpdating
+                      ? "Saving..."
+                      : isActive
+                      ? "Deactivate"
+                      : "Activate"}
+                  </button>
+                </div>
+              );
+            }
+          )}
+
+          {visibleDivisions.length ===
+            0 && (
+            <div
+              style={{
+                padding:
+                  "14px 0",
+                color:
+                  "#64748b",
+              }}
+            >
+              No Divisions created yet.
+            </div>
+          )}
+        </div>
+
+        <div className="administrator-department-modal-actions">
+          <button
+            type="button"
+            className="administrator-modal-cancel-btn"
+            onClick={
+              closeDivisionManager
+            }
+            disabled={
+              creatingDivision ||
+              Boolean(
+                updatingDivisionId
+              )
+            }
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };

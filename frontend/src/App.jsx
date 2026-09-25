@@ -60,7 +60,7 @@ import AdminProjects from "./pages/admin/adminProjects";
 import AdminTasks from "./pages/admin/adminTasks";
 
 import AdminCalendar from "./pages/admin/adminCalendar";
-
+import AdminReports from "./pages/admin/adminReports";
 import AdminProfile from "./pages/admin/adminProfile";
 
 import AdminUsers from "./pages/admin/adminUsers";
@@ -426,6 +426,8 @@ const App = () => {
           }
         />
 
+
+
         <Route
           path="profile"
           element={
@@ -594,6 +596,13 @@ const App = () => {
             <AdminCalendar />
           }
         />
+
+        <Route
+  path="reports"
+  element={
+    <AdminReports />
+  }
+/>
 
         <Route
           path="profile"

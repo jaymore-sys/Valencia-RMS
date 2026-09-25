@@ -7,8 +7,14 @@ const {
   getAdminDepartmentUsers,
   getAdminAssignableUsers,
   getAdminUserTimeSummary,
+  getAdminDivisionReport,
 } = require("../controllers/admincontroller");
 
+router.get(
+  "/division-report",
+  authMiddleware,
+  getAdminDivisionReport
+);
 
 const {
   createAdminProject,

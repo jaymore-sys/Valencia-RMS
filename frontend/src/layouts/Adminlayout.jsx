@@ -13,6 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  FileBarChart,
   FolderKanban,
   LogOut,
   User,
@@ -140,6 +141,17 @@ const AdminLayout = () => {
             <CalendarDays size={20} />
             <span>Calendar</span>
           </NavLink>
+
+          <NavLink
+  to="/admin/reports"
+  className={({ isActive }) =>
+    isActive ? "active" : ""
+  }
+  title="Reports"
+>
+  <FileBarChart size={20} />
+  <span>Reports</span>
+</NavLink> 
 
           <NavLink
             to="/admin/profile"

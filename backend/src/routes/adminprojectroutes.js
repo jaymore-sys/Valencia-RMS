@@ -81,6 +81,33 @@ const updateMainTaskHandler = pickController(
   "editMainTask"
 );
 
+const getInterdepartmentDepartmentsHandler =
+  pickController(
+    "getInterdepartmentDepartments"
+  );
+
+const getInterdepartmentRequestsHandler =
+  pickController(
+    "getInterdepartmentRequests"
+  );
+
+const createInterdepartmentRequestHandler =
+  pickController(
+    "createInterdepartmentRequest"
+  );
+
+const getInterdepartmentEmployeesHandler =
+  pickController(
+    "getInterdepartmentRequestEmployees"
+  );
+
+const reviewInterdepartmentRequestHandler =
+  pickController(
+    "reviewInterdepartmentRequest"
+  );
+
+  
+
 /*
   IMPORTANT:
   Static routes must stay above dynamic routes like /:projectId.
@@ -100,8 +127,52 @@ router.get(
   ...adminOnly,
   getDivisionsHandler
 );
+
+/*
+========================================================
+INTERDEPARTMENT WORK REQUESTS
+========================================================
+*/
+
+// Departments outside the logged-in Admin's own departments
+router.get(
+  "/interdepartment/departments",
+  ...adminOnly,
+  getInterdepartmentDepartmentsHandler
+);
+
+// Incoming + outgoing requests for logged-in Admin
+router.get(
+  "/interdepartment/requests",
+  ...adminOnly,
+  getInterdepartmentRequestsHandler
+);
+
+// Send a request to another department
+router.post(
+  "/interdepartment/requests",
+  ...adminOnly,
+  createInterdepartmentRequestHandler
+);
+
+// Employees available to the receiving department Admin
+router.get(
+  "/interdepartment/requests/:requestId/employees",
+  ...adminOnly,
+  getInterdepartmentEmployeesHandler
+);
+
+// Approve / reject + assign employee(s) + timeline
+router.put(
+  "/interdepartment/requests/:requestId/review",
+  ...adminOnly,
+  reviewInterdepartmentRequestHandler
+);
+
 // Project listing route aliases
 router.get("/", ...adminOnly, getProjectsHandler);
+
+
 router.get("/projects", ...adminOnly, getProjectsHandler);
 router.get("/department-projects", ...adminOnly, getProjectsHandler);
 router.get("/all", ...adminOnly, getProjectsHandler);

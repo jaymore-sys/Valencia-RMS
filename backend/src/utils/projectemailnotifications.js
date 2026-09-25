@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const db = require("../config/db");
 
 const {
@@ -584,6 +585,31 @@ const sendProjectUpdateEmails = async (projectId, adminUser, updatedDetails = {}
         projectFromDb.due_date,
     };
 
+    const updateFingerprint =
+  crypto
+    .createHash("sha1")
+    .update(
+      JSON.stringify({
+        title:
+          project.project_title ||
+          "",
+
+        description:
+          project.project_description ||
+          "",
+
+        start_date:
+          project.start_date ||
+          "",
+
+        due_date:
+          project.due_date ||
+          "",
+      })
+    )
+    .digest("hex")
+    .slice(0, 16);
+
     const projectAssignees = await getProjectAssignmentAssignees(projectId);
     const taskAssignees = await getTaskAssigneesByProjectId(projectId);
 
@@ -604,15 +630,24 @@ const sendProjectUpdateEmails = async (projectId, adminUser, updatedDetails = {}
     }
 
     return sendEmailToAssignees({
-      project,
-      assignees,
-      adminUser,
-      emailType: "project_updated",
-      notificationPrefix: "project_updated",
-      defaultTaskTitle: "Project updated",
-      emailSender: sendProjectUpdatedEmail,
-      alwaysSend: true,
-    });
+  project,
+  assignees,
+  adminUser,
+
+  emailType:
+    "project_updated",
+
+  notificationPrefix:
+    `project_updated:${updateFingerprint}`,
+
+  defaultTaskTitle:
+    "Project updated",
+
+  emailSender:
+    sendProjectUpdatedEmail,
+
+  alwaysSend: false,
+});
   } catch (error) {
     console.error("sendProjectUpdateEmails error:", error.message);
 

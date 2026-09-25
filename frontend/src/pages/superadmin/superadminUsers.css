@@ -768,3 +768,122 @@
   padding: 0 15px;
   font-size: 13px;
 }
+
+/* =========================================================
+   USER SKILLS
+========================================================= */
+
+.sa-users-skills-cell {
+  min-width: 170px;
+}
+
+.sa-users-skills-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+.sa-users-skill-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  max-width: 110px;
+  height: 26px;
+
+  padding: 0 9px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 7px;
+
+  background: #f8fafc;
+  color: #475569;
+
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sa-users-skill-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  height: 26px;
+  min-width: 28px;
+
+  padding: 0 7px;
+
+  border-radius: 7px;
+
+  background: #fff0eb;
+  color: #ff5733;
+
+  font-size: 11px;
+  font-weight: 900;
+
+  white-space: nowrap;
+}
+
+.sa-users-no-skills {
+  color: #c4cad4;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* 9 COLUMN USERS TABLE */
+
+.sa-users-table {
+  min-width: 1320px;
+}
+
+.sa-users-table th:nth-child(1),
+.sa-users-table td:nth-child(1) {
+  width: 300px;
+}
+
+.sa-users-table th:nth-child(2),
+.sa-users-table td:nth-child(2) {
+  width: 120px;
+}
+
+.sa-users-table th:nth-child(3),
+.sa-users-table td:nth-child(3) {
+  width: 140px;
+}
+
+.sa-users-table th:nth-child(4),
+.sa-users-table td:nth-child(4) {
+  width: 130px;
+}
+
+.sa-users-table th:nth-child(5),
+.sa-users-table td:nth-child(5) {
+  width: 180px;
+}
+
+.sa-users-table th:nth-child(6),
+.sa-users-table td:nth-child(6) {
+  width: 80px;
+}
+
+.sa-users-table th:nth-child(7),
+.sa-users-table td:nth-child(7) {
+  width: 115px;
+}
+
+.sa-users-table th:nth-child(8),
+.sa-users-table td:nth-child(8) {
+  width: 105px;
+}
+
+.sa-users-table th:nth-child(9),
+.sa-users-table td:nth-child(9) {
+  width: 125px;
+}

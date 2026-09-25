@@ -18,6 +18,7 @@ const {
   getSuperadminProjects,
   getSuperadminTasks,
   getSuperadminUsers,
+  getSuperadminUserById,
   getSuperadminProjectOptions,
   getSuperadminOverview
 
@@ -125,7 +126,11 @@ router.get(
   ...superadminOnly,
   getSuperadminUsers
 );
-
+router.get(
+  "/users/:userId",
+  ...superadminOnly,
+  getSuperadminUserById
+);
 
 
 

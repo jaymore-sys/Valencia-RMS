@@ -15,17 +15,6 @@ import api from "../../api/axios";
    CONSTANTS
 ========================================================= */
 
-const DIVISIONS = [
-  "POS",
-  "NutraCare",
-  "ADV",
-  "Cans",
-  "PET",
-  "Crunzo",
-  "VBSW",
-  "VNL",
-];
-
 const getToday = () => {
   const date = new Date();
 
@@ -44,6 +33,7 @@ const getToday = () => {
 const createEmptyForm = () => ({
   mini_task_title: "",
   mini_task_description: "",
+  division_id: "",
   division: "",
   start_date: getToday(),
   end_date: getToday(),
@@ -58,6 +48,7 @@ const createEmptyForm = () => ({
 
 const EmployeeMiniTasks = () => {
   const [miniTasks, setMiniTasks] = useState([]);
+  const [divisions, setDivisions] = useState([]);
 
   const [form, setForm] = useState(
     createEmptyForm()
@@ -131,8 +122,31 @@ const EmployeeMiniTasks = () => {
     }
   };
 
+  const fetchDivisions = async () => {
+    try {
+      const response = await api.get(
+        "/employee-mini-tasks/divisions"
+      );
+
+      setDivisions(
+        Array.isArray(
+          response.data?.divisions
+        )
+          ? response.data.divisions
+          : []
+      );
+    } catch (error) {
+      setMessage(
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          "Failed to load mini task divisions."
+      );
+    }
+  };
+
   useEffect(() => {
     fetchMiniTasks();
+    fetchDivisions();
   }, []);
 
   /* =========================================================
@@ -306,6 +320,30 @@ const EmployeeMiniTasks = () => {
   const openEditModal = (task) => {
     setEditingTask(task);
 
+    const matchedDivision =
+      divisions.find(
+        (division) =>
+          String(
+            division.division_id
+          ) ===
+            String(
+              task.division_id ||
+                ""
+            ) ||
+          String(
+            division.division_name ||
+              ""
+          )
+            .trim()
+            .toLowerCase() ===
+            String(
+              task.division ||
+                ""
+            )
+              .trim()
+              .toLowerCase()
+      );
+
     setForm({
       mini_task_title:
         task.mini_task_title || "",
@@ -313,8 +351,21 @@ const EmployeeMiniTasks = () => {
       mini_task_description:
         task.mini_task_description || "",
 
+      division_id:
+        task.division_id
+          ? String(
+              task.division_id
+            )
+          : matchedDivision
+            ? String(
+                matchedDivision.division_id
+              )
+            : "",
+
       division:
-        task.division || "",
+        task.division ||
+        matchedDivision?.division_name ||
+        "",
 
       start_date:
         task.start_date ||
@@ -377,7 +428,7 @@ const EmployeeMiniTasks = () => {
       return;
     }
 
-    if (!form.division) {
+    if (!form.division_id) {
       setModalError(
         "Division is required."
       );
@@ -435,6 +486,11 @@ const EmployeeMiniTasks = () => {
 
         mini_task_description:
           form.mini_task_description.trim(),
+
+        division_id:
+          Number(
+            form.division_id
+          ),
 
         division:
           form.division,
@@ -839,25 +895,52 @@ const EmployeeMiniTasks = () => {
 
                 <select
                   style={styles.input}
-                  value={form.division}
-                  onChange={(event) =>
-                    updateForm(
-                      "division",
-                      event.target.value
-                    )
-                  }
+                  value={form.division_id}
+                  onChange={(event) => {
+                    const selectedId =
+                      event.target.value;
+
+                    const selectedDivision =
+                      divisions.find(
+                        (division) =>
+                          String(
+                            division.division_id
+                          ) ===
+                          String(selectedId)
+                      );
+
+                    setForm((previous) => ({
+                      ...previous,
+
+                      division_id:
+                        selectedId,
+
+                      division:
+                        selectedDivision
+                          ?.division_name ||
+                        "",
+                    }));
+
+                    setModalError("");
+                  }}
                 >
                   <option value="">
                     Select Division
                   </option>
 
-                  {DIVISIONS.map(
+                  {divisions.map(
                     (division) => (
                       <option
-                        key={division}
-                        value={division}
+                        key={
+                          division.division_id
+                        }
+                        value={
+                          division.division_id
+                        }
                       >
-                        {division}
+                        {
+                          division.division_name
+                        }
                       </option>
                     )
                   )}

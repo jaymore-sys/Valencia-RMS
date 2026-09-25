@@ -7,6 +7,7 @@ const {
   getEmployeeTasks,
   getEmployeeTaskDetails,
   addEmployeeSubtask,
+  updateEmployeeSubtask,
   markEmployeeSubtaskDone,
   startEmployeeTask,
   pauseEmployeeTask,
@@ -73,7 +74,17 @@ router.put(
 MAIN TASK DETAILS
 ========================================================
 */
+router.patch(
+  "/subtasks/:subtaskId",
+  ...employeeAccess,
+  updateEmployeeSubtask
+);
 
+router.put(
+  "/subtasks/:subtaskId",
+  ...employeeAccess,
+  updateEmployeeSubtask
+);
 // Get one Main Task + shared Subtasks
 router.get(
   "/:taskId",

@@ -2516,17 +2516,34 @@ const getAdministratorUsersMeta = async (req, res) => {
 
     const [roles] = await db.query(
       `
-      SELECT role_id, role_name
-      FROM roles
-      ORDER BY role_id ASC
+        SELECT
+          role_id,
+          role_name
+        FROM roles
+        ORDER BY role_id ASC
       `
     );
 
     const [departments] = await db.query(
       `
-      SELECT department_id, department_name
-      FROM departments
-      ORDER BY department_name ASC
+        SELECT
+          department_id,
+          department_name
+        FROM departments
+        ORDER BY department_name ASC
+      `
+    );
+
+    const [divisions] = await db.query(
+      `
+        SELECT
+          division_id,
+          division_name,
+          is_active
+        FROM divisions
+        ORDER BY
+          is_active DESC,
+          division_name ASC
       `
     );
 
@@ -2534,12 +2551,19 @@ const getAdministratorUsersMeta = async (req, res) => {
       success: true,
       roles,
       departments,
+      divisions,
     });
   } catch (error) {
+    console.error(
+      "getAdministratorUsersMeta error:",
+      error
+    );
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch user meta.",
       error: error.message,
+      sqlMessage: error.sqlMessage || null,
     });
   }
 };
@@ -2611,6 +2635,286 @@ const createAdministratorDepartment = async (req, res) => {
   }
 };
 
+/* =========================================================
+   ADMINISTRATOR DIVISION MANAGEMENT
+========================================================= */
+
+const getAdministratorDivisions = async (req, res) => {
+  try {
+    const [divisions] = await db.query(
+      `
+        SELECT
+          division_id,
+          division_name,
+          is_active,
+          created_at,
+          updated_at
+
+        FROM divisions
+
+        ORDER BY
+          is_active DESC,
+          division_name ASC
+      `
+    );
+
+    return res.json({
+      success: true,
+      divisions,
+    });
+  } catch (error) {
+    console.error(
+      "getAdministratorDivisions error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch divisions.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  }
+};
+
+
+const createAdministratorDivision = async (req, res) => {
+  try {
+    const divisionName =
+      cleanText(req.body?.division_name);
+
+    if (!divisionName) {
+      return res.status(400).json({
+        success: false,
+        message: "Division name is required.",
+      });
+    }
+
+    if (divisionName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Division name must be 100 characters or less.",
+      });
+    }
+
+    const [existingRows] = await db.query(
+      `
+        SELECT
+          division_id,
+          division_name,
+          is_active
+
+        FROM divisions
+
+        WHERE
+          CAST(
+            LOWER(TRIM(division_name))
+            AS BINARY
+          )
+          =
+          CAST(
+            LOWER(TRIM(?))
+            AS BINARY
+          )
+
+        LIMIT 1
+      `,
+      [divisionName]
+    );
+
+    if (existingRows.length) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "A Division with this name already exists.",
+      });
+    }
+
+    const [result] = await db.query(
+      `
+        INSERT INTO divisions (
+          division_name,
+          is_active
+        )
+        VALUES (?, 1)
+      `,
+      [divisionName]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Division added successfully.",
+
+      division: {
+        division_id: result.insertId,
+        division_name: divisionName,
+        is_active: 1,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "createAdministratorDivision error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add Division.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  }
+};
+
+
+const updateAdministratorDivision = async (req, res) => {
+  try {
+    const divisionId =
+      Number(req.params.divisionId);
+
+    if (
+      !Number.isInteger(divisionId) ||
+      divisionId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid Division ID is required.",
+      });
+    }
+
+    const [currentRows] = await db.query(
+      `
+        SELECT
+          division_id,
+          division_name,
+          is_active
+
+        FROM divisions
+
+        WHERE division_id = ?
+
+        LIMIT 1
+      `,
+      [divisionId]
+    );
+
+    if (!currentRows.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Division not found.",
+      });
+    }
+
+    const currentDivision =
+      currentRows[0];
+
+    const divisionName =
+      req.body?.division_name !== undefined
+        ? cleanText(req.body.division_name)
+        : currentDivision.division_name;
+
+    const isActive =
+      req.body?.is_active !== undefined
+        ? Number(req.body.is_active) === 1 ||
+          req.body.is_active === true
+          ? 1
+          : 0
+        : Number(currentDivision.is_active);
+
+    if (!divisionName) {
+      return res.status(400).json({
+        success: false,
+        message: "Division name is required.",
+      });
+    }
+
+    if (divisionName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Division name must be 100 characters or less.",
+      });
+    }
+
+    const [duplicateRows] = await db.query(
+      `
+        SELECT
+          division_id
+
+        FROM divisions
+
+        WHERE
+          CAST(
+            LOWER(TRIM(division_name))
+            AS BINARY
+          )
+          =
+          CAST(
+            LOWER(TRIM(?))
+            AS BINARY
+          )
+
+          AND division_id != ?
+
+        LIMIT 1
+      `,
+      [
+        divisionName,
+        divisionId,
+      ]
+    );
+
+    if (duplicateRows.length) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Another Division with this name already exists.",
+      });
+    }
+
+    await db.query(
+      `
+        UPDATE divisions
+
+        SET
+          division_name = ?,
+          is_active = ?
+
+        WHERE division_id = ?
+      `,
+      [
+        divisionName,
+        isActive,
+        divisionId,
+      ]
+    );
+
+    return res.json({
+      success: true,
+      message: "Division updated successfully.",
+
+      division: {
+        division_id: divisionId,
+        division_name: divisionName,
+        is_active: isActive,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "updateAdministratorDivision error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update Division.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  }
+};
+
 const getAdministratorUsers = async (req, res) => {
   try {
     const [users] = await db.query(
@@ -2655,7 +2959,41 @@ const getAdministratorUsers = async (req, res) => {
             WHERE ud2.user_id = u.user_id
           ),
           d.department_name
-        ) AS department_names
+        ) AS department_names,
+
+COALESCE(
+  (
+    SELECT GROUP_CONCAT(
+      DISTINCT ad.division_id
+      ORDER BY ad.division_id
+      SEPARATOR ','
+    )
+
+    FROM admin_divisions ad
+
+    WHERE ad.user_id = u.user_id
+  ),
+  ''
+) AS division_ids,
+
+COALESCE(
+  (
+    SELECT GROUP_CONCAT(
+      DISTINCT divs.division_name
+      ORDER BY divs.division_name
+      SEPARATOR ', '
+    )
+
+    FROM admin_divisions ad2
+
+    INNER JOIN divisions divs
+      ON divs.division_id =
+         ad2.division_id
+
+    WHERE ad2.user_id = u.user_id
+  ),
+  ''
+) AS division_names
 
       FROM users u
       JOIN roles r ON r.role_id = u.role_id
@@ -3044,31 +3382,81 @@ const importAdministratorUsersCsv = async (req, res) => {
 };
 
 const updateAdministratorUserRole = async (req, res) => {
+  const connection =
+    await db.getConnection();
+
   try {
-    const userId = Number(req.params.userId);
-    const { role_name } = req.body;
+    const userId =
+      Number(req.params.userId);
 
-    const roleId = await getRoleIdByName(role_name);
+    const roleName =
+      cleanText(req.body.role_name)
+        .toLowerCase();
 
-    await db.query(
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid user ID is required.",
+      });
+    }
+
+    const roleId =
+      await getRoleIdByName(roleName);
+
+    await connection.beginTransaction();
+
+    await connection.query(
       `
-      UPDATE users
-      SET role_id = ?
-      WHERE user_id = ?
+        UPDATE users
+        SET role_id = ?
+        WHERE user_id = ?
       `,
-      [roleId, userId]
+      [
+        roleId,
+        userId,
+      ]
     );
+
+    /*
+      Division administration access only belongs
+      to role = admin.
+
+      Do NOT touch work history.
+      This only removes access mappings.
+    */
+    if (roleName !== "admin") {
+      await connection.query(
+        `
+          DELETE FROM admin_divisions
+          WHERE user_id = ?
+        `,
+        [userId]
+      );
+    }
+
+    await connection.commit();
 
     return res.json({
       success: true,
-      message: "User role updated successfully.",
+      message:
+        "User role updated successfully.",
     });
   } catch (error) {
+    await connection.rollback();
+
     return res.status(500).json({
       success: false,
-      message: "Failed to update user role.",
+      message:
+        "Failed to update user role.",
       error: error.message,
+      sqlMessage:
+        error.sqlMessage || null,
     });
+  } finally {
+    connection.release();
   }
 };
 
@@ -3079,7 +3467,12 @@ const updateAdministratorUserDetails = async (req, res) => {
     connection = await db.getConnection();
 
     const userId = Number(req.params.userId);
-    const { email, designation, department_ids } = req.body;
+    const {
+  email,
+  designation,
+  department_ids,
+  division_ids,
+} = req.body;
 
     if (!userId) {
       return res.status(400).json({
@@ -3104,6 +3497,24 @@ const updateAdministratorUserDetails = async (req, res) => {
           .filter((id) => Number.isInteger(id) && id > 0)
       ),
     ];
+    const divisionIdsProvided =
+  Array.isArray(division_ids);
+
+const divisionIds = [
+  ...new Set(
+    (
+      divisionIdsProvided
+        ? division_ids
+        : []
+    )
+      .map((id) => Number(id))
+      .filter(
+        (id) =>
+          Number.isInteger(id) &&
+          id > 0
+      )
+  ),
+];
 
     if (!departmentIds.length) {
       return res.status(400).json({
@@ -3117,12 +3528,19 @@ const updateAdministratorUserDetails = async (req, res) => {
     const [userRows] = await connection.query(
       `
       SELECT
-        user_id,
-        employee_code,
-        email
-      FROM users
-      WHERE user_id = ?
-      LIMIT 1
+  u.user_id,
+  u.employee_code,
+  u.email,
+  r.role_name
+
+FROM users u
+
+LEFT JOIN roles r
+  ON r.role_id = u.role_id
+
+WHERE u.user_id = ?
+
+LIMIT 1
       `,
       [userId]
     );
@@ -3185,6 +3603,12 @@ const updateAdministratorUserDetails = async (req, res) => {
 
     const primaryDepartmentId = departmentIds[0];
 
+    const selectedUserRole = String(
+  userRows[0]?.role_name || ""
+)
+  .trim()
+  .toLowerCase();
+
     await connection.query(
       `
       UPDATE users
@@ -3225,19 +3649,119 @@ const updateAdministratorUserDetails = async (req, res) => {
       );
     }
 
+   /* =====================================================
+   ADMIN DIVISION ASSIGNMENTS
+
+   Only touch Division assignments when frontend
+   explicitly sends division_ids.
+
+   This prevents normal Department/profile edits from
+   accidentally wiping an Admin's Division access.
+===================================================== */
+
+if (divisionIdsProvided) {
+
+  if (
+    selectedUserRole !== "admin" &&
+    divisionIds.length > 0
+  ) {
+    await connection.rollback();
+
+    return res.status(400).json({
+      success: false,
+      message:
+        "Division access can only be assigned to Admin users.",
+    });
+  }
+
+  if (divisionIds.length > 0) {
+    const divisionPlaceholders =
+      divisionIds
+        .map(() => "?")
+        .join(",");
+
+    const [divisionRows] =
+      await connection.query(
+        `
+          SELECT
+            division_id
+
+          FROM divisions
+
+          WHERE
+            division_id IN (
+              ${divisionPlaceholders}
+            )
+
+            AND is_active = 1
+        `,
+        divisionIds
+      );
+
+    if (
+      divisionRows.length !==
+      divisionIds.length
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "One or more selected Divisions are invalid or inactive.",
+      });
+    }
+  }
+
+  await connection.query(
+    `
+      DELETE FROM admin_divisions
+      WHERE user_id = ?
+    `,
+    [userId]
+  );
+
+  if (selectedUserRole === "admin") {
+    for (
+      const divisionId
+      of divisionIds
+    ) {
+      await connection.query(
+        `
+          INSERT INTO admin_divisions (
+            user_id,
+            division_id
+          )
+          VALUES (?, ?)
+        `,
+        [
+          userId,
+          divisionId,
+        ]
+      );
+    }
+  }
+} 
+
     await connection.commit();
 
     return res.json({
       success: true,
       message: "User details updated successfully.",
       user: {
-        user_id: userId,
-        email: cleanEmail,
-        designation: cleanText(designation),
-        department_id: primaryDepartmentId,
-        department_ids: departmentIds,
-        employee_code: employeeCode,
-      },
+  user_id: userId,
+  email: cleanEmail,
+  designation: cleanText(designation),
+
+  department_id: primaryDepartmentId,
+  department_ids: departmentIds,
+
+  division_ids:
+    divisionIdsProvided
+      ? divisionIds
+      : undefined,
+
+  employee_code: employeeCode,
+},
     });
   } catch (error) {
     if (connection) {
@@ -6101,6 +6625,13 @@ module.exports = {
 
   getAdministratorUsersMeta,
   createAdministratorDepartment,
+  getAdministratorDivisions,
+
+  
+createAdministratorDivision,
+updateAdministratorDivision,
+
+
   getAdministratorUsers,
   createAdministratorUser,
   importAdministratorUsersCsv,

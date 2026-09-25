@@ -2,9 +2,19 @@ import React, { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
 
 const AdminUsers = () => {
-  const [users, setUsers] = useState([]);
-  const [department, setDepartment] = useState("");
-  const [searchTerm, setSearchTerm] = useState("");
+const [users, setUsers] = useState([]);
+const [allEmployees, setAllEmployees] = useState([]);
+
+const [department, setDepartment] = useState("");
+
+const [employeeView, setEmployeeView] =
+  useState("myTeam");
+
+const [searchTerm, setSearchTerm] =
+  useState("");
+
+const [skillSearch, setSkillSearch] =
+  useState("");
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,8 +32,20 @@ const [expandedTaskId, setExpandedTaskId] = useState(null);
 
       const response = await api.get("/admin/users");
 
-      setUsers(response.data?.users || []);
-      setDepartment(response.data?.department || "");
+      setUsers(
+  response.data?.my_team ||
+    response.data?.users ||
+    []
+);
+
+setAllEmployees(
+  response.data?.all_employees ||
+    []
+);
+
+setDepartment(
+  response.data?.department || ""
+);
     } catch (err) {
       console.error("Fetch admin users error:", err);
 
@@ -47,49 +69,129 @@ const [expandedTaskId, setExpandedTaskId] = useState(null);
     fetchDepartmentUsers();
   }, []);
 
-  const filteredUsers = useMemo(() => {
-    const term = searchTerm.toLowerCase().trim();
+const filteredUsers = useMemo(() => {
+  const term =
+    searchTerm
+      .toLowerCase()
+      .trim();
 
-    if (!term) return users;
+  const skillTerm =
+    skillSearch
+      .toLowerCase()
+      .trim();
 
-    return users.filter((user) => {
-      return (
-        String(user.full_name || "").toLowerCase().includes(term) ||
-        String(user.email || "").toLowerCase().includes(term) ||
-        String(user.employee_code || "").toLowerCase().includes(term) ||
-        String(user.designation || "").toLowerCase().includes(term) ||
-        String(user.role_name || "").toLowerCase().includes(term)
-      );
-    });
-  }, [users, searchTerm]);
+  const sourceUsers =
+    employeeView === "all"
+      ? allEmployees
+      : users;
+
+  return sourceUsers.filter((user) => {
+    const searchable = [
+      user.full_name,
+      user.email,
+      user.employee_code,
+      user.designation,
+      user.role_name,
+      user.department_name,
+      user.skills,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch =
+      !term ||
+      searchable.includes(term);
+
+    const matchesSkill =
+      !skillTerm ||
+      String(user.skills || "")
+        .toLowerCase()
+        .includes(skillTerm);
+
+    return (
+      matchesSearch &&
+      matchesSkill
+    );
+  });
+}, [
+  users,
+  allEmployees,
+  employeeView,
+  searchTerm,
+  skillSearch,
+]);
+const getSkillsList = (user) => {
+  return String(user?.skills || "")
+    .split(",")
+    .map((skill) => skill.trim())
+    .filter(Boolean);
+};
 
   const getUserKey = (user) => {
     return user.user_id || user.id || user.email;
   };
 
-  const openUserDetails = async (user) => {
-  setSelectedUser(user);
+const openUserDetails = async (user) => {
+  const userId =
+    user.user_id || user.id;
+
+  const isMyTeamMember =
+    users.some((teamUser) => {
+      const teamUserId =
+        teamUser.user_id ||
+        teamUser.id;
+
+      return (
+        Number(teamUserId) ===
+        Number(userId)
+      );
+    });
+
+  setSelectedUser({
+    ...user,
+    is_my_team_member:
+      isMyTeamMember,
+  });
+
   setTimeSummary(null);
   setTimeError("");
   setExpandedTaskId(null);
 
-  const userId = user.user_id || user.id;
-
   if (!userId) {
-    setTimeError("Employee ID not found.");
+    setTimeError(
+      "Employee ID not found."
+    );
+    return;
+  }
+
+  /*
+   * All Employees:
+   * Admin may view profile + skills,
+   * but time tracking stays limited
+   * to their own team.
+   */
+  if (!isMyTeamMember) {
+    setTimeLoading(false);
     return;
   }
 
   try {
     setTimeLoading(true);
 
-    const response = await api.get(
-      `/admin/users/${userId}/time-summary`
-    );
+    const response =
+      await api.get(
+        `/admin/users/${userId}/time-summary`
+      );
 
-    setTimeSummary(response.data || null);
+    setTimeSummary(
+      response.data || null
+    );
   } catch (err) {
-    console.error("Fetch employee time summary error:", err);
+    console.error(
+      "Fetch employee time summary error:",
+      err
+    );
 
     setTimeError(
       err?.response?.data?.message ||
@@ -161,28 +263,84 @@ const formatSessionTime = (value) => {
     <div className="admin-users-page">
 
       <div className="admin-users-header-card">
+
   <div className="admin-users-title-wrap">
     <h2 className="admin-users-main-title">
       Employee Management
     </h2>
 
     <p className="admin-users-department-label">
-      {department || "Department"} Users
+      View employee details, skills and work activity
     </p>
   </div>
 
+  {/* MY TEAM / ALL EMPLOYEES */}
+
+  <div style={styles.employeeViewSwitch}>
+    <button
+      type="button"
+      style={{
+        ...styles.employeeViewButton,
+        ...(employeeView === "myTeam"
+          ? styles.employeeViewActive
+          : {}),
+      }}
+      onClick={() => {
+        setEmployeeView("myTeam");
+        setSearchTerm("");
+        setSkillSearch("");
+      }}
+    >
+      My Team
+    </button>
+
+    <button
+      type="button"
+      style={{
+        ...styles.employeeViewButton,
+        ...(employeeView === "all"
+          ? styles.employeeViewActive
+          : {}),
+      }}
+      onClick={() => {
+        setEmployeeView("all");
+        setSearchTerm("");
+        setSkillSearch("");
+      }}
+    >
+      All Employees
+    </button>
+  </div>
+
   <div className="admin-users-header-row">
-    <div className="admin-users-toolbar">
+
+    <div
+      className="admin-users-toolbar"
+      style={styles.searchToolbar}
+    >
+
       <input
         type="text"
-        placeholder="Search employee, email, code, designation..."
+        placeholder="Search employee, email, code, department..."
         value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
+        onChange={(e) =>
+          setSearchTerm(e.target.value)
+        }
+      />
+
+      <input
+        type="text"
+        placeholder="Search skill e.g. Excel, Figma, React..."
+        value={skillSearch}
+        onChange={(e) =>
+          setSkillSearch(e.target.value)
+        }
       />
 
       <div className="admin-users-count">
         Total: {filteredUsers.length}
       </div>
+
     </div>
 
     <button
@@ -192,6 +350,7 @@ const formatSessionTime = (value) => {
     >
       Refresh
     </button>
+
   </div>
 </div>
       {loading && (
@@ -210,20 +369,21 @@ const formatSessionTime = (value) => {
         <div className="admin-users-table-card">
           <table className="admin-users-table">
             <thead>
-              <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Department</th>
-                <th>Designation</th>
-                <th>Phone</th>
-              </tr>
+             <tr>
+  <th>User</th>
+  <th>Role</th>
+  <th>Department</th>
+  <th>Designation</th>
+  <th>Skills</th>
+  <th>Phone</th>
+</tr>
             </thead>
 
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="admin-users-empty">
-                    No users found in this department.
+                  <td colSpan="6" className="admin-users-empty">
+                    No employees found.
                   </td>
                 </tr>
               ) : (
@@ -268,9 +428,37 @@ const formatSessionTime = (value) => {
 
                     <td>{user.department_name || "-"}</td>
 
-                    <td>{user.designation || "-"}</td>
+                   <td>{user.designation || "-"}</td>
 
-                    <td>{user.phone || "-"}</td>
+<td>
+  {getSkillsList(user).length ? (
+    <div style={styles.skillsWrap}>
+      {getSkillsList(user)
+        .slice(0, 3)
+        .map((skill) => (
+          <span
+            key={skill}
+            style={styles.skillChip}
+          >
+            {skill}
+          </span>
+        ))}
+
+      {getSkillsList(user).length > 3 && (
+        <span style={styles.moreSkills}>
+          +
+          {getSkillsList(user).length - 3}
+        </span>
+      )}
+    </div>
+  ) : (
+    <span style={styles.noSkills}>
+      No skills
+    </span>
+  )}
+</td>
+
+<td>{user.phone || "-"}</td>
                   </tr>
                 ))
               )}
@@ -357,8 +545,38 @@ const formatSessionTime = (value) => {
                   {selectedUser.status || "Active"}
                 </strong>
               </div>
+              <div
+  style={{
+    ...styles.detailCard,
+    gridColumn: "1 / -1",
+  }}
+>
+  <span style={styles.detailLabel}>
+    Skills
+  </span>
+
+  {getSkillsList(selectedUser).length ? (
+    <div style={styles.skillsWrap}>
+      {getSkillsList(selectedUser).map(
+        (skill) => (
+          <span
+            key={skill}
+            style={styles.skillChip}
+          >
+            {skill}
+          </span>
+        )
+      )}
+    </div>
+  ) : (
+    <strong style={styles.detailValue}>
+      No skills added
+    </strong>
+  )}
+</div>
             </div>
-            <div style={styles.timeSection}>
+            {selectedUser.is_my_team_member && (
+  <div style={styles.timeSection}>
   <div style={styles.timeSectionHeader}>
     <div>
       <h3 style={styles.timeTitle}>
@@ -551,6 +769,7 @@ const formatSessionTime = (value) => {
     </>
   )}
 </div>
+)}
           </div>
         </div>
       )}
@@ -559,6 +778,76 @@ const formatSessionTime = (value) => {
 };
 
 const styles = {
+
+  employeeViewSwitch: {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "4px",
+  padding: "4px",
+  marginTop: "18px",
+  marginBottom: "18px",
+  background: "#f8fafc",
+  border: "1px solid #e2e8f0",
+  borderRadius: "14px",
+},
+
+employeeViewButton: {
+  border: "none",
+  background: "transparent",
+  color: "#64748b",
+  borderRadius: "10px",
+  padding: "11px 20px",
+  fontSize: "14px",
+  fontWeight: 900,
+  cursor: "pointer",
+},
+
+employeeViewActive: {
+  background: "#ff5733",
+  color: "#ffffff",
+  boxShadow:
+    "0 6px 16px rgba(255, 87, 51, 0.22)",
+},
+
+searchToolbar: {
+  flex: 1,
+  display: "grid",
+  gridTemplateColumns:
+    "minmax(220px, 1fr) minmax(220px, 1fr) auto",
+  gap: "12px",
+  alignItems: "center",
+},
+
+skillsWrap: {
+  display: "flex",
+  flexWrap: "wrap",
+  gap: "6px",
+  alignItems: "center",
+},
+
+skillChip: {
+  display: "inline-flex",
+  alignItems: "center",
+  padding: "6px 10px",
+  borderRadius: "999px",
+  background: "#fff1ed",
+  color: "#ff5733",
+  border: "1px solid #ffd5c9",
+  fontSize: "12px",
+  fontWeight: 800,
+},
+
+moreSkills: {
+  color: "#64748b",
+  fontSize: "12px",
+  fontWeight: 900,
+},
+
+noSkills: {
+  color: "#94a3b8",
+  fontSize: "12px",
+  fontWeight: 700,
+},
   
   modalOverlay: {
     position: "fixed",

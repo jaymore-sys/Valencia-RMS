@@ -1955,6 +1955,18 @@ async()=>{
 
 
  d.department_name,
+ COALESCE(
+  (
+    SELECT GROUP_CONCAT(
+      DISTINCT es.skill_name
+      ORDER BY es.skill_name
+      SEPARATOR ', '
+    )
+    FROM employee_skills es
+    WHERE es.user_id = u.user_id
+  ),
+  ''
+) AS skills,
 
 
  COUNT(DISTINCT t.task_id)
