@@ -2486,7 +2486,7 @@ DATE_FORMAT(
           r.role_name
             AS applicant_role,
 
-           (
+          (
   SELECT GROUP_CONCAT(
     DISTINCT admin_user.full_name
     ORDER BY admin_user.full_name ASC
@@ -2496,13 +2496,13 @@ DATE_FORMAT(
   FROM users admin_user
 
   INNER JOIN roles admin_role
-    ON admin_role.role_id =
-       admin_user.role_id
+    ON admin_role.role_id = admin_user.role_id
 
-  WHERE admin_user.department_id =
-        u.department_id
+  LEFT JOIN user_departments admin_ud
+    ON admin_ud.user_id = admin_user.user_id
 
-    AND LOWER(
+  WHERE
+    LOWER(
       TRIM(
         COALESCE(
           admin_role.role_name,
@@ -2518,7 +2518,35 @@ DATE_FORMAT(
       )
     ) <> 'deleted'
 
-) AS admin_name,
+    AND (
+      /* Admin primary department matches employee primary department */
+      admin_user.department_id = u.department_id
+
+      OR
+
+      /* Admin mapped department matches employee primary department */
+      admin_ud.department_id = u.department_id
+
+      OR
+
+      /* Admin primary department matches any employee mapped department */
+      admin_user.department_id IN (
+        SELECT employee_ud.department_id
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = u.user_id
+      )
+
+      OR
+
+      /* Admin mapped department matches any employee mapped department */
+      admin_ud.department_id IN (
+        SELECT employee_ud.department_id
+        FROM user_departments employee_ud
+        WHERE employee_ud.user_id = u.user_id
+      )
+    )
+
+) AS admin_name, 
 
 
           reviewer.full_name
