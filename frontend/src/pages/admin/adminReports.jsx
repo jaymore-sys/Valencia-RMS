@@ -455,9 +455,22 @@ const AdminReports = () => {
      EMPLOYEE OPTIONS
   ======================================================= */
 
-  const employeeOptions = useMemo(() => {
-    const map = new Map();
+const employeeOptions = useMemo(() => {
+  const map = new Map();
 
+  if (scope === "department") {
+    departmentUsers.forEach((user) => {
+      const id = String(user.user_id || user.id || "");
+
+      if (!id || map.has(id)) return;
+
+      map.set(id, {
+        id,
+        name: user.full_name || user.name || "-",
+        code: user.employee_code || "",
+      });
+    });
+  } else {
     [...mainRows, ...miniRows].forEach((row) => {
       const id = String(row.employee_id || "");
 
@@ -469,11 +482,12 @@ const AdminReports = () => {
         code: row.employee_code || "",
       });
     });
+  }
 
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
-    );
-  }, [mainRows, miniRows]);
+  return Array.from(map.values()).sort((a, b) =>
+    a.name.localeCompare(b.name)
+  );
+}, [scope, departmentUsers, mainRows, miniRows]);
 
   /* =======================================================
      FILTER RAW DATA
@@ -544,6 +558,35 @@ const AdminReports = () => {
 
   const employeeSummaryRows = useMemo(() => {
     const map = new Map();
+    if (scope === "department") {
+  departmentUsers.forEach((user) => {
+    const key = String(
+      user.user_id ||
+        user.id ||
+        user.employee_code ||
+        user.full_name
+    );
+
+    if (!key || map.has(key)) return;
+
+    map.set(key, {
+      employee_id: user.user_id || user.id,
+      employee_code: user.employee_code || "",
+      employee_name: user.full_name || user.name || "-",
+      department_name:
+        user.department_names ||
+        user.department_name ||
+        "-",
+
+      main_seconds: 0,
+      mini_seconds: 0,
+      total_seconds: 0,
+
+      divisions: new Map(),
+    });
+  });
+}
+  
 
     const ensureEmployee = (row) => {
       const key = String(
@@ -613,7 +656,12 @@ const AdminReports = () => {
         divisions: Array.from(employee.divisions.values()),
       }))
       .sort((a, b) => b.total_seconds - a.total_seconds);
-  }, [filteredMainRows, filteredMiniRows]);
+ }, [
+  scope,
+  departmentUsers,
+  filteredMainRows,
+  filteredMiniRows,
+]);
 
   /* =======================================================
      DIVISION SUMMARY
@@ -1189,7 +1237,14 @@ const AdminReports = () => {
       ) : (
         <>
           <div style={styles.stats}>
-            <StatCard label="Contributors" value={totals.contributors} />
+           <StatCard
+  label={scope === "department" ? "Employees" : "Contributors"}
+  value={
+    scope === "department"
+      ? departmentUsers.length
+      : totals.contributors
+  }
+/>
 
             <StatCard
               label="Main Task Time"
