@@ -2492,3 +2492,46 @@
     padding: 11px !important;
   }
 }
+
+/* =========================================================
+   ADMIN ACCESS - DEPARTMENTS + DIVISIONS
+========================================================= */
+
+.administrator-access-grid {
+  width: 100% !important;
+
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+
+  gap: 18px !important;
+
+  align-items: start !important;
+
+  margin-top: 14px !important;
+}
+
+.administrator-access-grid > .admin-departments-section {
+  min-width: 0 !important;
+  margin-top: 0 !important;
+
+  padding: 16px !important;
+
+  border: 1px solid #e4e7ec !important;
+  border-radius: 14px !important;
+
+  background: #ffffff !important;
+}
+
+.administrator-access-grid .admin-departments-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.administrator-access-single {
+  width: 100% !important;
+}
+
+@media (max-width: 900px) {
+  .administrator-access-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

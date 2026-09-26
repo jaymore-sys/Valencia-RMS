@@ -26,6 +26,9 @@ const {
 
   getAdministratorUsersMeta,
   createAdministratorDepartment,
+  getAdministratorDivisions,
+createAdministratorDivision,
+updateAdministratorDivision,
   getAdministratorUsers,
   createAdministratorUser,
   importAdministratorUsersCsv,
@@ -190,6 +193,31 @@ router.post(
   authMiddleware,
   requireJayAdministrator,
   createAdministratorDepartment
+);
+
+/* =========================================================
+   DIVISIONS
+========================================================= */
+
+router.get(
+  "/divisions",
+  authMiddleware,
+  requireJayAdministrator,
+  getAdministratorDivisions
+);
+
+router.post(
+  "/divisions",
+  authMiddleware,
+  requireJayAdministrator,
+  createAdministratorDivision
+);
+
+router.put(
+  "/divisions/:divisionId",
+  authMiddleware,
+  requireJayAdministrator,
+  updateAdministratorDivision
 );
 
 /* =========================================================

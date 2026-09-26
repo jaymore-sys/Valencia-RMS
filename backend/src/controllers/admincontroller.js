@@ -298,8 +298,8 @@ const adminDivisionIds =
           ON es.user_id = u.user_id
 
         WHERE LOWER(
-          COALESCE(r.role_name, '')
-        ) = 'employee'
+  COALESCE(r.role_name, '')
+) IN ('employee', 'administrator')
 
         GROUP BY
           u.user_id,
@@ -387,7 +387,7 @@ const adminDivisionIds =
           WHERE
             LOWER(
               COALESCE(r.role_name, '')
-            ) = 'employee'
+           ) IN ('employee', 'administrator')
 
             AND (
               employee_ud.department_id
@@ -487,7 +487,7 @@ const getAdminAssignableUsers = async (req, res) => {
         ON d.department_id = u.department_id
       LEFT JOIN roles r
         ON r.role_id = u.role_id
-      WHERE LOWER(r.role_name) = 'employee'
+      WHERE LOWER(r.role_name) IN ('employee', 'administrator')
       ORDER BY u.full_name ASC
     `);
 

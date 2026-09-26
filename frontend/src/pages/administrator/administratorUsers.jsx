@@ -2239,6 +2239,14 @@ const toggleDivisionStatus = async (
                   </div>
                 </div>
 
+                <div
+  className={
+    normalizeRole(selectedRole) === "admin"
+      ? "administrator-access-grid"
+      : "administrator-access-single"
+  }
+></div>
+
                 {[
                   "admin",
                   "employee",
@@ -2251,13 +2259,16 @@ const toggleDivisionStatus = async (
                     <div className="admin-departments-title-row">
                       <div className="admin-departments-header">
                         <h4>
-                          Departments
-                        </h4>
+  {normalizeRole(selectedRole) === "admin"
+    ? "Departments Managed"
+    : "Departments"}
+</h4>
 
-                        <p>
-                          Select all departments
-                          this user should belong to.
-                        </p>
+<p>
+  {normalizeRole(selectedRole) === "admin"
+    ? "Select the Departments whose employees this Admin manages."
+    : "Select all departments this user should belong to."}
+</p>
                       </div>
 
                       <button
@@ -2401,15 +2412,13 @@ const toggleDivisionStatus = async (
     <div className="admin-departments-title-row">
       <div className="admin-departments-header">
         <h4>
-          Divisions
-        </h4>
+  Divisions Managed
+</h4>
 
-        <p>
-          Select the Divisions this Admin
-          is allowed to manage.
-          Division access is separate
-          from Department access.
-        </p>
+<p>
+  Select the business Divisions this Admin is responsible for.
+  Division responsibility is separate from Department access.
+</p>
       </div>
 
       <button
@@ -2491,6 +2500,8 @@ const toggleDivisionStatus = async (
     </div>
   </div>
 )}
+
+
 
                 <div className="administrator-dialog-save-row">
                   <button
