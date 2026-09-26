@@ -751,6 +751,10 @@ return (
   Applicant
 </th>
 
+<th style={styles.headCell}>
+  Admin
+</th>
+
 <th
   style={
     styles.headCell
@@ -850,6 +854,12 @@ return (
     {leave.employee_code ||
       "-"}
   </small>
+</td>
+
+<td style={styles.cell}>
+  <strong>
+    {leave.admin_name || "-"}
+  </strong>
 </td>
 
 <td

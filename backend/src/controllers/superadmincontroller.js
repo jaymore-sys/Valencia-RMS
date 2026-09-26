@@ -2486,6 +2486,41 @@ DATE_FORMAT(
           r.role_name
             AS applicant_role,
 
+           (
+  SELECT GROUP_CONCAT(
+    DISTINCT admin_user.full_name
+    ORDER BY admin_user.full_name ASC
+    SEPARATOR ', '
+  )
+
+  FROM users admin_user
+
+  INNER JOIN roles admin_role
+    ON admin_role.role_id =
+       admin_user.role_id
+
+  WHERE admin_user.department_id =
+        u.department_id
+
+    AND LOWER(
+      TRIM(
+        COALESCE(
+          admin_role.role_name,
+          ''
+        )
+      )
+    ) = 'admin'
+
+    AND LOWER(
+      COALESCE(
+        admin_user.status,
+        'active'
+      )
+    ) <> 'deleted'
+
+) AS admin_name,
+
+
           reviewer.full_name
             AS reviewed_by_name,
 
