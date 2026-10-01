@@ -86,12 +86,6 @@ router.post(
   upload.single("file"),
   importHrAttendance
 );
-router.post(
-  "/import",
-  authMiddleware,
-  onlyHR,
-  upload.single("file"),
-  importHrAttendance
-);
+
 
 module.exports = router;
