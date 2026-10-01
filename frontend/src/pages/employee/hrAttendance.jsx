@@ -532,9 +532,9 @@ export default function HrAttendance() {
         leave.reviewed_by_name,
         leave.review_remark,
         leave.revert_status,
-leave.revert_reason,
-leave.revert_reviewed_by_name,
-leave.revert_review_remark,
+        leave.revert_reason,
+        leave.revert_reviewed_by_name,
+        leave.revert_review_remark,
       ]
         .filter(Boolean)
         .join(" ")
@@ -718,9 +718,9 @@ leave.revert_review_remark,
 
       notify(
         response.data?.message ||
-          (nextStatus === "approved"
-            ? "Leave approved successfully."
-            : "Leave rejected successfully.")
+        (nextStatus === "approved"
+          ? "Leave approved successfully."
+          : "Leave rejected successfully.")
       );
 
       setSelectedLeave(null);
@@ -738,66 +738,66 @@ leave.revert_review_remark,
   };
 
   const reviewLeaveRevert = async (
-  leave,
-  nextStatus
-) => {
-  if (
-    String(
-      leave.revert_status || ""
-    ).toLowerCase() !== "pending"
-  ) {
-    return;
-  }
+    leave,
+    nextStatus
+  ) => {
+    if (
+      String(
+        leave.revert_status || ""
+      ).toLowerCase() !== "pending"
+    ) {
+      return;
+    }
 
-  if (
-    nextStatus === "rejected" &&
-    !reviewRemark.trim()
-  ) {
-    notify(
-      "Please enter a remark before rejecting the revert request.",
-      "error"
-    );
-
-    return;
-  }
-
-  try {
-    setReviewingLeaveId(
-      leave.leave_id
-    );
-
-    const response =
-      await api.patch(
-        `/admin-leaves/${leave.leave_id}/revert`,
-        {
-          status: nextStatus,
-
-          review_remark:
-            reviewRemark.trim(),
-        }
+    if (
+      nextStatus === "rejected" &&
+      !reviewRemark.trim()
+    ) {
+      notify(
+        "Please enter a remark before rejecting the revert request.",
+        "error"
       );
 
-    notify(
-      response.data?.message ||
+      return;
+    }
+
+    try {
+      setReviewingLeaveId(
+        leave.leave_id
+      );
+
+      const response =
+        await api.patch(
+          `/admin-leaves/${leave.leave_id}/revert`,
+          {
+            status: nextStatus,
+
+            review_remark:
+              reviewRemark.trim(),
+          }
+        );
+
+      notify(
+        response.data?.message ||
         "Revert request updated successfully."
-    );
+      );
 
-    setSelectedLeave(null);
-    setReviewRemark("");
+      setSelectedLeave(null);
+      setReviewRemark("");
 
-    await fetchAttendance({
-      nextPage: page,
-    });
-  } catch (err) {
-    notify(
-      err?.response?.data?.message ||
+      await fetchAttendance({
+        nextPage: page,
+      });
+    } catch (err) {
+      notify(
+        err?.response?.data?.message ||
         "Failed to review revert request.",
-      "error"
-    );
-  } finally {
-    setReviewingLeaveId(null);
-  }
-};
+        "error"
+      );
+    } finally {
+      setReviewingLeaveId(null);
+    }
+  };
 
   /* =========================================================
      ADD ATTENDANCE
@@ -883,53 +883,77 @@ leave.revert_review_remark,
     fileInputRef.current.click();
   };
 
-  const importAttendance = async (event) => {
-    const file = event.target.files?.[0];
+ const importAttendance = async (event) => {
+  const file = event.target.files?.[0];
 
-    if (!file) return;
+  if (!file) return;
 
-    const extension = String(file.name || "").toLowerCase();
+  const extension = String(file.name || "").toLowerCase();
 
-    if (
-      !extension.endsWith(".xlsx") &&
-      !extension.endsWith(".xls") &&
-      !extension.endsWith(".csv")
-    ) {
-      notify("Please select an Excel or CSV file.", "error");
-      return;
-    }
+  if (
+    !extension.endsWith(".xlsx") &&
+    !extension.endsWith(".xls") &&
+    !extension.endsWith(".csv")
+  ) {
+    notify("Please select an Excel or CSV file.", "error");
 
-    try {
-      setImporting(true);
+    event.target.value = "";
+    return;
+  }
 
-      const formData = new FormData();
-      formData.append("file", file, file.name);
+  try {
+    setImporting(true);
 
-      const response = await api.post("/hr-attendance/import", formData, {
+    const formData = new FormData();
+
+    formData.append("file", file, file.name);
+
+    const response = await api.post(
+      "/hr-attendance/import",
+      formData,
+      {
         timeout: 120000,
-      });
+      }
+    );
 
-      const result = response.data || {};
+    const result = response.data || {};
 
-      notify(
-        `Import complete — Inserted: ${result.inserted_rows || 0}, Updated: ${
-          result.updated_rows || 0
-        }, Duplicates: ${result.duplicate_rows || 0}, Unmatched: ${
-          result.unmatched_rows || 0
-        }, Skipped: ${result.skipped_rows || 0}`
-      );
+    notify(
+      `Import complete — Inserted: ${
+        result.inserted_rows || 0
+      }, Updated: ${
+        result.updated_rows || 0
+      }, Duplicates: ${
+        result.duplicate_rows || 0
+      }, Unmatched: ${
+        result.unmatched_rows || 0
+      }, Skipped: ${
+        result.skipped_rows || 0
+      }`
+    );
 
-      await fetchAttendance({ nextPage: 1 });
-    } catch (err) {
-      notify(
-        err?.response?.data?.message || "Attendance import failed.",
-        "error"
-      );
-    } finally {
-      setImporting(false);
+    await fetchAttendance({
+      nextPage: 1,
+    });
+  } catch (err) {
+    console.error(
+      "Attendance import error:",
+      err?.response?.data || err
+    );
+
+    notify(
+      err?.response?.data?.message ||
+        "Attendance import failed.",
+      "error"
+    );
+  } finally {
+    setImporting(false);
+
+    if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
-  };
+  }
+};
 
   const exportAttendance = async (format) => {
     try {
@@ -1097,9 +1121,8 @@ leave.revert_review_remark,
           {dateStrip.map((date) => (
             <button
               key={date}
-              className={`hr-day ${
-                rangeMode === "day" && selectedDate === date ? "active" : ""
-              }`}
+              className={`hr-day ${rangeMode === "day" && selectedDate === date ? "active" : ""
+                }`}
               onClick={() => loadDay(date)}
             >
               <strong>{date.slice(8, 10)}</strong>
@@ -1113,9 +1136,8 @@ leave.revert_review_remark,
         </button>
 
         <button
-          className={`hr-range ${
-            rangeMode === "day" && selectedDate === today ? "active" : ""
-          }`}
+          className={`hr-range ${rangeMode === "day" && selectedDate === today ? "active" : ""
+            }`}
           onClick={loadToday}
         >
           Today
@@ -1199,22 +1221,22 @@ leave.revert_review_remark,
               onChange={(e) => setLeaveStatus(e.target.value)}
             >
               <option value="all">All Leave Status</option>
-<option value="Pending">Pending</option>
-<option value="Escalated">Escalated</option>
-<option value="Approved">Approved</option>
-<option value="Rejected">Rejected</option>
+              <option value="Pending">Pending</option>
+              <option value="Escalated">Escalated</option>
+              <option value="Approved">Approved</option>
+              <option value="Rejected">Rejected</option>
 
-<option value="Revert Applied">
-  Revert Applied
-</option>
+              <option value="Revert Applied">
+                Revert Applied
+              </option>
 
-<option value="Reverted">
-  Reverted
-</option>
+              <option value="Reverted">
+                Reverted
+              </option>
 
-<option value="Revert Rejected">
-  Revert Rejected
-</option>
+              <option value="Revert Rejected">
+                Revert Rejected
+              </option>
             </select>
 
             <select
@@ -1684,170 +1706,170 @@ leave.revert_review_remark,
               value={selectedLeave.review_remark}
             />
             {selectedLeave.revert_status &&
-  selectedLeave.revert_status !==
-    "none" && (
-    <>
-      <Detail
-        label="Revert Status"
-        value={
-          selectedLeave.display_status
-        }
-      />
+              selectedLeave.revert_status !==
+              "none" && (
+                <>
+                  <Detail
+                    label="Revert Status"
+                    value={
+                      selectedLeave.display_status
+                    }
+                  />
 
-      <Detail
-        label="Revert Requested By"
-        value={
-          selectedLeave.employee_name
-        }
-      />
+                  <Detail
+                    label="Revert Requested By"
+                    value={
+                      selectedLeave.employee_name
+                    }
+                  />
 
-      <Detail
-        label="Revert Requested On"
-        value={displayDateTime(
-          selectedLeave
-            .revert_requested_at
-        )}
-      />
+                  <Detail
+                    label="Revert Requested On"
+                    value={displayDateTime(
+                      selectedLeave
+                        .revert_requested_at
+                    )}
+                  />
 
-      <Detail
-        label="Revert Reason"
-        value={
-          selectedLeave.revert_reason
-        }
-      />
+                  <Detail
+                    label="Revert Reason"
+                    value={
+                      selectedLeave.revert_reason
+                    }
+                  />
 
-      {selectedLeave.revert_status !==
-        "pending" && (
-        <>
-          <Detail
-            label="Revert Reviewed By"
-            value={
-              selectedLeave
-                .revert_reviewed_by_name
-            }
-          />
+                  {selectedLeave.revert_status !==
+                    "pending" && (
+                      <>
+                        <Detail
+                          label="Revert Reviewed By"
+                          value={
+                            selectedLeave
+                              .revert_reviewed_by_name
+                          }
+                        />
 
-          <Detail
-            label="Revert Reviewed On"
-            value={displayDateTime(
-              selectedLeave
-                .revert_reviewed_at
-            )}
-          />
+                        <Detail
+                          label="Revert Reviewed On"
+                          value={displayDateTime(
+                            selectedLeave
+                              .revert_reviewed_at
+                          )}
+                        />
 
-          <Detail
-            label="Revert Review Remark"
-            value={
-              selectedLeave
-                .revert_review_remark
-            }
-          />
-        </>
-      )}
-    </>
-)}
+                        <Detail
+                          label="Revert Review Remark"
+                          value={
+                            selectedLeave
+                              .revert_review_remark
+                          }
+                        />
+                      </>
+                    )}
+                </>
+              )}
           </div>
 
           {selectedLeave.revert_status ===
-  "pending" && (
-  <>
-    <div className="hr-review-box">
-      <label>
-        Revert Approval / Rejection Remark
-      </label>
+            "pending" && (
+              <>
+                <div className="hr-review-box">
+                  <label>
+                    Revert Approval / Rejection Remark
+                  </label>
 
-      <textarea
-        rows={4}
-        placeholder="Required when rejecting. Optional when approving."
-        value={reviewRemark}
-        onChange={(event) =>
-          setReviewRemark(
-            event.target.value
-          )
-        }
-      />
-    </div>
+                  <textarea
+                    rows={4}
+                    placeholder="Required when rejecting. Optional when approving."
+                    value={reviewRemark}
+                    onChange={(event) =>
+                      setReviewRemark(
+                        event.target.value
+                      )
+                    }
+                  />
+                </div>
 
-    <div className="hr-modal-footer">
-      <button
-        className="hr-button danger"
-        disabled={
-          reviewingLeaveId ===
-          selectedLeave.leave_id
-        }
-        onClick={() =>
-          reviewLeaveRevert(
-            selectedLeave,
-            "rejected"
-          )
-        }
-      >
-        Reject Revert
-      </button>
+                <div className="hr-modal-footer">
+                  <button
+                    className="hr-button danger"
+                    disabled={
+                      reviewingLeaveId ===
+                      selectedLeave.leave_id
+                    }
+                    onClick={() =>
+                      reviewLeaveRevert(
+                        selectedLeave,
+                        "rejected"
+                      )
+                    }
+                  >
+                    Reject Revert
+                  </button>
 
-      <button
-        className="hr-button approve"
-        disabled={
-          reviewingLeaveId ===
-          selectedLeave.leave_id
-        }
-        onClick={() =>
-          reviewLeaveRevert(
-            selectedLeave,
-            "approved"
-          )
-        }
-      >
-        <CheckCircle2 size={16} />
+                  <button
+                    className="hr-button approve"
+                    disabled={
+                      reviewingLeaveId ===
+                      selectedLeave.leave_id
+                    }
+                    onClick={() =>
+                      reviewLeaveRevert(
+                        selectedLeave,
+                        "approved"
+                      )
+                    }
+                  >
+                    <CheckCircle2 size={16} />
 
-        {reviewingLeaveId ===
-        selectedLeave.leave_id
-          ? "Saving..."
-          : "Approve Revert"}
-      </button>
-    </div>
-  </>
-)}
+                    {reviewingLeaveId ===
+                      selectedLeave.leave_id
+                      ? "Saving..."
+                      : "Approve Revert"}
+                  </button>
+                </div>
+              </>
+            )}
 
           {selectedLeave.display_status === "Pending" &&
-  selectedLeave.revert_status !== "pending" && (
-            <div className="hr-review-box">
-              <label>Approval / Rejection Remark</label>
+            selectedLeave.revert_status !== "pending" && (
+              <div className="hr-review-box">
+                <label>Approval / Rejection Remark</label>
 
-              <textarea
-                rows={4}
-                placeholder="Enter review remark"
-                value={reviewRemark}
-                onChange={(event) => setReviewRemark(event.target.value)}
-              />
-            </div>
-          )}
+                <textarea
+                  rows={4}
+                  placeholder="Enter review remark"
+                  value={reviewRemark}
+                  onChange={(event) => setReviewRemark(event.target.value)}
+                />
+              </div>
+            )}
 
           <div className="hr-modal-footer">
             {selectedLeave.display_status === "Pending" &&
-  selectedLeave.revert_status !== "pending" && (
-              <>
-                <button
-                  className="hr-button danger"
-                  disabled={reviewingLeaveId === selectedLeave.leave_id}
-                  onClick={() => reviewLeave(selectedLeave, "rejected")}
-                >
-                  Reject Leave
-                </button>
+              selectedLeave.revert_status !== "pending" && (
+                <>
+                  <button
+                    className="hr-button danger"
+                    disabled={reviewingLeaveId === selectedLeave.leave_id}
+                    onClick={() => reviewLeave(selectedLeave, "rejected")}
+                  >
+                    Reject Leave
+                  </button>
 
-                <button
-                  className="hr-button approve"
-                  disabled={reviewingLeaveId === selectedLeave.leave_id}
-                  onClick={() => reviewLeave(selectedLeave, "approved")}
-                >
-                  <CheckCircle2 size={16} />
+                  <button
+                    className="hr-button approve"
+                    disabled={reviewingLeaveId === selectedLeave.leave_id}
+                    onClick={() => reviewLeave(selectedLeave, "approved")}
+                  >
+                    <CheckCircle2 size={16} />
 
-                  {reviewingLeaveId === selectedLeave.leave_id
-                    ? "Saving..."
-                    : "Approve Leave"}
-                </button>
-              </>
-            )}
+                    {reviewingLeaveId === selectedLeave.leave_id
+                      ? "Saving..."
+                      : "Approve Leave"}
+                  </button>
+                </>
+              )}
 
             <button
               className="hr-button secondary"
