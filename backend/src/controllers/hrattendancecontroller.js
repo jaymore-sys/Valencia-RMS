@@ -1,7 +1,9 @@
 const db = require("../config/db");
 const { parse } = require("csv-parse/sync");
 const XLSX = require("xlsx");
-
+const {
+  buildLeaveBalances,
+} = require("../utils/leavepolicy");
 const HR_EMAILS = [
   "rathika.haleangadi@valencianutrition.com",
 ];
@@ -938,9 +940,11 @@ revert_reviewer.email
       ) AS visit_date,
 
       fv.visit_type,
-      fv.start_time,
-      fv.end_time,
-      fv.location,
+fv.duration_type,
+fv.half_day_session,
+fv.start_time,
+fv.end_time,
+fv.location,
       fv.comment,
       fv.status,
       fv.review_remark,
@@ -1489,10 +1493,16 @@ const [hrFieldVisitRows] = await db.query(
           fieldVisit?.visit_id || null,
 
         field_visit_type:
-          fieldVisitType,
+  fieldVisitType,
 
-        field_visit_location:
-          fieldVisitLocation,
+field_visit_duration:
+  fieldVisit?.duration_type || null,
+
+field_visit_half_day_session:
+  fieldVisit?.half_day_session || null,
+
+field_visit_location:
+  fieldVisitLocation,
 
         field_visit_reason:
           fieldVisit?.comment || null,
@@ -3056,12 +3066,377 @@ const approveHrLeaveApplication = async (req, res) => {
     }
   }
 };
+
+/* =========================================================
+   HR EMPLOYEE ATTENDANCE SUMMARY
+========================================================= */
+
+const getHrEmployeeSummary = async (req, res) => {
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const today = formatDate(new Date());
+
+    const fromDate = String(
+      req.query.from_date || today
+    ).slice(0, 10);
+
+    const toDate = String(
+      req.query.to_date || today
+    ).slice(0, 10);
+
+    const search = String(
+      req.query.search || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const department = String(
+      req.query.department || ""
+    ).trim();
+
+    if (fromDate > toDate) {
+      return res.status(400).json({
+        success: false,
+        message: "From date cannot be after To date.",
+      });
+    }
+
+    /*
+    Leave balances are annual.
+    Use the year containing the selected ending date.
+    */
+    const balanceYear = Number(
+      toDate.slice(0, 4)
+    );
+
+    /*
+    Reuse the SAME master attendance builder used
+    by the HR Attendance register.
+
+    This prevents attendance totals and the daily
+    register from disagreeing.
+    */
+    const attendanceData =
+      await buildHrAttendanceData(
+        fromDate,
+        toDate
+      );
+
+    const users = attendanceData.users || [];
+    const records = attendanceData.records || [];
+
+    const recordsByUser = new Map();
+
+    records.forEach((record) => {
+      const userId = Number(record.user_id);
+
+      if (!recordsByUser.has(userId)) {
+        recordsByUser.set(userId, []);
+      }
+
+      recordsByUser
+        .get(userId)
+        .push(record);
+    });
+
+    const employeeSummaries = [];
+
+    for (const user of users) {
+      const employeeRecords =
+        recordsByUser.get(
+          Number(user.user_id)
+        ) || [];
+
+      /*
+      Do not show employees who have no applicable
+      attendance days inside the requested period.
+      */
+      if (!employeeRecords.length) {
+        continue;
+      }
+
+      const summary = {
+        working_days: 0,
+
+        present: 0,
+        absent: 0,
+        late: 0,
+
+        half_day: 0,
+
+        field_visit: 0,
+
+        leave: 0,
+
+        sick_leave: 0,
+        casual_leave: 0,
+        privileged_leave: 0,
+        festival_leave: 0,
+        unpaid_leave: 0,
+
+        weekly_off: 0,
+        holiday: 0,
+
+        no_punch: 0,
+        needs_review: 0,
+      };
+
+      employeeRecords.forEach((record) => {
+        const status = String(
+          record.final_status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+        const isWeeklyOff =
+          status === "weekly off";
+
+        const isHoliday =
+          status === "holiday";
+
+        /*
+        Working Days excludes:
+        - Sundays / Weekly Off
+        - Company Holidays
+        */
+        if (!isWeeklyOff && !isHoliday) {
+          summary.working_days += 1;
+        }
+
+        if (status === "present") {
+          summary.present += 1;
+        }
+
+        if (status === "absent") {
+          summary.absent += 1;
+        }
+
+        if (status === "late") {
+          summary.late += 1;
+        }
+
+        /*
+        Attendance Half Day
+        */
+        if (status === "half day") {
+          summary.half_day += 0.5;
+        }
+
+        /*
+        Leave Half Day
+        */
+        if (status === "half day leave") {
+          summary.half_day += 0.5;
+        }
+
+        if (status === "field visit") {
+          const visitDuration = String(
+            record.field_visit_duration || ""
+          )
+            .trim()
+            .toLowerCase();
+
+          summary.field_visit +=
+            visitDuration === "half_day"
+              ? 0.5
+              : 1;
+        }
+
+        if (status === "weekly off") {
+          summary.weekly_off += 1;
+        }
+
+        if (status === "holiday") {
+          summary.holiday += 1;
+        }
+
+        if (status === "no punch") {
+          summary.no_punch += 1;
+        }
+
+        if (status === "needs review") {
+          summary.needs_review += 1;
+        }
+
+        /*
+        LEAVE COUNTS
+
+        Full Day = 1
+        Half Day = 0.5
+        */
+        if (record.leave_id) {
+          const leaveDays =
+            String(
+              record.leave_duration || ""
+            ).toLowerCase() === "half day"
+              ? 0.5
+              : 1;
+
+          summary.leave += leaveDays;
+
+          switch (record.leave_code) {
+            case "sick":
+              summary.sick_leave += leaveDays;
+              break;
+
+            case "casual":
+              summary.casual_leave += leaveDays;
+              break;
+
+            case "mandatory":
+              summary.privileged_leave +=
+                leaveDays;
+              break;
+
+            case "festival":
+              summary.festival_leave +=
+                leaveDays;
+              break;
+
+            case "unpaid":
+              summary.unpaid_leave +=
+                leaveDays;
+              break;
+
+            default:
+              break;
+          }
+        }
+      });
+
+      /*
+      Pull real leave balance from existing
+      RMS leave-policy logic.
+      */
+      let leaveBalances = {};
+
+      try {
+        leaveBalances =
+          await buildLeaveBalances(
+            db,
+            user.user_id,
+            balanceYear
+          );
+      } catch (balanceError) {
+        console.error(
+          `HR leave balance error for user ${user.user_id}:`,
+          balanceError.message
+        );
+
+        leaveBalances = {};
+      }
+
+      employeeSummaries.push({
+        user_id: user.user_id,
+        employee_code:
+          user.employee_code,
+        full_name:
+          user.full_name,
+        email:
+          user.email,
+        designation:
+          user.designation,
+        department_id:
+          user.department_id,
+        department_name:
+          user.department_name,
+        role_name:
+          user.role_name,
+
+        attendance: summary,
+
+        leave_balance:
+          leaveBalances,
+
+        daily_records:
+          employeeRecords,
+      });
+    }
+
+    /*
+    Filters
+    */
+    let filtered =
+      employeeSummaries;
+
+    if (department) {
+      filtered = filtered.filter(
+        (item) =>
+          String(
+            item.department_name || ""
+          ) === department
+      );
+    }
+
+    if (search) {
+      filtered = filtered.filter(
+        (item) => {
+          const text = [
+            item.full_name,
+            item.employee_code,
+            item.email,
+            item.department_name,
+            item.designation,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return text.includes(search);
+        }
+      );
+    }
+
+    return res.json({
+      success: true,
+
+      date_range: {
+        from_date: fromDate,
+        to_date: toDate,
+      },
+
+      balance_year:
+        balanceYear,
+
+      total_employees:
+        filtered.length,
+
+      employees:
+        filtered,
+    });
+  } catch (error) {
+    console.error(
+      "HR employee attendance summary error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+
+      message:
+        "Failed to load employee attendance summary.",
+
+      error:
+        error.message,
+
+      sqlMessage:
+        error.sqlMessage || null,
+    });
+  }
+};
 /* =========================================================
    EXPORTS
 ========================================================= */
 
 module.exports = {
   getHrAttendance,
+  getHrEmployeeSummary,
   saveHrAttendance,
   importHrAttendance,
   exportHrAttendance,

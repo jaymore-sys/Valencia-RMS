@@ -124,7 +124,7 @@
 
 .hr-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   margin-bottom: 12px;
   overflow: hidden;
   border: 1px solid var(--hr-border);
@@ -690,5 +690,330 @@
 
   .hr-form-two {
     grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================================
+   EMPLOYEE ATTENDANCE SUMMARY
+========================================================= */
+
+/* Main employee summary table */
+
+.hr-summary-grid {
+  display: grid;
+  grid-template-columns:
+    minmax(190px, 1.5fr)
+    minmax(140px, 1fr)
+    100px
+    80px
+    80px
+    70px
+    90px
+    95px
+    75px
+    110px
+    90px;
+  gap: 12px;
+  align-items: center;
+  min-width: 1260px;
+}
+
+/* =========================================================
+   EMPLOYEE SUMMARY MODAL
+========================================================= */
+
+/*
+  Make only the Employee Summary modal wider.
+  Leave / Add Attendance modals stay unchanged.
+*/
+.hr-modal:has(.hr-employee-summary-details) {
+  max-width: 980px;
+  width: calc(100% - 40px);
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+/* Keep modal header visible while scrolling */
+.hr-modal:has(.hr-employee-summary-details)
+.hr-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+
+  padding: 18px 22px;
+
+  background: #ffffff;
+
+  border-bottom: 1px solid
+    var(--hr-border);
+}
+
+/* Scroll only the actual summary content */
+.hr-employee-summary-details {
+  display: flex;
+  flex-direction: column;
+
+  gap: 26px;
+
+  padding: 20px 22px 26px;
+
+  max-height: calc(90vh - 145px);
+
+  overflow-y: auto;
+
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   SECTIONS
+========================================================= */
+
+.hr-summary-section {
+  display: flex;
+  flex-direction: column;
+
+  gap: 13px;
+
+  width: 100%;
+}
+
+.hr-summary-section + .hr-summary-section {
+  padding-top: 4px;
+}
+
+.hr-summary-section h4 {
+  margin: 0;
+
+  color: #101828;
+
+  font-size: 14px;
+  font-weight: 850;
+
+  line-height: 1.3;
+}
+
+/* =========================================================
+   SUMMARY CARDS
+========================================================= */
+
+.hr-summary-cards {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 10px;
+}
+
+.hr-summary-item {
+  min-width: 0;
+  min-height: 82px;
+
+  padding: 13px 15px;
+
+  box-sizing: border-box;
+
+  border: 1px solid #e4e7ec;
+  border-radius: 11px;
+
+  background: #ffffff;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  gap: 5px;
+}
+
+.hr-summary-item span {
+  color: #667085;
+
+  font-size: 11px;
+  font-weight: 600;
+
+  line-height: 1.3;
+}
+
+.hr-summary-item strong {
+  color: #101828;
+
+  font-size: 20px;
+  font-weight: 850;
+
+  line-height: 1.15;
+}
+
+.hr-summary-item small {
+  margin-top: 1px;
+
+  color: #667085;
+
+  font-size: 10px;
+
+  line-height: 1.3;
+}
+
+/* =========================================================
+   DAY-WISE ATTENDANCE
+========================================================= */
+
+.hr-summary-days {
+  width: 100%;
+
+  border: 1px solid #e4e7ec;
+  border-radius: 11px;
+
+  overflow: hidden;
+
+  background: #ffffff;
+}
+
+.hr-summary-day {
+  display: grid;
+
+  grid-template-columns:
+    minmax(145px, 0.9fr)
+    130px
+    minmax(165px, 0.9fr)
+    minmax(220px, 1.5fr);
+
+  gap: 14px;
+
+  align-items: center;
+
+  min-height: 56px;
+
+  padding: 10px 14px;
+
+  box-sizing: border-box;
+
+  border-bottom: 1px solid #f2f4f7;
+
+  font-size: 11px;
+}
+
+.hr-summary-day:last-child {
+  border-bottom: 0;
+}
+
+.hr-summary-day > div:first-child {
+  display: flex;
+  flex-direction: column;
+
+  gap: 3px;
+}
+
+.hr-summary-day > div:first-child strong {
+  color: #101828;
+
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.hr-summary-day small {
+  color: #98a2b3;
+
+  font-size: 9px;
+}
+
+/* =========================================================
+   EMPLOYEE SUMMARY MODAL FOOTER
+========================================================= */
+
+.hr-modal:has(.hr-employee-summary-details)
+.hr-modal-footer {
+  position: sticky;
+
+  bottom: 0;
+  z-index: 10;
+
+  padding: 12px 22px;
+
+  background: #ffffff;
+
+  border-top: 1px solid
+    var(--hr-border);
+}
+
+/* =========================================================
+   TABLE HOVER
+========================================================= */
+
+.hr-summary-grid.hr-table-row {
+  transition:
+    background 0.15s ease;
+}
+
+.hr-summary-grid.hr-table-row:hover {
+  background: #fafafa;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 900px) {
+  .hr-modal:has(.hr-employee-summary-details) {
+    width: calc(100% - 24px);
+    max-height: 94vh;
+  }
+
+  .hr-employee-summary-details {
+    padding: 16px;
+
+    max-height:
+      calc(94vh - 140px);
+  }
+
+  .hr-summary-cards {
+    grid-template-columns:
+      repeat(
+        3,
+        minmax(0, 1fr)
+      );
+  }
+}
+
+@media (max-width: 700px) {
+  .hr-summary-cards {
+    grid-template-columns:
+      repeat(
+        2,
+        minmax(0, 1fr)
+      );
+  }
+
+  .hr-summary-day {
+    grid-template-columns: 1fr;
+
+    gap: 7px;
+
+    padding: 12px;
+  }
+
+  .hr-modal:has(.hr-employee-summary-details)
+  .hr-modal-header {
+    padding: 14px 16px;
+  }
+
+  .hr-modal:has(.hr-employee-summary-details)
+  .hr-modal-footer {
+    padding: 11px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hr-summary-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hr-summary-item {
+    min-height: 76px;
+
+    padding: 11px 12px;
+  }
+
+  .hr-summary-item strong {
+    font-size: 18px;
   }
 }

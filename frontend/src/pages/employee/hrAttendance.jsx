@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Search,
   Upload,
+  UsersRound,
   X,
 } from "lucide-react";
 
@@ -180,6 +181,19 @@ export default function HrAttendance() {
   const [records, setRecords] = useState([]);
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({});
+
+  const [employeeSummaries, setEmployeeSummaries] =
+  useState([]);
+
+const [
+  employeeSummaryLoading,
+  setEmployeeSummaryLoading,
+] = useState(false);
+
+const [
+  selectedEmployeeSummary,
+  setSelectedEmployeeSummary,
+] = useState(null);
 
   const [leaveApplications, setLeaveApplications] = useState([]);
   const [leaveSummary, setLeaveSummary] = useState({
@@ -387,6 +401,56 @@ export default function HrAttendance() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  const fetchEmployeeSummary = async ({
+  startDate = fromDate,
+  endDate = toDate,
+  searchValue = search,
+  departmentValue = department,
+} = {}) => {
+  try {
+    setEmployeeSummaryLoading(true);
+
+    const response = await api.get(
+      "/hr-attendance/employee-summary",
+      {
+        params: {
+          from_date: startDate,
+          to_date: endDate,
+
+          search:
+            searchValue.trim(),
+
+          department:
+            departmentValue === "all"
+              ? ""
+              : departmentValue,
+        },
+      }
+    );
+
+    setEmployeeSummaries(
+      Array.isArray(
+        response.data?.employees
+      )
+        ? response.data.employees
+        : []
+    );
+  } catch (err) {
+    console.error(
+      "Employee attendance summary:",
+      err
+    );
+
+    notify(
+      err?.response?.data?.message ||
+        "Failed to load employee attendance summary.",
+      "error"
+    );
+  } finally {
+    setEmployeeSummaryLoading(false);
+  }
+};
   /* =========================================================
      EMAIL DEEP LINK
   ========================================================= */
@@ -421,60 +485,78 @@ export default function HrAttendance() {
   /* =========================================================
      DATE
   ========================================================= */
-
-  const loadDay = (date) => {
-    setSelectedDate(date);
-    setRangeMode("day");
-    setFromDate(date);
-    setToDate(date);
-    setPage(1);
-
-    fetchAttendance({
-      nextPage: 1,
-      startDate: date,
-      endDate: date,
+const loadAttendanceRange = ({
+  startDate,
+  endDate,
+}) => {
+  if (activeTab === "employee-summary") {
+    fetchEmployeeSummary({
+      startDate,
+      endDate,
+      searchValue: search,
+      departmentValue: department,
     });
-  };
 
+    return;
+  }
+
+  fetchAttendance({
+    nextPage: 1,
+    startDate,
+    endDate,
+  });
+};
+const loadDay = (date) => {
+  setSelectedDate(date);
+  setRangeMode("day");
+  setFromDate(date);
+  setToDate(date);
+  setPage(1);
+
+  loadAttendanceRange({
+    startDate: date,
+    endDate: date,
+  });
+};
   const loadToday = () => loadDay(today);
 
-  const loadWeek = (anchor = selectedDate) => {
-    const start = weekStart(anchor);
-    let end = weekEnd(anchor);
+const loadWeek = (anchor = selectedDate) => {
+  const start = weekStart(anchor);
+  let end = weekEnd(anchor);
 
-    if (end > today) end = today;
+  if (end > today) end = today;
 
-    setSelectedDate(anchor);
-    setRangeMode("week");
-    setFromDate(start);
-    setToDate(end);
-    setPage(1);
+  setSelectedDate(anchor);
+  setRangeMode("week");
+  setFromDate(start);
+  setToDate(end);
+  setPage(1);
 
-    fetchAttendance({
-      nextPage: 1,
-      startDate: start,
-      endDate: end,
-    });
-  };
+  loadAttendanceRange({
+    startDate: start,
+    endDate: end,
+  });
+};
 
-  const loadMonth = (anchor = selectedDate) => {
-    const start = monthStart(anchor);
-    let end = monthEnd(anchor);
+const loadMonth = (anchor = selectedDate) => {
+  const start = monthStart(anchor);
+  let end = monthEnd(anchor);
 
-    if (start <= today && end > today) end = today;
+  if (start <= today && end > today) {
+    end = today;
+  }
 
-    setSelectedDate(anchor);
-    setRangeMode("month");
-    setFromDate(start);
-    setToDate(end);
-    setPage(1);
+  setSelectedDate(anchor);
+  setRangeMode("month");
+  setFromDate(start);
+  setToDate(end);
+  setPage(1);
 
-    fetchAttendance({
-      nextPage: 1,
-      startDate: start,
-      endDate: end,
-    });
-  };
+  loadAttendanceRange({
+    startDate: start,
+    endDate: end,
+  });
+};
 
   const loadSelectedMonth = (monthValue) => {
     if (!monthValue) return;
@@ -605,27 +687,58 @@ export default function HrAttendance() {
     });
   }, [fieldVisits, search, department, fieldStatus]);
 
-  const applyFilters = () => {
-    setPage(1);
-    fetchAttendance({ nextPage: 1 });
-  };
+ const applyFilters = () => {
+  setPage(1);
 
-  const clearFilters = () => {
-    setSearch("");
-    setDepartment("all");
-    setStatus("all");
-    setLeaveStatus("all");
-    setLeaveType("all");
-    setFieldStatus("all");
-    setPage(1);
+  if (
+    activeTab ===
+    "employee-summary"
+  ) {
+    fetchEmployeeSummary({
+      startDate: fromDate,
+      endDate: toDate,
+      searchValue: search,
+      departmentValue: department,
+    });
 
-    fetchAttendance({
-      nextPage: 1,
+    return;
+  }
+
+  fetchAttendance({
+    nextPage: 1,
+  });
+};
+
+const clearFilters = () => {
+  setSearch("");
+  setDepartment("all");
+  setStatus("all");
+  setLeaveStatus("all");
+  setLeaveType("all");
+  setFieldStatus("all");
+  setPage(1);
+
+  if (
+    activeTab ===
+    "employee-summary"
+  ) {
+    fetchEmployeeSummary({
+      startDate: fromDate,
+      endDate: toDate,
       searchValue: "",
       departmentValue: "all",
-      statusValue: "all",
     });
-  };
+
+    return;
+  }
+
+  fetchAttendance({
+    nextPage: 1,
+    searchValue: "",
+    departmentValue: "all",
+    statusValue: "all",
+  });
+};
 
   /* =========================================================
      DISPLAY
@@ -1035,9 +1148,24 @@ export default function HrAttendance() {
 
         <div className="hr-header-actions">
           <button
-            className="hr-button secondary"
-            onClick={() => fetchAttendance({ nextPage: page })}
-          >
+  className="hr-button secondary"
+  onClick={() => {
+    if (activeTab === "employee-summary") {
+      fetchEmployeeSummary({
+        startDate: fromDate,
+        endDate: toDate,
+        searchValue: search,
+        departmentValue: department,
+      });
+
+      return;
+    }
+
+    fetchAttendance({
+      nextPage: page,
+    });
+  }}
+>
             <RefreshCw size={16} />
             Refresh
           </button>
@@ -1085,30 +1213,46 @@ export default function HrAttendance() {
 
       {error && <div className="hr-error">{error}</div>}
 
-      {/* TABS */}
+    {/* TABS */}
 
-      <div className="hr-tabs">
-        <Tab
-          active={activeTab === "attendance"}
-          icon={<CheckCircle2 size={16} />}
-          label="Attendance"
-          onClick={() => setActiveTab("attendance")}
-        />
+<div className="hr-tabs">
+  <Tab
+    active={activeTab === "attendance"}
+    icon={<CheckCircle2 size={16} />}
+    label="Attendance"
+    onClick={() => setActiveTab("attendance")}
+  />
 
-        <Tab
-          active={activeTab === "leave"}
-          icon={<CalendarDays size={16} />}
-          label="Leave"
-          onClick={() => setActiveTab("leave")}
-        />
+  <Tab
+    active={activeTab === "employee-summary"}
+    icon={<UsersRound size={16} />}
+    label="Employee Summary"
+    onClick={() => {
+      setActiveTab("employee-summary");
 
-        <Tab
-          active={activeTab === "field"}
-          icon={<MapPin size={16} />}
-          label="Field Visits"
-          onClick={() => setActiveTab("field")}
-        />
-      </div>
+      fetchEmployeeSummary({
+        startDate: fromDate,
+        endDate: toDate,
+        searchValue: search,
+        departmentValue: department,
+      });
+    }}
+  />
+
+  <Tab
+    active={activeTab === "leave"}
+    icon={<CalendarDays size={16} />}
+    label="Leave"
+    onClick={() => setActiveTab("leave")}
+  />
+
+  <Tab
+    active={activeTab === "field"}
+    icon={<MapPin size={16} />}
+    label="Field Visits"
+    onClick={() => setActiveTab("field")}
+  />
+</div>
 
       {/* DATE CONTROLS */}
 
@@ -1355,81 +1499,150 @@ export default function HrAttendance() {
         </>
       )}
 
-      {/* LEAVE */}
+      {/* EMPLOYEE SUMMARY */}
 
-      {activeTab === "leave" && (
-        <>
-          <div className="hr-metrics five">
-            <Metric label="All Leave" value={leaveSummary.total || 0} />
-            <Metric label="Pending" value={leaveSummary.pending || 0} />
-            <Metric label="Escalated" value={leaveSummary.escalated || 0} />
-            <Metric label="Approved" value={leaveSummary.approved || 0} />
-            <Metric label="Rejected" value={leaveSummary.rejected || 0} />
-          </div>
+{activeTab === "employee-summary" && (
+  <>
+    <div className="hr-metrics five">
+      <Metric
+        label="Employees"
+        value={employeeSummaries.length}
+      />
 
-          <section className="hr-card">
-            <CardHeader
-              title="Leave Applications"
-              subtitle="Pending, escalated, approved and rejected leave applications"
-              right={`${filteredLeaves.length} applications`}
-            />
+      <Metric
+        label="Present Days"
+        value={employeeSummaries.reduce(
+          (total, item) =>
+            total +
+            Number(item.attendance?.present || 0),
+          0
+        )}
+      />
 
-            <div className="hr-leave-grid hr-table-head">
-              <span>Employee</span>
-              <span>Department</span>
-              <span>Leave</span>
-              <span>Dates</span>
-              <span>Status</span>
-              <span>Reviewed / Escalated By</span>
-              <span>Action</span>
+      <Metric
+        label="Absent Days"
+        value={employeeSummaries.reduce(
+          (total, item) =>
+            total +
+            Number(item.attendance?.absent || 0),
+          0
+        )}
+      />
+
+      <Metric
+        label="Leave Days"
+        value={employeeSummaries.reduce(
+          (total, item) =>
+            total +
+            Number(item.attendance?.leave || 0),
+          0
+        )}
+      />
+
+      <Metric
+        label="Field Visit Days"
+        value={employeeSummaries.reduce(
+          (total, item) =>
+            total +
+            Number(item.attendance?.field_visit || 0),
+          0
+        )}
+      />
+    </div>
+
+    <section className="hr-card">
+      <CardHeader
+        title="Employee Attendance Summary"
+        subtitle={
+          fromDate === toDate
+            ? displayDate(fromDate)
+            : `${displayDate(fromDate)} – ${displayDate(toDate)}`
+        }
+        right={`${employeeSummaries.length} employees`}
+      />
+
+      <div className="hr-horizontal-scroll">
+        <div className="hr-summary-grid hr-table-head">
+          <span>Employee</span>
+          <span>Department</span>
+          <span>Working Days</span>
+          <span>Present</span>
+          <span>Absent</span>
+          <span>Late</span>
+          <span>Half Day</span>
+          <span>Field Visit</span>
+          <span>Leave</span>
+          <span>Needs Review</span>
+          <span>Action</span>
+        </div>
+
+        {employeeSummaryLoading ? (
+          <Empty text="Loading employee summary..." />
+        ) : employeeSummaries.length === 0 ? (
+          <Empty text="No employee attendance summary found." />
+        ) : (
+          employeeSummaries.map((item) => (
+            <div
+              className="hr-summary-grid hr-table-row"
+              key={item.user_id}
+            >
+              <Employee
+                name={item.full_name}
+                code={item.employee_code}
+              />
+
+              <span>
+                {item.department_name || "-"}
+              </span>
+
+              <strong>
+                {item.attendance?.working_days || 0}
+              </strong>
+
+              <span>
+                {item.attendance?.present || 0}
+              </span>
+
+              <span>
+                {item.attendance?.absent || 0}
+              </span>
+
+              <span>
+                {item.attendance?.late || 0}
+              </span>
+
+              <span>
+                {item.attendance?.half_day || 0}
+              </span>
+
+              <span>
+                {item.attendance?.field_visit || 0}
+              </span>
+
+              <span>
+                {item.attendance?.leave || 0}
+              </span>
+
+              <span>
+                {item.attendance?.needs_review || 0}
+              </span>
+
+              <button
+                className="hr-view-button"
+                onClick={() =>
+                  setSelectedEmployeeSummary(item)
+                }
+              >
+                <Eye size={14} />
+                View
+              </button>
             </div>
-
-            {filteredLeaves.length === 0 ? (
-              <Empty text="No leave applications found." />
-            ) : (
-              filteredLeaves.map((leave) => (
-                <div className="hr-leave-grid hr-table-row" key={leave.leave_id}>
-                  <Employee
-                    name={leave.employee_name}
-                    code={leave.employee_code}
-                  />
-
-                  <span>{leave.department_name || "-"}</span>
-                  <span>{leave.leave_type || "-"}</span>
-
-                  <span>
-                    {displayDate(leave.start_date)}
-                    {leave.start_date !== leave.end_date &&
-                      ` – ${displayDate(leave.end_date)}`}
-                  </span>
-
-                  <div>
-                    <StatusBadge value={leave.display_status} />
-                  </div>
-
-                  <span>
-                    {leave.reviewed_by_name ||
-                      (leave.display_status === "Escalated"
-                        ? "Final review pending"
-                        : "-")}
-                  </span>
-
-                  <button
-                    className="hr-view-button"
-                    onClick={() => {
-                      setSelectedLeave(leave);
-                      setReviewRemark(leave.review_remark || "");
-                    }}
-                  >
-                    <Eye size={14} />
-                    View
-                  </button>
-                </div>
-              ))
-            )}
-          </section>
-        </>
-      )}
+          ))
+        )}
+      </div>
+    </section>
+  </>
+)}
 
       {/* FIELD VISITS */}
 
@@ -1512,6 +1725,114 @@ export default function HrAttendance() {
           </section>
         </>
       )}
+
+      {/* LEAVE */}
+
+{activeTab === "leave" && (
+  <>
+    <div className="hr-metrics five">
+      <Metric
+        label="All Leave"
+        value={leaveSummary.total || 0}
+      />
+
+      <Metric
+        label="Pending"
+        value={leaveSummary.pending || 0}
+      />
+
+      <Metric
+        label="Escalated"
+        value={leaveSummary.escalated || 0}
+      />
+
+      <Metric
+        label="Approved"
+        value={leaveSummary.approved || 0}
+      />
+
+      <Metric
+        label="Rejected"
+        value={leaveSummary.rejected || 0}
+      />
+    </div>
+
+    <section className="hr-card">
+      <CardHeader
+        title="Leave Applications"
+        subtitle="Pending, escalated, approved and rejected leave applications"
+        right={`${filteredLeaves.length} applications`}
+      />
+
+      <div className="hr-leave-grid hr-table-head">
+        <span>Employee</span>
+        <span>Department</span>
+        <span>Leave</span>
+        <span>Dates</span>
+        <span>Status</span>
+        <span>Reviewed / Escalated By</span>
+        <span>Action</span>
+      </div>
+
+      {filteredLeaves.length === 0 ? (
+        <Empty text="No leave applications found." />
+      ) : (
+        filteredLeaves.map((leave) => (
+          <div
+            className="hr-leave-grid hr-table-row"
+            key={leave.leave_id}
+          >
+            <Employee
+              name={leave.employee_name}
+              code={leave.employee_code}
+            />
+
+            <span>
+              {leave.department_name || "-"}
+            </span>
+
+            <span>
+              {leave.leave_type || "-"}
+            </span>
+
+            <span>
+              {displayDate(leave.start_date)}
+
+              {leave.start_date !== leave.end_date &&
+                ` – ${displayDate(leave.end_date)}`}
+            </span>
+
+            <div>
+              <StatusBadge
+                value={leave.display_status}
+              />
+            </div>
+
+            <span>
+              {leave.reviewed_by_name ||
+                (leave.display_status === "Escalated"
+                  ? "Final review pending"
+                  : "-")}
+            </span>
+
+            <button
+              className="hr-view-button"
+              onClick={() => {
+                setSelectedLeave(leave);
+                setReviewRemark(
+                  leave.review_remark || ""
+                );
+              }}
+            >
+              <Eye size={14} />
+              View
+            </button>
+          </div>
+        ))
+      )}
+    </section>
+  </>
+)}
 
       {/* ADD ATTENDANCE */}
 
@@ -1883,6 +2204,281 @@ export default function HrAttendance() {
           </div>
         </Modal>
       )}
+      {/* EMPLOYEE SUMMARY DETAILS */}
+
+{selectedEmployeeSummary && (
+  <Modal
+    title={
+      selectedEmployeeSummary.full_name ||
+      "Employee Attendance"
+    }
+    subtitle={
+      fromDate === toDate
+        ? displayDate(fromDate)
+        : `${displayDate(fromDate)} – ${displayDate(toDate)}`
+    }
+    onClose={() =>
+      setSelectedEmployeeSummary(null)
+    }
+  >
+    <div className="hr-employee-summary-details">
+      {/* ATTENDANCE SUMMARY */}
+
+      <div className="hr-summary-section">
+        <h4>Attendance Summary</h4>
+
+        <div className="hr-summary-cards">
+          <SummaryItem
+            label="Working Days"
+            value={
+              selectedEmployeeSummary
+                .attendance?.working_days
+            }
+          />
+
+          <SummaryItem
+            label="Present"
+            value={
+              selectedEmployeeSummary
+                .attendance?.present
+            }
+          />
+
+          <SummaryItem
+            label="Absent"
+            value={
+              selectedEmployeeSummary
+                .attendance?.absent
+            }
+          />
+
+          <SummaryItem
+            label="Late"
+            value={
+              selectedEmployeeSummary
+                .attendance?.late
+            }
+          />
+
+          <SummaryItem
+            label="Half Day"
+            value={
+              selectedEmployeeSummary
+                .attendance?.half_day
+            }
+          />
+
+          <SummaryItem
+            label="Field Visit"
+            value={
+              selectedEmployeeSummary
+                .attendance?.field_visit
+            }
+          />
+
+          <SummaryItem
+            label="Leave"
+            value={
+              selectedEmployeeSummary
+                .attendance?.leave
+            }
+          />
+
+          <SummaryItem
+            label="No Punch"
+            value={
+              selectedEmployeeSummary
+                .attendance?.no_punch
+            }
+          />
+
+          <SummaryItem
+            label="Needs Review"
+            value={
+              selectedEmployeeSummary
+                .attendance?.needs_review
+            }
+          />
+
+          <SummaryItem
+            label="Weekly Off"
+            value={
+              selectedEmployeeSummary
+                .attendance?.weekly_off
+            }
+          />
+
+          <SummaryItem
+            label="Holiday"
+            value={
+              selectedEmployeeSummary
+                .attendance?.holiday
+            }
+          />
+        </div>
+      </div>
+
+      {/* LEAVE TAKEN */}
+
+      <div className="hr-summary-section">
+        <h4>Leave Taken</h4>
+
+        <div className="hr-summary-cards">
+          <SummaryItem
+            label="Sick Leave"
+            value={
+              selectedEmployeeSummary
+                .attendance?.sick_leave
+            }
+          />
+
+          <SummaryItem
+            label="Casual Leave"
+            value={
+              selectedEmployeeSummary
+                .attendance?.casual_leave
+            }
+          />
+
+          <SummaryItem
+            label="Privileged Leave"
+            value={
+              selectedEmployeeSummary
+                .attendance?.privileged_leave
+            }
+          />
+
+          <SummaryItem
+            label="Festival Leave"
+            value={
+              selectedEmployeeSummary
+                .attendance?.festival_leave
+            }
+          />
+
+          <SummaryItem
+            label="Unpaid Leave"
+            value={
+              selectedEmployeeSummary
+                .attendance?.unpaid_leave
+            }
+          />
+        </div>
+      </div>
+
+      {/* LEAVE BALANCE */}
+
+      <div className="hr-summary-section">
+        <h4>Current Leave Balance</h4>
+
+        <div className="hr-summary-cards">
+          <LeaveBalance
+            label="Sick Leave"
+            balance={
+              selectedEmployeeSummary
+                .leave_balance?.sick
+            }
+          />
+
+          <LeaveBalance
+            label="Casual Leave"
+            balance={
+              selectedEmployeeSummary
+                .leave_balance?.casual
+            }
+          />
+
+          <LeaveBalance
+            label="Privileged Leave"
+            balance={
+              selectedEmployeeSummary
+                .leave_balance?.mandatory
+            }
+          />
+
+          <LeaveBalance
+            label="Festival Leave"
+            balance={
+              selectedEmployeeSummary
+                .leave_balance?.festival
+            }
+          />
+        </div>
+      </div>
+
+      {/* DAY-WISE ATTENDANCE */}
+
+      <div className="hr-summary-section">
+        <h4>Day-wise Attendance</h4>
+
+        <div className="hr-summary-days">
+          {Array.isArray(
+            selectedEmployeeSummary.daily_records
+          ) &&
+          selectedEmployeeSummary.daily_records.length >
+            0 ? (
+            selectedEmployeeSummary.daily_records.map(
+              (record, index) => (
+                <div
+                  className="hr-summary-day"
+                  key={`${record.attendance_date}-${index}`}
+                >
+                  <div>
+                    <strong>
+                      {displayDate(
+                        record.attendance_date
+                      )}
+                    </strong>
+
+                    <small>
+                      {record.day_name ||
+                        dayName(
+                          record.attendance_date
+                        )}
+                    </small>
+                  </div>
+
+                  <div>
+                    <StatusBadge
+                      value={
+                        record.custom_status ||
+                        record.final_status
+                      }
+                    />
+                  </div>
+
+                  <span>
+                    {attendanceTime(record)}
+                  </span>
+
+                  <span
+                    className="ellipsis"
+                    title={recordRemark(record)}
+                  >
+                    {recordRemark(record)}
+                  </span>
+                </div>
+              )
+            )
+          ) : (
+            <Empty text="No day-wise attendance records found." />
+          )}
+        </div>
+      </div>
+    </div>
+
+    <div className="hr-modal-footer">
+      <button
+        className="hr-button secondary"
+        onClick={() =>
+          setSelectedEmployeeSummary(null)
+        }
+      >
+        Close
+      </button>
+    </div>
+  </Modal>
+)}
     </div>
   );
 }
@@ -1891,70 +2487,173 @@ export default function HrAttendance() {
    SMALL COMPONENTS
 ========================================================= */
 
-function Tab({ active, icon, label, onClick }) {
+function Tab({
+  active,
+  icon,
+  label,
+  onClick,
+}) {
   return (
-    <button className={`hr-tab ${active ? "active" : ""}`} onClick={onClick}>
+    <button
+      className={`hr-tab ${
+        active ? "active" : ""
+      }`}
+      onClick={onClick}
+    >
       {icon}
       {label}
     </button>
   );
 }
 
-function Metric({ label, value }) {
+function Metric({
+  label,
+  value,
+}) {
   return (
     <div className="hr-metric">
-      <strong>{value}</strong>
-      <span>{label}</span>
+      <strong>
+        {value ?? 0}
+      </strong>
+
+      <span>
+        {label}
+      </span>
     </div>
   );
 }
 
-function Employee({ name, code }) {
+function SummaryItem({
+  label,
+  value,
+}) {
+  return (
+    <div className="hr-summary-item">
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value ?? 0}
+      </strong>
+    </div>
+  );
+}
+
+function LeaveBalance({
+  label,
+  balance,
+}) {
+  return (
+    <div className="hr-summary-item">
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {balance?.available ?? 0}
+      </strong>
+
+      <small>
+        Used: {balance?.used ?? 0}
+      </small>
+    </div>
+  );
+}
+
+function Employee({
+  name,
+  code,
+}) {
   return (
     <div className="hr-employee">
-      <strong>{name || "-"}</strong>
-      <small>{code || "-"}</small>
+      <strong>
+        {name || "-"}
+      </strong>
+
+      <small>
+        {code || "-"}
+      </small>
     </div>
   );
 }
 
-function Empty({ text }) {
-  return <div className="hr-empty">{text}</div>;
+function Empty({
+  text,
+}) {
+  return (
+    <div className="hr-empty">
+      {text}
+    </div>
+  );
 }
 
-function CardHeader({ title, subtitle, right }) {
+function CardHeader({
+  title,
+  subtitle,
+  right,
+}) {
   return (
     <div className="hr-card-header">
       <div>
-        <h2>{title}</h2>
-        <p>{subtitle}</p>
+        <h2>
+          {title}
+        </h2>
+
+        <p>
+          {subtitle}
+        </p>
       </div>
 
-      {right && <strong>{right}</strong>}
+      {right && (
+        <strong>
+          {right}
+        </strong>
+      )}
     </div>
   );
 }
 
-function Detail({ label, value }) {
+function Detail({
+  label,
+  value,
+}) {
   return (
     <div className="hr-detail">
-      <span>{label}</span>
-      <strong>{value || "-"}</strong>
+      <span>
+        {label}
+      </span>
+
+      <strong>
+        {value || "-"}
+      </strong>
     </div>
   );
 }
 
-function Modal({ title, subtitle, onClose, children }) {
+function Modal({
+  title,
+  subtitle,
+  onClose,
+  children,
+}) {
   return (
     <div className="hr-overlay">
       <div className="hr-modal">
         <div className="hr-modal-header">
           <div>
-            <h3>{title}</h3>
-            <p>{subtitle}</p>
+            <h3>
+              {title}
+            </h3>
+
+            <p>
+              {subtitle}
+            </p>
           </div>
 
-          <button onClick={onClose}>
+          <button
+            onClick={onClose}
+          >
             <X size={18} />
           </button>
         </div>
@@ -1965,14 +2664,28 @@ function Modal({ title, subtitle, onClose, children }) {
   );
 }
 
-function Pagination({ page, totalPages, totalRecords, onChange }) {
+function Pagination({
+  page,
+  totalPages,
+  totalRecords,
+  onChange,
+}) {
   return (
     <div className="hr-pagination">
-      <span>{totalRecords} records</span>
+      <span>
+        {totalRecords} records
+      </span>
 
       <div>
-        <button disabled={page <= 1} onClick={() => onChange(page - 1)}>
-          <ChevronLeft size={16} />
+        <button
+          disabled={page <= 1}
+          onClick={() =>
+            onChange(page - 1)
+          }
+        >
+          <ChevronLeft
+            size={16}
+          />
         </button>
 
         <strong>
@@ -1980,10 +2693,16 @@ function Pagination({ page, totalPages, totalRecords, onChange }) {
         </strong>
 
         <button
-          disabled={page >= totalPages}
-          onClick={() => onChange(page + 1)}
+          disabled={
+            page >= totalPages
+          }
+          onClick={() =>
+            onChange(page + 1)
+          }
         >
-          <ChevronRight size={16} />
+          <ChevronRight
+            size={16}
+          />
         </button>
       </div>
     </div>

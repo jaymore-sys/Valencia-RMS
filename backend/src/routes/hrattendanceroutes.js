@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/authmiddleware");
 
 const {
   getHrAttendance,
+  getHrEmployeeSummary,
   saveHrAttendance,
   importHrAttendance,
   exportHrAttendance,
@@ -58,6 +59,12 @@ const onlyHR = (req, res, next) => {
   next();
 };
 
+router.get(
+  "/employee-summary",
+  authMiddleware,
+  onlyHR,
+  getHrEmployeeSummary
+);
 router.get(
   "/",
   authMiddleware,
