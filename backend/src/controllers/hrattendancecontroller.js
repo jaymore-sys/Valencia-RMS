@@ -112,6 +112,30 @@ const isLateCheckIn = (checkIn) => {
   return totalMinutes > 11 * 60;
 };
 
+const isHalfDayCheckIn = (checkIn) => {
+  if (!checkIn || checkIn === "-") {
+    return false;
+  }
+
+  const [hour, minute] = String(checkIn)
+    .slice(0, 8)
+    .split(":")
+    .map(Number);
+
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return false;
+  }
+
+  const totalMinutes =
+    hour * 60 + minute;
+
+  // After 12:00 PM = Half Day
+  return totalMinutes > 12 * 60;
+};
+
 const calculateWorkingMinutes = (
   checkIn,
   checkOut,
@@ -1483,38 +1507,51 @@ let approvedByName = null;
         ) {
           finalStatus = "Half Day";
         } else if (
-  rawStatus === "late"
-) {
-  finalStatus = "Late";
-  isLateMark = true;
-  lateMarkReason =
-    "Attendance explicitly marked late";
-} else if (
-  rawStatus === "holiday"
-) {
-  finalStatus = "Holiday";
-} else if (
-  checkIn &&
-  checkOut &&
-  isLateCheckIn(checkIn)
-) {
-  finalStatus = "Late";
-  isLateMark = true;
+          rawStatus === "holiday"
+        ) {
+          finalStatus = "Holiday";
+        } else if (
+          checkIn &&
+          checkOut &&
+          isHalfDayCheckIn(checkIn)
+        ) {
+          /*
+            After 12:00 PM = Half Day.
+            This must take priority over Late.
+          */
+          finalStatus = "Half Day";
 
-  lateMarkReason =
-    `First punch ${checkIn} is after 11:00 AM`;
-} else if (
-  checkIn &&
-  checkOut
-) {
-  finalStatus = "Present";
-} else {
-  finalStatus = "Absent";
-}
+          isLateMark = false;
+          lateMarkReason = null;
+        } else if (
+          rawStatus === "late"
+        ) {
+          finalStatus = "Late";
+
+          isLateMark = true;
+          lateMarkReason =
+            "Attendance explicitly marked late";
+        } else if (
+          checkIn &&
+          checkOut &&
+          isLateCheckIn(checkIn)
+        ) {
+          finalStatus = "Late";
+
+          isLateMark = true;
+          lateMarkReason =
+            `First punch ${checkIn} is after 11:00 AM`;
+        } else if (
+          checkIn &&
+          checkOut
+        ) {
+          finalStatus = "Present";
+        } else {
+          finalStatus = "Absent";
+        }
 
         source = "attendance";
-        detail =
-          attendance.remarks || "-";
+        detail = attendance.remarks || "-";
       } else if (sunday) {
         finalStatus = "Weekly Off";
         source = "calendar";
@@ -1694,11 +1731,14 @@ field_visit_location:
       .trim()
       .toLowerCase();
 
-    if (status === "present") {
-      summary.present += 1;
-    }
+    if (
+  status === "present" ||
+  status === "late"
+) {
+  summary.present += 1;
+}
 
-    if (record.is_late) {
+if (record.is_late) {
   summary.late += 1;
 }
 
@@ -3327,9 +3367,12 @@ const getHrEmployeeSummary = async (req, res) => {
           summary.working_days += 1;
         }
 
-        if (status === "present") {
-          summary.present += 1;
-        }
+        if (
+  status === "present" ||
+  status === "late"
+) {
+  summary.present += 1;
+}
 
         if (status === "absent") {
           summary.absent += 1;

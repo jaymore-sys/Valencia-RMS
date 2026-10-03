@@ -598,10 +598,53 @@ const loadMonth = (anchor = selectedDate) => {
     return [...new Set([...HR_DEPARTMENTS, ...fromUsers])].sort();
   }, [users]);
 
-  const filteredLeaves = useMemo(() => {
-    const term = search.trim().toLowerCase();
+const filteredLeaves = useMemo(() => {
+  const term =
+    search.trim().toLowerCase();
 
-    return leaveApplications.filter((leave) => {
+  return leaveApplications.filter(
+    (leave) => {
+      /* =========================================
+         DATE RANGE
+
+         Show leave when any part of the leave
+         overlaps the currently selected range.
+
+         Example:
+         Leave: 02 Oct - 05 Oct
+         Selected: 03 Oct
+         -> SHOW
+      ========================================= */
+
+      const leaveStart = String(
+        leave.start_date || ""
+      ).slice(0, 10);
+
+      const leaveEnd = String(
+        leave.end_date ||
+        leave.start_date ||
+        ""
+      ).slice(0, 10);
+
+      if (
+        !leaveStart ||
+        !leaveEnd
+      ) {
+        return false;
+      }
+
+      const overlapsSelectedRange =
+        leaveStart <= toDate &&
+        leaveEnd >= fromDate;
+
+      if (!overlapsSelectedRange) {
+        return false;
+      }
+
+      /* =========================================
+         SEARCH
+      ========================================= */
+
       const searchable = [
         leave.employee_name,
         leave.employee_code,
@@ -622,7 +665,16 @@ const loadMonth = (anchor = selectedDate) => {
         .join(" ")
         .toLowerCase();
 
-      if (term && !searchable.includes(term)) return false;
+      if (
+        term &&
+        !searchable.includes(term)
+      ) {
+        return false;
+      }
+
+      /* =========================================
+         DEPARTMENT
+      ========================================= */
 
       if (
         department !== "all" &&
@@ -631,6 +683,10 @@ const loadMonth = (anchor = selectedDate) => {
         return false;
       }
 
+      /* =========================================
+         STATUS
+      ========================================= */
+
       if (
         leaveStatus !== "all" &&
         leave.display_status !== leaveStatus
@@ -638,13 +694,67 @@ const loadMonth = (anchor = selectedDate) => {
         return false;
       }
 
-      if (leaveType !== "all" && leave.leave_code !== leaveType) {
+      /* =========================================
+         LEAVE TYPE
+      ========================================= */
+
+      if (
+        leaveType !== "all" &&
+        leave.leave_code !== leaveType
+      ) {
         return false;
       }
 
       return true;
+    }
+  );
+}, [
+  leaveApplications,
+  search,
+  department,
+  leaveStatus,
+  leaveType,
+  fromDate,
+  toDate,
+]);
+
+const filteredLeaveSummary =
+  useMemo(() => {
+    const result = {
+      total: filteredLeaves.length,
+      pending: 0,
+      escalated: 0,
+      approved: 0,
+      rejected: 0,
+    };
+
+    filteredLeaves.forEach((leave) => {
+      const currentStatus =
+        String(
+          leave.display_status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      if (currentStatus === "pending") {
+        result.pending += 1;
+      }
+
+      if (currentStatus === "escalated") {
+        result.escalated += 1;
+      }
+
+      if (currentStatus === "approved") {
+        result.approved += 1;
+      }
+
+      if (currentStatus === "rejected") {
+        result.rejected += 1;
+      }
     });
-  }, [leaveApplications, search, department, leaveStatus, leaveType]);
+
+    return result;
+  }, [filteredLeaves]);
 
   const filteredFieldVisits = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -1732,29 +1842,29 @@ const clearFilters = () => {
   <>
     <div className="hr-metrics five">
       <Metric
-        label="All Leave"
-        value={leaveSummary.total || 0}
-      />
+  label="All Leave"
+  value={filteredLeaveSummary.total}
+/>
 
-      <Metric
-        label="Pending"
-        value={leaveSummary.pending || 0}
-      />
+<Metric
+  label="Pending"
+  value={filteredLeaveSummary.pending}
+/>
 
-      <Metric
-        label="Escalated"
-        value={leaveSummary.escalated || 0}
-      />
+<Metric
+  label="Escalated"
+  value={filteredLeaveSummary.escalated}
+/>
 
-      <Metric
-        label="Approved"
-        value={leaveSummary.approved || 0}
-      />
+<Metric
+  label="Approved"
+  value={filteredLeaveSummary.approved}
+/>
 
-      <Metric
-        label="Rejected"
-        value={leaveSummary.rejected || 0}
-      />
+<Metric
+  label="Rejected"
+  value={filteredLeaveSummary.rejected}
+/>
     </div>
 
     <section className="hr-card">
