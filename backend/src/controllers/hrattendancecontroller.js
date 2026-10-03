@@ -1542,13 +1542,23 @@ let approvedByName = null;
           lateMarkReason =
             `First punch ${checkIn} is after 11:00 AM`;
         } else if (
-          checkIn &&
-          checkOut
-        ) {
-          finalStatus = "Present";
-        } else {
-          finalStatus = "Absent";
-        }
+  checkIn &&
+  checkOut
+) {
+  finalStatus = "Present";
+
+} else if (
+  rawStatus === "present"
+) {
+  /*
+    HR/manual Present entry must still
+    reflect even when punches were not supplied.
+  */
+  finalStatus = "Present";
+
+} else {
+  finalStatus = "Absent";
+}
 
         source = "attendance";
         detail = attendance.remarks || "-";
@@ -3374,28 +3384,34 @@ const getHrEmployeeSummary = async (req, res) => {
   summary.present += 1;
 }
 
-        if (status === "absent") {
-          summary.absent += 1;
-        }
-
-        if (record.is_late) {
+/*
+  Late remains visible separately,
+  but Late is already included in Present.
+*/
+if (record.is_late) {
   summary.late += 1;
 }
 
-        /*
-        Attendance Half Day
-        */
-        if (status === "half day") {
-          summary.half_day += 0.5;
-        }
+/*
+  Attendance Half Day:
+  - contributes 0.5 to Present
+  - contributes 0.5 to Half Day
+*/
+if (status === "half day") {
+  summary.present += 0.5;
+  summary.half_day += 0.5;
+}
 
-        /*
-        Leave Half Day
-        */
-        if (status === "half day leave") {
-          summary.half_day += 0.5;
-        }
+/*
+  Leave Half Day:
+  - contributes 0.5 only to Half Day
+  - does NOT count as Present
+*/
+if (status === "half day leave") {
+  summary.half_day += 0.5;
+}
 
+     
         if (status === "field visit") {
           const visitDuration = String(
             record.field_visit_duration || ""

@@ -1082,9 +1082,68 @@ const clearFilters = () => {
 
       notify(response.data?.message || "Attendance saved successfully.");
 
-      setShowAddAttendance(false);
+     setShowAddAttendance(false);
 
-      await fetchAttendance({ nextPage: page });
+/*
+  Refresh Attendance data
+*/
+
+
+const savedDate =
+  attendanceForm.attendance_date;
+
+/*
+  If the saved attendance date is already
+  inside the currently selected range,
+  keep the current day/week/month view.
+
+  Otherwise move the screen to the date
+  that HR just added.
+*/
+const savedDateInsideCurrentRange =
+  savedDate >= fromDate &&
+  savedDate <= toDate;
+
+const refreshFrom =
+  savedDateInsideCurrentRange
+    ? fromDate
+    : savedDate;
+
+const refreshTo =
+  savedDateInsideCurrentRange
+    ? toDate
+    : savedDate;
+
+if (!savedDateInsideCurrentRange) {
+  setSelectedDate(savedDate);
+  setRangeMode("day");
+  setFromDate(savedDate);
+  setToDate(savedDate);
+}
+
+setPage(1);
+
+/*
+  Refresh Attendance
+*/
+await fetchAttendance({
+  nextPage: 1,
+  startDate: refreshFrom,
+  endDate: refreshTo,
+  searchValue: search,
+  departmentValue: department,
+  statusValue: status,
+});
+
+/*
+  Refresh Employee Summary
+*/
+await fetchEmployeeSummary({
+  startDate: refreshFrom,
+  endDate: refreshTo,
+  searchValue: search,
+  departmentValue: department,
+});
     } catch (err) {
       notify(
         err?.response?.data?.message || "Failed to save attendance.",
