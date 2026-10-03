@@ -160,11 +160,86 @@ const formatWorkingHours = (totalMinutes) => {
 
   return `${remainingMinutes}m`;
 };
+
+const timeToMinutes = (timeValue) => {
+  if (
+    !timeValue ||
+    timeValue === "-"
+  ) {
+    return null;
+  }
+
+  const parts = String(timeValue)
+    .slice(0, 8)
+    .split(":")
+    .map(Number);
+
+  if (
+    parts.length < 2 ||
+    Number.isNaN(parts[0]) ||
+    Number.isNaN(parts[1])
+  ) {
+    return null;
+  }
+
+  return parts[0] * 60 + parts[1];
+};
+
+const isLateCheckIn = (checkIn) => {
+  const minutes = timeToMinutes(checkIn);
+
+  if (minutes === null) {
+    return false;
+  }
+
+  // After 11:00 AM
+  return minutes > 11 * 60;
+};
+
+const isHalfDayCheckIn = (checkIn) => {
+  const minutes = timeToMinutes(checkIn);
+
+  if (minutes === null) {
+    return false;
+  }
+
+  // After 12:00 PM
+  return minutes > 12 * 60;
+};
+
+const getLeaveLabel = (leaveType) => {
+  switch (
+    String(leaveType || "")
+      .trim()
+      .toLowerCase()
+  ) {
+    case "sick":
+      return "Sick Leave";
+
+    case "casual":
+      return "Casual Leave";
+
+    case "mandatory":
+      return "Privileged Leave";
+
+    case "festival":
+      return "Festival Leave";
+
+    case "unpaid":
+      return "Unpaid Leave";
+
+    default:
+      return "Leave";
+  }
+};
+
 const buildAttendanceWithGeneratedAbsents = (
   attendanceRows,
   employeeId,
   startDate,
-  endDate
+  endDate,
+  leaveRows = [],
+  fieldVisitRows = []
 ) => {
   if (
     !startDate ||
@@ -174,30 +249,72 @@ const buildAttendanceWithGeneratedAbsents = (
     return [];
   }
 
-  const existingByDate =
-    new Map();
+  const attendanceByDate = new Map();
 
-  attendanceRows.forEach(
-    (row) => {
-      const attendanceDate =
-        formatDate(
-          row.attendance_date
-        );
+  attendanceRows.forEach((row) => {
+    const attendanceDate =
+      formatDate(row.attendance_date);
 
-      if (!attendanceDate) {
-        return;
+    if (!attendanceDate) {
+      return;
+    }
+
+    attendanceByDate.set(
+      attendanceDate,
+      {
+        ...row,
+        attendance_date:
+          attendanceDate,
       }
+    );
+  });
 
-      existingByDate.set(
-        attendanceDate,
-        {
-          ...row,
-          attendance_date:
-            attendanceDate,
-        }
+  /*
+    APPROVED LEAVE MAP
+  */
+  const leaveByDate = new Map();
+
+  leaveRows.forEach((leave) => {
+    let date = formatDate(
+      leave.start_date
+    );
+
+    const end = formatDate(
+      leave.end_date
+    );
+
+    while (
+      date &&
+      end &&
+      date <= end
+    ) {
+      leaveByDate.set(
+        date,
+        leave
+      );
+
+      date = addOneDay(date);
+    }
+  });
+
+  /*
+    APPROVED FIELD VISIT MAP
+  */
+  const fieldVisitByDate = new Map();
+
+  fieldVisitRows.forEach((visit) => {
+    const visitDate =
+      formatDate(
+        visit.visit_date
+      );
+
+    if (visitDate) {
+      fieldVisitByDate.set(
+        visitDate,
+        visit
       );
     }
-  );
+  });
 
   const finalAttendance = [];
 
@@ -207,100 +324,448 @@ const buildAttendanceWithGeneratedAbsents = (
   while (
     currentDate <= endDate
   ) {
+    /*
+      Keep current behaviour:
+      Sundays are excluded from employee register.
+    */
     if (!isSunday(currentDate)) {
       const existingRow =
-        existingByDate.get(
+        attendanceByDate.get(
           currentDate
         );
 
-      if (existingRow) {
-        const checkIn =
-          formatTime(
-            existingRow.check_in_time
+      const leave =
+        leaveByDate.get(
+          currentDate
+        );
+
+      const fieldVisit =
+        fieldVisitByDate.get(
+          currentDate
+        );
+
+      const checkIn =
+        existingRow
+          ? formatTime(
+              existingRow.check_in_time
+            )
+          : "-";
+
+      const checkOut =
+        existingRow
+          ? formatTime(
+              existingRow.check_out_time
+            )
+          : "-";
+
+      const totalMinutes =
+        existingRow
+          ? Number(
+              existingRow.total_minutes ||
+                0
+            ) ||
+            calculateMinutesFromTimes(
+              checkIn,
+              checkOut
+            )
+          : 0;
+
+      let status = "absent";
+      let remarks = "Absent";
+      let source = "system";
+
+      let isLate = false;
+
+      /*
+        ========================================
+        PRIORITY 1 — APPROVED LEAVE
+        ========================================
+      */
+      if (leave) {
+        const leaveLabel =
+          getLeaveLabel(
+            leave.leave_type
           );
 
-        const checkOut =
-          formatTime(
-            existingRow.check_out_time
-          );
+        if (
+          String(
+            leave.duration_type ||
+              ""
+          )
+            .trim()
+            .toLowerCase() ===
+          "half_day"
+        ) {
+          status =
+            "half_day_leave";
 
-        const totalMinutes =
-          Number(
-            existingRow.total_minutes ||
-              0
-          ) ||
-          calculateMinutesFromTimes(
-            checkIn,
-            checkOut
-          );
+          const session =
+            String(
+              leave.half_day_session ||
+                ""
+            )
+              .replace(/_/g, " ")
+              .trim();
 
-        finalAttendance.push({
-          attendance_id:
-            existingRow.attendance_id,
+          remarks = [
+            leaveLabel,
+            session
+              ? `Half Day - ${session}`
+              : "Half Day",
+            leave.reason,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+        } else {
+          status =
+            String(
+              leave.leave_type ||
+                "leave"
+            )
+              .trim()
+              .toLowerCase() +
+            "_leave";
 
-          employee_id:
-            existingRow.employee_id,
+          /*
+            Avoid:
+            sick_leave_leave
+          */
+          if (
+            status.endsWith(
+              "_leave_leave"
+            )
+          ) {
+            status =
+              status.replace(
+                "_leave_leave",
+                "_leave"
+              );
+          }
 
-          attendance_date:
-            currentDate,
+          remarks = [
+            leaveLabel,
+            leave.reason,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+        }
 
-          day_name:
-            getDayName(currentDate),
-
-          check_in_time:
-            checkIn,
-
-          check_out_time:
-            checkOut,
-
-          total_minutes:
-            totalMinutes,
-
-          working_hours:
-            formatWorkingHours(
-              totalMinutes
-            ),
-
-          status:
-            normalizeStatus(
-              existingRow.status
-            ),
-
-          remarks:
-            existingRow.remarks ||
-            "-",
-
-          is_generated_absent:
-            false,
-        });
-      } else {
-        finalAttendance.push({
-          attendance_id: null,
-
-          employee_id:
-            employeeId,
-
-          attendance_date:
-            currentDate,
-
-          day_name:
-            getDayName(currentDate),
-
-          check_in_time: "-",
-          check_out_time: "-",
-
-          total_minutes: 0,
-
-          working_hours: "-",
-
-          status: "absent",
-
-          remarks: "Absent",
-
-          is_generated_absent:
-            true,
-        });
+        source = "leave";
       }
+
+      /*
+        ========================================
+        PRIORITY 2 — APPROVED FIELD VISIT
+        ========================================
+      */
+      else if (fieldVisit) {
+        const durationType =
+          String(
+            fieldVisit.duration_type ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+        const halfSession =
+          String(
+            fieldVisit.half_day_session ||
+              ""
+          )
+            .trim()
+            .toLowerCase();
+
+        const fullDay =
+          durationType ===
+          "full_day";
+
+        const firstHalf =
+          durationType ===
+            "half_day" &&
+          halfSession ===
+            "first_half";
+
+        const secondHalf =
+          durationType ===
+            "half_day" &&
+          halfSession ===
+            "second_half";
+
+        /*
+          Full Day FV:
+          Never Late.
+
+          First Half FV:
+          Never Late.
+
+          Second Half FV:
+          Employee should be in office
+          during first half.
+
+          Therefore punch > 11:00
+          becomes Field Visit + Late.
+        */
+        if (
+          secondHalf &&
+          checkIn !== "-" &&
+          isLateCheckIn(checkIn)
+        ) {
+          status =
+            "field_visit_late";
+
+          isLate = true;
+        } else {
+          status =
+            "field_visit";
+        }
+
+        let durationLabel =
+          "Full Day";
+
+        if (firstHalf) {
+          durationLabel =
+            "Half Day - First Half";
+        }
+
+        if (secondHalf) {
+          durationLabel =
+            "Half Day - Second Half";
+        }
+
+        remarks = [
+          fieldVisit.visit_type,
+          durationLabel,
+          fieldVisit.location,
+          fieldVisit.comment,
+          isLate
+            ? `Late check-in ${checkIn}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+        source =
+          "field_visit";
+      }
+
+      /*
+        ========================================
+        PRIORITY 3 — NORMAL ATTENDANCE
+        ========================================
+      */
+      else if (existingRow) {
+        const rawStatus =
+          normalizeStatus(
+            existingRow.status
+          );
+
+        /*
+          Explicit absent with no punch.
+        */
+        if (
+          rawStatus ===
+            "absent" &&
+          checkIn === "-" &&
+          checkOut === "-"
+        ) {
+          status = "absent";
+        }
+
+        /*
+          One punch only.
+        */
+        else if (
+          (checkIn !== "-" &&
+            checkOut === "-") ||
+          (checkIn === "-" &&
+            checkOut !== "-")
+        ) {
+          status =
+            "no_punch";
+        }
+
+        /*
+          Explicit Half Day.
+        */
+        else if (
+          rawStatus ===
+          "half_day"
+        ) {
+          status =
+            "half_day";
+        }
+
+        /*
+          Punch after 12 PM.
+          Half Day has priority over Late.
+        */
+        else if (
+          checkIn !== "-" &&
+          checkOut !== "-" &&
+          isHalfDayCheckIn(
+            checkIn
+          )
+        ) {
+          status =
+            "half_day";
+        }
+
+        /*
+          Explicit Late.
+        */
+        else if (
+          rawStatus ===
+          "late"
+        ) {
+          status =
+            "late";
+
+          isLate = true;
+        }
+
+        /*
+          Punch after 11 AM.
+        */
+        else if (
+          checkIn !== "-" &&
+          checkOut !== "-" &&
+          isLateCheckIn(
+            checkIn
+          )
+        ) {
+          status =
+            "late";
+
+          isLate = true;
+        }
+
+        /*
+          Normal valid punches.
+        */
+        else if (
+          checkIn !== "-" &&
+          checkOut !== "-"
+        ) {
+          status =
+            "present";
+        }
+
+        /*
+          HR manually marked Present
+          without biometric punches.
+        */
+        else if (
+          rawStatus ===
+          "present"
+        ) {
+          status =
+            "present";
+        }
+
+        else {
+          status =
+            "absent";
+        }
+
+        remarks =
+          existingRow.remarks ||
+          (
+            status === "late"
+              ? `Late check-in ${checkIn}`
+              : status ===
+                  "half_day"
+                ? `Check-in ${checkIn} is after 12:00 PM`
+                : status ===
+                    "no_punch"
+                  ? "Incomplete biometric punch"
+                  : "-"
+          );
+
+        source =
+          "attendance";
+      }
+
+      finalAttendance.push({
+        attendance_id:
+          existingRow?.attendance_id ||
+          null,
+
+        employee_id:
+          employeeId,
+
+        attendance_date:
+          currentDate,
+
+        day_name:
+          getDayName(currentDate),
+
+        check_in_time:
+          checkIn,
+
+        check_out_time:
+          checkOut,
+
+        total_minutes:
+          totalMinutes,
+
+        working_hours:
+          formatWorkingHours(
+            totalMinutes
+          ),
+
+        status,
+
+        remarks,
+
+        source,
+
+        is_late:
+          isLate,
+
+        leave_id:
+          leave?.leave_id ||
+          null,
+
+        leave_type:
+          leave
+            ? getLeaveLabel(
+                leave.leave_type
+              )
+            : null,
+
+        leave_duration:
+          leave?.duration_type ||
+          null,
+
+        leave_session:
+          leave?.half_day_session ||
+          null,
+
+        field_visit_id:
+          fieldVisit?.visit_id ||
+          null,
+
+        field_visit_type:
+          fieldVisit?.visit_type ||
+          null,
+
+        field_visit_duration:
+          fieldVisit?.duration_type ||
+          null,
+
+        field_visit_half_day_session:
+          fieldVisit?.half_day_session ||
+          null,
+
+        field_visit_location:
+          fieldVisit?.location ||
+          null,
+
+        is_generated_absent:
+          !existingRow &&
+          !leave &&
+          !fieldVisit,
+      });
     }
 
     currentDate =
@@ -318,68 +783,112 @@ const buildAttendanceWithGeneratedAbsents = (
       )
   );
 };
-const getSummary = (attendanceRows) => {
-  const totalRecords =
-    attendanceRows.length;
 
-  const present =
-    attendanceRows.filter(
-      (row) =>
-        normalizeStatus(
-          row.status
-        ) === "present"
-    ).length;
-
-  const absent =
-    attendanceRows.filter(
-      (row) =>
-        normalizeStatus(
-          row.status
-        ) === "absent"
-    ).length;
-
-  const late =
-    attendanceRows.filter(
-      (row) =>
-        normalizeStatus(
-          row.status
-        ) === "late"
-    ).length;
-
-  const leave =
-    attendanceRows.filter(
-      (row) =>
-        normalizeStatus(
-          row.status
-        ) === "leave"
-    ).length;
-
-  const attendancePercentage =
-    totalRecords > 0
-      ? Math.round(
-          (
-            (present + late) /
-            totalRecords
-          ) * 100
-        )
-      : 0;
-
-  return {
+const getSummary = (
+  attendanceRows
+) => {
+  const summary = {
     total_records:
-      totalRecords,
+      attendanceRows.length,
 
-    present,
+    present: 0,
+    absent: 0,
+    late: 0,
+    leave: 0,
 
-    absent,
-
-    late,
-
-    leave,
-
-    attendance_percentage:
-      attendancePercentage,
+    half_day: 0,
+    field_visit: 0,
+    no_punch: 0,
   };
+
+  attendanceRows.forEach(
+    (row) => {
+      const status =
+        String(
+          row.status || ""
+        )
+          .trim()
+          .toLowerCase();
+
+      /*
+        Present:
+        normal Present + Late.
+
+        Half Day contributes 0.5.
+      */
+      if (
+        status === "present" ||
+        status === "late"
+      ) {
+        summary.present += 1;
+      }
+
+      if (
+        status === "half_day"
+      ) {
+        summary.present += 0.5;
+        summary.half_day += 0.5;
+      }
+
+      if (
+        status === "absent"
+      ) {
+        summary.absent += 1;
+      }
+
+      /*
+        Late includes normal Late
+        and second-half FV + Late.
+      */
+      if (
+        status === "late" ||
+        status ===
+          "field_visit_late"
+      ) {
+        summary.late += 1;
+      }
+
+      if (
+        status.includes(
+          "leave"
+        )
+      ) {
+        summary.leave +=
+          status ===
+          "half_day_leave"
+            ? 0.5
+            : 1;
+      }
+
+      if (
+        status ===
+          "field_visit" ||
+        status ===
+          "field_visit_late"
+      ) {
+        summary.field_visit +=
+          String(
+            row.field_visit_duration ||
+              ""
+          )
+            .trim()
+            .toLowerCase() ===
+          "half_day"
+            ? 0.5
+            : 1;
+      }
+
+      if (
+        status === "no_punch"
+      ) {
+        summary.no_punch += 1;
+      }
+    }
+  );
+
+  return summary;
 };
+
 const getEmployeeAttendance = async (
   req,
   res
@@ -550,65 +1059,206 @@ const getEmployeeAttendance = async (
         importedStartDate
       );
 
+      let attendanceRows = [];
 
-    let attendanceRows = [];
+/*
+  ========================================
+  GET BIOMETRIC / MANUAL ATTENDANCE
+  ========================================
+*/
+if (
+  attendanceStartDate &&
+  attendanceEndDate &&
+  attendanceStartDate <=
+    attendanceEndDate
+) {
+  const [rows] =
+    await db.query(
+      `
+        SELECT
+          attendance_id,
+          employee_id,
 
+          DATE_FORMAT(
+            attendance_date,
+            '%Y-%m-%d'
+          ) AS attendance_date,
 
-    if (
-      attendanceStartDate &&
-      attendanceEndDate &&
-      attendanceStartDate <=
-        attendanceEndDate
-    ) {
-      const [rows] =
-        await db.query(
-          `
-          SELECT
-            attendance_id,
-            employee_id,
+          check_in_time,
+          check_out_time,
+          total_minutes,
+          status,
+          remarks,
+          created_at,
+          updated_at
 
-            DATE_FORMAT(
-              attendance_date,
-              '%Y-%m-%d'
-            ) AS attendance_date,
+        FROM attendance
 
-            check_in_time,
-            check_out_time,
-            total_minutes,
-            status,
-            remarks,
-            created_at,
-            updated_at
+        WHERE employee_id = ?
 
-          FROM attendance
-
-          WHERE employee_id = ?
-
-            AND attendance_date
+          AND attendance_date
               BETWEEN ? AND ?
 
-          ORDER BY
-            attendance_date DESC
-          `,
-          [
-            employeeId,
-            attendanceStartDate,
-            attendanceEndDate,
-          ]
-        );
-
-      attendanceRows =
-        rows;
-    }
-
-
-    const attendance =
-      buildAttendanceWithGeneratedAbsents(
-        attendanceRows,
+        ORDER BY
+          attendance_date DESC
+      `,
+      [
         employeeId,
         attendanceStartDate,
-        attendanceEndDate
-      );
+        attendanceEndDate,
+      ]
+    );
+
+  attendanceRows = rows;
+}
+
+/*
+  ========================================
+  GET APPROVED LEAVES
+  ========================================
+*/
+let leaveRows = [];
+
+if (
+  attendanceStartDate &&
+  attendanceEndDate &&
+  attendanceStartDate <=
+    attendanceEndDate
+) {
+  const [rows] =
+    await db.query(
+      `
+        SELECT
+          leave_id,
+          employee_id,
+          leave_type,
+
+          DATE_FORMAT(
+            start_date,
+            '%Y-%m-%d'
+          ) AS start_date,
+
+          DATE_FORMAT(
+            end_date,
+            '%Y-%m-%d'
+          ) AS end_date,
+
+          duration_type,
+          half_day_session,
+          reason,
+          status
+
+        FROM leave_applications
+
+        WHERE employee_id = ?
+
+          AND LOWER(
+            TRIM(status)
+          ) = 'approved'
+
+          AND COALESCE(
+            revert_status,
+            'none'
+          ) <> 'approved'
+
+          AND start_date <= ?
+
+          AND end_date >= ?
+      `,
+      [
+        employeeId,
+        attendanceEndDate,
+        attendanceStartDate,
+      ]
+    );
+
+  leaveRows = rows;
+}
+
+/*
+  ========================================
+  GET APPROVED FIELD VISITS
+  ========================================
+*/
+let fieldVisitRows = [];
+
+if (
+  attendanceStartDate &&
+  attendanceEndDate &&
+  attendanceStartDate <=
+    attendanceEndDate
+) {
+  const [rows] =
+    await db.query(
+      `
+        SELECT
+          fv.visit_id,
+          fv.employee_id,
+          fv.visit_type,
+
+          DATE_FORMAT(
+            fv.visit_date,
+            '%Y-%m-%d'
+          ) AS visit_date,
+
+          fv.duration_type,
+          fv.half_day_session,
+          fv.location,
+          fv.comment,
+          fv.status
+
+        FROM employee_field_visits fv
+
+        WHERE LOWER(
+          TRIM(fv.status)
+        ) = 'approved'
+
+          AND fv.visit_date
+              BETWEEN ? AND ?
+
+          AND (
+            fv.employee_id = ?
+
+            OR EXISTS (
+              SELECT 1
+
+              FROM field_visit_members fvm
+
+              WHERE
+                fvm.visit_id =
+                  fv.visit_id
+
+                AND
+                fvm.employee_id = ?
+            )
+          )
+
+        ORDER BY
+          fv.visit_date ASC,
+          fv.visit_id ASC
+      `,
+      [
+        attendanceStartDate,
+        attendanceEndDate,
+        employeeId,
+        employeeId,
+      ]
+    );
+
+  fieldVisitRows = rows;
+}
+
+
+    
+    const attendance =
+  buildAttendanceWithGeneratedAbsents(
+    attendanceRows,
+    employeeId,
+    attendanceStartDate,
+    attendanceEndDate,
+    leaveRows,
+    fieldVisitRows
+  );
 
 
     const summary =

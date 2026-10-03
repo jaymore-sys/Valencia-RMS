@@ -17,62 +17,254 @@ const asArray = (value) => {
   return [];
 };
 
-const normalizeStatus = (status) => {
-  const value = String(status || "")
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "_")
-    .replace(/-/g, "_");
+const normalizeStatus = (
+  status
+) => {
+  const value =
+    String(status || "")
+      .toLowerCase()
+      .trim()
+      .replace(/\s+/g, "_")
+      .replace(/-/g, "_");
 
-  if (value === "present") return "present";
-  if (value === "absent") return "absent";
-  if (value === "late") return "late";
-  if (value === "leave") return "leave";
-  if (value === "half_day") return "half_day";
+  if (
+    value === "present"
+  ) {
+    return "present";
+  }
 
-  return value || "absent";
+  if (
+    value === "absent"
+  ) {
+    return "absent";
+  }
+
+  if (
+    value === "late"
+  ) {
+    return "late";
+  }
+
+  if (
+    value === "half_day"
+  ) {
+    return "half_day";
+  }
+
+  if (
+    value === "no_punch"
+  ) {
+    return "no_punch";
+  }
+
+  if (
+    value ===
+    "field_visit"
+  ) {
+    return "field_visit";
+  }
+
+  if (
+    value ===
+    "field_visit_late"
+  ) {
+    return "field_visit_late";
+  }
+
+  /*
+    Sick Leave
+    Casual Leave
+    Privileged Leave
+    Festival Leave
+    Unpaid Leave
+    Half Day Leave
+  */
+  if (
+    value.includes(
+      "leave"
+    )
+  ) {
+    return value;
+  }
+
+  return value ||
+    "absent";
 };
 
-const formatStatus = (status) => {
-  const value = normalizeStatus(status);
+const formatStatus = (
+  status
+) => {
+  const value =
+    normalizeStatus(status);
 
-  if (value === "present") return "Present";
-  if (value === "absent") return "Absent";
-  if (value === "late") return "Late";
-  if (value === "leave") return "Leave";
-  if (value === "half_day") return "Half Day";
+  if (
+    value === "present"
+  ) {
+    return "Present";
+  }
 
-  return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  if (
+    value === "absent"
+  ) {
+    return "Absent";
+  }
+
+  if (
+    value === "late"
+  ) {
+    return "Late";
+  }
+
+  if (
+    value === "half_day"
+  ) {
+    return "Half Day";
+  }
+
+  if (
+    value ===
+    "half_day_leave"
+  ) {
+    return "Half Day Leave";
+  }
+
+  if (
+    value ===
+    "sick_leave"
+  ) {
+    return "Sick Leave";
+  }
+
+  if (
+    value ===
+    "casual_leave"
+  ) {
+    return "Casual Leave";
+  }
+
+  if (
+    value ===
+    "mandatory_leave"
+  ) {
+    return "Privileged Leave";
+  }
+
+  if (
+    value ===
+    "festival_leave"
+  ) {
+    return "Festival Leave";
+  }
+
+  if (
+    value ===
+    "unpaid_leave"
+  ) {
+    return "Unpaid Leave";
+  }
+
+  if (
+    value ===
+    "field_visit"
+  ) {
+    return "Field Visit";
+  }
+
+  if (
+    value ===
+    "field_visit_late"
+  ) {
+    return "Field Visit · Late";
+  }
+
+  if (
+    value ===
+    "no_punch"
+  ) {
+    return "No Punch";
+  }
+
+  return value
+    .replace(/_/g, " ")
+    .replace(
+      /\b\w/g,
+      (letter) =>
+        letter.toUpperCase()
+    );
 };
 
-const getStatusStyle = (status) => {
-  const value = normalizeStatus(status);
+const getStatusStyle = (
+  status
+) => {
+  const value =
+    normalizeStatus(status);
 
-  if (value === "present") {
+  if (
+    value === "present"
+  ) {
     return {
       background: "#dcfce7",
       color: "#166534",
     };
   }
 
-  if (value === "absent") {
+  if (
+    value === "absent"
+  ) {
     return {
       background: "#fee2e2",
       color: "#991b1b",
     };
   }
 
-  if (value === "late") {
+  if (
+    value === "late" ||
+    value ===
+      "field_visit_late"
+  ) {
     return {
       background: "#fef3c7",
       color: "#92400e",
     };
   }
 
-  if (value === "leave") {
+  if (
+    value === "half_day"
+  ) {
+    return {
+      background: "#ffedd5",
+      color: "#9a3412",
+    };
+  }
+
+  if (
+    value.includes(
+      "leave"
+    )
+  ) {
     return {
       background: "#e0e7ff",
       color: "#3730a3",
+    };
+  }
+
+  if (
+    value ===
+    "field_visit"
+  ) {
+    return {
+      background: "#dbeafe",
+      color: "#1d4ed8",
+    };
+  }
+
+  if (
+    value ===
+    "no_punch"
+  ) {
+    return {
+      background: "#f1f5f9",
+      color: "#475569",
     };
   }
 
@@ -417,11 +609,53 @@ const EmployeeAttendance = ({
 
       const rowStatus = normalizeStatus(row.status || row.attendance_status);
 
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "absent_leave" &&
-          (rowStatus === "absent" || rowStatus === "leave")) ||
-        rowStatus === statusFilter;
+     const matchesStatus =
+  statusFilter === "all" ||
+
+  (
+    statusFilter ===
+      "absent_leave" &&
+    (
+      rowStatus ===
+        "absent" ||
+      rowStatus.includes(
+        "leave"
+      )
+    )
+  ) ||
+
+  (
+    statusFilter ===
+      "leave" &&
+    rowStatus.includes(
+      "leave"
+    )
+  ) ||
+
+  (
+    statusFilter ===
+      "field_visit" &&
+    (
+      rowStatus ===
+        "field_visit" ||
+      rowStatus ===
+        "field_visit_late"
+    )
+  ) ||
+
+  (
+    statusFilter ===
+      "late" &&
+    (
+      rowStatus ===
+        "late" ||
+      rowStatus ===
+        "field_visit_late"
+    )
+  ) ||
+
+  rowStatus ===
+    statusFilter;
 
       const searchableText = [
         rowDate,
@@ -441,33 +675,81 @@ const EmployeeAttendance = ({
     });
   }, [attendance, activeRange, statusFilter, searchText]);
 
-  const visibleSummary = useMemo(() => {
-    const totalRecords = filteredAttendance.length;
+  const visibleSummary =
+  useMemo(() => {
+    const totalRecords =
+      filteredAttendance.length;
 
-    const present = filteredAttendance.filter(
-      (row) => normalizeStatus(row.status) === "present"
-    ).length;
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let leave = 0;
 
-    const absent = filteredAttendance.filter(
-      (row) => normalizeStatus(row.status) === "absent"
-    ).length;
+    filteredAttendance.forEach(
+      (row) => {
+        const status =
+          normalizeStatus(
+            row.status
+          );
 
-    const late = filteredAttendance.filter(
-      (row) => normalizeStatus(row.status) === "late"
-    ).length;
+        if (
+          status ===
+            "present" ||
+          status ===
+            "late"
+        ) {
+          present += 1;
+        }
 
-    const leave = filteredAttendance.filter(
-      (row) => normalizeStatus(row.status) === "leave"
-    ).length;
+        if (
+          status ===
+          "half_day"
+        ) {
+          present += 0.5;
+        }
+
+        if (
+          status ===
+          "absent"
+        ) {
+          absent += 1;
+        }
+
+        if (
+          status ===
+            "late" ||
+          status ===
+            "field_visit_late"
+        ) {
+          late += 1;
+        }
+
+        if (
+          status.includes(
+            "leave"
+          )
+        ) {
+          leave +=
+            status ===
+            "half_day_leave"
+              ? 0.5
+              : 1;
+        }
+      }
+    );
 
     return {
-      total_records: totalRecords,
+      total_records:
+        totalRecords,
+
       present,
       absent,
       late,
       leave,
     };
-  }, [filteredAttendance]);
+  }, [
+    filteredAttendance,
+  ]);
 
   const summaryToShow = activeRange === "all" && !searchText && statusFilter === "all"
     ? summary
@@ -656,10 +938,37 @@ const EmployeeAttendance = ({
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value)}
             >
-              <option value="all">All Status</option>
-              <option value="present">Present</option>
-              <option value="absent_leave">Absent / Leave</option>
-              <option value="late">Late</option>
+              <option value="all">
+  All Status
+</option>
+
+<option value="present">
+  Present
+</option>
+
+<option value="late">
+  Late
+</option>
+
+<option value="half_day">
+  Half Day
+</option>
+
+<option value="field_visit">
+  Field Visit
+</option>
+
+<option value="leave">
+  Leave
+</option>
+
+<option value="absent">
+  Absent
+</option>
+
+<option value="no_punch">
+  No Punch
+</option>
             </select>
           </div>
 
