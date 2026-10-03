@@ -88,6 +88,29 @@ const formatTime = (value) => {
 
   return text.slice(0, 8);
 };
+const isLateCheckIn = (checkIn) => {
+  if (!checkIn || checkIn === "-") {
+    return false;
+  }
+
+  const [hour, minute] = String(checkIn)
+    .slice(0, 8)
+    .split(":")
+    .map(Number);
+
+  if (
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return false;
+  }
+
+  const totalMinutes =
+    hour * 60 + minute;
+
+  // After 11:00 AM = Late
+  return totalMinutes > 11 * 60;
+};
 
 const calculateWorkingMinutes = (
   checkIn,
@@ -1384,21 +1407,27 @@ const [hrFieldVisitRows] = await db.query(
         ) {
           finalStatus = "Half Day";
         } else if (
-          rawStatus === "late"
-        ) {
-          finalStatus = "Late";
-        } else if (
-          rawStatus === "holiday"
-        ) {
-          finalStatus = "Holiday";
-        } else if (
-          checkIn &&
-          checkOut
-        ) {
-          finalStatus = "Present";
-        } else {
-          finalStatus = "Absent";
-        }
+  rawStatus === "late"
+) {
+  finalStatus = "Late";
+} else if (
+  rawStatus === "holiday"
+) {
+  finalStatus = "Holiday";
+} else if (
+  checkIn &&
+  checkOut &&
+  isLateCheckIn(checkIn)
+) {
+  finalStatus = "Late";
+} else if (
+  checkIn &&
+  checkOut
+) {
+  finalStatus = "Present";
+} else {
+  finalStatus = "Absent";
+}
 
         source = "attendance";
         detail =
