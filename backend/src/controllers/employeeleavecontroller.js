@@ -745,12 +745,23 @@ const applyEmployeeLeave =
   async (req, res) => {
     try {
       const employeeId =
-        req.user.user_id;
+  req.user.user_id;
 
-      const leaveType =
-        normalizeLeaveType(
-          req.body.leave_type
-        );
+const leaveType =
+  normalizeLeaveType(
+    req.body.leave_type
+  );
+
+const unpaidFor =
+  String(
+    req.body.unpaid_for || ""
+  )
+    .trim()
+    .toLowerCase();
+
+const isUnpaidSick =
+  leaveType === "unpaid" &&
+  unpaidFor === "sick";
 
       /*
       ======================================================
@@ -759,11 +770,16 @@ const applyEmployeeLeave =
       ======================================================
       */
 
-      const subject =
-        String(
-          req.body.subject ||
-            ""
-        ).trim();
+     let subject =
+  String(
+    req.body.subject ||
+    ""
+  ).trim();
+
+if (isUnpaidSick) {
+  subject =
+    "Unpaid Sick Leave";
+}
 
       const durationType =
         String(
@@ -929,8 +945,12 @@ Casual Leave:
 */
 
 if (
-  leaveType === "sick" &&
-  durationType === "half_day" &&
+  (
+    leaveType === "sick" ||
+    isUnpaidSick
+  ) &&
+  durationType ===
+    "half_day" &&
   startDate !== today
 ) {
   return res
@@ -1215,6 +1235,44 @@ if (
             4
           )
         );
+
+        /*
+======================================================
+UNPAID SICK LEAVE VALIDATION
+
+Unpaid Sick Leave is allowed only
+after paid Sick Leave is exhausted.
+======================================================
+*/
+
+if (isUnpaidSick) {
+  const balances =
+    await buildLeaveBalances(
+      db,
+      employeeId,
+      leaveYear
+    );
+
+  const sickAvailable =
+    Number(
+      balances.sick?.available ??
+      balances.sick?.remaining ??
+      0
+    );
+
+  if (sickAvailable > 0) {
+    return res
+      .status(400)
+      .json({
+        success: false,
+
+        message:
+          `You still have ${formatNumber(
+            sickAvailable
+          )} paid Sick Leave day(s) available. Please use your paid Sick Leave first.`,
+      });
+  }
+}
 
       /*
       ======================================================
@@ -1827,11 +1885,12 @@ try {
         0
       ) {
         try {
-          const leaveLabel =
-            getLeaveLabel(
-              leaveType
-            );
-
+       const leaveLabel =
+  isUnpaidSick
+    ? "Unpaid Sick Leave"
+    : getLeaveLabel(
+        leaveType
+      );
           const durationLabel =
             leaveType ===
             "festival"
@@ -2463,6 +2522,7 @@ const requestLeaveRevert =
       la.leave_type,
       la.start_date,
       la.end_date,
+      la.subject,
       la.total_days,
       la.status,
 
@@ -2741,10 +2801,22 @@ if (
             )
         );
 
-      const leaveLabel =
-        getLeaveLabel(
-          leave.leave_type
-        );
+        const isUnpaidSickRevert =
+  leave.leave_type === "unpaid" &&
+  String(
+    leave.subject || ""
+  )
+    .trim()
+    .toLowerCase() ===
+    "unpaid sick leave";
+
+const leaveLabel =
+  isUnpaidSickRevert
+    ? "Unpaid Sick Leave"
+    : getLeaveLabel(
+        leave.leave_type
+      );
+
 
       try {
         await sendMail({

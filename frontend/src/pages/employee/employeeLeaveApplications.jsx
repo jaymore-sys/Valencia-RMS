@@ -147,7 +147,10 @@ const formatDays = (value) => {
     : number.toFixed(1);
 };
 
-const getLeaveLabel = (type) => {
+const getLeaveLabel = (
+  type,
+  subject = ""
+) => {
   if (type === "sick") {
     return "Sick Leave";
   }
@@ -164,8 +167,22 @@ const getLeaveLabel = (type) => {
     return "Festival Leave";
   }
 
+  if (type === "unpaid_sick") {
+    return "Unpaid Sick Leave";
+  }
+
+  if (
+    type === "unpaid" &&
+    String(subject || "")
+      .trim()
+      .toLowerCase() ===
+      "unpaid sick leave"
+  ) {
+    return "Unpaid Sick Leave";
+  }
+
   if (type === "unpaid") {
-    return "Unpaid Leave ";
+    return "Unpaid Leave";
   }
 
   return type || "-";
@@ -209,6 +226,8 @@ const BalanceCard = ({
   leave,
   balance,
   onApply,
+  unpaidSickPendingDays = 0,
+  unpaidSickApprovedDays = 0,
 }) => {
   const isPrivileged =
     leave.key === "mandatory";
@@ -216,11 +235,17 @@ const BalanceCard = ({
   const isFestival =
     leave.key === "festival";
 
+  const isSick =
+    leave.key === "sick";
+
   const available = Number(
     balance.available ??
     balance.remaining ??
     0
   );
+
+  const isUnpaidSick =
+    isSick && available <= 0;
 
   const used = Number(
     balance.used || 0
@@ -233,18 +258,25 @@ const BalanceCard = ({
   const total = isPrivileged
     ? Number(balance.earned || 0)
     : Number(
-      balance.total ||
-      balance.earned ||
-      0
-    );
+        balance.total ||
+        balance.earned ||
+        0
+      );
 
   const progress =
     total > 0
       ? Math.min(
-        100,
-        (available / total) * 100
-      )
+          100,
+          (available / total) * 100
+        )
       : 0;
+
+  const hasUnpaidSickActivity =
+    isSick &&
+    (
+      unpaidSickPendingDays > 0 ||
+      unpaidSickApprovedDays > 0
+    );
 
   return (
     <div style={styles.leaveCard}>
@@ -264,59 +296,41 @@ const BalanceCard = ({
 
       <div style={styles.balanceGrid}>
         <div style={styles.balanceStat}>
-          <strong
-            style={styles.totalNumber}
-          >
+          <strong style={styles.totalNumber}>
             {formatDays(total)}
           </strong>
 
-          <span
-            style={styles.balanceLabel}
-          >
+          <span style={styles.balanceLabel}>
             Total
           </span>
         </div>
 
         <div style={styles.balanceStat}>
-          <strong
-            style={styles.usedNumber}
-          >
+          <strong style={styles.usedNumber}>
             {formatDays(used)}
           </strong>
 
-          <span
-            style={styles.balanceLabel}
-          >
+          <span style={styles.balanceLabel}>
             Used
           </span>
         </div>
 
         <div style={styles.balanceStat}>
-          <strong
-            style={styles.pendingNumber}
-          >
+          <strong style={styles.pendingNumber}>
             {formatDays(pending)}
           </strong>
 
-          <span
-            style={styles.balanceLabel}
-          >
+          <span style={styles.balanceLabel}>
             Pending
           </span>
         </div>
 
         <div style={styles.balanceStat}>
-          <strong
-            style={
-              styles.availableNumber
-            }
-          >
+          <strong style={styles.availableNumber}>
             {formatDays(available)}
           </strong>
 
-          <span
-            style={styles.balanceLabel}
-          >
+          <span style={styles.balanceLabel}>
             Available
           </span>
         </div>
@@ -336,23 +350,29 @@ const BalanceCard = ({
       </div>
 
       <p style={styles.availableText}>
-        {formatDays(available)} of{" "}
-        {formatDays(total)} days
-        available
+        {isSick && available <= 0
+          ? `${formatDays(
+              used
+            )} of ${formatDays(
+              total
+            )} days used`
+          : `${formatDays(
+              available
+            )} of ${formatDays(
+              total
+            )} days available`}
       </p>
 
       {isPrivileged && (
         <div style={styles.cardInfo}>
           <span>
             <strong>
-              1.5 days credited every
-              month
+              1.5 days credited every month
             </strong>
           </span>
 
           <span>
-            Unused balance carries
-            forward
+            Unused balance carries forward
           </span>
         </div>
       )}
@@ -366,28 +386,85 @@ const BalanceCard = ({
         </div>
       )}
 
+      {hasUnpaidSickActivity && (
+        <div style={styles.unpaidSickStatus}>
+          <strong>
+            Unpaid Sick Leave
+          </strong>
+
+          <span
+            style={
+              styles.unpaidSickStatusText
+            }
+          >
+            {unpaidSickApprovedDays > 0 && (
+              <>
+                {formatDays(
+                  unpaidSickApprovedDays
+                )}{" "}
+                day
+                {unpaidSickApprovedDays !== 1
+                  ? "s"
+                  : ""}{" "}
+                approved
+              </>
+            )}
+
+            {unpaidSickApprovedDays > 0 &&
+              unpaidSickPendingDays > 0 &&
+              " · "}
+
+            {unpaidSickPendingDays > 0 && (
+              <>
+                {formatDays(
+                  unpaidSickPendingDays
+                )}{" "}
+                day
+                {unpaidSickPendingDays !== 1
+                  ? "s"
+                  : ""}{" "}
+                pending
+              </>
+            )}
+          </span>
+        </div>
+      )}
+
       <button
         type="button"
-        disabled={available <= 0}
+        disabled={
+          available <= 0 &&
+          !isUnpaidSick
+        }
         style={{
           ...styles.applyBtn,
 
-          ...(available <= 0
-            ? styles.disabledApplyBtn
-            : {}),
+          ...(isUnpaidSick
+            ? styles.unpaidSickApplyBtn
+            : available <= 0
+              ? styles.disabledApplyBtn
+              : {}),
         }}
-        onClick={() =>
-          available > 0 &&
-          onApply(leave.key)
-        }
+        onClick={() => {
+          if (isUnpaidSick) {
+            onApply("unpaid_sick");
+            return;
+          }
+
+          if (available > 0) {
+            onApply(leave.key);
+          }
+        }}
       >
         <Send size={18} />
 
-        {available <= 0
-          ? "No Leave Available"
-          : isFestival
-            ? "Apply Festival Leave"
-            : "Apply Leave"}
+        {isUnpaidSick
+          ? "Apply Unpaid Sick Leave"
+          : available <= 0
+            ? "No Leave Available"
+            : isFestival
+              ? "Apply Festival Leave"
+              : "Apply Leave"}
       </button>
     </div>
   );
@@ -527,8 +604,9 @@ const canRequestRevert =
                   >
                     <strong>
                       {getLeaveLabel(
-                        application.leave_type
-                      )}
+  application.leave_type,
+  application.subject
+)}
                     </strong>
                   </td>
 
@@ -772,10 +850,8 @@ const [revertReason, setRevertReason] =
 
     const selectedMinimumLeaveDate =
       selectedLeaveType === "sick" ||
-        (
-          selectedLeaveType === "mandatory" &&
-          form.duration_type === "half_day"
-        )
+      selectedLeaveType === "unpaid_sick" ||
+      (selectedLeaveType === "mandatory" && form.duration_type === "half_day")
         ? getTodayDate() > POLICY_START_DATE
           ? getTodayDate()
           : POLICY_START_DATE
@@ -995,6 +1071,18 @@ return workingDays;
           0
         )
         : 0;
+
+        const isSelectedUnpaidSick =
+  selectedLeaveType ===
+  "unpaid_sick";
+
+const isSelectedSick =
+  selectedLeaveType === "sick" ||
+  isSelectedUnpaidSick;
+
+const isSelectedUnpaid =
+  selectedLeaveType === "unpaid" ||
+  isSelectedUnpaidSick;
     const privilegedMaxEndDate = (() => {
       if (
         selectedLeaveType !== "mandatory" ||
@@ -1293,7 +1381,13 @@ return workingDays;
       setSuccess("");
 
       const isUnpaid =
-        selectedLeaveType === "unpaid";
+  selectedLeaveType === "unpaid" ||
+  selectedLeaveType ===
+    "unpaid_sick";
+
+const isUnpaidSick =
+  selectedLeaveType ===
+  "unpaid_sick";
 
       /*
       ========================================
@@ -1301,10 +1395,10 @@ return workingDays;
       ========================================
       */
 
-      if (
-        isUnpaid &&
-        !form.subject.trim()
-      ) {
+     if (
+  selectedLeaveType === "unpaid" &&
+  !form.subject.trim()
+) {
         setError(
           "Please enter the subject for unpaid leave."
         );
@@ -1330,9 +1424,15 @@ return workingDays;
 }
 
 if (
-  selectedLeaveType === "sick" &&
-  form.duration_type === "half_day" &&
-  form.start_date !== getTodayDate()
+  (
+    selectedLeaveType === "sick" ||
+    selectedLeaveType ===
+      "unpaid_sick"
+  ) &&
+  form.duration_type ===
+    "half_day" &&
+  form.start_date !==
+    getTodayDate()
 ) {
   setError(
     "Half Day Sick Leave can only be applied for today."
@@ -1582,12 +1682,22 @@ must be applied at least 15 days prior.
             "/employee-leaves/apply",
             {
               leave_type:
-                selectedLeaveType,
+  isUnpaidSick
+    ? "unpaid"
+    : selectedLeaveType,
 
-              subject:
-                isUnpaid
-                  ? form.subject.trim()
-                  : null,
+subject:
+  isUnpaidSick
+    ? "Unpaid Sick Leave"
+    : selectedLeaveType ===
+        "unpaid"
+      ? form.subject.trim()
+      : null,
+
+unpaid_for:
+  isUnpaidSick
+    ? "sick"
+    : null,
 
               start_date:
                 form.start_date,
@@ -1723,6 +1833,53 @@ const submitRevertLeave = async () => {
     setSubmitting(false);
   }
 };
+
+const unpaidSickSummary =
+  useMemo(() => {
+    return applications.reduce(
+      (summary, application) => {
+        const isUnpaidSick =
+          application.leave_type ===
+            "unpaid" &&
+          String(
+            application.subject || ""
+          )
+            .trim()
+            .toLowerCase() ===
+            "unpaid sick leave";
+
+        if (!isUnpaidSick) {
+          return summary;
+        }
+
+        const status =
+          String(
+            application.status || ""
+          )
+            .trim()
+            .toLowerCase();
+
+        const days =
+          Number(
+            application.total_days || 0
+          );
+
+        if (status === "pending") {
+          summary.pending += days;
+        }
+
+        if (status === "approved") {
+          summary.approved += days;
+        }
+
+        return summary;
+      },
+      {
+        pending: 0,
+        approved: 0,
+      }
+    );
+  }, [applications]);
 
 const casualAvailable = Number(
 
@@ -1876,26 +2033,34 @@ const casualAvailable = Number(
           </div>
         )}
 
-        <div
-          style={styles.leaveGrid}
-        >
-          {LEAVE_CARDS.map(
-            (leave) => (
-              <BalanceCard
-                key={leave.key}
-                leave={leave}
-                balance={
-                  balances[
-                  leave.key
-                  ] || {}
-                }
-                onApply={
-                  openApplyModal
-                }
-              />
-            )
-          )}
-        </div>
+        <div style={styles.leaveGrid}>
+  {LEAVE_CARDS.map(
+    (leave) => (
+      <BalanceCard
+        key={leave.key}
+        leave={leave}
+        balance={
+          balances[
+            leave.key
+          ] || {}
+        }
+        onApply={
+          openApplyModal
+        }
+        unpaidSickPendingDays={
+          leave.key === "sick"
+            ? unpaidSickSummary.pending
+            : 0
+        }
+        unpaidSickApprovedDays={
+          leave.key === "sick"
+            ? unpaidSickSummary.approved
+            : 0
+        }
+      />
+    )
+  )}
+</div>
 
         <div
           style={
@@ -2372,15 +2537,24 @@ const casualAvailable = Number(
                   styles.modalSubtitle
                 }
               >
-                {selectedLeaveType ===
-                  "unpaid" ? (
-                  <>
-                    Leave Without Pay.
-                    This request will not
-                    use your available
-                    leave balance.
-                  </>
-                ) : (
+               {selectedLeaveType ===
+  "unpaid_sick" ? (
+  <>
+    Your paid Sick Leave
+    balance is exhausted.
+    This request will be
+    treated as unpaid Sick
+    Leave.
+  </>
+) : selectedLeaveType ===
+  "unpaid" ? (
+  <>
+    Leave Without Pay.
+    This request will not
+    use your available
+    leave balance.
+  </>
+) : (
                   <>
                     Currently
                     available:{" "}
@@ -2682,8 +2856,12 @@ const casualAvailable = Number(
 
         setForm((previous) => {
           const sickFutureDate =
-            selectedLeaveType === "sick" &&
-            value !== getTodayDate();
+  (
+    selectedLeaveType === "sick" ||
+    selectedLeaveType ===
+      "unpaid_sick"
+  ) &&
+  value !== getTodayDate();
 
           const mustUseFullDay =
             selectedLeaveType === "casual" ||
@@ -2823,8 +3001,12 @@ const casualAvailable = Number(
       </button>
 
       {(
-        selectedLeaveType !== "sick" ||
-        form.start_date === getTodayDate()
+        !(
+  selectedLeaveType === "sick" ||
+  selectedLeaveType ===
+    "unpaid_sick"
+) ||
+form.start_date === getTodayDate()
       ) && (
         <button
           type="button"
@@ -2935,8 +3117,7 @@ const casualAvailable = Number(
 
                   {calculateDays >
                     0 &&
-                    selectedLeaveType !==
-                    "unpaid" && (
+                    !isSelectedUnpaid && (
                       <div
                         style={
                           styles.balancePreview
@@ -3566,6 +3747,45 @@ const styles = {
 
     lineHeight: 1.45,
   },
+
+  unpaidSickInfo: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "3px",
+
+  marginBottom: "9px",
+
+  color: "#64748b",
+  fontSize: "11.5px",
+  lineHeight: 1.3,
+},
+
+unpaidSickApplyBtn: {
+  background: "#ff5733",
+  color: "#ffffff",
+  border: "1.5px solid #ff5733",
+  cursor: "pointer",
+},
+
+unpaidSickStatus: {
+  display: "flex",
+  flexDirection: "column",
+  gap: "2px",
+  marginBottom: "8px",
+  padding: "7px 9px",
+  background: "#fff7f3",
+  border: "1px solid #ffd8cc",
+  borderRadius: "9px",
+  color: "#111827",
+  fontSize: "11px",
+  lineHeight: 1.25,
+},
+
+unpaidSickStatusText: {
+  color: "#64748b",
+  fontSize: "10.5px",
+  fontWeight: 700,
+},
 
   historyCard: {
     background: "#ffffff",

@@ -3491,6 +3491,23 @@ if (status === "half day leave") {
       Pull real leave balance from existing
       RMS leave-policy logic.
       */
+
+      /*
+  Final reconciliation:
+  Summary cards must always match
+  the same day-wise records shown
+  in the employee detail modal.
+*/
+summary.absent =
+  employeeRecords.filter(
+    (record) =>
+      String(
+        record.final_status || ""
+      )
+        .trim()
+        .toLowerCase() ===
+      "absent"
+  ).length;
       let leaveBalances = {};
 
       try {
