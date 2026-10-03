@@ -1285,9 +1285,12 @@ const [hrFieldVisitRows] = await db.query(
       let leaveSession = null;
 
       let fieldVisitType = null;
-      let fieldVisitLocation = null;
+let fieldVisitLocation = null;
 
-      let approvedByName = null;
+let isLateMark = false;
+let lateMarkReason = null;
+
+let approvedByName = null;
       let approvedByEmail = null;
       let approvedAt = null;
 
@@ -1357,33 +1360,106 @@ const [hrFieldVisitRows] = await db.query(
         approvedAt =
           leave.reviewed_at || null;
       } else if (fieldVisit) {
-        finalStatus = "Field Visit";
-        source = "rms_field_visit";
+  finalStatus = "Field Visit";
+  source = "rms_field_visit";
 
-        fieldVisitType =
-          fieldVisit.visit_type || null;
+  fieldVisitType =
+    fieldVisit.visit_type || null;
 
-        fieldVisitLocation =
-          fieldVisit.location || null;
+  fieldVisitLocation =
+    fieldVisit.location || null;
 
-        detail =
-          fieldVisit.comment ||
-          [
-            fieldVisit.visit_type,
-            fieldVisit.location,
-          ]
-            .filter(Boolean)
-            .join(" · ") ||
-          "Field Visit";
+  const fieldVisitDuration = String(
+    fieldVisit.duration_type || ""
+  )
+    .trim()
+    .toLowerCase();
 
-        approvedByName =
-          fieldVisit.reviewed_by_name || null;
+  const fieldVisitSession = String(
+    fieldVisit.half_day_session || ""
+  )
+    .trim()
+    .toLowerCase();
 
-        approvedByEmail =
-          fieldVisit.reviewed_by_email || null;
+  /*
+    FIELD VISIT + LATE RULE
 
-        approvedAt =
-          fieldVisit.reviewed_at || null;
+    Full day:
+      Never count as Late.
+
+    First half:
+      Never count as Late because employee
+      is officially outside during morning.
+
+    Second half:
+      Employee is expected in office during
+      first half, so check first punch.
+  */
+
+  const fullDayFieldVisit =
+    fieldVisitDuration === "full_day";
+
+  const firstHalfFieldVisit =
+    fieldVisitDuration === "half_day" &&
+    [
+      "first_half",
+      "first half",
+      "first",
+      "first_half_day",
+    ].includes(fieldVisitSession);
+
+  const secondHalfFieldVisit =
+    fieldVisitDuration === "half_day" &&
+    [
+      "second_half",
+      "second half",
+      "second",
+      "second_half_day",
+    ].includes(fieldVisitSession);
+
+ if (
+  secondHalfFieldVisit &&
+  checkIn &&
+  isLateCheckIn(checkIn)
+) {
+    isLateMark = true;
+
+    lateMarkReason =
+      `Late office check-in ${checkIn} before second-half field visit`;
+  }
+
+  /*
+    Full day and first half explicitly
+    suppress the late mark.
+  */
+  if (
+    fullDayFieldVisit ||
+    firstHalfFieldVisit
+  ) {
+    isLateMark = false;
+    lateMarkReason = null;
+  }
+
+  detail =
+    fieldVisit.comment ||
+    [
+      fieldVisit.visit_type,
+      fieldVisit.duration_type,
+      fieldVisit.half_day_session,
+      fieldVisit.location,
+    ]
+      .filter(Boolean)
+      .join(" · ") ||
+    "Field Visit";
+
+  approvedByName =
+    fieldVisit.reviewed_by_name || null;
+
+  approvedByEmail =
+    fieldVisit.reviewed_by_email || null;
+
+  approvedAt =
+    fieldVisit.reviewed_at || null;
       } else if (attendance) {
         const rawStatus = String(
           attendance.status || "present"
@@ -1410,6 +1486,9 @@ const [hrFieldVisitRows] = await db.query(
   rawStatus === "late"
 ) {
   finalStatus = "Late";
+  isLateMark = true;
+  lateMarkReason =
+    "Attendance explicitly marked late";
 } else if (
   rawStatus === "holiday"
 ) {
@@ -1420,6 +1499,10 @@ const [hrFieldVisitRows] = await db.query(
   isLateCheckIn(checkIn)
 ) {
   finalStatus = "Late";
+  isLateMark = true;
+
+  lateMarkReason =
+    `First punch ${checkIn} is after 11:00 AM`;
 } else if (
   checkIn &&
   checkOut
@@ -1487,6 +1570,12 @@ const [hrFieldVisitRows] = await db.query(
 
         final_status:
           finalStatus,
+
+          is_late:
+  isLateMark,
+
+late_mark_reason:
+  lateMarkReason,
 
         source,
         detail,
@@ -1609,9 +1698,9 @@ field_visit_location:
       summary.present += 1;
     }
 
-    if (status === "late") {
-      summary.late += 1;
-    }
+    if (record.is_late) {
+  summary.late += 1;
+}
 
     if (status === "half day") {
       summary.half_day += 1;
@@ -3246,9 +3335,9 @@ const getHrEmployeeSummary = async (req, res) => {
           summary.absent += 1;
         }
 
-        if (status === "late") {
-          summary.late += 1;
-        }
+        if (record.is_late) {
+  summary.late += 1;
+}
 
         /*
         Attendance Half Day
