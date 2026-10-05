@@ -3580,13 +3580,18 @@ const exportHrAttendance = async (
                 }
               );
 
-            totals.total_days =
-              Math.max(
-                employeeRecords
-                  .length -
-                  totals.lop,
-                0
-              );
+            const latePenaltyDays =
+  Math.floor(totals.late / 6);
+
+totals.lop +=
+  latePenaltyDays;
+
+totals.total_days =
+  Math.max(
+    employeeRecords.length -
+      totals.lop,
+    0
+  );
 
             return {
               "Employee ID":
@@ -4888,19 +4893,22 @@ const getHrEmployeeSummary = async (
           0
         );
 
-      summary.lop =
-        summary.absent +
-        attendanceHalfDayLoss +
-        fieldVisitHalfDayLoss +
-        summary.unpaid_leave;
+      const latePenaltyDays =
+  Math.floor(summary.late / 6);
 
-      summary.total_days =
-        Math.max(
-          employeeRecords
-            .length -
-            summary.lop,
-          0
-        );
+summary.lop =
+  summary.absent +
+  attendanceHalfDayLoss +
+  fieldVisitHalfDayLoss +
+  summary.unpaid_leave +
+  latePenaltyDays;
+
+summary.total_days =
+  Math.max(
+    employeeRecords.length -
+      summary.lop,
+    0
+  );
 
       let leaveBalances =
         {};
