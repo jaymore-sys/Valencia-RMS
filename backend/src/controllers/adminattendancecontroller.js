@@ -1999,11 +1999,68 @@ Valencia RMS
   </div>
   `;
 
+const [reviewerRows] = await db.query(
+  `
+    SELECT DISTINCT
+      u.email
+
+    FROM users u
+
+    LEFT JOIN roles r
+      ON r.role_id = u.role_id
+
+    WHERE
+      LOWER(
+        COALESCE(
+          u.status,
+          'active'
+        )
+      ) <> 'deleted'
+
+      AND u.email IS NOT NULL
+
+      AND TRIM(u.email) <> ''
+
+      AND (
+        LOWER(
+          COALESCE(
+            r.role_name,
+            ''
+          )
+        ) = 'superadmin'
+
+        OR LOWER(
+  TRIM(
+    u.email
+  )
+) = 'premal.mehta@valencianutrition.com'
+      )
+  `
+);
+
 const toEmails = [
-  HR_FIELD_VISIT_EMAIL,
+  ...new Set(
+    reviewerRows
+      .map((row) =>
+        String(row.email || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(Boolean)
+  ),
 ];
 
-const ccEmails = [];
+const ccEmails = [
+  HR_FIELD_VISIT_EMAIL,
+].filter(
+  (email) =>
+    email &&
+    !toEmails.includes(
+      String(email)
+        .trim()
+        .toLowerCase()
+    )
+);
 
 const mailResponse =
 await sendMail({

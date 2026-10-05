@@ -76,6 +76,23 @@ const AdminAttendance = ({
 }) => {
   const fieldVisitsOnly =
     mode === "fieldVisits";
+
+    const storedUser = JSON.parse(
+  sessionStorage.getItem("user") ||
+  localStorage.getItem("user") ||
+  "{}"
+);
+
+const loggedInEmail = String(
+  storedUser?.email || ""
+)
+  .trim()
+  .toLowerCase();
+
+const isPremal =
+  loggedInEmail ===
+  "premal.mehta@valencianutrition.com";
+
   const [activeTab, setActiveTab] =
   useState(
     fieldVisitsOnly
@@ -94,6 +111,7 @@ const AdminAttendance = ({
   const [fieldVisitMode, setFieldVisitMode] = useState("team");
   const [teamVisits, setTeamVisits] = useState([]);
   const [myVisits, setMyVisits] = useState([]);
+  const [adminApprovalVisits,setAdminApprovalVisits] = useState([]);
   const [visitSearch, setVisitSearch] = useState("");
   const [visitStatus, setVisitStatus] = useState("all");
   const [visitLoading, setVisitLoading] = useState(false);
@@ -223,6 +241,49 @@ const AdminAttendance = ({
       setVisitLoading(false);
     }
   };
+
+  const fetchAdminApprovalVisits = async () => {
+  if (!isPremal) {
+    return;
+  }
+
+  try {
+    setVisitLoading(true);
+    setVisitError("");
+
+    const response = await api.get(
+      "/superadmin/field-visits"
+    );
+
+    const visits = Array.isArray(
+      response.data?.visits
+    )
+      ? response.data.visits.map(
+          (visit) => ({
+            ...visit,
+            all_people: [
+              visit.full_name,
+            ].filter(Boolean),
+          })
+        )
+      : [];
+
+    setAdminApprovalVisits(visits);
+  } catch (err) {
+    console.error(
+      "Fetch Admin field visit approvals:",
+      err
+    );
+
+    setVisitError(
+      err?.response?.data?.message ||
+        "Failed to fetch Admin field visit approvals."
+    );
+  } finally {
+    setVisitLoading(false);
+  }
+};
+
   const fetchEmployees = async () => {
     try {
 
@@ -336,13 +397,27 @@ const AdminAttendance = ({
       setVisitMessage("");
       setReviewSaving(true);
 
-      await api.post(
-        `/admin-attendance/field-visits/${visit.visit_id}/review`,
-        {
-          status,
-          review_remark: remark.trim(),
-        }
-      );
+      if (
+  fieldVisitMode === "adminApprovals"
+) {
+  await api.patch(
+    `/superadmin/field-visits/${visit.visit_id}/review`,
+    {
+      status,
+      review_remark:
+        remark.trim(),
+    }
+  );
+} else {
+  await api.post(
+    `/admin-attendance/field-visits/${visit.visit_id}/review`,
+    {
+      status,
+      review_remark:
+        remark.trim(),
+    }
+  );
+}
 
       setVisitMessage(
         status === "approved"
@@ -350,7 +425,14 @@ const AdminAttendance = ({
           : "Field visit rejected."
       );
 
-      await fetchTeamVisits();
+      if (
+  fieldVisitMode ===
+  "adminApprovals"
+) {
+  await fetchAdminApprovalVisits();
+} else {
+  await fetchTeamVisits();
+}
 
       return true;
     } catch (err) {
@@ -436,7 +518,11 @@ const AdminAttendance = ({
     return Array.isArray(myAttendance?.records) ? myAttendance.records : [];
   }, [myAttendance]);
   const currentVisits =
-    fieldVisitMode === "team" ? teamVisits : myVisits;
+  fieldVisitMode === "team"
+    ? teamVisits
+    : fieldVisitMode === "adminApprovals"
+      ? adminApprovalVisits
+      : myVisits;
 
   const visitSummary = useMemo(() => {
     return {
@@ -535,12 +621,25 @@ const AdminAttendance = ({
 
     return Object.values(map);
   }, [teamVisits]);
-  const pendingTeamVisits = useMemo(() => {
-    return teamVisits.filter(
-      (visit) =>
-        String(visit.status || "").toLowerCase() === "pending"
-    );
-  }, [teamVisits]);
+ const pendingTeamVisits = useMemo(() => {
+  const source =
+    fieldVisitMode ===
+    "adminApprovals"
+      ? adminApprovalVisits
+      : teamVisits;
+
+  return source.filter(
+    (visit) =>
+      String(
+        visit.status || ""
+      ).toLowerCase() ===
+      "pending"
+  );
+}, [
+  teamVisits,
+  adminApprovalVisits,
+  fieldVisitMode,
+]);
   useEffect(() => {
     if (!visitMessage) return;
 
@@ -780,7 +879,13 @@ const AdminAttendance = ({
               <button
                 type="button"
                 style={styles.refreshButton}
-                onClick={fetchFieldVisits}
+                onClick={() => {
+  if (fieldVisitMode === "adminApprovals") {
+    fetchAdminApprovalVisits();
+  } else {
+    fetchFieldVisits();
+  }
+}}
               >
                 Refresh
               </button>
@@ -824,6 +929,28 @@ const AdminAttendance = ({
             >
               My Visits
             </button>
+            {isPremal && (
+  <button
+    type="button"
+    style={{
+      ...styles.visitSwitchButton,
+      ...(fieldVisitMode ===
+      "adminApprovals"
+        ? styles.visitSwitchActive
+        : {}),
+    }}
+    onClick={() => {
+      setFieldVisitMode(
+        "adminApprovals"
+      );
+      setVisitSearch("");
+      setVisitStatus("all");
+      fetchAdminApprovalVisits();
+    }}
+  >
+    Admin Approvals
+  </button>
+)}
           </div>
 
           {visitError && (
@@ -842,7 +969,10 @@ const AdminAttendance = ({
         TEAM VISITS
     ===================================================== */}
 
-          {fieldVisitMode === "team" && (
+          {(
+  fieldVisitMode === "team" ||
+  fieldVisitMode === "adminApprovals"
+) && (
             <>
               {/* 1. ACTION REQUIRED FIRST */}
               <div style={styles.actionSection}>
@@ -1131,8 +1261,9 @@ const AdminAttendance = ({
                 )}
               </div>
 
-              {/* 4. EMPLOYEE SUMMARY LAST */}
-              <div style={styles.employeeVisitSummarySection}>
+             {/* 4. EMPLOYEE SUMMARY LAST */}
+{fieldVisitMode === "team" && (
+  <div style={styles.employeeVisitSummarySection}>
                 <div style={styles.visitSubHeader}>
                   <h3 style={styles.visitSubTitle}>
                     Employee Visit Summary
@@ -1196,6 +1327,7 @@ const AdminAttendance = ({
                   )}
                 </div>
               </div>
+              )}
             </>
           )}
 

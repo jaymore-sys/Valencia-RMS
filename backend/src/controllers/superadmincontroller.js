@@ -56,6 +56,85 @@ const getLoggedInUserId = (req) =>
       0
   );
 
+const getFieldVisitReviewer = async (req) => {
+  const userId = getLoggedInUserId(req);
+
+  if (!userId) {
+    return {
+      error: {
+        status: 401,
+        message: "Unauthorized.",
+      },
+    };
+  }
+
+  const [rows] = await db.query(
+    `
+      SELECT
+        u.user_id,
+        u.full_name,
+        u.email,
+        u.status,
+        r.role_name
+
+      FROM users u
+
+      LEFT JOIN roles r
+        ON r.role_id = u.role_id
+
+      WHERE u.user_id = ?
+
+      LIMIT 1
+    `,
+    [userId]
+  );
+
+  if (!rows.length) {
+    return {
+      error: {
+        status: 404,
+        message: "Reviewer account not found.",
+      },
+    };
+  }
+
+  const reviewer = rows[0];
+
+  const roleName = String(
+    reviewer.role_name || ""
+  )
+    .trim()
+    .toLowerCase();
+
+    const reviewerEmail = String(
+  reviewer.email || ""
+)
+  .trim()
+  .toLowerCase();
+
+const isSuperadmin =
+  roleName === "superadmin";
+
+const isPremal =
+  roleName === "admin" &&
+  reviewerEmail ===
+    "premal.mehta@valencianutrition.com";
+
+
+  if (!isSuperadmin && !isPremal) {
+    return {
+      error: {
+        status: 403,
+        message:
+          "Only Superadmin or Premal Mehta can review Admin field visits.",
+      },
+    };
+  }
+
+  return {
+    reviewer,
+  };
+};
 
 const formatDateOnly = (value) => {
   if (!value) return null;
@@ -244,6 +323,20 @@ const getSuperadminFieldVisits = async (
 
   try {
 
+    const {
+      reviewer,
+      error,
+    } = await getFieldVisitReviewer(req);
+
+    if (error) {
+      return res
+        .status(error.status)
+        .json({
+          success: false,
+          message: error.message,
+        });
+    }
+
     const [visits] = await db.query(
       `
       SELECT
@@ -357,16 +450,22 @@ const reviewSuperadminFieldVisit = async (
   res
 ) => {
   try {
-    const reviewerId =
-      getLoggedInUserId(req);
+   const {
+  reviewer,
+  error,
+} = await getFieldVisitReviewer(req);
 
-    if (!reviewerId) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Unauthorized. Superadmin user not found in token.",
-      });
-    }
+if (error) {
+  return res
+    .status(error.status)
+    .json({
+      success: false,
+      message: error.message,
+    });
+}
+
+const reviewerId =
+  Number(reviewer.user_id);
 
     const visitId = Number(
       req.params.visitId

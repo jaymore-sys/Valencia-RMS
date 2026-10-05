@@ -50,7 +50,9 @@ const superadminOnly = [
   authMiddleware,
   requireRole("superadmin")
 ];
-
+const fieldVisitReviewerAccess = [
+  authMiddleware
+];
 
 
 
@@ -220,14 +222,14 @@ FIELD VISITS
 
 router.get(
   "/field-visits",
-  ...superadminOnly,
+  ...fieldVisitReviewerAccess,
   getSuperadminFieldVisits
 );
 
 
 router.patch(
   "/field-visits/:visitId/review",
-  ...superadminOnly,
+  ...fieldVisitReviewerAccess,
   reviewSuperadminFieldVisit
 );
 
