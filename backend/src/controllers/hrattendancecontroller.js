@@ -3587,11 +3587,9 @@ totals.lop +=
   latePenaltyDays;
 
 totals.total_days =
-  Math.max(
-    employeeRecords.length -
-      totals.lop,
-    0
-  );
+  totals.working_days +
+  totals.weekly_off +
+  totals.holiday;
 
             return {
               "Employee ID":
@@ -4904,11 +4902,9 @@ summary.lop =
   latePenaltyDays;
 
 summary.total_days =
-  Math.max(
-    employeeRecords.length -
-      summary.lop,
-    0
-  );
+  summary.working_days +
+  summary.weekly_off +
+  summary.holiday;
 
       let leaveBalances =
         {};
