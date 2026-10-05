@@ -145,7 +145,7 @@ const StatusBadge = ({ value }) => {
 
   if (["present", "approved"].includes(status)) type = "success";
   else if (["rejected", "absent"].includes(status)) type = "danger";
-  else if (status === "pending") type = "warning";
+  else if (["pending", "pending approval"].includes(status)) type = "warning";
   else if (status === "field visit") type = "purple";
   else if (status.includes("leave")) type = "blue";
   else if (
@@ -854,47 +854,71 @@ const clearFilters = () => {
      DISPLAY
   ========================================================= */
 
-  const attendanceTime = (record) => {
-    if (record.final_status === "Field Visit") {
-      const start = displayTime(record.field_visit_start_time);
-      const end = displayTime(record.field_visit_end_time);
+ const attendanceTime = (record) => {
+  if (record.final_status === "Field Visit") {
+    const start = displayTime(record.field_visit_start_time);
+    const end = displayTime(record.field_visit_end_time);
 
-      if (start !== "-" || end !== "-") return `${start} – ${end}`;
-
-      return record.field_visit_duration
-        ? titleCase(record.field_visit_duration)
-        : "-";
+    if (start !== "-" || end !== "-") {
+      return `${start} – ${end}`;
     }
 
-    if (record.leave_id) {
-      if (record.leave_duration === "Half Day") {
-        return record.leave_session
-          ? `Half Day · ${titleCase(record.leave_session)}`
-          : "Half Day";
-      }
+    if (record.field_visit_duration) {
+      const duration = titleCase(
+        record.field_visit_duration
+      );
 
-      return "Full Day";
+      return record.field_visit_half_day_session
+        ? `${duration} · ${titleCase(
+            record.field_visit_half_day_session
+          )}`
+        : duration;
     }
 
-    const start = displayTime(record.check_in_time);
-    const end = displayTime(record.check_out_time);
+    return "-";
+  }
 
-    if (start === "-" && end === "-") return "-";
+  if (record.leave_id) {
+    if (record.leave_duration === "Half Day") {
+      return record.leave_session
+        ? `Half Day · ${titleCase(record.leave_session)}`
+        : "Half Day";
+    }
 
-    return `${start} – ${end}`;
-  };
+    return "Full Day";
+  }
 
-  const leaveVisit = (record) =>
-    record.leave_type ||
-    record.field_visit_type ||
-    (record.field_visit_id ? "Field Visit" : "-");
+  const start = displayTime(record.check_in_time);
+  const end = displayTime(record.check_out_time);
 
-  const recordRemark = (record) =>
-    record.leave_reason ||
-    record.field_visit_reason ||
-    record.attendance_remarks ||
-    record.detail ||
-    "-";
+  if (start === "-" && end === "-") return "-";
+
+  return `${start} – ${end}`;
+};
+
+const leaveVisit = (record) =>
+  record.leave_type ||
+  record.field_visit_type ||
+  record.pending_request_type ||
+  (record.field_visit_id ? "Field Visit" : "-");
+
+const recordRemark = (record) =>
+  record.leave_reason ||
+  record.field_visit_reason ||
+  record.attendance_remarks ||
+  record.detail ||
+  "-";
+
+const employeeSummaryStatus = (record) => {
+  if (
+    record.final_status === "Field Visit" &&
+    record.field_visit_attendance_status
+  ) {
+    return `Field Visit · ${record.field_visit_attendance_status}`;
+  }
+
+  return record.custom_status || record.final_status || "-";
+};
 
   const visitDuration = (visit) => {
     if (visit.duration_type) {
@@ -1039,6 +1063,21 @@ const clearFilters = () => {
 
     setShowAddAttendance(true);
   };
+
+  const openAddAttendanceForEmployee = (employee) => {
+  setAttendanceForm({
+    employee_id: String(employee?.user_id || ""),
+    attendance_date: selectedDate,
+    check_in_time: "",
+    check_out_time: "",
+    status: "present",
+    custom_status: "",
+    remarks: "",
+  });
+
+  setSelectedEmployeeSummary(null);
+  setShowAddAttendance(true);
+};
 
   const saveAttendance = async () => {
     if (!attendanceForm.employee_id) {
@@ -1238,40 +1277,68 @@ await fetchEmployeeSummary({
 };
 
   const exportAttendance = async (format) => {
-    try {
-      setExporting(true);
-      setShowExport(false);
+  try {
+    setExporting(true);
+    setShowExport(false);
 
-      const response = await api.get("/hr-attendance/export", {
+    const isEmployeeSummary =
+      activeTab === "employee-summary";
+
+    const response = await api.get(
+      "/hr-attendance/export",
+      {
         params: {
           from_date: fromDate,
           to_date: toDate,
           format,
+
+          view: isEmployeeSummary
+            ? "employee-summary"
+            : "attendance",
         },
+
         responseType: "blob",
-      });
+      }
+    );
 
-      const blob = new Blob([response.data], {
-        type: response.headers["content-type"],
-      });
+    const blob = new Blob(
+      [response.data],
+      {
+        type:
+          response.headers["content-type"],
+      }
+    );
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
+    const url =
+      window.URL.createObjectURL(blob);
 
-      link.href = url;
-      link.download = `hr-attendance-${fromDate}-to-${toDate}.${format}`;
+    const link =
+      document.createElement("a");
 
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+    link.href = url;
 
-      window.URL.revokeObjectURL(url);
-    } catch {
-      notify("Failed to export attendance.", "error");
-    } finally {
-      setExporting(false);
-    }
-  };
+    link.download = `${
+      isEmployeeSummary
+        ? "hr-employee-summary"
+        : "hr-attendance"
+    }-${fromDate}-to-${toDate}.${format}`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    link.remove();
+
+    window.URL.revokeObjectURL(url);
+  } catch {
+    notify(
+      "Failed to export attendance.",
+      "error"
+    );
+  } finally {
+    setExporting(false);
+  }
+};
 
   /* =========================================================
      PAGINATION
@@ -2394,98 +2461,122 @@ await fetchEmployeeSummary({
       {/* ATTENDANCE SUMMARY */}
 
       <div className="hr-summary-section">
-        <h4>Attendance Summary</h4>
+  <h4>Attendance Summary</h4>
 
-        <div className="hr-summary-cards">
-          <SummaryItem
-            label="Working Days"
-            value={
-              selectedEmployeeSummary
-                .attendance?.working_days
-            }
-          />
+  <div className="hr-summary-cards">
+    <SummaryItem
+      label="Working Days"
+      value={
+        selectedEmployeeSummary
+          .attendance?.working_days
+      }
+    />
 
-          <SummaryItem
-            label="Present"
-            value={
-              selectedEmployeeSummary
-                .attendance?.present
-            }
-          />
+    <SummaryItem
+      label="Present"
+      value={
+        selectedEmployeeSummary
+          .attendance?.present
+      }
+    />
 
-          <SummaryItem
-            label="Absent"
-            value={
-              selectedEmployeeSummary
-                .attendance?.absent
-            }
-          />
+    <SummaryItem
+      label="Absent"
+      value={
+        selectedEmployeeSummary
+          .attendance?.absent
+      }
+    />
 
-          <SummaryItem
-            label="Late"
-            value={
-              selectedEmployeeSummary
-                .attendance?.late
-            }
-          />
+    <SummaryItem
+      label="Late"
+      value={
+        selectedEmployeeSummary
+          .attendance?.late
+      }
+    />
 
-          <SummaryItem
-            label="Half Day"
-            value={
-              selectedEmployeeSummary
-                .attendance?.half_day
-            }
-          />
+    <SummaryItem
+      label="Half Day"
+      value={
+        selectedEmployeeSummary
+          .attendance?.half_day
+      }
+    />
 
-          <SummaryItem
-            label="Field Visit"
-            value={
-              selectedEmployeeSummary
-                .attendance?.field_visit
-            }
-          />
+    <SummaryItem
+      label="Field Visit"
+      value={
+        selectedEmployeeSummary
+          .attendance?.field_visit
+      }
+    />
 
-          <SummaryItem
-            label="Leave"
-            value={
-              selectedEmployeeSummary
-                .attendance?.leave
-            }
-          />
+    <SummaryItem
+      label="Leave"
+      value={
+        selectedEmployeeSummary
+          .attendance?.leave
+      }
+    />
 
-          <SummaryItem
-            label="No Punch"
-            value={
-              selectedEmployeeSummary
-                .attendance?.no_punch
-            }
-          />
+    <SummaryItem
+      label="No Punch"
+      value={
+        selectedEmployeeSummary
+          .attendance?.no_punch
+      }
+    />
 
-          <SummaryItem
-            label="Needs Review"
-            value={
-              selectedEmployeeSummary
-                .attendance?.needs_review
-            }
-          />
+    <SummaryItem
+      label="Needs Review"
+      value={
+        selectedEmployeeSummary
+          .attendance?.needs_review
+      }
+    />
 
-          <SummaryItem
-            label="Weekly Off"
-            value={
-              selectedEmployeeSummary
-                .attendance?.weekly_off
-            }
-          />
+    <SummaryItem
+      label="Pending Approval"
+      value={
+        selectedEmployeeSummary
+          .attendance?.pending_approval
+      }
+    />
 
-          <SummaryItem
-            label="Holiday"
-            value={
-              selectedEmployeeSummary
-                .attendance?.holiday
-            }
-          />
-        </div>
-      </div>
+    <SummaryItem
+      label="Weekly Off"
+      value={
+        selectedEmployeeSummary
+          .attendance?.weekly_off
+      }
+    />
+
+    <SummaryItem
+      label="Holiday"
+      value={
+        selectedEmployeeSummary
+          .attendance?.holiday
+      }
+    />
+
+    <SummaryItem
+      label="Total Days"
+      value={
+        selectedEmployeeSummary
+          .attendance?.total_days
+      }
+    />
+
+    <SummaryItem
+      label="LOP"
+      value={
+        selectedEmployeeSummary
+          .attendance?.lop
+      }
+    />
+  </div>
+</div>
 
       {/* LEAVE TAKEN */}
 
@@ -2577,75 +2668,136 @@ await fetchEmployeeSummary({
 
       {/* DAY-WISE ATTENDANCE */}
 
-      <div className="hr-summary-section">
-        <h4>Day-wise Attendance</h4>
+<div className="hr-summary-section">
+  <h4>Day-wise Attendance</h4>
 
-        <div className="hr-summary-days">
-          {Array.isArray(
-            selectedEmployeeSummary.daily_records
-          ) &&
-          selectedEmployeeSummary.daily_records.length >
-            0 ? (
-            selectedEmployeeSummary.daily_records.map(
-              (record, index) => (
-                <div
-                  className="hr-summary-day"
-                  key={`${record.attendance_date}-${index}`}
+  <div className="hr-summary-days">
+    {Array.isArray(
+      selectedEmployeeSummary.daily_records
+    ) &&
+    selectedEmployeeSummary.daily_records.length > 0 ? (
+      selectedEmployeeSummary.daily_records.map(
+        (record, index) => (
+          <div
+            className="hr-summary-day"
+            key={`${record.attendance_date}-${index}`}
+          >
+            <div>
+              <strong>
+                {displayDate(
+                  record.attendance_date
+                )}
+              </strong>
+
+              <small>
+                {record.day_name ||
+                  dayName(
+                    record.attendance_date
+                  )}
+              </small>
+            </div>
+
+            <div>
+              <StatusBadge
+                value={employeeSummaryStatus(
+                  record
+                )}
+              />
+            </div>
+
+            <span>
+              {attendanceTime(record)}
+            </span>
+
+            <span
+              className="ellipsis"
+              title={[
+                recordRemark(record),
+
+                record.pending_request_type,
+
+                record.approved_by_name
+                  ? `Approved by ${record.approved_by_name}`
+                  : "",
+
+                record.needs_attention
+                  ? record.late_mark_reason ||
+                    "Needs Attention"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            >
+              {record.pending_request_type && (
+                <small
+                  style={{
+                    display: "block",
+                  }}
                 >
-                  <div>
-                    <strong>
-                      {displayDate(
-                        record.attendance_date
-                      )}
-                    </strong>
+                  {record.pending_request_type}
+                </small>
+              )}
 
-                    <small>
-                      {record.day_name ||
-                        dayName(
-                          record.attendance_date
-                        )}
-                    </small>
-                  </div>
+              <span>
+                {recordRemark(record)}
+              </span>
 
-                  <div>
-                    <StatusBadge
-                      value={
-                        record.custom_status ||
-                        record.final_status
-                      }
-                    />
-                  </div>
+              {record.approved_by_name && (
+                <small
+                  style={{
+                    display: "block",
+                  }}
+                >
+                  Approved by:{" "}
+                  {record.approved_by_name}
+                </small>
+              )}
 
-                  <span>
-                    {attendanceTime(record)}
-                  </span>
-
-                  <span
-                    className="ellipsis"
-                    title={recordRemark(record)}
-                  >
-                    {recordRemark(record)}
-                  </span>
-                </div>
-              )
-            )
-          ) : (
-            <Empty text="No day-wise attendance records found." />
-          )}
-        </div>
-      </div>
+              {record.needs_attention && (
+                <small
+                  style={{
+                    display: "block",
+                  }}
+                >
+                  Needs Attention
+                  {record.late_mark_reason
+                    ? ` · ${record.late_mark_reason}`
+                    : ""}
+                </small>
+              )}
+            </span>
+          </div>
+        )
+      )
+    ) : (
+      <Empty text="No day-wise attendance records found." />
+    )}
+  </div>
+</div>
     </div>
 
     <div className="hr-modal-footer">
-      <button
-        className="hr-button secondary"
-        onClick={() =>
-          setSelectedEmployeeSummary(null)
-        }
-      >
-        Close
-      </button>
-    </div>
+  <button
+    className="hr-button primary"
+    onClick={() =>
+      openAddAttendanceForEmployee(
+        selectedEmployeeSummary
+      )
+    }
+  >
+    <Plus size={16} />
+    Add Attendance
+  </button>
+
+  <button
+    className="hr-button secondary"
+    onClick={() =>
+      setSelectedEmployeeSummary(null)
+    }
+  >
+    Close
+  </button>
+</div>
   </Modal>
 )}
     </div>

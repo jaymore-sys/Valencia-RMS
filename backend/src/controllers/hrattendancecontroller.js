@@ -4,6 +4,7 @@ const XLSX = require("xlsx");
 const {
   buildLeaveBalances,
 } = require("../utils/leavepolicy");
+
 const HR_EMAILS = [
   "rathika.haleangadi@valencianutrition.com",
 ];
@@ -88,6 +89,7 @@ const formatTime = (value) => {
 
   return text.slice(0, 8);
 };
+
 const isLateCheckIn = (checkIn) => {
   if (!checkIn || checkIn === "-") {
     return false;
@@ -270,7 +272,6 @@ const getHrLeaveDisplayStatus = (leave) => {
 
   return status || "-";
 };
-
 
 /* =========================================================
    IMPORT HELPERS
@@ -818,8 +819,8 @@ const buildHrAttendanceData = async (
 
     WHERE la.employee_id IN (${placeholders})
       AND LOWER(TRIM(la.status)) = 'approved'
-AND COALESCE(la.revert_status, 'none') <> 'approved'
-AND la.start_date <= ?
+      AND COALESCE(la.revert_status, 'none') <> 'approved'
+      AND la.start_date <= ?
       AND la.end_date >= ?
     `,
     [
@@ -829,151 +830,153 @@ AND la.start_date <= ?
     ]
   );
 
- const [hrLeaveRows] = await db.query(
-  `
-  SELECT
-    la.leave_id,
-    la.employee_id,
-    la.leave_type,
-    la.total_days,
-    la.duration_type,
-    la.half_day_session,
-    la.reason,
-    la.status,
-    la.review_remark,
-    COALESCE(
-  la.revert_status,
-  'none'
-) AS revert_status,
+  const [hrLeaveRows] = await db.query(
+    `
+    SELECT
+      la.leave_id,
+      la.employee_id,
+      la.leave_type,
+      la.total_days,
+      la.duration_type,
+      la.half_day_session,
+      la.reason,
+      la.status,
+      la.review_remark,
 
-la.revert_reason,
+      COALESCE(
+        la.revert_status,
+        'none'
+      ) AS revert_status,
 
-DATE_FORMAT(
-  la.revert_requested_at,
-  '%Y-%m-%d %H:%i:%s'
-) AS revert_requested_at,
+      la.revert_reason,
 
-la.revert_reviewed_by,
+      DATE_FORMAT(
+        la.revert_requested_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS revert_requested_at,
 
-DATE_FORMAT(
-  la.revert_reviewed_at,
-  '%Y-%m-%d %H:%i:%s'
-) AS revert_reviewed_at,
+      la.revert_reviewed_by,
 
-la.revert_review_remark,
-    COALESCE(
-      la.escalated_for_approval,
-      0
-    ) AS escalated_for_approval,
+      DATE_FORMAT(
+        la.revert_reviewed_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS revert_reviewed_at,
 
-    DATE_FORMAT(
-      la.start_date,
-      '%Y-%m-%d'
-    ) AS start_date,
+      la.revert_review_remark,
 
-    DATE_FORMAT(
-      la.end_date,
-      '%Y-%m-%d'
-    ) AS end_date,
+      COALESCE(
+        la.escalated_for_approval,
+        0
+      ) AS escalated_for_approval,
 
-    la.reviewed_by,
+      DATE_FORMAT(
+        la.start_date,
+        '%Y-%m-%d'
+      ) AS start_date,
 
-    DATE_FORMAT(
-      la.reviewed_at,
-      '%Y-%m-%d %H:%i:%s'
-    ) AS reviewed_at,
+      DATE_FORMAT(
+        la.end_date,
+        '%Y-%m-%d'
+      ) AS end_date,
 
-    la.escalated_by,
+      la.reviewed_by,
 
-    DATE_FORMAT(
-      la.escalated_at,
-      '%Y-%m-%d %H:%i:%s'
-    ) AS escalated_at,
+      DATE_FORMAT(
+        la.reviewed_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS reviewed_at,
 
-    DATE_FORMAT(
-      la.applied_at,
-      '%Y-%m-%d %H:%i:%s'
-    ) AS applied_at,
+      la.escalated_by,
 
-    employee.employee_code,
-    employee.full_name AS employee_name,
-    employee.email AS employee_email,
-    employee.designation,
-    employee.department_id,
+      DATE_FORMAT(
+        la.escalated_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS escalated_at,
 
-    department.department_name,
-    role.role_name,
+      DATE_FORMAT(
+        la.applied_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS applied_at,
 
-    reviewer.full_name AS reviewed_by_name,
-    reviewer.email AS reviewed_by_email,
+      employee.employee_code,
+      employee.full_name AS employee_name,
+      employee.email AS employee_email,
+      employee.designation,
+      employee.department_id,
 
-    escalator.full_name AS escalated_by_name,
-   escalator.email AS escalated_by_email,
+      department.department_name,
+      role.role_name,
 
-revert_reviewer.full_name
-  AS revert_reviewed_by_name,
+      reviewer.full_name AS reviewed_by_name,
+      reviewer.email AS reviewed_by_email,
 
-revert_reviewer.email
-  AS revert_reviewed_by_email
+      escalator.full_name AS escalated_by_name,
+      escalator.email AS escalated_by_email,
 
-  FROM leave_applications la
+      revert_reviewer.full_name
+        AS revert_reviewed_by_name,
 
-  INNER JOIN users employee
-    ON employee.user_id = la.employee_id
+      revert_reviewer.email
+        AS revert_reviewed_by_email
 
-  LEFT JOIN departments department
-    ON department.department_id =
-       employee.department_id
+    FROM leave_applications la
 
-  LEFT JOIN roles role
-    ON role.role_id = employee.role_id
+    INNER JOIN users employee
+      ON employee.user_id = la.employee_id
 
-  LEFT JOIN users reviewer
-    ON reviewer.user_id = la.reviewed_by
+    LEFT JOIN departments department
+      ON department.department_id =
+         employee.department_id
 
-  LEFT JOIN users escalator
-    ON escalator.user_id = la.escalated_by
+    LEFT JOIN roles role
+      ON role.role_id = employee.role_id
+
+    LEFT JOIN users reviewer
+      ON reviewer.user_id = la.reviewed_by
+
+    LEFT JOIN users escalator
+      ON escalator.user_id = la.escalated_by
 
     LEFT JOIN users revert_reviewer
-  ON revert_reviewer.user_id =
-     la.revert_reviewed_by
+      ON revert_reviewer.user_id =
+         la.revert_reviewed_by
 
-  WHERE
-    la.employee_id IN (${placeholders})
+    WHERE
+      la.employee_id IN (${placeholders})
 
-    AND LOWER(
-      TRIM(la.status)
-    ) IN (
-      'pending',
-      'approved',
-      'rejected'
-    )
-
-  ORDER BY
-    CASE
-      WHEN LOWER(
+      AND LOWER(
         TRIM(la.status)
-      ) = 'pending'
-      THEN 1
+      ) IN (
+        'pending',
+        'approved',
+        'rejected'
+      )
 
-      WHEN LOWER(
-        TRIM(la.status)
-      ) = 'approved'
-      THEN 2
+    ORDER BY
+      CASE
+        WHEN LOWER(
+          TRIM(la.status)
+        ) = 'pending'
+        THEN 1
 
-      WHEN LOWER(
-        TRIM(la.status)
-      ) = 'rejected'
-      THEN 3
+        WHEN LOWER(
+          TRIM(la.status)
+        ) = 'approved'
+        THEN 2
 
-      ELSE 4
-    END,
+        WHEN LOWER(
+          TRIM(la.status)
+        ) = 'rejected'
+        THEN 3
 
-    la.applied_at DESC,
-    la.leave_id DESC
-  `,
-  userIds
-);
+        ELSE 4
+      END,
+
+      la.applied_at DESC,
+      la.leave_id DESC
+    `,
+    userIds
+  );
 
   const [fieldVisitRows] = await db.query(
     `
@@ -987,11 +990,11 @@ revert_reviewer.email
       ) AS visit_date,
 
       fv.visit_type,
-fv.duration_type,
-fv.half_day_session,
-fv.start_time,
-fv.end_time,
-fv.location,
+      fv.duration_type,
+      fv.half_day_session,
+      fv.start_time,
+      fv.end_time,
+      fv.location,
       fv.comment,
       fv.status,
       fv.review_remark,
@@ -1020,146 +1023,248 @@ fv.location,
   );
 
   /* =========================================================
-   HR FIELD VISIT LIST
-   ALL STATUSES / ALL DATES
-========================================================= */
+     HR FIELD VISIT LIST
+     ALL STATUSES / ALL DATES
+  ========================================================= */
 
-const [hrFieldVisitRows] = await db.query(
-  `
-  SELECT
-    fv.visit_id,
-    fv.employee_id,
+  const [hrFieldVisitRows] = await db.query(
+    `
+    SELECT
+      fv.visit_id,
+      fv.employee_id,
 
-    fv.visit_type,
+      fv.visit_type,
 
-    DATE_FORMAT(
-      fv.visit_date,
-      '%Y-%m-%d'
-    ) AS visit_date,
+      DATE_FORMAT(
+        fv.visit_date,
+        '%Y-%m-%d'
+      ) AS visit_date,
 
-    fv.duration_type,
-    fv.half_day_session,
-    fv.start_time,
-    fv.end_time,
+      fv.duration_type,
+      fv.half_day_session,
+      fv.start_time,
+      fv.end_time,
 
-    fv.location,
-    fv.comment,
-    fv.status,
+      fv.location,
+      fv.comment,
+      fv.status,
 
-    fv.reviewed_by,
-    fv.review_remark,
+      fv.reviewed_by,
+      fv.review_remark,
 
-    DATE_FORMAT(
-      fv.reviewed_at,
-      '%Y-%m-%d %H:%i:%s'
-    ) AS reviewed_at,
+      DATE_FORMAT(
+        fv.reviewed_at,
+        '%Y-%m-%d %H:%i:%s'
+      ) AS reviewed_at,
 
-    employee.employee_code,
-    employee.full_name AS employee_name,
-    employee.email AS employee_email,
-    employee.designation,
-    employee.department_id,
+      employee.employee_code,
+      employee.full_name AS employee_name,
+      employee.email AS employee_email,
+      employee.designation,
+      employee.department_id,
 
-    department.department_name,
-    role.role_name,
+      department.department_name,
+      role.role_name,
 
-    reviewer.full_name AS reviewed_by_name,
-    reviewer.email AS reviewed_by_email
+      reviewer.full_name AS reviewed_by_name,
+      reviewer.email AS reviewed_by_email
 
-  FROM employee_field_visits fv
+    FROM employee_field_visits fv
 
-  INNER JOIN users employee
-    ON employee.user_id = fv.employee_id
+    INNER JOIN users employee
+      ON employee.user_id = fv.employee_id
 
-  LEFT JOIN departments department
-    ON department.department_id =
-       employee.department_id
+    LEFT JOIN departments department
+      ON department.department_id =
+         employee.department_id
 
-  LEFT JOIN roles role
-    ON role.role_id =
-       employee.role_id
+    LEFT JOIN roles role
+      ON role.role_id =
+         employee.role_id
 
-  LEFT JOIN users reviewer
-    ON reviewer.user_id =
-       fv.reviewed_by
+    LEFT JOIN users reviewer
+      ON reviewer.user_id =
+         fv.reviewed_by
 
-  WHERE
-    fv.employee_id IN (${placeholders})
+    WHERE
+      fv.employee_id IN (${placeholders})
 
-    AND LOWER(
-      TRIM(fv.status)
-    ) IN (
-      'pending',
-      'approved',
-      'rejected'
-    )
-
-  ORDER BY
-    CASE
-      WHEN LOWER(
+      AND LOWER(
         TRIM(fv.status)
-      ) = 'pending'
-      THEN 1
+      ) IN (
+        'pending',
+        'approved',
+        'rejected'
+      )
 
-      WHEN LOWER(
-        TRIM(fv.status)
-      ) = 'approved'
-      THEN 2
+    ORDER BY
+      CASE
+        WHEN LOWER(
+          TRIM(fv.status)
+        ) = 'pending'
+        THEN 1
 
-      WHEN LOWER(
-        TRIM(fv.status)
-      ) = 'rejected'
-      THEN 3
+        WHEN LOWER(
+          TRIM(fv.status)
+        ) = 'approved'
+        THEN 2
 
-      ELSE 4
-    END,
+        WHEN LOWER(
+          TRIM(fv.status)
+        ) = 'rejected'
+        THEN 3
 
-    fv.visit_date DESC,
-    fv.visit_id DESC
-  `,
-  userIds
-);
+        ELSE 4
+      END,
 
-  const visitIds =
-    fieldVisitRows
-      .map((visit) => Number(visit.visit_id))
-      .filter(Boolean);
+      fv.visit_date DESC,
+      fv.visit_id DESC
+    `,
+    userIds
+  );
+
+  /* =========================================================
+     PENDING REQUEST MAP INPUTS
+     Pending requests must not appear as Absent while awaiting review.
+  ========================================================= */
+
+  const pendingLeaveMap = new Map();
+
+  hrLeaveRows
+    .filter((leave) => {
+      const status = String(leave.status || "")
+        .trim()
+        .toLowerCase();
+
+      const revertStatus = String(
+        leave.revert_status || "none"
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        status === "pending" &&
+        revertStatus !== "approved"
+      );
+    })
+    .forEach((leave) => {
+      let date = String(
+        leave.start_date || ""
+      ).slice(0, 10);
+
+      const endDate = String(
+        leave.end_date ||
+        leave.start_date ||
+        ""
+      ).slice(0, 10);
+
+      while (
+        date &&
+        endDate &&
+        date <= endDate
+      ) {
+        if (
+          date >= fromDate &&
+          date <= toDate
+        ) {
+          pendingLeaveMap.set(
+            `${Number(
+              leave.employee_id
+            )}|${date}`,
+            leave
+          );
+        }
+
+        date = addOneDay(date);
+      }
+    });
+
+  const pendingFieldVisitRows =
+    hrFieldVisitRows.filter(
+      (visit) =>
+        String(
+          visit.status || ""
+        )
+          .trim()
+          .toLowerCase() ===
+          "pending" &&
+        visit.visit_date >=
+          fromDate &&
+        visit.visit_date <=
+          toDate
+    );
+
+  const visitIds = [
+    ...new Set(
+      [
+        ...fieldVisitRows,
+        ...pendingFieldVisitRows,
+      ]
+        .map((visit) =>
+          Number(visit.visit_id)
+        )
+        .filter(Boolean)
+    ),
+  ];
 
   let fieldVisitMembers = [];
 
   if (visitIds.length) {
-    const [memberColumns] = await db.query(
-      `SHOW COLUMNS FROM field_visit_members`
-    );
+    const [memberColumns] =
+      await db.query(
+        `SHOW COLUMNS FROM field_visit_members`
+      );
 
-    const columnNames = memberColumns.map((column) =>
-      String(column.Field || "").toLowerCase()
-    );
+    const columnNames =
+      memberColumns.map((column) =>
+        String(
+          column.Field || ""
+        ).toLowerCase()
+      );
 
     let visitForeignKey = null;
 
-    if (columnNames.includes("field_visit_id")) {
-      visitForeignKey = "field_visit_id";
-    } else if (columnNames.includes("visit_id")) {
-      visitForeignKey = "visit_id";
+    if (
+      columnNames.includes(
+        "field_visit_id"
+      )
+    ) {
+      visitForeignKey =
+        "field_visit_id";
+    } else if (
+      columnNames.includes(
+        "visit_id"
+      )
+    ) {
+      visitForeignKey =
+        "visit_id";
     }
 
     if (visitForeignKey) {
       const visitPlaceholders =
-        visitIds.map(() => "?").join(",");
-
-      const [memberRows] = await db.query(
-        `
-        SELECT
-          ${visitForeignKey} AS visit_id,
-          employee_id
-        FROM field_visit_members
-        WHERE ${visitForeignKey} IN (${visitPlaceholders})
-        `,
         visitIds
-      );
+          .map(() => "?")
+          .join(",");
 
-      fieldVisitMembers = memberRows;
+      const [memberRows] =
+        await db.query(
+          `
+          SELECT
+            ${visitForeignKey}
+              AS visit_id,
+
+            employee_id
+
+          FROM field_visit_members
+
+          WHERE ${visitForeignKey}
+            IN (${visitPlaceholders})
+          `,
+          visitIds
+        );
+
+      fieldVisitMembers =
+        memberRows;
     }
   }
 
@@ -1214,6 +1319,33 @@ const [hrFieldVisitRows] = await db.query(
     });
   });
 
+  const pendingVisitMap = new Map();
+
+  pendingFieldVisitRows.forEach((visit) => {
+    const employeeIds = new Set([
+      Number(visit.employee_id),
+    ]);
+
+    fieldVisitMembers
+      .filter(
+        (member) =>
+          Number(member.visit_id) ===
+          Number(visit.visit_id)
+      )
+      .forEach((member) => {
+        employeeIds.add(
+          Number(member.employee_id)
+        );
+      });
+
+    employeeIds.forEach((employeeId) => {
+      pendingVisitMap.set(
+        `${employeeId}|${visit.visit_date}`,
+        visit
+      );
+    });
+  });
+
   const records = [];
 
   for (const user of users) {
@@ -1242,6 +1374,12 @@ const [hrFieldVisitRows] = await db.query(
       const fieldVisit =
         visitMap.get(key);
 
+      const pendingLeave =
+        pendingLeaveMap.get(key);
+
+      const pendingFieldVisit =
+        pendingVisitMap.get(key);
+
       if (
         effectiveStartDate &&
         currentDate < effectiveStartDate
@@ -1254,7 +1392,9 @@ const [hrFieldVisitRows] = await db.query(
         !effectiveStartDate &&
         !attendance &&
         !leave &&
-        !fieldVisit
+        !fieldVisit &&
+        !pendingLeave &&
+        !pendingFieldVisit
       ) {
         currentDate = addOneDay(currentDate);
         continue;
@@ -1265,7 +1405,9 @@ const [hrFieldVisitRows] = await db.query(
         currentDate > biometricLastDate &&
         !attendance &&
         !leave &&
-        !fieldVisit
+        !fieldVisit &&
+        !pendingLeave &&
+        !pendingFieldVisit
       ) {
         currentDate = addOneDay(currentDate);
         continue;
@@ -1309,12 +1451,17 @@ const [hrFieldVisitRows] = await db.query(
       let leaveSession = null;
 
       let fieldVisitType = null;
-let fieldVisitLocation = null;
+      let fieldVisitLocation = null;
 
-let isLateMark = false;
-let lateMarkReason = null;
+      let isLateMark = false;
+      let lateMarkReason = null;
+      let needsAttention = false;
+      let fieldVisitAttendanceStatus = null;
+      let requestStatus = null;
+      let pendingRequestType = null;
+      let pendingRequestId = null;
 
-let approvedByName = null;
+      let approvedByName = null;
       let approvedByEmail = null;
       let approvedAt = null;
 
@@ -1384,106 +1531,195 @@ let approvedByName = null;
         approvedAt =
           leave.reviewed_at || null;
       } else if (fieldVisit) {
-  finalStatus = "Field Visit";
-  source = "rms_field_visit";
+        finalStatus = "Field Visit";
+        source = "rms_field_visit";
 
-  fieldVisitType =
-    fieldVisit.visit_type || null;
+        fieldVisitType =
+          fieldVisit.visit_type || null;
 
-  fieldVisitLocation =
-    fieldVisit.location || null;
+        fieldVisitLocation =
+          fieldVisit.location || null;
 
-  const fieldVisitDuration = String(
-    fieldVisit.duration_type || ""
-  )
-    .trim()
-    .toLowerCase();
+        const fieldVisitDuration = String(
+          fieldVisit.duration_type || ""
+        )
+          .trim()
+          .toLowerCase();
 
-  const fieldVisitSession = String(
-    fieldVisit.half_day_session || ""
-  )
-    .trim()
-    .toLowerCase();
+        const fieldVisitSession = String(
+          fieldVisit.half_day_session || ""
+        )
+          .trim()
+          .toLowerCase();
 
-  /*
-    FIELD VISIT + LATE RULE
+        const fullDayFieldVisit =
+          fieldVisitDuration === "full_day";
 
-    Full day:
-      Never count as Late.
+        const firstHalfFieldVisit =
+          fieldVisitDuration === "half_day" &&
+          [
+            "first_half",
+            "first half",
+            "first",
+            "first_half_day",
+          ].includes(fieldVisitSession);
 
-    First half:
-      Never count as Late because employee
-      is officially outside during morning.
+        const secondHalfFieldVisit =
+          fieldVisitDuration === "half_day" &&
+          [
+            "second_half",
+            "second half",
+            "second",
+            "second_half_day",
+          ].includes(fieldVisitSession);
 
-    Second half:
-      Employee is expected in office during
-      first half, so check first punch.
-  */
+        if (secondHalfFieldVisit) {
+          if (!checkIn) {
+            fieldVisitAttendanceStatus =
+              "No Punch";
 
-  const fullDayFieldVisit =
-    fieldVisitDuration === "full_day";
+            needsAttention = true;
 
-  const firstHalfFieldVisit =
-    fieldVisitDuration === "half_day" &&
-    [
-      "first_half",
-      "first half",
-      "first",
-      "first_half_day",
-    ].includes(fieldVisitSession);
+            isLateMark = false;
 
-  const secondHalfFieldVisit =
-    fieldVisitDuration === "half_day" &&
-    [
-      "second_half",
-      "second half",
-      "second",
-      "second_half_day",
-    ].includes(fieldVisitSession);
+            lateMarkReason =
+              "No office check-in found before second-half field visit";
+          } else if (
+            isHalfDayCheckIn(checkIn)
+          ) {
+            fieldVisitAttendanceStatus =
+              "Half Day";
 
- if (
-  secondHalfFieldVisit &&
-  checkIn &&
-  isLateCheckIn(checkIn)
-) {
-    isLateMark = true;
+            needsAttention = true;
 
-    lateMarkReason =
-      `Late office check-in ${checkIn} before second-half field visit`;
-  }
+            isLateMark = false;
 
-  /*
-    Full day and first half explicitly
-    suppress the late mark.
-  */
-  if (
-    fullDayFieldVisit ||
-    firstHalfFieldVisit
-  ) {
-    isLateMark = false;
-    lateMarkReason = null;
-  }
+            lateMarkReason =
+              `Office check-in ${checkIn} is after 12:00 PM before second-half field visit`;
+          } else if (
+            isLateCheckIn(checkIn)
+          ) {
+            fieldVisitAttendanceStatus =
+              "Late";
 
-  detail =
-    fieldVisit.comment ||
-    [
-      fieldVisit.visit_type,
-      fieldVisit.duration_type,
-      fieldVisit.half_day_session,
-      fieldVisit.location,
-    ]
-      .filter(Boolean)
-      .join(" · ") ||
-    "Field Visit";
+            isLateMark = true;
 
-  approvedByName =
-    fieldVisit.reviewed_by_name || null;
+            lateMarkReason =
+              `Late office check-in ${checkIn} before second-half field visit`;
+          }
+        }
 
-  approvedByEmail =
-    fieldVisit.reviewed_by_email || null;
+        if (
+          fullDayFieldVisit ||
+          firstHalfFieldVisit
+        ) {
+          isLateMark = false;
+          lateMarkReason = null;
+          needsAttention = false;
+          fieldVisitAttendanceStatus = null;
+        }
 
-  approvedAt =
-    fieldVisit.reviewed_at || null;
+        detail =
+          fieldVisit.comment ||
+          [
+            fieldVisit.visit_type,
+            fieldVisit.duration_type,
+            fieldVisit.half_day_session,
+            fieldVisit.location,
+          ]
+            .filter(Boolean)
+            .join(" · ") ||
+          "Field Visit";
+
+        approvedByName =
+          fieldVisit.reviewed_by_name || null;
+
+        approvedByEmail =
+          fieldVisit.reviewed_by_email || null;
+
+        approvedAt =
+          fieldVisit.reviewed_at || null;
+      } else if (
+        (pendingLeave || pendingFieldVisit) &&
+        !checkIn &&
+        !checkOut &&
+        !sunday &&
+        !holidayName
+      ) {
+        finalStatus = "Pending Approval";
+
+        source = pendingLeave
+          ? "pending_leave"
+          : "pending_field_visit";
+
+        requestStatus = "pending";
+
+        if (pendingLeave) {
+          pendingRequestType =
+            `${getLeaveLabel(
+              pendingLeave.leave_type
+            )}${
+              pendingLeave.duration_type ===
+              "half_day"
+                ? ` · Half Day${
+                    pendingLeave.half_day_session
+                      ? ` · ${String(
+                          pendingLeave.half_day_session
+                        ).replace(/_/g, " ")}`
+                      : ""
+                  }`
+                : ""
+            }`;
+
+          pendingRequestId =
+            pendingLeave.leave_id;
+
+          detail =
+            pendingLeave.reason ||
+            `${getLeaveLabel(
+              pendingLeave.leave_type
+            )} pending approval`;
+        } else {
+          const pendingDuration =
+            String(
+              pendingFieldVisit.duration_type ||
+                ""
+            )
+              .trim()
+              .toLowerCase();
+
+          const pendingSession =
+            String(
+              pendingFieldVisit.half_day_session ||
+                ""
+            )
+              .trim()
+              .replace(/_/g, " ");
+
+          pendingRequestType = [
+            "Field Visit",
+            pendingFieldVisit.visit_type,
+            pendingDuration === "half_day"
+              ? `Half Day${
+                  pendingSession
+                    ? ` · ${pendingSession}`
+                    : ""
+                }`
+              : pendingDuration === "full_day"
+              ? "Full Day"
+              : null,
+          ]
+            .filter(Boolean)
+            .join(" · ");
+
+          pendingRequestId =
+            pendingFieldVisit.visit_id;
+
+          detail =
+            pendingFieldVisit.comment ||
+            pendingFieldVisit.location ||
+            "Field visit pending approval";
+        }
       } else if (attendance) {
         const rawStatus = String(
           attendance.status || "present"
@@ -1515,10 +1751,6 @@ let approvedByName = null;
           checkOut &&
           isHalfDayCheckIn(checkIn)
         ) {
-          /*
-            After 12:00 PM = Half Day.
-            This must take priority over Late.
-          */
           finalStatus = "Half Day";
 
           isLateMark = false;
@@ -1542,26 +1774,21 @@ let approvedByName = null;
           lateMarkReason =
             `First punch ${checkIn} is after 11:00 AM`;
         } else if (
-  checkIn &&
-  checkOut
-) {
-  finalStatus = "Present";
-
-} else if (
-  rawStatus === "present"
-) {
-  /*
-    HR/manual Present entry must still
-    reflect even when punches were not supplied.
-  */
-  finalStatus = "Present";
-
-} else {
-  finalStatus = "Absent";
-}
+          checkIn &&
+          checkOut
+        ) {
+          finalStatus = "Present";
+        } else if (
+          rawStatus === "present"
+        ) {
+          finalStatus = "Present";
+        } else {
+          finalStatus = "Absent";
+        }
 
         source = "attendance";
-        detail = attendance.remarks || "-";
+        detail =
+          attendance.remarks || "-";
       } else if (sunday) {
         finalStatus = "Weekly Off";
         source = "calendar";
@@ -1573,18 +1800,34 @@ let approvedByName = null;
       } else {
         finalStatus = "Absent";
         source = "system";
-        detail = "No biometric attendance found";
+        detail =
+          "No biometric attendance found";
       }
 
       records.push({
-        user_id: user.user_id,
-        employee_code: user.employee_code,
-        full_name: user.full_name,
-        email: user.email,
-        designation: user.designation,
-        department_id: user.department_id,
-        department_name: user.department_name,
-        role_name: user.role_name,
+        user_id:
+          user.user_id,
+
+        employee_code:
+          user.employee_code,
+
+        full_name:
+          user.full_name,
+
+        email:
+          user.email,
+
+        designation:
+          user.designation,
+
+        department_id:
+          user.department_id,
+
+        department_name:
+          user.department_name,
+
+        role_name:
+          user.role_name,
 
         joining_date:
           user.joining_date,
@@ -1593,7 +1836,8 @@ let approvedByName = null;
           firstAttendanceDate,
 
         attendance_id:
-          attendance?.attendance_id || null,
+          attendance?.attendance_id ||
+          null,
 
         attendance_date:
           currentDate,
@@ -1618,11 +1862,26 @@ let approvedByName = null;
         final_status:
           finalStatus,
 
-          is_late:
-  isLateMark,
+        is_late:
+          isLateMark,
 
-late_mark_reason:
-  lateMarkReason,
+        late_mark_reason:
+          lateMarkReason,
+
+        needs_attention:
+          needsAttention,
+
+        field_visit_attendance_status:
+          fieldVisitAttendanceStatus,
+
+        request_status:
+          requestStatus,
+
+        pending_request_type:
+          pendingRequestType,
+
+        pending_request_id:
+          pendingRequestId,
 
         source,
         detail,
@@ -1631,13 +1890,16 @@ late_mark_reason:
           conflictReason,
 
         attendance_status:
-          attendance?.status || null,
+          attendance?.status ||
+          null,
 
         attendance_remarks:
-          attendance?.remarks || null,
+          attendance?.remarks ||
+          null,
 
         leave_id:
-          leave?.leave_id || null,
+          leave?.leave_id ||
+          null,
 
         leave_code:
           leaveCode,
@@ -1652,25 +1914,30 @@ late_mark_reason:
           leaveSession,
 
         leave_reason:
-          leave?.reason || null,
+          leave?.reason ||
+          null,
 
         field_visit_id:
-          fieldVisit?.visit_id || null,
+          fieldVisit?.visit_id ||
+          null,
 
         field_visit_type:
-  fieldVisitType,
+          fieldVisitType,
 
-field_visit_duration:
-  fieldVisit?.duration_type || null,
+        field_visit_duration:
+          fieldVisit?.duration_type ||
+          null,
 
-field_visit_half_day_session:
-  fieldVisit?.half_day_session || null,
+        field_visit_half_day_session:
+          fieldVisit?.half_day_session ||
+          null,
 
-field_visit_location:
-  fieldVisitLocation,
+        field_visit_location:
+          fieldVisitLocation,
 
         field_visit_reason:
-          fieldVisit?.comment || null,
+          fieldVisit?.comment ||
+          null,
 
         approved_by_name:
           approvedByName,
@@ -1720,6 +1987,7 @@ field_visit_location:
     absent: 0,
     no_punch: 0,
     needs_review: 0,
+    pending_approval: 0,
 
     weekly_off: 0,
     holiday: 0,
@@ -1742,21 +2010,23 @@ field_visit_location:
       .toLowerCase();
 
     if (
-  status === "present" ||
-  status === "late"
-) {
-  summary.present += 1;
-}
+      status === "present" ||
+      status === "late"
+    ) {
+      summary.present += 1;
+    }
 
-if (record.is_late) {
-  summary.late += 1;
-}
+    if (record.is_late) {
+      summary.late += 1;
+    }
 
     if (status === "half day") {
       summary.half_day += 1;
     }
 
-    if (status === "half day leave") {
+    if (
+      status === "half day leave"
+    ) {
       summary.half_day += 1;
     }
 
@@ -1768,11 +2038,22 @@ if (record.is_late) {
       summary.no_punch += 1;
     }
 
-    if (status === "needs review") {
+    if (
+      status === "needs review" ||
+      record.needs_attention
+    ) {
       summary.needs_review += 1;
     }
 
-    if (status === "weekly off") {
+    if (
+      status === "pending approval"
+    ) {
+      summary.pending_approval += 1;
+    }
+
+    if (
+      status === "weekly off"
+    ) {
       summary.weekly_off += 1;
     }
 
@@ -1780,7 +2061,9 @@ if (record.is_late) {
       summary.holiday += 1;
     }
 
-    if (status === "field visit") {
+    if (
+      status === "field visit"
+    ) {
       summary.field_visit += 1;
     }
 
@@ -1814,254 +2097,334 @@ if (record.is_late) {
     }
   });
 
-  const leaveApplications = hrLeaveRows.map((leave) => ({
-    revert_status:
-  leave.revert_status || "none",
+  const leaveApplications =
+    hrLeaveRows.map((leave) => ({
+      revert_status:
+        leave.revert_status ||
+        "none",
 
-revert_reason:
-  leave.revert_reason || null,
+      revert_reason:
+        leave.revert_reason ||
+        null,
 
-revert_requested_at:
-  leave.revert_requested_at || null,
+      revert_requested_at:
+        leave.revert_requested_at ||
+        null,
 
-revert_reviewed_by:
-  leave.revert_reviewed_by || null,
+      revert_reviewed_by:
+        leave.revert_reviewed_by ||
+        null,
 
-revert_reviewed_by_name:
-  leave.revert_reviewed_by_name || null,
+      revert_reviewed_by_name:
+        leave.revert_reviewed_by_name ||
+        null,
 
-revert_reviewed_by_email:
-  leave.revert_reviewed_by_email || null,
+      revert_reviewed_by_email:
+        leave.revert_reviewed_by_email ||
+        null,
 
-revert_reviewed_at:
-  leave.revert_reviewed_at || null,
+      revert_reviewed_at:
+        leave.revert_reviewed_at ||
+        null,
 
-revert_review_remark:
-  leave.revert_review_remark || null,
-    leave_id: leave.leave_id,
-    employee_id: leave.employee_id,
-    employee_code: leave.employee_code,
-    employee_name: leave.employee_name,
-    employee_email: leave.employee_email,
-    designation: leave.designation,
-    department_id: leave.department_id,
-    department_name: leave.department_name,
-    role_name: leave.role_name,
-    leave_type: getLeaveLabel(leave.leave_type),
-    leave_code: leave.leave_type,
-    start_date: leave.start_date,
-    end_date: leave.end_date,
-    total_days: leave.total_days,
-    duration_type: leave.duration_type,
-    half_day_session: leave.half_day_session,
-    reason: leave.reason,
-    display_status: getHrLeaveDisplayStatus(leave),
-    status: leave.status,
-    escalated_for_approval: Number(
-      leave.escalated_for_approval || 0
-    ),
-    escalated_by_name:
-      leave.escalated_by_name || null,
-    escalated_at:
-      leave.escalated_at || null,
-    reviewed_by_name:
-      leave.reviewed_by_name || null,
-    reviewed_at:
-      leave.reviewed_at || null,
-    review_remark:
-      leave.review_remark || null,
-  }));
+      revert_review_remark:
+        leave.revert_review_remark ||
+        null,
 
+      leave_id:
+        leave.leave_id,
 
-  const hrFieldVisits = hrFieldVisitRows.map(
-  (visit) => ({
-    visit_id: visit.visit_id,
-    employee_id: visit.employee_id,
+      employee_id:
+        leave.employee_id,
 
-    employee_name:
-      visit.employee_name,
+      employee_code:
+        leave.employee_code,
 
-    employee_code:
-      visit.employee_code,
+      employee_name:
+        leave.employee_name,
 
-    employee_email:
-      visit.employee_email,
+      employee_email:
+        leave.employee_email,
 
-    designation:
-      visit.designation,
+      designation:
+        leave.designation,
 
-    department_id:
-      visit.department_id,
+      department_id:
+        leave.department_id,
 
-    department_name:
-      visit.department_name,
+      department_name:
+        leave.department_name,
 
-    role_name:
-      visit.role_name,
+      role_name:
+        leave.role_name,
 
-    visit_type:
-      visit.visit_type,
+      leave_type:
+        getLeaveLabel(
+          leave.leave_type
+        ),
 
-    visit_date:
-      visit.visit_date,
+      leave_code:
+        leave.leave_type,
 
-    duration_type:
-      visit.duration_type,
+      start_date:
+        leave.start_date,
 
-    half_day_session:
-      visit.half_day_session,
+      end_date:
+        leave.end_date,
 
-    start_time:
-      visit.start_time,
+      total_days:
+        leave.total_days,
 
-    end_time:
-      visit.end_time,
+      duration_type:
+        leave.duration_type,
 
-    location:
-      visit.location,
+      half_day_session:
+        leave.half_day_session,
 
-    status:
-      visit.status,
+      reason:
+        leave.reason,
 
-    reviewed_by:
-      visit.reviewed_by,
+      display_status:
+        getHrLeaveDisplayStatus(
+          leave
+        ),
 
-    reviewed_by_name:
-      visit.reviewed_by_name || null,
+      status:
+        leave.status,
 
-    reviewed_by_email:
-      visit.reviewed_by_email || null,
+      escalated_for_approval:
+        Number(
+          leave.escalated_for_approval ||
+            0
+        ),
 
-    reviewed_at:
-      visit.reviewed_at || null,
+      escalated_by_name:
+        leave.escalated_by_name ||
+        null,
 
-    comment:
-      visit.comment || null,
+      escalated_at:
+        leave.escalated_at ||
+        null,
 
-    review_remark:
-      visit.review_remark || null,
-  })
-);
+      reviewed_by_name:
+        leave.reviewed_by_name ||
+        null,
 
-const fieldVisitSummary = {
-  total:
-    hrFieldVisits.length,
+      reviewed_at:
+        leave.reviewed_at ||
+        null,
 
-  pending:
-    hrFieldVisits.filter(
-      (item) =>
-        String(item.status)
-          .toLowerCase() ===
-        "pending"
-    ).length,
+      review_remark:
+        leave.review_remark ||
+        null,
+    }));
 
-  approved:
-    hrFieldVisits.filter(
-      (item) =>
-        String(item.status)
-          .toLowerCase() ===
-        "approved"
-    ).length,
+  const hrFieldVisits =
+    hrFieldVisitRows.map(
+      (visit) => ({
+        visit_id:
+          visit.visit_id,
 
-  rejected:
-    hrFieldVisits.filter(
-      (item) =>
-        String(item.status)
-          .toLowerCase() ===
-        "rejected"
-    ).length,
+        employee_id:
+          visit.employee_id,
 
-  employees:
-    new Set(
-      hrFieldVisits
-        .map(
-          (item) =>
-            Number(
-              item.employee_id
-            )
-        )
-        .filter(Boolean)
-    ).size,
+        employee_name:
+          visit.employee_name,
 
-  locations:
-    new Set(
-      hrFieldVisits
-        .map(
-          (item) =>
-            String(
-              item.location || ""
-            ).trim()
-        )
-        .filter(Boolean)
-    ).size,
-};
+        employee_code:
+          visit.employee_code,
+
+        employee_email:
+          visit.employee_email,
+
+        designation:
+          visit.designation,
+
+        department_id:
+          visit.department_id,
+
+        department_name:
+          visit.department_name,
+
+        role_name:
+          visit.role_name,
+
+        visit_type:
+          visit.visit_type,
+
+        visit_date:
+          visit.visit_date,
+
+        duration_type:
+          visit.duration_type,
+
+        half_day_session:
+          visit.half_day_session,
+
+        start_time:
+          visit.start_time,
+
+        end_time:
+          visit.end_time,
+
+        location:
+          visit.location,
+
+        status:
+          visit.status,
+
+        reviewed_by:
+          visit.reviewed_by,
+
+        reviewed_by_name:
+          visit.reviewed_by_name ||
+          null,
+
+        reviewed_by_email:
+          visit.reviewed_by_email ||
+          null,
+
+        reviewed_at:
+          visit.reviewed_at ||
+          null,
+
+        comment:
+          visit.comment ||
+          null,
+
+        review_remark:
+          visit.review_remark ||
+          null,
+      })
+    );
+
+  const fieldVisitSummary = {
+    total:
+      hrFieldVisits.length,
+
+    pending:
+      hrFieldVisits.filter(
+        (item) =>
+          String(item.status)
+            .toLowerCase() ===
+          "pending"
+      ).length,
+
+    approved:
+      hrFieldVisits.filter(
+        (item) =>
+          String(item.status)
+            .toLowerCase() ===
+          "approved"
+      ).length,
+
+    rejected:
+      hrFieldVisits.filter(
+        (item) =>
+          String(item.status)
+            .toLowerCase() ===
+          "rejected"
+      ).length,
+
+    employees:
+      new Set(
+        hrFieldVisits
+          .map(
+            (item) =>
+              Number(
+                item.employee_id
+              )
+          )
+          .filter(Boolean)
+      ).size,
+
+    locations:
+      new Set(
+        hrFieldVisits
+          .map(
+            (item) =>
+              String(
+                item.location || ""
+              ).trim()
+          )
+          .filter(Boolean)
+      ).size,
+  };
 
   const leaveApplicationSummary = {
-    total: leaveApplications.length,
+    total:
+      leaveApplications.length,
 
     pending:
       leaveApplications.filter(
         (item) =>
-          item.display_status === "Pending"
+          item.display_status ===
+          "Pending"
       ).length,
 
     escalated:
       leaveApplications.filter(
         (item) =>
-          item.display_status === "Escalated"
+          item.display_status ===
+          "Escalated"
       ).length,
 
     approved:
       leaveApplications.filter(
         (item) =>
-          item.display_status === "Approved"
+          item.display_status ===
+          "Approved"
       ).length,
 
     rejected:
       leaveApplications.filter(
         (item) =>
-          item.display_status === "Rejected"
+          item.display_status ===
+          "Rejected"
       ).length,
   };
 
-return {
-  users,
-  records,
-  summary,
+  return {
+    users,
+    records,
+    summary,
 
-  leave_applications:
-    leaveApplications,
+    leave_applications:
+      leaveApplications,
 
-  leave_application_summary:
-    leaveApplicationSummary,
+    leave_application_summary:
+      leaveApplicationSummary,
 
-  field_visits:
-    hrFieldVisits,
+    field_visits:
+      hrFieldVisits,
 
-  field_visit_summary:
-    fieldVisitSummary,
+    field_visit_summary:
+      fieldVisitSummary,
 
-  biometric_range: {
-    first_date:
-      biometricFirstDate,
+    biometric_range: {
+      first_date:
+        biometricFirstDate,
 
-    last_date:
-      biometricLastDate,
-  },
-};
-
+      last_date:
+        biometricLastDate,
+    },
+  };
 };
 
 /* =========================================================
    GET
 ========================================================= */
 
-const getHrAttendance = async (req, res) => {
+const getHrAttendance = async (
+  req,
+  res
+) => {
   try {
     if (!isAuthorizedHR(req)) {
       return res.status(403).json({
         success: false,
-        message: "HR Attendance access denied.",
+        message:
+          "HR Attendance access denied.",
       });
     }
 
@@ -2120,25 +2483,35 @@ const getHrAttendance = async (req, res) => {
       records:
         result.records.slice(
           (Math.max(
-            Number(req.query.page || 1),
+            Number(
+              req.query.page || 1
+            ),
             1
           ) -
             1) *
             Math.min(
               Math.max(
-                Number(req.query.page_size || 100),
+                Number(
+                  req.query.page_size ||
+                    100
+                ),
                 1
               ),
               100
             ),
 
           Math.max(
-            Number(req.query.page || 1),
+            Number(
+              req.query.page || 1
+            ),
             1
           ) *
             Math.min(
               Math.max(
-                Number(req.query.page_size || 100),
+                Number(
+                  req.query.page_size ||
+                    100
+                ),
                 1
               ),
               100
@@ -2149,10 +2522,12 @@ const getHrAttendance = async (req, res) => {
         result.summary,
 
       leave_applications:
-        result.leave_applications || [],
+        result.leave_applications ||
+        [],
 
       leave_application_summary:
-        result.leave_application_summary || {
+        result.leave_application_summary ||
+        {
           total: 0,
           pending: 0,
           escalated: 0,
@@ -2160,32 +2535,38 @@ const getHrAttendance = async (req, res) => {
           rejected: 0,
         },
 
-        field_visits:
-  result.field_visits || [],
+      field_visits:
+        result.field_visits ||
+        [],
 
-field_visit_summary:
-  result.field_visit_summary || {
-    total: 0,
-    pending: 0,
-    approved: 0,
-    rejected: 0,
-    employees: 0,
-    locations: 0,
-  },
-
-
+      field_visit_summary:
+        result.field_visit_summary ||
+        {
+          total: 0,
+          pending: 0,
+          approved: 0,
+          rejected: 0,
+          employees: 0,
+          locations: 0,
+        },
 
       pagination: {
         page:
           Math.max(
-            Number(req.query.page || 1),
+            Number(
+              req.query.page ||
+                1
+            ),
             1
           ),
 
         page_size:
           Math.min(
             Math.max(
-              Number(req.query.page_size || 100),
+              Number(
+                req.query.page_size ||
+                  100
+              ),
               1
             ),
             100
@@ -2200,7 +2581,11 @@ field_visit_summary:
               result.records.length /
                 Math.min(
                   Math.max(
-                    Number(req.query.page_size || 100),
+                    Number(
+                      req.query
+                        .page_size ||
+                        100
+                    ),
                     1
                   ),
                   100
@@ -2223,7 +2608,8 @@ field_visit_summary:
       error:
         error.message,
       sqlMessage:
-        error.sqlMessage || null,
+        error.sqlMessage ||
+        null,
     });
   }
 };
@@ -2232,23 +2618,30 @@ field_visit_summary:
    MANUAL ADD / UPDATE
 ========================================================= */
 
-const saveHrAttendance = async (req, res) => {
+const saveHrAttendance = async (
+  req,
+  res
+) => {
   try {
     if (!isAuthorizedHR(req)) {
       return res.status(403).json({
         success: false,
-        message: "HR Attendance access denied.",
+        message:
+          "HR Attendance access denied.",
       });
     }
 
     const employeeId =
       Number(
-        req.body?.employee_id || 0
+        req.body?.employee_id ||
+        0
       );
 
     const attendanceDate =
       String(
-        req.body?.attendance_date || ""
+        req.body
+          ?.attendance_date ||
+        ""
       ).trim();
 
     const checkIn =
@@ -2271,8 +2664,10 @@ const saveHrAttendance = async (req, res) => {
 
     const remarks =
       String(
-        req.body?.remarks || ""
-      ).trim() || null;
+        req.body?.remarks ||
+        ""
+      ).trim() ||
+      null;
 
     if (
       !employeeId ||
@@ -2294,7 +2689,9 @@ const saveHrAttendance = async (req, res) => {
     ];
 
     if (
-      !allowedStatuses.includes(status)
+      !allowedStatuses.includes(
+        status
+      )
     ) {
       return res.status(400).json({
         success: false,
@@ -2329,7 +2726,9 @@ const saveHrAttendance = async (req, res) => {
         ]
       );
 
-    if (existingRows.length) {
+    if (
+      existingRows.length
+    ) {
       await db.query(
         `
         UPDATE attendance
@@ -2349,7 +2748,8 @@ const saveHrAttendance = async (req, res) => {
           totalMinutes,
           status,
           remarks,
-          existingRows[0].attendance_id,
+          existingRows[0]
+            .attendance_id,
         ]
       );
 
@@ -2403,7 +2803,8 @@ const saveHrAttendance = async (req, res) => {
       error:
         error.message,
       sqlMessage:
-        error.sqlMessage || null,
+        error.sqlMessage ||
+        null,
     });
   }
 };
@@ -2412,7 +2813,10 @@ const saveHrAttendance = async (req, res) => {
    IMPORT
 ========================================================= */
 
-const importHrAttendance = async (req, res) => {
+const importHrAttendance = async (
+  req,
+  res
+) => {
   const connection =
     await db.getConnection();
 
@@ -2420,7 +2824,8 @@ const importHrAttendance = async (req, res) => {
     if (!isAuthorizedHR(req)) {
       return res.status(403).json({
         success: false,
-        message: "HR Attendance access denied.",
+        message:
+          "HR Attendance access denied.",
       });
     }
 
@@ -2449,9 +2854,12 @@ const importHrAttendance = async (req, res) => {
     const unmatchedEmployees =
       new Map();
 
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
-    for (const row of rows) {
+    for (
+      const row of rows
+    ) {
       const employeeCode =
         cleanText(
           getValue(row, [
@@ -2523,30 +2931,36 @@ const importHrAttendance = async (req, res) => {
           "Unknown";
 
         if (
-          !unmatchedEmployees.has(
-            unmatchedKey
-          )
+          !unmatchedEmployees
+            .has(
+              unmatchedKey
+            )
         ) {
-          unmatchedEmployees.set(
-            unmatchedKey,
-            {
-              employee_code:
-                employeeCode || null,
+          unmatchedEmployees
+            .set(
+              unmatchedKey,
+              {
+                employee_code:
+                  employeeCode ||
+                  null,
 
-              full_name:
-                fullName || null,
+                full_name:
+                  fullName ||
+                  null,
 
-              email:
-                email || null,
+                email:
+                  email ||
+                  null,
 
-              rows: 0,
-            }
-          );
+                rows: 0,
+              }
+            );
         }
 
-        unmatchedEmployees.get(
-          unmatchedKey
-        ).rows += 1;
+        unmatchedEmployees
+          .get(
+            unmatchedKey
+          ).rows += 1;
 
         continue;
       }
@@ -2621,11 +3035,6 @@ const importHrAttendance = async (req, res) => {
           "status",
         ]);
 
-      /*
-        Completely empty row:
-        don't save fake attendance.
-      */
-
       if (
         !checkIn &&
         !checkOut &&
@@ -2649,7 +3058,8 @@ const importHrAttendance = async (req, res) => {
             "Remark",
             "remarks",
           ])
-        ) || null;
+        ) ||
+        null;
 
       const [existingRows] =
         await connection.query(
@@ -2670,7 +3080,9 @@ const importHrAttendance = async (req, res) => {
           ]
         );
 
-      if (existingRows.length) {
+      if (
+        existingRows.length
+      ) {
         await connection.query(
           `
           UPDATE attendance
@@ -2690,7 +3102,8 @@ const importHrAttendance = async (req, res) => {
             totalMinutes,
             status,
             remarks,
-            existingRows[0].attendance_id,
+            existingRows[0]
+              .attendance_id,
           ]
         );
 
@@ -2749,12 +3162,14 @@ const importHrAttendance = async (req, res) => {
 
       unmatched_employees:
         Array.from(
-          unmatchedEmployees.values()
+          unmatchedEmployees
+            .values()
         ),
     });
   } catch (error) {
     try {
-      await connection.rollback();
+      await connection
+        .rollback();
     } catch {}
 
     console.error(
@@ -2769,7 +3184,8 @@ const importHrAttendance = async (req, res) => {
       error:
         error.message,
       sqlMessage:
-        error.sqlMessage || null,
+        error.sqlMessage ||
+        null,
     });
   } finally {
     connection.release();
@@ -2780,7 +3196,9 @@ const importHrAttendance = async (req, res) => {
    EXPORT HELPERS
 ========================================================= */
 
-const escapeCsvValue = (value) => {
+const escapeCsvValue = (
+  value
+) => {
   const text =
     value === null ||
     value === undefined
@@ -2806,21 +3224,29 @@ const escapeCsvValue = (value) => {
    EXPORT
 ========================================================= */
 
-const exportHrAttendance = async (req, res) => {
+const exportHrAttendance = async (
+  req,
+  res
+) => {
   try {
     if (!isAuthorizedHR(req)) {
       return res.status(403).json({
         success: false,
-        message: "HR Attendance access denied.",
+        message:
+          "HR Attendance access denied.",
       });
     }
 
-    const today = new Date();
+    const today =
+      new Date();
 
     const defaultFrom =
       `${today.getFullYear()}-${String(
         today.getMonth() + 1
-      ).padStart(2, "0")}-01`;
+      ).padStart(
+        2,
+        "0"
+      )}-01`;
 
     const defaultTo =
       formatDate(today);
@@ -2843,8 +3269,20 @@ const exportHrAttendance = async (req, res) => {
         .trim()
         .toLowerCase();
 
-    if (fromDate > toDate) {
-      return res.status(400).json({
+    const exportView =
+      String(
+        req.query.view ||
+        "attendance"
+      )
+        .trim()
+        .toLowerCase();
+
+    if (
+      fromDate > toDate
+    ) {
+      return res.status(
+        400
+      ).json({
         success: false,
         message:
           "From date cannot be after To date.",
@@ -2857,81 +3295,811 @@ const exportHrAttendance = async (req, res) => {
         toDate
       );
 
+    if (
+      exportView ===
+      "employee-summary"
+    ) {
+      const recordsByUser =
+        new Map();
+
+      result.records.forEach(
+        (record) => {
+          const userId =
+            Number(
+              record.user_id
+            );
+
+          if (
+            !recordsByUser.has(
+              userId
+            )
+          ) {
+            recordsByUser.set(
+              userId,
+              []
+            );
+          }
+
+          recordsByUser
+            .get(userId)
+            .push(record);
+        }
+      );
+
+      const summaryRows =
+        result.users
+          .map((user) => {
+            const employeeRecords =
+              recordsByUser.get(
+                Number(
+                  user.user_id
+                )
+              ) ||
+              [];
+
+            if (
+              !employeeRecords.length
+            ) {
+              return null;
+            }
+
+            const totals = {
+              working_days: 0,
+              present: 0,
+              absent: 0,
+              late: 0,
+              half_day: 0,
+              field_visit: 0,
+              leave: 0,
+              no_punch: 0,
+              needs_review: 0,
+              pending_approval: 0,
+              weekly_off: 0,
+              holiday: 0,
+              sick_leave: 0,
+              casual_leave: 0,
+              privileged_leave: 0,
+              festival_leave: 0,
+              unpaid_leave: 0,
+              total_days: 0,
+              lop: 0,
+            };
+
+            employeeRecords
+              .forEach(
+                (record) => {
+                  const status =
+                    String(
+                      record
+                        .final_status ||
+                      ""
+                    )
+                      .trim()
+                      .toLowerCase();
+
+                  if (
+                    status !==
+                      "weekly off" &&
+                    status !==
+                      "holiday"
+                  ) {
+                    totals
+                      .working_days +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                      "present" ||
+                    status ===
+                      "late"
+                  ) {
+                    totals.present +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                      "late" ||
+                    record.is_late
+                  ) {
+                    totals.late +=
+                      record
+                        .is_late ||
+                      status ===
+                        "late"
+                        ? 1
+                        : 0;
+                  }
+
+                  if (
+                    status ===
+                    "half day"
+                  ) {
+                    totals.present +=
+                      0.5;
+
+                    totals.half_day +=
+                      0.5;
+
+                    totals.lop +=
+                      0.5;
+                  }
+
+                  if (
+                    status ===
+                    "absent"
+                  ) {
+                    totals.absent +=
+                      1;
+
+                    totals.lop +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                    "field visit"
+                  ) {
+                    const visitDays =
+                      String(
+                        record
+                          .field_visit_duration ||
+                        ""
+                      )
+                        .trim()
+                        .toLowerCase() ===
+                      "half_day"
+                        ? 0.5
+                        : 1;
+
+                    totals.field_visit +=
+                      visitDays;
+
+                    if (
+                      String(
+                        record
+                          .field_visit_attendance_status ||
+                        ""
+                      )
+                        .trim()
+                        .toLowerCase() ===
+                      "half day"
+                    ) {
+                      totals.lop +=
+                        0.5;
+                    }
+                  }
+
+                  if (
+                    status ===
+                    "weekly off"
+                  ) {
+                    totals.weekly_off +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                    "holiday"
+                  ) {
+                    totals.holiday +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                    "no punch"
+                  ) {
+                    totals.no_punch +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                      "needs review" ||
+                    record
+                      .needs_attention
+                  ) {
+                    totals.needs_review +=
+                      1;
+                  }
+
+                  if (
+                    status ===
+                    "pending approval"
+                  ) {
+                    totals
+                      .pending_approval +=
+                      1;
+                  }
+
+                  if (
+                    record.leave_id
+                  ) {
+                    const leaveDays =
+                      String(
+                        record
+                          .leave_duration ||
+                        ""
+                      )
+                        .trim()
+                        .toLowerCase() ===
+                      "half day"
+                        ? 0.5
+                        : 1;
+
+                    totals.leave +=
+                      leaveDays;
+
+                    if (
+                      record
+                        .leave_code ===
+                      "unpaid"
+                    ) {
+                      totals
+                        .unpaid_leave +=
+                        leaveDays;
+
+                      totals.lop +=
+                        leaveDays;
+                    } else if (
+                      record
+                        .leave_code ===
+                      "sick"
+                    ) {
+                      totals
+                        .sick_leave +=
+                        leaveDays;
+                    } else if (
+                      record
+                        .leave_code ===
+                      "casual"
+                    ) {
+                      totals
+                        .casual_leave +=
+                        leaveDays;
+                    } else if (
+                      record
+                        .leave_code ===
+                      "mandatory"
+                    ) {
+                      totals
+                        .privileged_leave +=
+                        leaveDays;
+                    } else if (
+                      record
+                        .leave_code ===
+                      "festival"
+                    ) {
+                      totals
+                        .festival_leave +=
+                        leaveDays;
+                    }
+                  }
+                }
+              );
+
+            totals.total_days =
+              Math.max(
+                employeeRecords
+                  .length -
+                  totals.lop,
+                0
+              );
+
+            return {
+              "Employee ID":
+                user.employee_code ||
+                "",
+
+              "Employee Name":
+                user.full_name ||
+                "",
+
+              Email:
+                user.email ||
+                "",
+
+              Department:
+                user
+                  .department_name ||
+                "",
+
+              Designation:
+                user.designation ||
+                "",
+
+              "Period From":
+                fromDate,
+
+              "Period To":
+                toDate,
+
+              "Working Days":
+                totals
+                  .working_days,
+
+              Present:
+                totals.present,
+
+              Absent:
+                totals.absent,
+
+              Late:
+                totals.late,
+
+              "Half Day":
+                totals.half_day,
+
+              "Field Visit":
+                totals
+                  .field_visit,
+
+              Leave:
+                totals.leave,
+
+              "No Punch":
+                totals.no_punch,
+
+              "Needs Review":
+                totals
+                  .needs_review,
+
+              "Pending Approval":
+                totals
+                  .pending_approval,
+
+              "Weekly Off":
+                totals
+                  .weekly_off,
+
+              Holiday:
+                totals.holiday,
+
+              "Sick Leave":
+                totals
+                  .sick_leave,
+
+              "Casual Leave":
+                totals
+                  .casual_leave,
+
+              "Privileged Leave":
+                totals
+                  .privileged_leave,
+
+              "Festival Leave":
+                totals
+                  .festival_leave,
+
+              "Unpaid Leave":
+                totals
+                  .unpaid_leave,
+
+              "Total Days":
+                totals
+                  .total_days,
+
+              LOP:
+                totals.lop,
+            };
+          })
+          .filter(Boolean);
+
+      const detailRows =
+        result.records.map(
+          (record) => ({
+            "Employee ID":
+              record.employee_code ||
+              "",
+
+            "Employee Name":
+              record.full_name ||
+              "",
+
+            Department:
+              record
+                .department_name ||
+              "",
+
+            Date:
+              record
+                .attendance_date ||
+              "",
+
+            Day:
+              record.day_name ||
+              "",
+
+            Status:
+              record.final_status ===
+                "Field Visit" &&
+              record
+                .field_visit_attendance_status
+                ? `Field Visit · ${record.field_visit_attendance_status}`
+                : record
+                    .final_status ||
+                  "",
+
+            "First Punch":
+              record
+                .check_in_time ===
+              "-"
+                ? ""
+                : record
+                    .check_in_time,
+
+            "Last Punch":
+              record
+                .check_out_time ===
+              "-"
+                ? ""
+                : record
+                    .check_out_time,
+
+            "Total Time":
+              record
+                .working_hours ===
+              "-"
+                ? ""
+                : record
+                    .working_hours,
+
+            "Leave Type":
+              record.leave_type ||
+              "",
+
+            "Leave Duration":
+              record
+                .leave_duration ||
+              "",
+
+            "Leave Half":
+              record.leave_session ||
+              "",
+
+            "Field Visit Type":
+              record
+                .field_visit_type ||
+              "",
+
+            "Field Visit Duration":
+              record
+                .field_visit_duration ||
+              "",
+
+            "Field Visit Half":
+              record
+                .field_visit_half_day_session ||
+              "",
+
+            "Field Visit Location":
+              record
+                .field_visit_location ||
+              "",
+
+            "Request Status":
+              record.request_status ||
+              (
+                record.leave_id ||
+                record
+                  .field_visit_id
+                  ? "approved"
+                  : ""
+              ),
+
+            "Pending Request":
+              record
+                .pending_request_type ||
+              "",
+
+            "Approved By":
+              record
+                .approved_by_name ||
+              "",
+
+            "Approved At":
+              record
+                .approved_at ||
+              "",
+
+            "Needs Attention":
+              record
+                .needs_attention
+                ? "Yes"
+                : "",
+
+            Remark:
+              record
+                .leave_reason ||
+              record
+                .field_visit_reason ||
+              record
+                .attendance_remarks ||
+              record.detail ||
+              "",
+          })
+        );
+
+      if (
+        exportFormat ===
+        "csv"
+      ) {
+        const headers =
+          Object.keys(
+            summaryRows[0] ||
+            {}
+          );
+
+        const csvLines = [
+          headers
+            .map(
+              escapeCsvValue
+            )
+            .join(","),
+
+          ...summaryRows.map(
+            (row) =>
+              headers
+                .map(
+                  (header) =>
+                    escapeCsvValue(
+                      row[
+                        header
+                      ]
+                    )
+                )
+                .join(",")
+          ),
+        ];
+
+        const csv =
+          "\uFEFF" +
+          csvLines.join(
+            "\r\n"
+          );
+
+        res.setHeader(
+          "Content-Type",
+          "text/csv; charset=utf-8"
+        );
+
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="hr-employee-summary-${fromDate}-to-${toDate}.csv"`
+        );
+
+        return res.send(csv);
+      }
+
+      if (
+        exportFormat !==
+        "xlsx"
+      ) {
+        return res.status(
+          400
+        ).json({
+          success: false,
+          message:
+            "Export format must be xlsx or csv.",
+        });
+      }
+
+      const workbook =
+        XLSX.utils
+          .book_new();
+
+      const summarySheet =
+        XLSX.utils
+          .json_to_sheet(
+            summaryRows
+          );
+
+      summarySheet["!cols"] =
+        Object.keys(
+          summaryRows[0] ||
+          {}
+        ).map(() => ({
+          wch: 18,
+        }));
+
+      const detailSheet =
+        XLSX.utils
+          .json_to_sheet(
+            detailRows
+          );
+
+      detailSheet["!cols"] =
+        Object.keys(
+          detailRows[0] ||
+          {}
+        ).map(() => ({
+          wch: 20,
+        }));
+
+      XLSX.utils
+        .book_append_sheet(
+          workbook,
+          summarySheet,
+          "Employee Summary"
+        );
+
+      XLSX.utils
+        .book_append_sheet(
+          workbook,
+          detailSheet,
+          "Day-wise Details"
+        );
+
+      const buffer =
+        XLSX.write(
+          workbook,
+          {
+            bookType:
+              "xlsx",
+            type:
+              "buffer",
+          }
+        );
+
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      );
+
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="hr-employee-summary-${fromDate}-to-${toDate}.xlsx"`
+      );
+
+      return res.send(
+        buffer
+      );
+    }
+
     const exportRows =
-      result.records.map((record) => ({
-        "Employee ID":
-          record.employee_code || "",
+      result.records.map(
+        (record) => ({
+          "Employee ID":
+            record.employee_code ||
+            "",
 
-        "Employee Name":
-          record.full_name || "",
+          "Employee Name":
+            record.full_name ||
+            "",
 
-        Email:
-          record.email || "",
+          Email:
+            record.email ||
+            "",
 
-        Department:
-          record.department_name || "",
+          Department:
+            record
+              .department_name ||
+            "",
 
-        Designation:
-          record.designation || "",
+          Designation:
+            record.designation ||
+            "",
 
-        Date:
-          record.attendance_date || "",
+          Date:
+            record
+              .attendance_date ||
+            "",
 
-        Day:
-          record.day_name || "",
+          Day:
+            record.day_name ||
+            "",
 
-        "First Punch":
-          record.check_in_time === "-"
-            ? ""
-            : record.check_in_time,
+          "First Punch":
+            record
+              .check_in_time ===
+            "-"
+              ? ""
+              : record
+                  .check_in_time,
 
-        "Last Punch":
-          record.check_out_time === "-"
-            ? ""
-            : record.check_out_time,
+          "Last Punch":
+            record
+              .check_out_time ===
+            "-"
+              ? ""
+              : record
+                  .check_out_time,
 
-        "Total Time":
-          record.working_hours === "-"
-            ? ""
-            : record.working_hours,
+          "Total Time":
+            record
+              .working_hours ===
+            "-"
+              ? ""
+              : record
+                  .working_hours,
 
-        Status:
-          record.final_status || "",
+          Status:
+            record
+              .final_status ||
+            "",
 
-        "Leave Type":
-          record.leave_type || "",
+          "Leave Type":
+            record.leave_type ||
+            "",
 
-        "Leave Duration":
-          record.leave_duration || "",
+          "Leave Duration":
+            record
+              .leave_duration ||
+            "",
 
-        "Leave Session":
-          record.leave_session || "",
+          "Leave Session":
+            record
+              .leave_session ||
+            "",
 
-        "Field Visit Type":
-          record.field_visit_type || "",
+          "Field Visit Type":
+            record
+              .field_visit_type ||
+            "",
 
-        "Field Visit Location":
-          record.field_visit_location || "",
+          "Field Visit Duration":
+            record
+              .field_visit_duration ||
+            "",
 
-        "Approved By":
-          record.approved_by_name || "",
+          "Field Visit Half":
+            record
+              .field_visit_half_day_session ||
+            "",
 
-        "Approved At":
-          record.approved_at || "",
+          "Field Visit Location":
+            record
+              .field_visit_location ||
+            "",
 
-        Remark:
-          record.leave_reason ||
-          record.field_visit_reason ||
-          record.attendance_remarks ||
-          record.detail ||
-          "",
-      }));
+          "Request Status":
+            record.request_status ||
+            (
+              record.leave_id ||
+              record
+                .field_visit_id
+                ? "approved"
+                : ""
+            ),
 
-    /* =====================================================
-       CSV
-    ===================================================== */
+          "Pending Request":
+            record
+              .pending_request_type ||
+            "",
 
-    if (exportFormat === "csv") {
+          "Needs Attention":
+            record
+              .needs_attention
+              ? "Yes"
+              : "",
+
+          "Approved By":
+            record
+              .approved_by_name ||
+            "",
+
+          "Approved At":
+            record
+              .approved_at ||
+            "",
+
+          Remark:
+            record
+              .leave_reason ||
+            record
+              .field_visit_reason ||
+            record
+              .attendance_remarks ||
+            record.detail ||
+            "",
+        })
+      );
+
+    if (
+      exportFormat === "csv"
+    ) {
       const headers = [
         "Employee ID",
         "Employee Name",
@@ -2948,7 +4116,12 @@ const exportHrAttendance = async (req, res) => {
         "Leave Duration",
         "Leave Session",
         "Field Visit Type",
+        "Field Visit Duration",
+        "Field Visit Half",
         "Field Visit Location",
+        "Request Status",
+        "Pending Request",
+        "Needs Attention",
         "Approved By",
         "Approved At",
         "Remark",
@@ -2956,23 +4129,29 @@ const exportHrAttendance = async (req, res) => {
 
       const csvLines = [
         headers
-          .map(escapeCsvValue)
+          .map(
+            escapeCsvValue
+          )
           .join(","),
 
-        ...exportRows.map((row) =>
-          headers
-            .map((header) =>
-              escapeCsvValue(
-                row[header]
+        ...exportRows.map(
+          (row) =>
+            headers
+              .map(
+                (header) =>
+                  escapeCsvValue(
+                    row[header]
+                  )
               )
-            )
-            .join(",")
+              .join(",")
         ),
       ];
 
       const csv =
         "\uFEFF" +
-        csvLines.join("\r\n");
+        csvLines.join(
+          "\r\n"
+        );
 
       res.setHeader(
         "Content-Type",
@@ -2987,12 +4166,13 @@ const exportHrAttendance = async (req, res) => {
       return res.send(csv);
     }
 
-    /* =====================================================
-       XLSX
-    ===================================================== */
-
-    if (exportFormat !== "xlsx") {
-      return res.status(400).json({
+    if (
+      exportFormat !==
+      "xlsx"
+    ) {
+      return res.status(
+        400
+      ).json({
         success: false,
         message:
           "Export format must be xlsx or csv.",
@@ -3000,12 +4180,14 @@ const exportHrAttendance = async (req, res) => {
     }
 
     const workbook =
-      XLSX.utils.book_new();
+      XLSX.utils
+        .book_new();
 
     const worksheet =
-      XLSX.utils.json_to_sheet(
-        exportRows
-      );
+      XLSX.utils
+        .json_to_sheet(
+          exportRows
+        );
 
     worksheet["!cols"] = [
       { wch: 14 },
@@ -3029,18 +4211,22 @@ const exportHrAttendance = async (req, res) => {
       { wch: 42 },
     ];
 
-    XLSX.utils.book_append_sheet(
-      workbook,
-      worksheet,
-      "HR Attendance"
-    );
+    XLSX.utils
+      .book_append_sheet(
+        workbook,
+        worksheet,
+        "HR Attendance"
+      );
 
     const buffer =
       XLSX.write(
         workbook,
         {
-          bookType: "xlsx",
-          type: "buffer",
+          bookType:
+            "xlsx",
+
+          type:
+            "buffer",
         }
       );
 
@@ -3068,110 +4254,152 @@ const exportHrAttendance = async (req, res) => {
       error:
         error.message,
       sqlMessage:
-        error.sqlMessage || null,
+        error.sqlMessage ||
+        null,
     });
   }
 };
-const approveHrLeaveApplication = async (req, res) => {
+
+const approveHrLeaveApplication = async (
+  req,
+  res
+) => {
   let connection;
 
   try {
     if (!isAuthorizedHR(req)) {
       return res.status(403).json({
         success: false,
-        message: "HR Attendance access denied.",
+        message:
+          "HR Attendance access denied.",
       });
     }
 
-    const hrUserId = Number(req.user?.user_id || 0);
-    const leaveId = Number(req.params.leaveId);
+    const hrUserId =
+      Number(
+        req.user?.user_id ||
+        0
+      );
+
+    const leaveId =
+      Number(
+        req.params.leaveId
+      );
 
     if (!hrUserId) {
-      return res.status(401).json({
+      return res.status(
+        401
+      ).json({
         success: false,
-        message: "Invalid HR user.",
+        message:
+          "Invalid HR user.",
       });
     }
 
-    if (!Number.isFinite(leaveId) || leaveId <= 0) {
-      return res.status(400).json({
+    if (
+      !Number.isFinite(
+        leaveId
+      ) ||
+      leaveId <= 0
+    ) {
+      return res.status(
+        400
+      ).json({
         success: false,
-        message: "Invalid leave application ID.",
+        message:
+          "Invalid leave application ID.",
       });
     }
 
-    connection = await db.getConnection();
+    connection =
+      await db
+        .getConnection();
 
-    await connection.beginTransaction();
+    await connection
+      .beginTransaction();
 
-    const [leaveRows] = await connection.query(
-      `
-      SELECT
-        la.leave_id,
-        la.employee_id,
-        la.status,
+    const [leaveRows] =
+      await connection.query(
+        `
+        SELECT
+          la.leave_id,
+          la.employee_id,
+          la.status,
 
-        COALESCE(
-          la.escalated_for_approval,
-          0
-        ) AS escalated_for_approval
+          COALESCE(
+            la.escalated_for_approval,
+            0
+          ) AS escalated_for_approval
 
-      FROM leave_applications la
+        FROM leave_applications la
 
-      WHERE la.leave_id = ?
+        WHERE la.leave_id = ?
 
-      LIMIT 1
+        LIMIT 1
 
-      FOR UPDATE
-      `,
-      [leaveId]
-    );
+        FOR UPDATE
+        `,
+        [
+          leaveId,
+        ]
+      );
 
-    if (!leaveRows.length) {
-      await connection.rollback();
+    if (
+      !leaveRows.length
+    ) {
+      await connection
+        .rollback();
 
-      return res.status(404).json({
+      return res.status(
+        404
+      ).json({
         success: false,
-        message: "Leave application not found.",
+        message:
+          "Leave application not found.",
       });
     }
 
-    const leave = leaveRows[0];
+    const leave =
+      leaveRows[0];
 
-    const status = String(
-      leave.status || ""
-    )
-      .trim()
-      .toLowerCase();
+    const status =
+      String(
+        leave.status ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
     const escalated =
       Number(
-        leave.escalated_for_approval || 0
+        leave
+          .escalated_for_approval ||
+        0
       ) === 1;
 
-    /*
-      Rathika rule:
-
-      Pending      -> can approve
-      Escalated    -> view only
-      Approved     -> view only
-      Rejected     -> view only
-    */
-
     if (escalated) {
-      await connection.rollback();
+      await connection
+        .rollback();
 
-      return res.status(400).json({
+      return res.status(
+        400
+      ).json({
         success: false,
         message:
           "This leave application is escalated and requires final review by Manish.",
       });
     }
 
-    if (status !== "pending") {
-      await connection.rollback();
+    if (
+      status !==
+      "pending"
+    ) {
+      await connection
+        .rollback();
 
-      return res.status(400).json({
+      return res.status(
+        400
+      ).json({
         success: false,
         message:
           `Leave application is already ${status}.`,
@@ -3188,7 +4416,10 @@ const approveHrLeaveApplication = async (req, res) => {
         reviewed_at = NOW()
 
       WHERE leave_id = ?
-        AND LOWER(TRIM(status)) = 'pending'
+        AND LOWER(
+          TRIM(status)
+        ) = 'pending'
+
         AND COALESCE(
           escalated_for_approval,
           0
@@ -3200,7 +4431,8 @@ const approveHrLeaveApplication = async (req, res) => {
       ]
     );
 
-    await connection.commit();
+    await connection
+      .commit();
 
     return res.json({
       success: true,
@@ -3210,7 +4442,8 @@ const approveHrLeaveApplication = async (req, res) => {
   } catch (error) {
     if (connection) {
       try {
-        await connection.rollback();
+        await connection
+          .rollback();
       } catch {}
     }
 
@@ -3219,14 +4452,17 @@ const approveHrLeaveApplication = async (req, res) => {
       error
     );
 
-    return res.status(500).json({
+    return res.status(
+      500
+    ).json({
       success: false,
       message:
         "Failed to approve leave application.",
       error:
         error.message,
       sqlMessage:
-        error.sqlMessage || null,
+        error.sqlMessage ||
+        null,
     });
   } finally {
     if (connection) {
@@ -3239,93 +4475,139 @@ const approveHrLeaveApplication = async (req, res) => {
    HR EMPLOYEE ATTENDANCE SUMMARY
 ========================================================= */
 
-const getHrEmployeeSummary = async (req, res) => {
+const getHrEmployeeSummary = async (
+  req,
+  res
+) => {
   try {
     if (!isAuthorizedHR(req)) {
-      return res.status(403).json({
+      return res.status(
+        403
+      ).json({
         success: false,
-        message: "HR Attendance access denied.",
+        message:
+          "HR Attendance access denied.",
       });
     }
 
-    const today = formatDate(new Date());
+    const today =
+      formatDate(
+        new Date()
+      );
 
-    const fromDate = String(
-      req.query.from_date || today
-    ).slice(0, 10);
+    const fromDate =
+      String(
+        req.query
+          .from_date ||
+        today
+      ).slice(
+        0,
+        10
+      );
 
-    const toDate = String(
-      req.query.to_date || today
-    ).slice(0, 10);
+    const toDate =
+      String(
+        req.query
+          .to_date ||
+        today
+      ).slice(
+        0,
+        10
+      );
 
-    const search = String(
-      req.query.search || ""
-    )
-      .trim()
-      .toLowerCase();
+    const search =
+      String(
+        req.query.search ||
+        ""
+      )
+        .trim()
+        .toLowerCase();
 
-    const department = String(
-      req.query.department || ""
-    ).trim();
+    const department =
+      String(
+        req.query.department ||
+        ""
+      ).trim();
 
-    if (fromDate > toDate) {
-      return res.status(400).json({
+    if (
+      fromDate >
+      toDate
+    ) {
+      return res.status(
+        400
+      ).json({
         success: false,
-        message: "From date cannot be after To date.",
+        message:
+          "From date cannot be after To date.",
       });
     }
 
-    /*
-    Leave balances are annual.
-    Use the year containing the selected ending date.
-    */
-    const balanceYear = Number(
-      toDate.slice(0, 4)
-    );
+    const balanceYear =
+      Number(
+        toDate.slice(
+          0,
+          4
+        )
+      );
 
-    /*
-    Reuse the SAME master attendance builder used
-    by the HR Attendance register.
-
-    This prevents attendance totals and the daily
-    register from disagreeing.
-    */
     const attendanceData =
       await buildHrAttendanceData(
         fromDate,
         toDate
       );
 
-    const users = attendanceData.users || [];
-    const records = attendanceData.records || [];
+    const users =
+      attendanceData.users ||
+      [];
 
-    const recordsByUser = new Map();
+    const records =
+      attendanceData.records ||
+      [];
 
-    records.forEach((record) => {
-      const userId = Number(record.user_id);
+    const recordsByUser =
+      new Map();
 
-      if (!recordsByUser.has(userId)) {
-        recordsByUser.set(userId, []);
+    records.forEach(
+      (record) => {
+        const userId =
+          Number(
+            record.user_id
+          );
+
+        if (
+          !recordsByUser.has(
+            userId
+          )
+        ) {
+          recordsByUser.set(
+            userId,
+            []
+          );
+        }
+
+        recordsByUser
+          .get(userId)
+          .push(record);
       }
+    );
 
-      recordsByUser
-        .get(userId)
-        .push(record);
-    });
+    const employeeSummaries =
+      [];
 
-    const employeeSummaries = [];
-
-    for (const user of users) {
+    for (
+      const user of users
+    ) {
       const employeeRecords =
         recordsByUser.get(
-          Number(user.user_id)
-        ) || [];
+          Number(
+            user.user_id
+          )
+        ) ||
+        [];
 
-      /*
-      Do not show employees who have no applicable
-      attendance days inside the requested period.
-      */
-      if (!employeeRecords.length) {
+      if (
+        !employeeRecords.length
+      ) {
         continue;
       }
 
@@ -3353,162 +4635,275 @@ const getHrEmployeeSummary = async (req, res) => {
 
         no_punch: 0,
         needs_review: 0,
+        pending_approval: 0,
+
+        total_days: 0,
+        lop: 0,
       };
 
-      employeeRecords.forEach((record) => {
-        const status = String(
-          record.final_status || ""
-        )
-          .trim()
-          .toLowerCase();
+      employeeRecords
+        .forEach(
+          (record) => {
+            const status =
+              String(
+                record
+                  .final_status ||
+                ""
+              )
+                .trim()
+                .toLowerCase();
 
-        const isWeeklyOff =
-          status === "weekly off";
+            const isWeeklyOff =
+              status ===
+              "weekly off";
 
-        const isHoliday =
-          status === "holiday";
+            const isHoliday =
+              status ===
+              "holiday";
 
-        /*
-        Working Days excludes:
-        - Sundays / Weekly Off
-        - Company Holidays
-        */
-        if (!isWeeklyOff && !isHoliday) {
-          summary.working_days += 1;
-        }
+            if (
+              !isWeeklyOff &&
+              !isHoliday
+            ) {
+              summary
+                .working_days +=
+                1;
+            }
 
-        if (
-  status === "present" ||
-  status === "late"
-) {
-  summary.present += 1;
-}
+            if (
+              status ===
+                "present" ||
+              status ===
+                "late"
+            ) {
+              summary.present +=
+                1;
+            }
 
-/*
-  Late remains visible separately,
-  but Late is already included in Present.
-*/
-if (record.is_late) {
-  summary.late += 1;
-}
+            if (
+              record.is_late
+            ) {
+              summary.late +=
+                1;
+            }
 
-/*
-  Attendance Half Day:
-  - contributes 0.5 to Present
-  - contributes 0.5 to Half Day
-*/
-if (status === "half day") {
-  summary.present += 0.5;
-  summary.half_day += 0.5;
-}
+            if (
+              status ===
+              "half day"
+            ) {
+              summary.present +=
+                0.5;
 
-/*
-  Leave Half Day:
-  - contributes 0.5 only to Half Day
-  - does NOT count as Present
-*/
-if (status === "half day leave") {
-  summary.half_day += 0.5;
-}
+              summary.half_day +=
+                0.5;
+            }
 
-     
-        if (status === "field visit") {
-          const visitDuration = String(
-            record.field_visit_duration || ""
-          )
-            .trim()
-            .toLowerCase();
+            if (
+              status ===
+              "half day leave"
+            ) {
+              summary.half_day +=
+                0.5;
+            }
 
-          summary.field_visit +=
-            visitDuration === "half_day"
-              ? 0.5
-              : 1;
-        }
+            if (
+              status ===
+              "field visit"
+            ) {
+              const visitDuration =
+                String(
+                  record
+                    .field_visit_duration ||
+                  ""
+                )
+                  .trim()
+                  .toLowerCase();
 
-        if (status === "weekly off") {
-          summary.weekly_off += 1;
-        }
+              summary.field_visit +=
+                visitDuration ===
+                "half_day"
+                  ? 0.5
+                  : 1;
+            }
 
-        if (status === "holiday") {
-          summary.holiday += 1;
-        }
+            if (
+              status ===
+              "weekly off"
+            ) {
+              summary.weekly_off +=
+                1;
+            }
 
-        if (status === "no punch") {
-          summary.no_punch += 1;
-        }
+            if (
+              status ===
+              "holiday"
+            ) {
+              summary.holiday +=
+                1;
+            }
 
-        if (status === "needs review") {
-          summary.needs_review += 1;
-        }
+            if (
+              status ===
+              "no punch"
+            ) {
+              summary.no_punch +=
+                1;
+            }
 
-        /*
-        LEAVE COUNTS
+            if (
+              status ===
+                "needs review" ||
+              record
+                .needs_attention
+            ) {
+              summary
+                .needs_review +=
+                1;
+            }
 
-        Full Day = 1
-        Half Day = 0.5
-        */
-        if (record.leave_id) {
-          const leaveDays =
-            String(
-              record.leave_duration || ""
-            ).toLowerCase() === "half day"
-              ? 0.5
-              : 1;
+            if (
+              status ===
+              "pending approval"
+            ) {
+              summary
+                .pending_approval +=
+                1;
+            }
 
-          summary.leave += leaveDays;
+            if (
+              record.leave_id
+            ) {
+              const leaveDays =
+                String(
+                  record
+                    .leave_duration ||
+                  ""
+                )
+                  .toLowerCase() ===
+                "half day"
+                  ? 0.5
+                  : 1;
 
-          switch (record.leave_code) {
-            case "sick":
-              summary.sick_leave += leaveDays;
-              break;
-
-            case "casual":
-              summary.casual_leave += leaveDays;
-              break;
-
-            case "mandatory":
-              summary.privileged_leave +=
+              summary.leave +=
                 leaveDays;
-              break;
 
-            case "festival":
-              summary.festival_leave +=
-                leaveDays;
-              break;
+              switch (
+                record.leave_code
+              ) {
+                case "sick":
+                  summary
+                    .sick_leave +=
+                    leaveDays;
+                  break;
 
-            case "unpaid":
-              summary.unpaid_leave +=
-                leaveDays;
-              break;
+                case "casual":
+                  summary
+                    .casual_leave +=
+                    leaveDays;
+                  break;
 
-            default:
-              break;
+                case "mandatory":
+                  summary
+                    .privileged_leave +=
+                    leaveDays;
+                  break;
+
+                case "festival":
+                  summary
+                    .festival_leave +=
+                    leaveDays;
+                  break;
+
+                case "unpaid":
+                  summary
+                    .unpaid_leave +=
+                    leaveDays;
+                  break;
+
+                default:
+                  break;
+              }
+            }
           }
-        }
-      });
+        );
 
-      /*
-      Pull real leave balance from existing
-      RMS leave-policy logic.
-      */
+      summary.absent =
+        employeeRecords.filter(
+          (record) =>
+            String(
+              record
+                .final_status ||
+              ""
+            )
+              .trim()
+              .toLowerCase() ===
+            "absent"
+        ).length;
 
-      /*
-  Final reconciliation:
-  Summary cards must always match
-  the same day-wise records shown
-  in the employee detail modal.
-*/
-summary.absent =
-  employeeRecords.filter(
-    (record) =>
-      String(
-        record.final_status || ""
-      )
-        .trim()
-        .toLowerCase() ===
-      "absent"
-  ).length;
-      let leaveBalances = {};
+      const attendanceHalfDayLoss =
+        employeeRecords.reduce(
+          (
+            total,
+            record
+          ) =>
+            String(
+              record
+                .final_status ||
+              ""
+            )
+              .trim()
+              .toLowerCase() ===
+            "half day"
+              ? total +
+                0.5
+              : total,
+          0
+        );
+
+      const fieldVisitHalfDayLoss =
+        employeeRecords.reduce(
+          (
+            total,
+            record
+          ) =>
+            String(
+              record
+                .final_status ||
+              ""
+            )
+              .trim()
+              .toLowerCase() ===
+              "field visit" &&
+            String(
+              record
+                .field_visit_attendance_status ||
+              ""
+            )
+              .trim()
+              .toLowerCase() ===
+              "half day"
+              ? total +
+                0.5
+              : total,
+          0
+        );
+
+      summary.lop =
+        summary.absent +
+        attendanceHalfDayLoss +
+        fieldVisitHalfDayLoss +
+        summary.unpaid_leave;
+
+      summary.total_days =
+        Math.max(
+          employeeRecords
+            .length -
+            summary.lop,
+          0
+        );
+
+      let leaveBalances =
+        {};
 
       try {
         leaveBalances =
@@ -3517,82 +4912,107 @@ summary.absent =
             user.user_id,
             balanceYear
           );
-      } catch (balanceError) {
+      } catch (
+        balanceError
+      ) {
         console.error(
           `HR leave balance error for user ${user.user_id}:`,
           balanceError.message
         );
 
-        leaveBalances = {};
+        leaveBalances =
+          {};
       }
 
-      employeeSummaries.push({
-        user_id: user.user_id,
-        employee_code:
-          user.employee_code,
-        full_name:
-          user.full_name,
-        email:
-          user.email,
-        designation:
-          user.designation,
-        department_id:
-          user.department_id,
-        department_name:
-          user.department_name,
-        role_name:
-          user.role_name,
+      employeeSummaries
+        .push({
+          user_id:
+            user.user_id,
 
-        attendance: summary,
+          employee_code:
+            user
+              .employee_code,
 
-        leave_balance:
-          leaveBalances,
+          full_name:
+            user.full_name,
 
-        daily_records:
-          employeeRecords,
-      });
+          email:
+            user.email,
+
+          designation:
+            user.designation,
+
+          department_id:
+            user
+              .department_id,
+
+          department_name:
+            user
+              .department_name,
+
+          role_name:
+            user.role_name,
+
+          attendance:
+            summary,
+
+          leave_balance:
+            leaveBalances,
+
+          daily_records:
+            employeeRecords,
+        });
     }
 
-    /*
-    Filters
-    */
     let filtered =
       employeeSummaries;
 
     if (department) {
-      filtered = filtered.filter(
-        (item) =>
-          String(
-            item.department_name || ""
-          ) === department
-      );
+      filtered =
+        filtered.filter(
+          (item) =>
+            String(
+              item
+                .department_name ||
+              ""
+            ) ===
+            department
+        );
     }
 
     if (search) {
-      filtered = filtered.filter(
-        (item) => {
-          const text = [
-            item.full_name,
-            item.employee_code,
-            item.email,
-            item.department_name,
-            item.designation,
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
+      filtered =
+        filtered.filter(
+          (item) => {
+            const text = [
+              item.full_name,
+              item.employee_code,
+              item.email,
+              item
+                .department_name,
+              item.designation,
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
 
-          return text.includes(search);
-        }
-      );
+            return text
+              .includes(
+                search
+              );
+          }
+        );
     }
 
     return res.json({
       success: true,
 
       date_range: {
-        from_date: fromDate,
-        to_date: toDate,
+        from_date:
+          fromDate,
+
+        to_date:
+          toDate,
       },
 
       balance_year:
@@ -3610,7 +5030,9 @@ summary.absent =
       error
     );
 
-    return res.status(500).json({
+    return res.status(
+      500
+    ).json({
       success: false,
 
       message:
@@ -3620,10 +5042,12 @@ summary.absent =
         error.message,
 
       sqlMessage:
-        error.sqlMessage || null,
+        error.sqlMessage ||
+        null,
     });
   }
 };
+
 /* =========================================================
    EXPORTS
 ========================================================= */
