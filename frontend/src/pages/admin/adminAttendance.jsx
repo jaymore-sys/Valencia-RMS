@@ -1,9 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Bold, Highlighter, List } from "lucide-react";
 import api from "../../api/axios";
-
 const getInitials = (name) => {
   const cleanName = String(name || "User").trim();
-
   const initials = cleanName
     .split(" ")
     .filter(Boolean)
@@ -11,53 +10,566 @@ const getInitials = (name) => {
     .join("")
     .slice(0, 2)
     .toUpperCase();
-
   return initials || "U";
 };
 const getVisitDurationLabel = (visit) => {
   const durationType = String(
     visit?.duration_type || ""
   ).toLowerCase();
-
   const halfDaySession = String(
     visit?.half_day_session || ""
   ).toLowerCase();
-
   if (durationType === "half_day") {
     if (halfDaySession === "first_half") {
       return "Half Day - First Half";
     }
-
     if (halfDaySession === "second_half") {
       return "Half Day - Second Half";
     }
-
     return "Half Day";
   }
-
   if (durationType === "full_day") {
     return "Full Day";
   }
-
   // Keeps old Field Visit records readable.
   if (visit?.start_time || visit?.end_time) {
     return `${visit.start_time || "-"} - ${visit.end_time || "-"
       }`;
   }
-
   return "-";
+};
+const createEmptyVisitStop = () => ({
+  location: "",
+  visit_time: "",
+  description: "",
+});
+const getVisitStops = (visit = {}) => {
+  const savedStops = Array.isArray(visit.visit_stops)
+    ? visit.visit_stops
+        .filter((stop) =>
+          String(stop?.location || "").trim() ||
+          String(stop?.description || "").trim()
+        )
+        .sort(
+          (a, b) =>
+            Number(a?.sequence_no || 0) -
+            Number(b?.sequence_no || 0)
+        )
+    : [];
+  if (savedStops.length) {
+    return savedStops;
+  }
+  if (visit.location || visit.comment) {
+    return [
+      {
+        stop_id: null,
+        sequence_no: 1,
+        location: visit.location || "",
+        visit_time: null,
+        description: visit.comment || "",
+        is_legacy: true,
+      },
+    ];
+  }
+  return [];
+};
+const escapeVisitHtml = (value) =>
+  String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+const visitInlineMarkupToHtml = (value) =>
+  escapeVisitHtml(value)
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(
+      /==(.+?)==/g,
+      '<span style="background-color:#fef3c7;color:#92400e;padding:0 2px;border-radius:3px;">$1</span>'
+    );
+
+const visitMarkupToEditorHtml = (value) => {
+  const lines = String(value || "").split(/\r?\n/);
+  const html = [];
+  let bulletItems = [];
+
+  const flushBullets = () => {
+    if (!bulletItems.length) return;
+    html.push(
+      `<ul>${bulletItems
+        .map((item) => `<li>${visitInlineMarkupToHtml(item)}</li>`)
+        .join("")}</ul>`
+    );
+    bulletItems = [];
+  };
+
+  lines.forEach((line) => {
+    if (/^\s*-\s+/.test(line)) {
+      bulletItems.push(line.replace(/^\s*-\s+/, ""));
+      return;
+    }
+
+    flushBullets();
+    html.push(
+      `<div>${line ? visitInlineMarkupToHtml(line) : "<br>"}</div>`
+    );
+  });
+
+  flushBullets();
+  return html.join("");
+};
+
+const editorNodeToVisitMarkup = (node) => {
+  if (!node) return "";
+
+  if (node.nodeType === Node.TEXT_NODE) {
+    return node.nodeValue || "";
+  }
+
+  if (node.nodeType !== Node.ELEMENT_NODE) {
+    return "";
+  }
+
+  const tag = node.tagName?.toLowerCase();
+  const children = Array.from(node.childNodes)
+    .map(editorNodeToVisitMarkup)
+    .join("");
+
+  if (tag === "br") return "\n";
+  if (tag === "strong" || tag === "b") {
+    return children ? `**${children}**` : "";
+  }
+  if (tag === "mark") {
+    return children ? `==${children}==` : "";
+  }
+  if (tag === "span") {
+    const background = String(
+      node.style?.backgroundColor || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isHighlight =
+      background &&
+      ![
+        "transparent",
+        "white",
+        "#fff",
+        "#ffffff",
+        "rgb(255, 255, 255)",
+        "rgba(0, 0, 0, 0)",
+      ].includes(background);
+
+    if (isHighlight) {
+      return children ? `==${children}==` : "";
+    }
+  }
+  if (tag === "li") return children;
+  if (tag === "ul") {
+    const items = Array.from(node.children)
+      .filter((child) => child.tagName?.toLowerCase() === "li")
+      .map((item) => `- ${editorNodeToVisitMarkup(item).trim()}`)
+      .join("\n");
+    return items ? `${items}\n` : "";
+  }
+  if (tag === "div" || tag === "p") {
+    return `${children}\n`;
+  }
+
+  return children;
+};
+
+const editorToVisitMarkup = (element) =>
+  Array.from(element?.childNodes || [])
+    .map(editorNodeToVisitMarkup)
+    .join("")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\n+$/, "");
+
+
+const renderVisitInline = (value, keyPrefix = "visit") => {
+  const parts = String(value || "").split(/(\*\*.*?\*\*|==.*?==)/g);
+
+  return parts.map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+
+    if (part.startsWith("==") && part.endsWith("==") && part.length >= 4) {
+      return (
+        <mark
+          key={key}
+          style={{
+            background: "#fef3c7",
+            color: "#92400e",
+            padding: "0 2px",
+            borderRadius: "3px",
+          }}
+        >
+          {part.slice(2, -2)}
+        </mark>
+      );
+    }
+
+    return <React.Fragment key={key}>{part}</React.Fragment>;
+  });
+};
+
+const FormattedVisitText = ({ value }) => {
+  const text = String(value || "").trim();
+
+  if (!text) {
+    return <span>-</span>;
+  }
+
+  const lines = text.split(/\r?\n/);
+  const content = [];
+  let bullets = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+
+    content.push(
+      <ul
+        key={`bullets-${content.length}`}
+        style={{ margin: "4px 0 4px 18px", padding: 0 }}
+      >
+        {bullets.map((item, index) => (
+          <li key={index} style={{ marginBottom: "2px" }}>
+            {renderVisitInline(item, `bullet-${content.length}-${index}`)}
+          </li>
+        ))}
+      </ul>
+    );
+
+    bullets = [];
+  };
+
+  lines.forEach((line, index) => {
+    if (/^\s*-\s+/.test(line)) {
+      bullets.push(line.replace(/^\s*-\s+/, ""));
+      return;
+    }
+
+    flushBullets();
+
+    content.push(
+      <div key={`line-${index}`} style={{ minHeight: line ? "auto" : "1em" }}>
+        {line ? renderVisitInline(line, `line-${index}`) : <br />}
+      </div>
+    );
+  });
+
+  flushBullets();
+
+  return (
+    <div style={{ whiteSpace: "normal", overflowWrap: "anywhere", lineHeight: 1.5 }}>
+      {content}
+    </div>
+  );
+};
+
+const RichVisitEditor = ({ value, onChange, placeholder, style }) => {
+  const editorRef = useRef(null);
+  const [isEmpty, setIsEmpty] = useState(!String(value || "").trim());
+  const [selectionState, setSelectionState] = useState({
+    hasSelection: false,
+    bold: false,
+    highlight: false,
+    bullet: false,
+  });
+
+  const getSelectionInfo = () => {
+    const editor = editorRef.current;
+    const selection = window.getSelection();
+
+    if (!editor || !selection?.rangeCount) {
+      return { editor, selection, inside: false, hasSelection: false };
+    }
+
+    const anchor = selection.anchorNode;
+    const focus = selection.focusNode;
+    const inside = Boolean(
+      anchor && focus && editor.contains(anchor) && editor.contains(focus)
+    );
+    const hasSelection = inside && !selection.isCollapsed && Boolean(selection.toString().trim());
+
+    return { editor, selection, inside, hasSelection };
+  };
+
+  const nodeHasHighlight = (node, editor) => {
+    let element = node?.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+
+    while (element && element !== editor) {
+      const tag = element.tagName?.toLowerCase();
+      const background = String(element.style?.backgroundColor || "")
+        .trim()
+        .toLowerCase();
+
+      if (tag === "mark") return true;
+
+      if (
+        background &&
+        ![
+          "transparent",
+          "white",
+          "#fff",
+          "#ffffff",
+          "rgb(255, 255, 255)",
+          "rgba(0, 0, 0, 0)",
+        ].includes(background)
+      ) {
+        return true;
+      }
+
+      element = element.parentElement;
+    }
+
+    return false;
+  };
+
+  const selectedTextHasHighlight = () => {
+    const { editor, selection, hasSelection } = getSelectionInfo();
+    if (!editor || !selection || !hasSelection) return false;
+
+    const range = selection.getRangeAt(0);
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+
+    while (node) {
+      try {
+        if (
+          node.textContent?.trim() &&
+          range.intersectsNode(node) &&
+          nodeHasHighlight(node, editor)
+        ) {
+          return true;
+        }
+      } catch {
+        // Ignore nodes the browser cannot test against this range.
+      }
+
+      node = walker.nextNode();
+    }
+
+    return false;
+  };
+
+  const updateSelectionState = () => {
+    const { hasSelection } = getSelectionInfo();
+
+    if (!hasSelection) {
+      setSelectionState({
+        hasSelection: false,
+        bold: false,
+        highlight: false,
+        bullet: false,
+      });
+      return;
+    }
+
+    let bold = false;
+    let bullet = false;
+
+    try {
+      bold = document.queryCommandState("bold");
+      bullet = document.queryCommandState("insertUnorderedList");
+    } catch {
+      bold = false;
+      bullet = false;
+    }
+
+    setSelectionState({
+      hasSelection: true,
+      bold: Boolean(bold),
+      highlight: selectedTextHasHighlight(),
+      bullet: Boolean(bullet),
+    });
+  };
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || document.activeElement === editor) return;
+
+    const html = visitMarkupToEditorHtml(value);
+    if (editor.innerHTML !== html) editor.innerHTML = html;
+    setIsEmpty(!String(value || "").trim());
+  }, [value]);
+
+  useEffect(() => {
+    const handleSelectionChange = () => updateSelectionState();
+    document.addEventListener("selectionchange", handleSelectionChange);
+    return () => document.removeEventListener("selectionchange", handleSelectionChange);
+  }, []);
+
+  const syncValue = () => {
+    const nextValue = editorToVisitMarkup(editorRef.current);
+    setIsEmpty(!nextValue.trim());
+    onChange(nextValue);
+  };
+
+  const applyFormat = (command) => {
+    const { editor, hasSelection } = getSelectionInfo();
+    if (!editor || !hasSelection) return;
+
+    editor.focus();
+
+    if (command === "bold") {
+      document.execCommand("bold", false);
+    } else if (command === "highlight") {
+      const removeHighlight = selectedTextHasHighlight();
+      const color = removeHighlight ? "#ffffff" : "#fef3c7";
+      const applied = document.execCommand("hiliteColor", false, color);
+      if (!applied) document.execCommand("backColor", false, color);
+    } else if (command === "bullet") {
+      document.execCommand("insertUnorderedList", false);
+    }
+
+    syncValue();
+    updateSelectionState();
+  };
+
+  const baseButton = {
+    width: "34px",
+    height: "34px",
+    border: "1px solid #d6dde8",
+    background: "#ffffff",
+    borderRadius: "8px",
+    display: "grid",
+    placeItems: "center",
+    padding: 0,
+    color: "#111827",
+  };
+
+  const buttonStyle = (active) => ({
+    ...baseButton,
+    cursor: selectionState.hasSelection ? "pointer" : "default",
+    opacity: selectionState.hasSelection ? 1 : 0.55,
+    ...(active
+      ? {
+          background: "#fff0eb",
+          border: "1px solid #ff5733",
+          color: "#ff5733",
+          boxShadow: "0 0 0 2px rgba(255,87,51,0.08)",
+        }
+      : {}),
+  });
+
+  const toolbarButton = (command, title, active, icon) => (
+    <button
+      type="button"
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+      disabled={!selectionState.hasSelection}
+      style={buttonStyle(active)}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={() => applyFormat(command)}
+    >
+      {icon}
+    </button>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "7px" }}>
+        {toolbarButton(
+          "bold",
+          "Bold selected text",
+          selectionState.bold,
+          <Bold size={16} strokeWidth={2.6} />
+        )}
+        {toolbarButton(
+          "highlight",
+          selectionState.highlight ? "Remove highlight" : "Highlight selected text",
+          selectionState.highlight,
+          <Highlighter size={16} strokeWidth={2.4} />
+        )}
+        {toolbarButton(
+          "bullet",
+          "Toggle bullet list",
+          selectionState.bullet,
+          <List size={17} strokeWidth={2.4} />
+        )}
+      </div>
+
+      <div style={{ position: "relative" }}>
+        {isEmpty && (
+          <div
+            style={{
+              position: "absolute",
+              top: "13px",
+              left: "13px",
+              right: "13px",
+              color: "#64748b",
+              pointerEvents: "none",
+              fontSize: "14px",
+              fontWeight: 400,
+              lineHeight: 1.45,
+            }}
+          >
+            {placeholder}
+          </div>
+        )}
+
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          style={{
+            ...style,
+            height: "auto",
+            overflowY: "auto",
+            whiteSpace: "pre-wrap",
+            lineHeight: 1.5,
+          }}
+          onInput={() => {
+            syncValue();
+            updateSelectionState();
+          }}
+          onMouseUp={updateSelectionState}
+          onKeyUp={updateSelectionState}
+          onFocus={updateSelectionState}
+          onBlur={() => {
+            syncValue();
+            setTimeout(updateSelectionState, 0);
+          }}
+          onPaste={(event) => {
+            event.preventDefault();
+            const text = event.clipboardData?.getData("text/plain") || "";
+            document.execCommand("insertText", false, text);
+            syncValue();
+            updateSelectionState();
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+const formatVisitDate = (value) => {
+  if (!value) return "-";
+  const text = String(value).trim();
+  const match = text.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (match) return match[1];
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return text || "-";
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 const getStatusBadgeStyle = (status) => {
   const value = String(status || "").toLowerCase();
-
   if (value === "present") return { ...styles.statusBadge, ...styles.presentBadge };
   if (value === "absent") return { ...styles.statusBadge, ...styles.absentBadge };
   if (value === "late") return { ...styles.statusBadge, ...styles.lateBadge };
   if (value === "leave") return { ...styles.statusBadge, ...styles.leaveBadge };
-
   return styles.statusBadge;
 };
-
 const SummaryBox = ({ label, value, compact = false }) => {
   return (
     <div style={compact ? styles.compactSummaryBox : styles.summaryBox}>
@@ -70,44 +582,36 @@ const SummaryBox = ({ label, value, compact = false }) => {
     </div>
   );
 };
-
 const AdminAttendance = ({
   mode = "attendance",
 }) => {
   const fieldVisitsOnly =
     mode === "fieldVisits";
-
     const storedUser = JSON.parse(
   sessionStorage.getItem("user") ||
   localStorage.getItem("user") ||
   "{}"
 );
-
 const loggedInEmail = String(
   storedUser?.email || ""
 )
   .trim()
   .toLowerCase();
-
 const isPremal =
   loggedInEmail ===
   "premal.mehta@valencianutrition.com";
-
   const [activeTab, setActiveTab] =
   useState(
     fieldVisitsOnly
       ? "fieldVisits"
       : "myAttendance"
   );
-
   const [myAttendance, setMyAttendance] = useState(null);
   const [employeeSummary, setEmployeeSummary] = useState([]);
   const [dateRange, setDateRange] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [fieldVisitMode, setFieldVisitMode] = useState("team");
   const [teamVisits, setTeamVisits] = useState([]);
   const [myVisits, setMyVisits] = useState([]);
@@ -121,7 +625,6 @@ const isPremal =
   const [rejectVisitTarget, setRejectVisitTarget] = useState(null);
   const [rejectRemark, setRejectRemark] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
-
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [savingVisit, setSavingVisit] = useState(false);
   const [employees, setEmployees] = useState([]);
@@ -132,22 +635,20 @@ const isPremal =
     visit_date: "",
     duration_type: "full_day",
     half_day_session: "",
-    location: "",
-    comment: "",
+    visit_stops: [createEmptyVisitStop()],
+    conclusion: "",
+    remark: "",
   });
   useEffect(() => {
   const params =
     new URLSearchParams(
       window.location.search
     );
-
   const token =
     params.get("fieldVisitToken");
-
   if (token) {
     setFieldVisitToken(token);
   }
-
   if (
     fieldVisitsOnly ||
     token
@@ -155,20 +656,16 @@ const isPremal =
     setActiveTab("fieldVisits");
   }
 }, [fieldVisitsOnly]);
-
   const fetchAttendance = async () => {
     try {
       setLoading(true);
       setError("");
-
       const response = await api.get("/admin-attendance/department-attendance");
-
       setMyAttendance(response.data?.my_attendance || null);
       setEmployeeSummary(response.data?.employee_summary || []);
       setDateRange(response.data?.date_range || null);
     } catch (err) {
       console.error("Fetch admin attendance error:", err);
-
       setError(
         err?.response?.data?.sqlMessage ||
         err?.response?.data?.error ||
@@ -183,28 +680,22 @@ const isPremal =
     try {
       setVisitLoading(true);
       setVisitError("");
-
       const response = await api.get(
         "/admin-attendance/field-visits"
       );
-
       let visits = Array.isArray(response.data?.visits)
         ? response.data.visits
         : [];
-
       // Do not show Admin's own visit under Team Visits.
       const adminId = Number(myAttendance?.user_id || 0);
-
       if (adminId) {
         visits = visits.filter(
           (visit) => Number(visit.employee_id) !== adminId
         );
       }
-
       setTeamVisits(visits);
     } catch (err) {
       console.error("Fetch team field visits error:", err);
-
       setVisitError(
         err?.response?.data?.message ||
         "Failed to fetch team field visits."
@@ -213,18 +704,13 @@ const isPremal =
       setVisitLoading(false);
     }
   };
-
   const fetchMyVisits = async () => {
     try {
       setVisitLoading(true);
       setVisitError("");
-
       const response = await api.get(
         "/admin-attendance/field-visits/my"
       );
-
-
-
       setMyVisits(
         Array.isArray(response.data?.visits)
           ? response.data.visits
@@ -232,7 +718,6 @@ const isPremal =
       );
     } catch (err) {
       console.error("Fetch Admin field visits error:", err);
-
       setVisitError(
         err?.response?.data?.message ||
         "Failed to fetch your field visits."
@@ -241,20 +726,16 @@ const isPremal =
       setVisitLoading(false);
     }
   };
-
   const fetchAdminApprovalVisits = async () => {
   if (!isPremal) {
     return;
   }
-
   try {
     setVisitLoading(true);
     setVisitError("");
-
     const response = await api.get(
       "/superadmin/field-visits"
     );
-
     const visits = Array.isArray(
       response.data?.visits
     )
@@ -267,14 +748,12 @@ const isPremal =
           })
         )
       : [];
-
     setAdminApprovalVisits(visits);
   } catch (err) {
     console.error(
       "Fetch Admin field visit approvals:",
       err
     );
-
     setVisitError(
       err?.response?.data?.message ||
         "Failed to fetch Admin field visit approvals."
@@ -283,20 +762,16 @@ const isPremal =
     setVisitLoading(false);
   }
 };
-
   const fetchEmployees = async () => {
     try {
-
       const response = await api.get(
         "/admin-attendance/field-visit-employees"
       );
-
       setEmployees(
         response.data?.users ||
         response.data?.employees ||
         []
       );
-
     } catch (err) {
       console.error(
         "Fetch employees error:",
@@ -310,23 +785,33 @@ const isPremal =
       fetchMyVisits(),
     ]);
   };
-
   const submitAdminVisit = async () => {
     setVisitError("");
     setVisitMessage("");
-
+    const visitStops = Array.isArray(visitForm.visit_stops)
+      ? visitForm.visit_stops
+          .map((stop) => ({
+            location: String(stop?.location || "").trim(),
+            visit_time: String(stop?.visit_time || "").trim() || null,
+            description: String(stop?.description || "").trim(),
+          }))
+          .filter((stop) => stop.location || stop.description)
+      : [];
     if (
       !visitForm.visit_date ||
       !visitForm.duration_type ||
-      !visitForm.location.trim() ||
-      !visitForm.comment.trim()
+      !visitStops.length ||
+      visitStops.some(
+        (stop) =>
+          !stop.location ||
+          !stop.description
+      )
     ) {
       setVisitError(
-        "Please fill all required fields."
+        "Please complete the date, duration and every visit location with its description."
       );
       return;
     }
-
     if (
       visitForm.duration_type === "half_day" &&
       ![
@@ -339,10 +824,9 @@ const isPremal =
       );
       return;
     }
-
     try {
       setSavingVisit(true);
-
+      const firstStop = visitStops[0];
       await api.post(
         "/admin-attendance/field-visits",
         {
@@ -350,32 +834,38 @@ const isPremal =
           visit_date: visitForm.visit_date,
           duration_type:
             visitForm.duration_type,
-
           half_day_session:
             visitForm.duration_type === "half_day"
               ? visitForm.half_day_session
               : null,
-          location: visitForm.location.trim(),
-          comment: visitForm.comment.trim(),
+          // Keep old fields populated for attendance and
+          // any older Field Visit screens.
+          location: firstStop.location,
+          comment: firstStop.description,
+          visit_stops: visitStops,
+          conclusion: String(
+            visitForm.conclusion || ""
+          ).trim(),
+          remark: String(
+            visitForm.remark || ""
+          ).trim(),
           visitor_ids: selectedVisitors,
         }
       );
-
       setVisitForm({
         visit_type: "Sales Visit",
         visit_date: "",
         duration_type: "full_day",
         half_day_session: "",
-        location: "",
-        comment: "",
+        visit_stops: [createEmptyVisitStop()],
+        conclusion: "",
+        remark: "",
       });
       setSelectedVisitors([]);
       setVisitorSearch("");
-
       setShowVisitModal(false);
       setFieldVisitMode("my");
       setVisitMessage("Field visit added successfully.");
-
       await fetchMyVisits();
     } catch (err) {
       setVisitError(
@@ -386,7 +876,6 @@ const isPremal =
       setSavingVisit(false);
     }
   };
-
   const submitVisitReview = async (
     visit,
     status,
@@ -396,7 +885,6 @@ const isPremal =
       setVisitError("");
       setVisitMessage("");
       setReviewSaving(true);
-
       if (
   fieldVisitMode === "adminApprovals"
 ) {
@@ -418,13 +906,11 @@ const isPremal =
     }
   );
 }
-
       setVisitMessage(
         status === "approved"
           ? "Field visit approved successfully."
           : "Field visit rejected."
       );
-
       if (
   fieldVisitMode ===
   "adminApprovals"
@@ -433,20 +919,17 @@ const isPremal =
 } else {
   await fetchTeamVisits();
 }
-
       return true;
     } catch (err) {
       setVisitError(
         err?.response?.data?.message ||
         "Failed to review field visit."
       );
-
       return false;
     } finally {
       setReviewSaving(false);
     }
   };
-
   const reviewVisit = async (visit, status) => {
     if (status === "rejected") {
       setRejectVisitTarget(visit);
@@ -454,14 +937,12 @@ const isPremal =
       setVisitError("");
       return;
     }
-
     await submitVisitReview(
       visit,
       "approved",
       ""
     );
   };
-
   const confirmRejectVisit = async () => {
     if (!rejectRemark.trim()) {
       setVisitError(
@@ -469,16 +950,13 @@ const isPremal =
       );
       return;
     }
-
     if (!rejectVisitTarget) return;
-
     const success =
       await submitVisitReview(
         rejectVisitTarget,
         "rejected",
         rejectRemark
       );
-
     if (success) {
       setRejectVisitTarget(null);
       setRejectRemark("");
@@ -487,7 +965,6 @@ const isPremal =
   useEffect(() => {
     fetchAttendance();
   }, []);
-
   useEffect(() => {
   if (
     fieldVisitsOnly &&
@@ -499,12 +976,9 @@ const isPremal =
   fieldVisitsOnly,
   myAttendance?.user_id,
 ]);
-
   const filteredEmployees = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-
     if (!term) return employeeSummary;
-
     return employeeSummary.filter((employee) => {
       return (
         String(employee.full_name || "").toLowerCase().includes(term) ||
@@ -513,7 +987,6 @@ const isPremal =
       );
     });
   }, [employeeSummary, searchTerm]);
-
   const myRecords = useMemo(() => {
     return Array.isArray(myAttendance?.records) ? myAttendance.records : [];
   }, [myAttendance]);
@@ -523,71 +996,70 @@ const isPremal =
     : fieldVisitMode === "adminApprovals"
       ? adminApprovalVisits
       : myVisits;
-
   const visitSummary = useMemo(() => {
     return {
       total: currentVisits.length,
-
       approved: currentVisits.filter(
         (visit) => String(visit.status).toLowerCase() === "approved"
       ).length,
-
       pending: currentVisits.filter(
         (visit) => String(visit.status).toLowerCase() === "pending"
       ).length,
-
       rejected: currentVisits.filter(
         (visit) => String(visit.status).toLowerCase() === "rejected"
       ).length,
     };
   }, [currentVisits]);
-
   const filteredVisits = useMemo(() => {
     const query = visitSearch.trim().toLowerCase();
-
     return currentVisits.filter((visit) => {
       const status = String(visit.status || "").toLowerCase();
-
       const matchesStatus =
         visitStatus === "all" || status === visitStatus;
-
+      const stopSearchText = getVisitStops(visit)
+        .flatMap((stop) => [
+          stop.location,
+          stop.visit_time,
+          stop.description,
+        ])
+        .join(" ");
       const searchable = [
         visit.full_name,
         visit.employee_code,
-        visit.all_people?.join(" "),
+        Array.isArray(visit.all_people)
+          ? visit.all_people.join(" ")
+          : visit.all_people,
+        visit.team_members,
         visit.visit_type,
         visit.visit_date,
         visit.duration_type,
         visit.half_day_session,
         visit.location,
         visit.comment,
+        stopSearchText,
+        visit.conclusion,
+        visit.remark,
+        visit.review_remark,
+        visit.reviewed_by_name,
         visit.status,
       ]
         .join(" ")
         .toLowerCase();
-
       return (
         matchesStatus &&
         (!query || searchable.includes(query))
       );
     });
   }, [currentVisits, visitSearch, visitStatus]);
-
   const employeeVisitSummary = useMemo(() => {
     const map = {};
-
     teamVisits.forEach((visit) => {
       const people =
         visit.all_people ||
         [visit.full_name];
-
-
       people.forEach((person) => {
-
         const id = person;
-
         if (!map[id]) {
-
           map[id] = {
             employee_id: id,
             full_name: id,
@@ -597,28 +1069,18 @@ const isPremal =
             pending: 0,
             rejected: 0
           };
-
         }
-
         map[id].total += 1;
-
         const status =
           String(visit.status || "").toLowerCase();
-
         if (status === "approved")
           map[id].approved++;
-
         if (status === "pending")
           map[id].pending++;
-
         if (status === "rejected")
           map[id].rejected++;
-
       });
-
-
     });
-
     return Object.values(map);
   }, [teamVisits]);
  const pendingTeamVisits = useMemo(() => {
@@ -627,7 +1089,6 @@ const isPremal =
     "adminApprovals"
       ? adminApprovalVisits
       : teamVisits;
-
   return source.filter(
     (visit) =>
       String(
@@ -642,20 +1103,16 @@ const isPremal =
 ]);
   useEffect(() => {
     if (!visitMessage) return;
-
     const timer = setTimeout(() => {
       setVisitMessage("");
     }, 3000);
-
     return () => clearTimeout(timer);
   }, [visitMessage]);
-
   const EmployeeCard = ({ employee }) => {
     return (
       <div style={styles.employeeCard}>
         <div style={styles.employeeTop}>
           <div style={styles.employeeAvatar}>{getInitials(employee.full_name)}</div>
-
           <div style={styles.employeeInfo}>
             <h3 style={styles.employeeName}>{employee.full_name || "-"}</h3>
             <p style={styles.employeeEmail}>{employee.email || "-"}</p>
@@ -664,7 +1121,6 @@ const isPremal =
             </span>
           </div>
         </div>
-
         <div style={styles.employeeStatsGrid}>
           <SummaryBox compact label="Working Days" value={employee.total} />
           <SummaryBox compact label="Present" value={employee.present} />
@@ -672,7 +1128,6 @@ const isPremal =
           <SummaryBox compact label="Late" value={employee.late} />
           <SummaryBox compact label="Leave" value={employee.leave} />
         </div>
-
         <div style={styles.employeeBottom}>
           <strong>Latest Attendance:</strong>{" "}
           <span>{employee.latest_attendance_date || "-"}</span>
@@ -680,11 +1135,9 @@ const isPremal =
       </div>
     );
   };
-
   return (
     <div style={styles.page}>
       {error && <div style={styles.errorBox}>{error}</div>}
-
       {!fieldVisitsOnly && (
   <section style={styles.tabBlock}>
         <button
@@ -698,7 +1151,6 @@ const isPremal =
         >
           My Attendance
         </button>
-
         <button
           type="button"
           style={
@@ -710,21 +1162,16 @@ const isPremal =
         >
           Employee Summary
         </button>
-
-        
        </section>
 )}
-
       {activeTab === "myAttendance" && (
         <section style={styles.contentBlock}>
           <div style={styles.myAttendanceHeader}>
             <div style={styles.myAvatar}>{getInitials(myAttendance?.full_name)}</div>
-
             <div style={styles.myDetails}>
               <p style={styles.smallLabel}>My Attendance</p>
               <h2 style={styles.myName}>{myAttendance?.full_name || "-"}</h2>
               <p style={styles.myEmail}>{myAttendance?.email || "-"}</p>
-
               <span style={styles.myDepartment}>
                 <strong style={styles.myDepartmentText}>
                   {myAttendance?.department_name || "-"}
@@ -732,7 +1179,6 @@ const isPremal =
               </span>
             </div>
           </div>
-
           <div style={styles.myStatsGrid}>
             <SummaryBox label="Working Days" value={myAttendance?.total || 0} />
             <SummaryBox label="Present" value={myAttendance?.present || 0} />
@@ -740,7 +1186,6 @@ const isPremal =
             <SummaryBox label="Late" value={myAttendance?.late || 0} />
             <SummaryBox label="Leave" value={myAttendance?.leave || 0} />
           </div>
-
           <div style={styles.sectionTitleRow}>
             <div>
               <h2 style={styles.sectionTitle}>My Attendance Records</h2>
@@ -749,7 +1194,6 @@ const isPremal =
               </p>
             </div>
           </div>
-
           <div style={styles.tableBlock}>
             {loading ? (
               <div style={styles.emptyBox}>Loading attendance...</div>
@@ -767,7 +1211,6 @@ const isPremal =
                     <th style={styles.th}>Remarks</th>
                   </tr>
                 </thead>
-
                 <tbody>
                   {myRecords.map((record) => (
                     <tr
@@ -791,22 +1234,17 @@ const isPremal =
           </div>
         </section>
       )}
-
       {activeTab === "employeeSummary" && (
         <section style={styles.contentBlock}>
-
           <div style={styles.employeeSummaryHeader}>
-
             <div>
               <h2 style={styles.sectionTitle}>
                 {employeeSummary[0]?.department_name || "Department"} Users
               </h2>
-
               <p style={styles.sectionSubtitle}>
                 Employee attendance management
               </p>
             </div>
-
             <button
               type="button"
               style={styles.refreshButton}
@@ -814,12 +1252,8 @@ const isPremal =
             >
               Refresh
             </button>
-
           </div>
-
-
           <div style={styles.searchRow}>
-
             <input
               style={styles.searchInput}
               type="text"
@@ -827,14 +1261,10 @@ const isPremal =
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
-
-
             <div style={styles.totalBadge}>
               Total: {filteredEmployees.length}
             </div>
-
           </div>
-
           {loading ? (
             <div style={styles.emptyBox}>Loading employee summary...</div>
           ) : filteredEmployees.length === 0 ? (
@@ -854,12 +1284,10 @@ const isPremal =
           <div style={styles.visitHeader}>
             <div>
               <h2 style={styles.sectionTitle}>Field Visits</h2>
-
               <p style={styles.sectionSubtitle}>
                 Manage your department field visits and your own visits.
               </p>
             </div>
-
             <div style={styles.visitHeaderActions}>
               {fieldVisitMode === "my" && (
                 <button
@@ -875,7 +1303,6 @@ const isPremal =
                   + Add Visit
                 </button>
               )}
-
               <button
                 type="button"
                 style={styles.refreshButton}
@@ -891,7 +1318,6 @@ const isPremal =
               </button>
             </div>
           </div>
-
           {/* TEAM / MY */}
           <div style={styles.visitSwitch}>
             <button
@@ -911,7 +1337,6 @@ const isPremal =
             >
               Team Visits
             </button>
-
             <button
               type="button"
               style={{
@@ -952,23 +1377,19 @@ const isPremal =
   </button>
 )}
           </div>
-
           {visitError && (
             <div style={styles.errorBox}>
               {visitError}
             </div>
           )}
-
           {visitMessage && (
             <div style={styles.visitSuccessBox}>
               {visitMessage}
             </div>
           )}
-
           {/* =====================================================
         TEAM VISITS
     ===================================================== */}
-
           {(
   fieldVisitMode === "team" ||
   fieldVisitMode === "adminApprovals"
@@ -981,17 +1402,14 @@ const isPremal =
                     <h3 style={styles.actionSectionTitle}>
                       Action Required
                     </h3>
-
                     <p style={styles.sectionSubtitle}>
                       Pending field visits waiting for your review.
                     </p>
                   </div>
-
                   <span style={styles.actionCount}>
                     {pendingTeamVisits.length} Pending
                   </span>
                 </div>
-
                 <div style={styles.visitTableBox}>
                   {visitLoading ? (
                     <div style={styles.emptyBox}>
@@ -1011,7 +1429,6 @@ const isPremal =
                           <th style={styles.actionTh}>Action</th>
                         </tr>
                       </thead>
-
                       <tbody>
                         {pendingTeamVisits.map((visit) => (
                           <tr key={visit.visit_id}>
@@ -1023,36 +1440,59 @@ const isPremal =
                                   </div>
                                 )) || "-"}
                               </strong>
-
                               {visit.employee_code && (
                                 <div style={styles.visitSecondaryText}>
                                   Code: {visit.employee_code}
                                 </div>
                               )}
                             </td>
-
                             <td style={styles.td}>
                               <strong>
-                                {visit.visit_date || "-"}
+                                {formatVisitDate(visit.visit_date)}
                               </strong>
                             </td>
-
                             <td style={styles.visitDetailsTd}>
                               <strong style={styles.visitTypeText}>
                                 {visit.visit_type || "-"}
                               </strong>
-
                               <div style={styles.visitDetailLine}>
                                 {getVisitDurationLabel(visit)}
                               </div>
-
-                              <div style={styles.visitDetailLine}>
-                                {visit.location || "-"}
+                              <div style={styles.visitJourneyCompact}>
+                                {getVisitStops(visit).map((stop, index) => (
+                                  <div
+                                    key={
+                                      stop.stop_id ||
+                                      `${visit.visit_id}-pending-stop-${index}`
+                                    }
+                                    style={styles.visitStopCompact}
+                                  >
+                                    <strong>
+                                      {stop.location || "-"}
+                                      {stop.visit_time
+                                        ? ` · ${String(stop.visit_time).slice(0, 5)}`
+                                        : ""}
+                                    </strong>
+                                    <FormattedVisitText value={stop.description} />
+                                  </div>
+                                ))}
                               </div>
-
-                              <div style={styles.visitReasonText}>
-                                {visit.comment || "-"}
-                              </div>
+                              {(visit.conclusion || visit.remark) && (
+                                <div style={styles.visitOutcomeCompact}>
+                                  {visit.conclusion && (
+                                    <div>
+                                      <strong>Conclusion:</strong>{" "}
+                                      <FormattedVisitText value={visit.conclusion} />
+                                    </div>
+                                  )}
+                                  {visit.remark && (
+                                    <div>
+                                      <strong>Remark:</strong>{" "}
+                                      <FormattedVisitText value={visit.remark} />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               {
                                 visit.all_people && visit.all_people.length > 1 && (
                                   <div
@@ -1067,10 +1507,7 @@ const isPremal =
                                   </div>
                                 )
                               }
-
-
                             </td>
-
                             <td style={styles.actionTd}>
                               <div style={styles.visitActionButtons}>
                                 <button
@@ -1082,7 +1519,6 @@ const isPremal =
                                 >
                                   Approve
                                 </button>
-
                                 <button
                                   type="button"
                                   style={styles.rejectVisitButton}
@@ -1101,54 +1537,46 @@ const isPremal =
                   )}
                 </div>
               </div>
-
               {/* 2. TOTAL SUMMARY */}
               <div style={styles.visitStatsGrid}>
                 <SummaryBox
                   label="Total Visits"
                   value={visitSummary.total}
                 />
-
                 <SummaryBox
                   label="Approved"
                   value={visitSummary.approved}
                 />
-
                 <SummaryBox
                   label="Pending"
                   value={visitSummary.pending}
                 />
-
                 <SummaryBox
                   label="Rejected"
                   value={visitSummary.rejected}
                 />
               </div>
-
               {/* 3. ALL FIELD VISITS */}
               <div style={styles.allVisitsHeader}>
                 <div>
                   <h3 style={styles.visitSubTitle}>
                     All Field Visits
                   </h3>
-
                   <p style={styles.sectionSubtitle}>
                     Complete history of your department field visits.
                   </p>
                 </div>
               </div>
-
               <div style={styles.visitFilterRow}>
                 <input
                   type="text"
                   style={styles.visitSearchInput}
-                  placeholder="Search employee, location, reason..."
+                  placeholder="Search employee, date, stop, description, conclusion or remark..."
                   value={visitSearch}
                   onChange={(event) =>
                     setVisitSearch(event.target.value)
                   }
                 />
-
                 <select
                   style={styles.visitStatusSelect}
                   value={visitStatus}
@@ -1162,7 +1590,6 @@ const isPremal =
                   <option value="rejected">Rejected</option>
                 </select>
               </div>
-
               <div style={styles.visitTableBox}>
                 {visitLoading ? (
                   <div style={styles.emptyBox}>
@@ -1182,13 +1609,11 @@ const isPremal =
                         <th style={styles.th}>Status</th>
                       </tr>
                     </thead>
-
                     <tbody>
                       {filteredVisits.map((visit) => {
                         const status = String(
                           visit.status || "pending"
                         ).toLowerCase();
-
                         return (
                           <tr key={visit.visit_id}>
                             <td style={styles.td}>
@@ -1199,49 +1624,70 @@ const isPremal =
                                   </div>
                                 )) || "-"}
                               </strong>
-
                               {visit.employee_code && (
                                 <div style={styles.visitSecondaryText}>
                                   Code: {visit.employee_code}
                                 </div>
                               )}
                             </td>
-
                             <td style={styles.td}>
                               <strong>
-                                {visit.visit_date || "-"}
+                                {formatVisitDate(visit.visit_date)}
                               </strong>
                             </td>
-
                             <td style={styles.visitDetailsTd}>
                               <strong style={styles.visitTypeText}>
                                 {visit.visit_type || "-"}
                               </strong>
-
                               <div style={styles.visitDetailLine}>
                                 {getVisitDurationLabel(visit)}
                               </div>
-
-                              <div style={styles.visitDetailLine}>
-                                {visit.location || "-"}
+                              <div style={styles.visitJourneyCompact}>
+                                {getVisitStops(visit).map((stop, index) => (
+                                  <div
+                                    key={
+                                      stop.stop_id ||
+                                      `${visit.visit_id}-history-stop-${index}`
+                                    }
+                                    style={styles.visitStopCompact}
+                                  >
+                                    <strong>
+                                      {stop.location || "-"}
+                                      {stop.visit_time
+                                        ? ` · ${String(stop.visit_time).slice(0, 5)}`
+                                        : ""}
+                                    </strong>
+                                    <FormattedVisitText value={stop.description} />
+                                  </div>
+                                ))}
                               </div>
-
-                              <div style={styles.visitReasonText}>
-                                {visit.comment || "-"}
-                              </div>
-
+                              {(visit.conclusion || visit.remark) && (
+                                <div style={styles.visitOutcomeCompact}>
+                                  {visit.conclusion && (
+                                    <div>
+                                      <strong>Conclusion:</strong>
+                                      <FormattedVisitText value={visit.conclusion} />
+                                    </div>
+                                  )}
+                                  {visit.remark && (
+                                    <div>
+                                      <strong>Remark / Follow-up:</strong>
+                                      <FormattedVisitText value={visit.remark} />
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                               {visit.review_remark && (
                                 <div style={styles.reviewRemark}>
-                                  Remark: {visit.review_remark}
+                                  <strong>Review Remark:</strong>
+                                  <FormattedVisitText value={visit.review_remark} />
                                 </div>
                               )}
                             </td>
-
                             <td style={styles.td}>
                               <span
                                 style={{
                                   ...styles.visitStatusBadge,
-
                                   ...(status === "approved"
                                     ? styles.visitApproved
                                     : status === "rejected"
@@ -1260,7 +1706,6 @@ const isPremal =
                   </table>
                 )}
               </div>
-
              {/* 4. EMPLOYEE SUMMARY LAST */}
 {fieldVisitMode === "team" && (
   <div style={styles.employeeVisitSummarySection}>
@@ -1268,12 +1713,10 @@ const isPremal =
                   <h3 style={styles.visitSubTitle}>
                     Employee Visit Summary
                   </h3>
-
                   <p style={styles.sectionSubtitle}>
                     Employee-wise totals for your department.
                   </p>
                 </div>
-
                 <div style={styles.visitTableBox}>
                   {employeeVisitSummary.length === 0 ? (
                     <div style={styles.emptyBox}>
@@ -1291,7 +1734,6 @@ const isPremal =
                           <th style={styles.th}>Rejected</th>
                         </tr>
                       </thead>
-
                       <tbody>
                         {employeeVisitSummary.map((employee) => (
                           <tr key={employee.employee_id}>
@@ -1300,23 +1742,18 @@ const isPremal =
                                 {employee.full_name}
                               </strong>
                             </td>
-
                             <td style={styles.td}>
                               {employee.employee_code}
                             </td>
-
                             <td style={styles.td}>
                               {employee.total}
                             </td>
-
                             <td style={styles.td}>
                               {employee.approved}
                             </td>
-
                             <td style={styles.td}>
                               {employee.pending}
                             </td>
-
                             <td style={styles.td}>
                               {employee.rejected}
                             </td>
@@ -1330,11 +1767,9 @@ const isPremal =
               )}
             </>
           )}
-
           {/* =====================================================
         MY VISITS
     ===================================================== */}
-
           {fieldVisitMode === "my" && (
             <>
               <div style={styles.myVisitOverview}>
@@ -1342,12 +1777,10 @@ const isPremal =
                   <h3 style={styles.myVisitTitle}>
                     My Visit History
                   </h3>
-
                   <p style={styles.sectionSubtitle}>
                     Your recorded field, sales and business visits.
                   </p>
                 </div>
-
                 <div style={styles.myVisitCount}>
                   <strong
                     style={{
@@ -1357,7 +1790,6 @@ const isPremal =
                   >
                     {myVisits.length}
                   </strong>
-
                   <span
                     style={{
                       color: "#64748b",
@@ -1369,19 +1801,17 @@ const isPremal =
                   </span>
                 </div>
               </div>
-
               <div style={styles.myVisitSearchRow}>
                 <input
                   type="text"
                   style={styles.myVisitSearchInput}
-                  placeholder="Search by visit type, location or reason..."
+                  placeholder="Search by date, visit type, stop, description, conclusion or remark..."
                   value={visitSearch}
                   onChange={(event) =>
                     setVisitSearch(event.target.value)
                   }
                 />
               </div>
-
               <div style={styles.myVisitTableCard}>
                 {visitLoading ? (
                   <div style={styles.myVisitEmpty}>
@@ -1392,15 +1822,12 @@ const isPremal =
                     <div style={styles.myVisitEmptyIcon}>
                       ↗
                     </div>
-
                     <h3 style={styles.myVisitEmptyTitle}>
                       No field visits yet
                     </h3>
-
                     <p style={styles.myVisitEmptyText}>
                       Add your first field visit to start building your visit history.
                     </p>
-
                     <button
                       type="button"
                       style={styles.myVisitEmptyButton}
@@ -1422,32 +1849,56 @@ const isPremal =
                         <th style={styles.th}>Status</th>
                       </tr>
                     </thead>
-
                     <tbody>
                       {filteredVisits.map((visit) => (
                         <tr key={visit.visit_id}>
                           <td style={styles.myVisitDateTd}>
                             <strong>
-                              {visit.visit_date || "-"}
+                              {formatVisitDate(visit.visit_date)}
                             </strong>
                           </td>
-
                           <td style={styles.myVisitDetailsTd}>
                             <div style={styles.myVisitType}>
                               {visit.visit_type || "-"}
                             </div>
-
                             <div style={styles.myVisitMeta}>
                               {getVisitDurationLabel(visit)}
                             </div>
-
-                            <div style={styles.myVisitLocation}>
-                              {visit.location || "-"}
+                            <div style={styles.visitJourneyCompact}>
+                              {getVisitStops(visit).map((stop, index) => (
+                                <div
+                                  key={
+                                    stop.stop_id ||
+                                    `${visit.visit_id}-my-stop-${index}`
+                                  }
+                                  style={styles.visitStopCompact}
+                                >
+                                  <strong>
+                                    {stop.location || "-"}
+                                    {stop.visit_time
+                                      ? ` · ${String(stop.visit_time).slice(0, 5)}`
+                                      : ""}
+                                  </strong>
+                                  <FormattedVisitText value={stop.description} />
+                                </div>
+                              ))}
                             </div>
-
-                            <div style={styles.myVisitReason}>
-                              {visit.comment || "-"}
-                            </div>
+                            {(visit.conclusion || visit.remark) && (
+                              <div style={styles.visitOutcomeCompact}>
+                                {visit.conclusion && (
+                                  <div>
+                                    <strong>Conclusion:</strong>
+                                    <FormattedVisitText value={visit.conclusion} />
+                                  </div>
+                                )}
+                                {visit.remark && (
+                                  <div>
+                                    <strong>Remark / Follow-up:</strong>
+                                    <FormattedVisitText value={visit.remark} />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             {
                               visit.all_people && visit.all_people.length > 1 && (
                                 <div
@@ -1463,7 +1914,6 @@ const isPremal =
                               )
                             }
                           </td>
-
                           <td style={styles.td}>
                             <span style={styles.recordedBadge}>
                               Recorded
@@ -1479,7 +1929,6 @@ const isPremal =
           )}
         </section>
       )}
-
       {rejectVisitTarget && (
         <div
           style={styles.rejectModalOverlay}
@@ -1500,7 +1949,6 @@ const isPremal =
                 <h2 style={styles.rejectModalTitle}>
                   Reject Field Visit
                 </h2>
-
                 <p style={styles.rejectModalSubtitle}>
                   Please provide a reason for rejecting{" "}
                   <strong>
@@ -1510,7 +1958,6 @@ const isPremal =
                   's field visit.
                 </p>
               </div>
-
               <button
                 type="button"
                 style={styles.rejectModalClose}
@@ -1524,34 +1971,28 @@ const isPremal =
                 ×
               </button>
             </div>
-
             <div style={styles.rejectVisitInfo}>
               <div>
                 <span style={styles.rejectInfoLabel}>
                   Visit Type
                 </span>
-
                 <strong style={styles.rejectInfoValue}>
                   {rejectVisitTarget.visit_type || "-"}
                 </strong>
               </div>
-
               <div>
                 <span style={styles.rejectInfoLabel}>
                   Date
                 </span>
-
                 <strong style={styles.rejectInfoValue}>
-                  {rejectVisitTarget.visit_date || "-"}
+                  {formatVisitDate(rejectVisitTarget.visit_date)}
                 </strong>
               </div>
             </div>
-
             <label style={styles.rejectRemarkGroup}>
               <span>
                 Rejection Reason *
               </span>
-
               <textarea
                 autoFocus
                 style={styles.rejectRemarkInput}
@@ -1561,20 +2002,17 @@ const isPremal =
                   setRejectRemark(
                     event.target.value
                   );
-
                   if (visitError) {
                     setVisitError("");
                   }
                 }}
               />
             </label>
-
             {visitError && (
               <div style={styles.rejectModalError}>
                 {visitError}
               </div>
             )}
-
             <div style={styles.rejectModalFooter}>
               <button
                 type="button"
@@ -1588,7 +2026,6 @@ const isPremal =
               >
                 Cancel
               </button>
-
               <button
                 type="button"
                 style={{
@@ -1623,12 +2060,10 @@ const isPremal =
                 <h2 style={styles.visitModalTitle}>
                   Add Field Visit
                 </h2>
-
                 <p style={styles.sectionSubtitle}>
                   Add your sales, client or business visit.
                 </p>
               </div>
-
               <button
                 type="button"
                 style={styles.visitCloseButton}
@@ -1637,20 +2072,14 @@ const isPremal =
                 ×
               </button>
             </div>
-
             {visitError && (
               <div style={styles.errorBox}>{visitError}</div>
             )}
-
             <div style={styles.visitFormGrid}>
-
               <label style={styles.visitFormGroup}>
-
                 <span>
                   Visitors / Team Members
                 </span>
-
-
                 <input
                   type="text"
                   placeholder="Search employee..."
@@ -1660,8 +2089,6 @@ const isPremal =
                   }
                   style={styles.visitFormInput}
                 />
-
-
                 <div
                   style={{
                     border: "1px solid #d6dde8",
@@ -1671,7 +2098,6 @@ const isPremal =
                     overflowY: "auto"
                   }}
                 >
-
                   {
                     employees
                       .filter((emp) =>
@@ -1682,15 +2108,11 @@ const isPremal =
                           )
                       )
                       .map((emp) => {
-
                         const checked =
                           selectedVisitors.includes(
                             Number(emp.user_id)
                           );
-
-
                         return (
-
                           <label
                             key={emp.user_id}
                             style={{
@@ -1700,45 +2122,31 @@ const isPremal =
                               fontWeight: 700
                             }}
                           >
-
                             <input
                               type="checkbox"
                               checked={checked}
                               onChange={() => {
-
                                 if (checked) {
-
                                   setSelectedVisitors(prev =>
                                     prev.filter(
                                       id => id !== Number(emp.user_id)
                                     )
                                   );
-
                                 }
                                 else {
-
                                   setSelectedVisitors(prev => [
                                     ...prev,
                                     Number(emp.user_id)
                                   ]);
-
                                 }
-
                               }}
                             />
-
                             {emp.full_name}
-
                           </label>
-
                         )
-
                       })
                   }
-
                 </div>
-
-
                 <div
                   style={{
                     marginTop: "10px",
@@ -1750,13 +2158,10 @@ const isPremal =
                 >
                   {
                     selectedVisitors.map((id) => {
-
                       const employee = employees.find(
                         (emp) => Number(emp.user_id) === Number(id)
                       );
-
                       return (
-
                         <div
                           key={id}
                           style={{
@@ -1772,11 +2177,9 @@ const isPremal =
                             fontWeight: 800,
                           }}
                         >
-
                           <span>
                             {employee?.full_name || "Employee"}
                           </span>
-
                           <button
                             type="button"
                             style={{
@@ -1791,31 +2194,23 @@ const isPremal =
                               lineHeight: 1,
                             }}
                             onClick={() => {
-
                               setSelectedVisitors(prev =>
                                 prev.filter(
                                   item => item !== id
                                 )
                               );
-
                             }}
                           >
                             ×
                           </button>
-
                         </div>
-
                       )
-
                     })
                   }
                 </div>
-
-
               </label>
               <label style={styles.visitFormGroup}>
                 <span>Visit Type *</span>
-
                 <select
                   style={styles.visitFormInput}
                   value={visitForm.visit_type}
@@ -1829,28 +2224,22 @@ const isPremal =
                   <option value="Sales Visit">
                     Sales Visit
                   </option>
-
                   <option value="Exhibition Visit">
                     Exhibition Visit
                   </option>
-
                   <option value="Manufacturer Visit">
                     Manufacturer Visit
                   </option>
-
                   <option value="Document Visit">
                     Document Visit
                   </option>
-
                   <option value="Procurement Visit">
                     Procurement Visit
                   </option>
                 </select>
               </label>
-
               <label style={styles.visitFormGroup}>
                 <span>Date *</span>
-
                 <input
                   type="date"
                   style={styles.visitFormInput}
@@ -1863,16 +2252,13 @@ const isPremal =
                   }
                 />
               </label>
-
               <label style={styles.visitFormGroup}>
                 <span>Duration *</span>
-
                 <select
                   style={styles.visitFormInput}
                   value={visitForm.duration_type}
                   onChange={(event) => {
                     const value = event.target.value;
-
                     setVisitForm((previous) => ({
                       ...previous,
                       duration_type: value,
@@ -1881,24 +2267,20 @@ const isPremal =
                           ? previous.half_day_session
                           : "",
                     }));
-
                     setVisitError("");
                   }}
                 >
                   <option value="full_day">
                     Full Day
                   </option>
-
                   <option value="half_day">
                     Half Day
                   </option>
                 </select>
               </label>
-
               {visitForm.duration_type === "half_day" && (
                 <label style={styles.visitFormGroup}>
                   <span>Half Day Session *</span>
-
                   <select
                     style={styles.visitFormInput}
                     value={visitForm.half_day_session}
@@ -1913,54 +2295,171 @@ const isPremal =
                     <option value="">
                       Select Half
                     </option>
-
                     <option value="first_half">
                       First Half
                     </option>
-
                     <option value="second_half">
                       Second Half
                     </option>
                   </select>
                 </label>
               )}
-
-
             </div>
-
+            <section style={styles.visitStopsSection}>
+              <div style={styles.visitStopsHeader}>
+                <div>
+                  <strong>Visit Locations *</strong>
+                  <div style={styles.visitFormatHint}>
+                    Add each location in sequence. Description is required; time is optional.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  style={styles.addVisitStopButton}
+                  onClick={() =>
+                    setVisitForm((previous) => ({
+                      ...previous,
+                      visit_stops: [
+                        ...(Array.isArray(previous.visit_stops)
+                          ? previous.visit_stops
+                          : []),
+                        createEmptyVisitStop(),
+                      ],
+                    }))
+                  }
+                >
+                  + Add Location
+                </button>
+              </div>
+              {(Array.isArray(visitForm.visit_stops)
+                ? visitForm.visit_stops
+                : []
+              ).map((stop, index) => (
+                <div
+                  key={`admin-visit-stop-${index}`}
+                  style={styles.visitStopCard}
+                >
+                  <div style={styles.visitStopCardHeader}>
+                    <strong style={styles.visitStopTitle}>
+                      Visit Location
+                    </strong>
+                    {visitForm.visit_stops.length > 1 && (
+                      <button
+                        type="button"
+                        style={styles.removeVisitStopButton}
+                        onClick={() =>
+                          setVisitForm((previous) => ({
+                            ...previous,
+                            visit_stops: previous.visit_stops.filter(
+                              (_, stopIndex) => stopIndex !== index
+                            ),
+                          }))
+                        }
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <div style={styles.visitStopGrid}>
+                    <label style={styles.visitFormGroup}>
+                      <span>Location *</span>
+                      <input
+                        type="text"
+                        style={styles.visitFormInput}
+                        placeholder="Example: Vashi, Navi Mumbai"
+                        value={stop.location}
+                        onChange={(event) =>
+                          setVisitForm((previous) => ({
+                            ...previous,
+                            visit_stops: previous.visit_stops.map(
+                              (item, stopIndex) =>
+                                stopIndex === index
+                                  ? {
+                                      ...item,
+                                      location: event.target.value,
+                                    }
+                                  : item
+                            ),
+                          }))
+                        }
+                      />
+                    </label>
+                    <label style={styles.visitFormGroup}>
+                      <span>Visit Time</span>
+                      <input
+                        type="time"
+                        style={styles.visitFormInput}
+                        value={stop.visit_time || ""}
+                        onChange={(event) =>
+                          setVisitForm((previous) => ({
+                            ...previous,
+                            visit_stops: previous.visit_stops.map(
+                              (item, stopIndex) =>
+                                stopIndex === index
+                                  ? {
+                                      ...item,
+                                      visit_time: event.target.value,
+                                    }
+                                  : item
+                            ),
+                          }))
+                        }
+                      />
+                    </label>
+                  </div>
+                  <label style={styles.visitFormGroup}>
+                    <span>Description / Purpose *</span>
+                    <RichVisitEditor
+                      style={styles.visitTextarea}
+                      placeholder="What was discussed, checked or completed at this stop?"
+                      value={stop.description}
+                      onChange={(nextValue) =>
+                        setVisitForm((previous) => ({
+                          ...previous,
+                          visit_stops: previous.visit_stops.map(
+                            (item, stopIndex) =>
+                              stopIndex === index
+                                ? {
+                                    ...item,
+                                    description: nextValue,
+                                  }
+                                : item
+                          ),
+                        }))
+                      }
+                    />
+                  </label>
+                </div>
+              ))}
+            </section>
             <label style={styles.visitFormGroup}>
-              <span>Location *</span>
-
-              <input
-                type="text"
-                style={styles.visitFormInput}
-                placeholder="Example: Vashi, Navi Mumbai"
-                value={visitForm.location}
-                onChange={(event) =>
-                  setVisitForm((previous) => ({
-                    ...previous,
-                    location: event.target.value,
-                  }))
-                }
-              />
-            </label>
-
-            <label style={styles.visitFormGroup}>
-              <span>Comment / Reason *</span>
-
-              <textarea
+              <span>Conclusion</span>
+              <RichVisitEditor
                 style={styles.visitTextarea}
-                placeholder="Purpose of visit..."
-                value={visitForm.comment}
-                onChange={(event) =>
+                placeholder="Overall result or conclusion from the complete visit..."
+                value={visitForm.conclusion}
+                onChange={(nextValue) =>
                   setVisitForm((previous) => ({
                     ...previous,
-                    comment: event.target.value,
+                    conclusion: nextValue,
                   }))
                 }
               />
             </label>
-
+            <label style={styles.visitFormGroup}>
+              <span>Remark / Follow-up</span>
+              <RichVisitEditor
+                style={styles.visitTextarea}
+                placeholder="Next action, quotation, callback, follow-up or other remark..."
+                value={visitForm.remark}
+                onChange={(nextValue) =>
+                  setVisitForm((previous) => ({
+                    ...previous,
+                    remark: nextValue,
+                  }))
+                }
+              />
+            </label>
             <div style={styles.visitModalFooter}>
               <button
                 type="button"
@@ -1969,7 +2468,6 @@ const isPremal =
               >
                 Cancel
               </button>
-
               <button
                 type="button"
                 style={styles.visitSubmitButton}
@@ -1985,19 +2483,15 @@ const isPremal =
     </div>
   );
 };
-
 const styles = {
   page: {
     width: "100%",
     flex: 1,
     minHeight: "100%",
-
     boxSizing: "border-box",
-
     margin: 0,
     padding: "18px 20px 32px",
   },
-
   errorBox: {
     background: "#fff1f2",
     color: "#b91c1c",
@@ -2008,68 +2502,49 @@ const styles = {
     fontWeight: 800,
     marginBottom: "22px",
   },
-
   tabBlock: {
     display: "inline-flex",
     alignItems: "center",
     gap: "4px",
     padding: "5px",
     marginBottom: "26px",
-
     background: "#ffffff",
     border: "1px solid #e5e7eb",
     borderRadius: "16px",
-
     boxShadow: "0 8px 22px rgba(15, 23, 42, 0.05)",
   },
-
   tabButton: {
     border: "none",
     background: "transparent",
     color: "#64748b",
-
     borderRadius: "11px",
     padding: "13px 22px",
-
     fontSize: "14px",
     fontWeight: 900,
-
     cursor: "pointer",
     transition: "all 0.2s ease",
-
     minWidth: "155px",
   },
-
   activeTabButton: {
     border: "none",
     background: "#ff5733",
     color: "#ffffff",
-
     borderRadius: "11px",
     padding: "13px 22px",
-
     fontSize: "14px",
     fontWeight: 900,
-
     cursor: "pointer",
-
     minWidth: "155px",
-
     boxShadow: "0 7px 16px rgba(255, 87, 51, 0.22)",
   },
-
   contentBlock: {
     width: "100%",
     boxSizing: "border-box",
-
     background: "#ffffff",
     borderRadius: "28px",
-
     padding: "32px 38px",
-
     boxShadow: "0 18px 46px rgba(15, 23, 42, 0.07)",
   },
-
   myAttendanceHeader: {
     display: "grid",
     gridTemplateColumns: "96px 1fr",
@@ -2077,7 +2552,6 @@ const styles = {
     alignItems: "center",
     marginBottom: "24px",
   },
-
   myAvatar: {
     width: "96px",
     height: "96px",
@@ -2090,11 +2564,9 @@ const styles = {
     fontWeight: 900,
     boxShadow: "0 16px 34px rgba(255, 87, 51, 0.25)",
   },
-
   myDetails: {
     minWidth: 0,
   },
-
   smallLabel: {
     margin: "0 0 8px",
     color: "#ff5733",
@@ -2103,7 +2575,6 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.04em",
   },
-
   myName: {
     margin: "0 0 6px",
     color: "#111827",
@@ -2111,7 +2582,6 @@ const styles = {
     fontWeight: 900,
     lineHeight: 1.15,
   },
-
   myEmail: {
     margin: "0 0 8px",
     color: "#64748b",
@@ -2119,7 +2589,6 @@ const styles = {
     fontWeight: 900,
     overflowWrap: "anywhere",
   },
-
   myDepartment: {
     display: "inline-flex",
     alignItems: "center",
@@ -2130,7 +2599,6 @@ const styles = {
     maxwidth: "auto",
     flex: 1,
   },
-
   myDepartmentText: {
     color: "#ff5733",
     fontSize: "16px",
@@ -2139,14 +2607,12 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.04em",
   },
-
   myStatsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
     gap: "14px",
     marginBottom: "30px",
   },
-
   summaryBox: {
     background: "#f8fafc",
     border: "1px solid #e5e7eb",
@@ -2158,20 +2624,17 @@ const styles = {
     justifyContent: "center",
     gap: "8px",
   },
-
   summaryLabel: {
     color: "#64748b",
     fontSize: "13px",
     fontWeight: 900,
   },
-
   summaryValue: {
     color: "#111827",
     fontSize: "28px",
     fontWeight: 900,
     lineHeight: 1,
   },
-
   compactSummaryBox: {
     background: "#f8fafc",
     border: "1px solid #e5e7eb",
@@ -2184,7 +2647,6 @@ const styles = {
     gap: "8px",
     minWidth: 0,
   },
-
   compactSummaryLabel: {
     color: "#64748b",
     fontSize: "11px",
@@ -2193,14 +2655,12 @@ const styles = {
     wordBreak: "normal",
     whiteSpace: "normal",
   },
-
   compactSummaryValue: {
     color: "#111827",
     fontSize: "24px",
     fontWeight: 900,
     lineHeight: 1,
   },
-
   sectionTitleRow: {
     marginBottom: "20px",
   },
@@ -2210,14 +2670,12 @@ const styles = {
     alignItems: "center",
     marginBottom: "20px",
   },
-
   searchRow: {
     display: "flex",
     alignItems: "center",
     gap: "18px",
     marginBottom: "24px",
   },
-
   refreshButton: {
     border: "none",
     background: "#ff5733",
@@ -2229,7 +2687,6 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 10px 22px rgba(255,87,51,0.22)",
   },
-
   totalBadge: {
     background: "#111827",
     color: "#ffffff",
@@ -2239,16 +2696,12 @@ const styles = {
     fontWeight: 900,
     whiteSpace: "nowrap",
   },
-
-
-
   sectionTitle: {
     margin: "0 0 8px",
     color: "#111827",
     fontSize: "30px",
     fontWeight: 900,
   },
-
   sectionSubtitle: {
     margin: 0,
     color: "#64748b",
@@ -2256,7 +2709,6 @@ const styles = {
     fontWeight: 700,
     lineHeight: 1.45,
   },
-
   searchInput: {
     width: "auto",
     flex: 1,
@@ -2272,17 +2724,14 @@ const styles = {
     marginBottom: "24px",
     boxSizing: "border-box",
   },
-
   tableBlock: {
     width: "100%",
     overflowX: "auto",
   },
-
   table: {
     width: "100%",
     borderCollapse: "collapse",
   },
-
   th: {
     textAlign: "left",
     color: "#64748b",
@@ -2292,7 +2741,6 @@ const styles = {
     fontWeight: 900,
     whiteSpace: "nowrap",
   },
-
   td: {
     borderTop: "1px solid #eef2f7",
     padding: "16px",
@@ -2301,7 +2749,6 @@ const styles = {
     fontWeight: 800,
     whiteSpace: "nowrap",
   },
-
   statusBadge: {
     borderRadius: "999px",
     padding: "7px 12px",
@@ -2310,33 +2757,27 @@ const styles = {
     textAlign: "center",
     display: "inline-block",
   },
-
   presentBadge: {
     background: "#dcfce7",
     color: "#15803d",
   },
-
   absentBadge: {
     background: "#fee2e2",
     color: "#b91c1c",
   },
-
   lateBadge: {
     background: "#fef3c7",
     color: "#b45309",
   },
-
   leaveBadge: {
     background: "#e0f2fe",
     color: "#0369a1",
   },
-
   employeeGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "22px",
   },
-
   employeeCard: {
     background: "#ffffff",
     border: "1px solid #e5e7eb",
@@ -2346,7 +2787,6 @@ const styles = {
     minWidth: 0,
     overflow: "hidden",
   },
-
   employeeTop: {
     display: "grid",
     gridTemplateColumns: "64px minmax(0, 1fr)",
@@ -2354,7 +2794,6 @@ const styles = {
     alignItems: "center",
     marginBottom: "22px",
   },
-
   employeeAvatar: {
     width: "64px",
     height: "64px",
@@ -2367,11 +2806,9 @@ const styles = {
     fontWeight: 900,
     flexShrink: 0,
   },
-
   employeeInfo: {
     minWidth: 0,
   },
-
   employeeName: {
     margin: "0 0 6px",
     color: "#111827",
@@ -2382,7 +2819,6 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-
   employeeEmail: {
     margin: "0 0 6px",
     color: "#64748b",
@@ -2392,7 +2828,6 @@ const styles = {
     textOverflow: "ellipsis",
     whiteSpace: "nowrap",
   },
-
   employeeDepartment: {
     display: "inline-flex",
     alignItems: "center",
@@ -2407,20 +2842,17 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.03em",
   },
-
   employeeStatsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
     gap: "10px",
     marginBottom: "16px",
   },
-
   employeeBottom: {
     color: "#111827",
     fontSize: "14px",
     fontWeight: 800,
   },
-
   emptyBox: {
     border: "1px dashed #cbd5e1",
     borderRadius: "16px",
@@ -2437,13 +2869,11 @@ const styles = {
     gap: "18px",
     marginBottom: "22px",
   },
-
   visitHeaderActions: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
   },
-
   outlineVisitButton: {
     border: "1px solid #ff5733",
     background: "#ffffff",
@@ -2454,7 +2884,6 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   visitSwitch: {
     display: "inline-flex",
     gap: "4px",
@@ -2464,7 +2893,6 @@ const styles = {
     borderRadius: "14px",
     marginBottom: "24px",
   },
-
   visitSwitchButton: {
     border: "none",
     background: "transparent",
@@ -2474,13 +2902,11 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   visitSwitchActive: {
     background: "#ffffff",
     color: "#ff5733",
     boxShadow: "0 5px 14px rgba(15, 23, 42, 0.08)",
   },
-
   visitSuccessBox: {
     background: "#dcfce7",
     color: "#166534",
@@ -2490,39 +2916,33 @@ const styles = {
     fontWeight: 800,
     marginBottom: "20px",
   },
-
   visitStatsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
     gap: "14px",
     marginBottom: "26px",
   },
-
   visitSubHeader: {
     marginBottom: "14px",
   },
-
   visitSubTitle: {
     margin: "0 0 5px",
     color: "#111827",
     fontSize: "20px",
     fontWeight: 900,
   },
-
   visitTableBox: {
     border: "1px solid #e5e7eb",
     borderRadius: "18px",
     overflowX: "auto",
     marginBottom: "24px",
   },
-
   visitFilterRow: {
     display: "grid",
     gridTemplateColumns: "1fr 220px",
     gap: "14px",
     marginBottom: "20px",
   },
-
   visitSearchInput: {
     height: "54px",
     border: "1px solid #d6dde8",
@@ -2532,7 +2952,6 @@ const styles = {
     fontSize: "14px",
     fontWeight: 700,
   },
-
   visitStatusSelect: {
     height: "54px",
     border: "1px solid #d6dde8",
@@ -2542,7 +2961,6 @@ const styles = {
     outline: "none",
     fontWeight: 800,
   },
-
   visitTextTd: {
     borderTop: "1px solid #eef2f7",
     padding: "16px",
@@ -2553,7 +2971,6 @@ const styles = {
     minWidth: "150px",
     maxWidth: "260px",
   },
-
   visitStatusBadge: {
     display: "inline-flex",
     borderRadius: "999px",
@@ -2561,22 +2978,18 @@ const styles = {
     fontSize: "12px",
     fontWeight: 900,
   },
-
   visitApproved: {
     background: "#dcfce7",
     color: "#166534",
   },
-
   visitPending: {
     background: "#fef3c7",
     color: "#92400e",
   },
-
   visitRejected: {
     background: "#fee2e2",
     color: "#b91c1c",
   },
-
   visitActionButtons: {
     display: "flex",
     justifyContent: "flex-end",
@@ -2584,7 +2997,6 @@ const styles = {
     gap: "7px",
     whiteSpace: "nowrap",
   },
-
   approveVisitButton: {
     border: "none",
     background: "#16a34a",
@@ -2594,7 +3006,6 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   rejectVisitButton: {
     border: "none",
     background: "#ef4444",
@@ -2604,13 +3015,11 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   reviewedVisitText: {
     color: "#64748b",
     fontSize: "12px",
     fontWeight: 800,
   },
-
   rejectModalOverlay: {
     position: "fixed",
     inset: 0,
@@ -2621,7 +3030,6 @@ const styles = {
     justifyContent: "center",
     padding: "22px",
   },
-
   rejectModal: {
     width: "min(520px, 94vw)",
     background: "#ffffff",
@@ -2631,7 +3039,6 @@ const styles = {
     boxShadow:
       "0 30px 80px rgba(15, 23, 42, 0.28)",
   },
-
   rejectModalHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -2639,14 +3046,12 @@ const styles = {
     gap: "18px",
     marginBottom: "20px",
   },
-
   rejectModalTitle: {
     margin: "0 0 7px",
     color: "#111827",
     fontSize: "23px",
     fontWeight: 900,
   },
-
   rejectModalSubtitle: {
     margin: 0,
     color: "#64748b",
@@ -2654,7 +3059,6 @@ const styles = {
     fontWeight: 700,
     lineHeight: 1.5,
   },
-
   rejectModalClose: {
     width: "38px",
     height: "38px",
@@ -2667,7 +3071,6 @@ const styles = {
     fontWeight: 700,
     cursor: "pointer",
   },
-
   rejectVisitInfo: {
     display: "grid",
     gridTemplateColumns:
@@ -2679,7 +3082,6 @@ const styles = {
     border: "1px solid #e5e7eb",
     borderRadius: "14px",
   },
-
   rejectInfoLabel: {
     display: "block",
     marginBottom: "4px",
@@ -2689,13 +3091,11 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.04em",
   },
-
   rejectInfoValue: {
     color: "#111827",
     fontSize: "13px",
     fontWeight: 900,
   },
-
   rejectRemarkGroup: {
     display: "flex",
     flexDirection: "column",
@@ -2704,7 +3104,6 @@ const styles = {
     fontSize: "13px",
     fontWeight: 900,
   },
-
   rejectRemarkInput: {
     width: "100%",
     minHeight: "120px",
@@ -2719,7 +3118,6 @@ const styles = {
     color: "#111827",
     background: "#ffffff",
   },
-
   rejectModalError: {
     marginTop: "10px",
     padding: "10px 12px",
@@ -2729,7 +3127,6 @@ const styles = {
     fontSize: "12px",
     fontWeight: 800,
   },
-
   rejectModalFooter: {
     display: "flex",
     justifyContent: "flex-end",
@@ -2738,7 +3135,6 @@ const styles = {
     paddingTop: "18px",
     borderTop: "1px solid #e5e7eb",
   },
-
   rejectCancelButton: {
     height: "44px",
     padding: "0 20px",
@@ -2749,7 +3145,6 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   rejectConfirmButton: {
     height: "44px",
     padding: "0 22px",
@@ -2760,12 +3155,10 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   rejectButtonDisabled: {
     opacity: 0.6,
     cursor: "not-allowed",
   },
-
   visitModalOverlay: {
     position: "fixed",
     inset: 0,
@@ -2776,9 +3169,8 @@ const styles = {
     justifyContent: "center",
     padding: "22px",
   },
-
   visitModal: {
-    width: "min(620px, 95vw)",
+    width: "min(780px, 95vw)",
     maxHeight: "90vh",
     overflowY: "auto",
     background: "#ffffff",
@@ -2786,7 +3178,6 @@ const styles = {
     padding: "26px",
     boxShadow: "0 30px 80px rgba(15, 23, 42, 0.25)",
   },
-
   visitModalHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -2794,14 +3185,12 @@ const styles = {
     gap: "16px",
     marginBottom: "20px",
   },
-
   visitModalTitle: {
     margin: "0 0 6px",
     color: "#111827",
     fontSize: "25px",
     fontWeight: 900,
   },
-
   visitCloseButton: {
     width: "40px",
     height: "40px",
@@ -2812,13 +3201,11 @@ const styles = {
     fontSize: "24px",
     cursor: "pointer",
   },
-
   visitFormGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
     gap: "14px",
   },
-
   visitFormGroup: {
     display: "flex",
     flexDirection: "column",
@@ -2828,7 +3215,6 @@ const styles = {
     fontSize: "13px",
     fontWeight: 900,
   },
-
   visitFormInput: {
     width: "100%",
     height: "48px",
@@ -2839,7 +3225,6 @@ const styles = {
     background: "#ffffff",
     outline: "none",
   },
-
   visitTextarea: {
     width: "100%",
     minHeight: "105px",
@@ -2851,7 +3236,92 @@ const styles = {
     resize: "vertical",
     fontFamily: "inherit",
   },
-
+  visitStopsSection: {
+    marginBottom: "18px",
+  },
+  visitStopsHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "14px",
+    marginBottom: "12px",
+  },
+  visitFormatHint: {
+    marginTop: "4px",
+    color: "#64748b",
+    fontSize: "12px",
+    fontWeight: 700,
+    lineHeight: 1.45,
+  },
+  addVisitStopButton: {
+    border: "1px solid #ff5733",
+    background: "#ffffff",
+    color: "#ff5733",
+    borderRadius: "10px",
+    padding: "9px 12px",
+    fontSize: "12px",
+    fontWeight: 900,
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  visitStopCard: {
+    border: "1px solid #e2e8f0",
+    borderRadius: "16px",
+    background: "#f8fafc",
+    padding: "16px",
+    marginBottom: "12px",
+  },
+  visitStopCardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "10px",
+    marginBottom: "12px",
+  },
+  visitStopTitle: {
+    color: "#111827",
+    fontSize: "14px",
+    fontWeight: 900,
+  },
+  removeVisitStopButton: {
+    border: "none",
+    background: "#fee2e2",
+    color: "#b91c1c",
+    borderRadius: "9px",
+    padding: "7px 10px",
+    fontSize: "11px",
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  visitStopGrid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) 180px",
+    gap: "12px",
+  },
+  visitJourneyCompact: {
+    display: "grid",
+    gap: "7px",
+    marginTop: "7px",
+  },
+  visitStopCompact: {
+    padding: "7px 9px",
+    borderRadius: "9px",
+    background: "#f8fafc",
+    color: "#475569",
+    fontSize: "12px",
+    fontWeight: 700,
+    lineHeight: 1.45,
+  },
+  visitOutcomeCompact: {
+    display: "grid",
+    gap: "7px",
+    marginTop: "8px",
+    paddingTop: "8px",
+    borderTop: "1px solid #eef2f7",
+    color: "#334155",
+    fontSize: "12px",
+    lineHeight: 1.45,
+  },
   visitModalFooter: {
     display: "flex",
     justifyContent: "flex-end",
@@ -2859,7 +3329,6 @@ const styles = {
     paddingTop: "16px",
     borderTop: "1px solid #e5e7eb",
   },
-
   visitCancelButton: {
     height: "44px",
     padding: "0 20px",
@@ -2870,7 +3339,6 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   visitSubmitButton: {
     height: "44px",
     padding: "0 22px",
@@ -2884,7 +3352,6 @@ const styles = {
   actionSection: {
     marginBottom: "28px",
   },
-
   actionSectionHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -2892,14 +3359,12 @@ const styles = {
     gap: "16px",
     marginBottom: "14px",
   },
-
   actionSectionTitle: {
     margin: "0 0 5px",
     color: "#111827",
     fontSize: "22px",
     fontWeight: 900,
   },
-
   actionCount: {
     background: "#fff7ed",
     color: "#ea580c",
@@ -2910,7 +3375,6 @@ const styles = {
     fontWeight: 900,
     whiteSpace: "nowrap",
   },
-
   noActionBox: {
     padding: "24px",
     textAlign: "center",
@@ -2919,7 +3383,6 @@ const styles = {
     fontSize: "14px",
     fontWeight: 900,
   },
-
   actionTh: {
     textAlign: "right",
     color: "#64748b",
@@ -2930,7 +3393,6 @@ const styles = {
     whiteSpace: "nowrap",
     width: "190px",
   },
-
   actionTd: {
     borderTop: "1px solid #eef2f7",
     padding: "16px",
@@ -2938,7 +3400,6 @@ const styles = {
     width: "190px",
     verticalAlign: "middle",
   },
-
   visitDetailsTd: {
     borderTop: "1px solid #eef2f7",
     padding: "16px",
@@ -2946,7 +3407,6 @@ const styles = {
     verticalAlign: "middle",
     width: "48%",
   },
-
   visitTypeText: {
     display: "block",
     color: "#111827",
@@ -2954,14 +3414,12 @@ const styles = {
     fontWeight: 900,
     marginBottom: "6px",
   },
-
   visitDetailLine: {
     color: "#475569",
     fontSize: "13px",
     fontWeight: 700,
     lineHeight: 1.5,
   },
-
   visitReasonText: {
     color: "#111827",
     fontSize: "13px",
@@ -2969,14 +3427,12 @@ const styles = {
     marginTop: "5px",
     lineHeight: 1.45,
   },
-
   visitSecondaryText: {
     marginTop: "4px",
     color: "#94a3b8",
     fontSize: "11px",
     fontWeight: 700,
   },
-
   reviewRemark: {
     marginTop: "7px",
     padding: "7px 9px",
@@ -2986,11 +3442,9 @@ const styles = {
     fontSize: "12px",
     fontWeight: 700,
   },
-
   allVisitsHeader: {
     marginBottom: "14px",
   },
-
   employeeVisitSummarySection: {
     marginTop: "30px",
   },
@@ -3005,14 +3459,12 @@ const styles = {
     border: "1px solid #e5e7eb",
     borderRadius: "18px",
   },
-
   myVisitTitle: {
     margin: "0 0 5px",
     color: "#111827",
     fontSize: "20px",
     fontWeight: 900,
   },
-
   myVisitCount: {
     minWidth: "145px",
     padding: "12px 18px",
@@ -3024,11 +3476,9 @@ const styles = {
     alignItems: "flex-end",
     gap: "4px",
   },
-
   myVisitSearchRow: {
     marginBottom: "18px",
   },
-
   myVisitSearchInput: {
     width: "100%",
     height: "52px",
@@ -3042,14 +3492,12 @@ const styles = {
     fontSize: "14px",
     fontWeight: 700,
   },
-
   myVisitTableCard: {
     border: "1px solid #e5e7eb",
     borderRadius: "18px",
     overflow: "hidden",
     background: "#ffffff",
   },
-
   myVisitEmpty: {
     minHeight: "220px",
     padding: "34px 20px",
@@ -3060,7 +3508,6 @@ const styles = {
     textAlign: "center",
     background: "#fbfcfe",
   },
-
   myVisitEmptyIcon: {
     width: "46px",
     height: "46px",
@@ -3073,21 +3520,18 @@ const styles = {
     fontSize: "23px",
     fontWeight: 900,
   },
-
   myVisitEmptyTitle: {
     margin: "0 0 6px",
     color: "#111827",
     fontSize: "17px",
     fontWeight: 900,
   },
-
   myVisitEmptyText: {
     margin: "0 0 18px",
     color: "#64748b",
     fontSize: "13px",
     fontWeight: 700,
   },
-
   myVisitEmptyButton: {
     height: "42px",
     padding: "0 18px",
@@ -3099,7 +3543,6 @@ const styles = {
     fontWeight: 900,
     cursor: "pointer",
   },
-
   myVisitDateTd: {
     borderTop: "1px solid #eef2f7",
     padding: "18px",
@@ -3108,41 +3551,35 @@ const styles = {
     width: "180px",
     verticalAlign: "top",
   },
-
   myVisitDetailsTd: {
     borderTop: "1px solid #eef2f7",
     padding: "18px",
     color: "#111827",
     verticalAlign: "top",
   },
-
   myVisitType: {
     fontSize: "15px",
     fontWeight: 900,
     color: "#111827",
     marginBottom: "5px",
   },
-
   myVisitMeta: {
     color: "#64748b",
     fontSize: "13px",
     fontWeight: 800,
     marginBottom: "4px",
   },
-
   myVisitLocation: {
     color: "#334155",
     fontSize: "13px",
     fontWeight: 800,
     marginBottom: "5px",
   },
-
   myVisitReason: {
     color: "#64748b",
     fontSize: "13px",
     fontWeight: 700,
   },
-
   recordedBadge: {
     display: "inline-flex",
     padding: "7px 13px",
@@ -3153,5 +3590,4 @@ const styles = {
     fontWeight: 900,
   },
 };
-
 export default AdminAttendance;

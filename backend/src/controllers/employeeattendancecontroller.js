@@ -1305,184 +1305,434 @@ if (
 /* =========================================================
    EMPLOYEE - GET FIELD VISITS
 ========================================================= */
+const normalizeFieldVisitStops = (body = {}) => {
+  const suppliedStops =
+    Array.isArray(body.visit_stops)
+      ? body.visit_stops
+      : [];
 
-const getEmployeeFieldVisits = async (req,res)=>{
-  
-  try {
-console.log("FIELD VISIT REQUEST USER:", req.user);
-    const employeeId = Number(req.user?.user_id);
+  const stops = suppliedStops
+    .map((stop, index) => ({
+      sequence_no: index + 1,
 
-    if(!employeeId){
-      return res.status(401).json({
-        success:false,
-        message:"Unauthorized."
-      });
-    }
+      location: String(
+        stop?.location || ""
+      ).trim(),
 
+      visit_time:
+        String(
+          stop?.visit_time || ""
+        ).trim() || null,
 
-    const [visits] = await db.query(
-`
-SELECT
+      description: String(
+        stop?.description || ""
+      ).trim(),
+    }))
+    .filter(
+      (stop) =>
+        stop.location ||
+        stop.description
+    );
 
-  fv.visit_id,
-  fv.employee_id,
+  if (stops.length) {
+    return stops;
+  }
 
-  creator.full_name AS employee_name,
+  /*
+    BACKWARD COMPATIBILITY
 
-  fv.visit_type,
+    Existing frontend sends:
+    location + comment
 
-  DATE_FORMAT(
-    fv.visit_date,
-    '%Y-%m-%d'
-  ) AS visit_date,
+    Convert that into Stop 1 internally.
+  */
+  const legacyLocation =
+    String(
+      body.location || ""
+    ).trim();
 
+  const legacyComment =
+    String(
+      body.comment || ""
+    ).trim();
 
- fv.duration_type,
-fv.half_day_session,
+  if (
+    legacyLocation ||
+    legacyComment
+  ) {
+    return [
+      {
+        sequence_no: 1,
+        location:
+          legacyLocation,
 
+        visit_time:
+          null,
 
-  fv.location,
-  fv.comment,
-  fv.status,
+        description:
+          legacyComment,
+      },
+    ];
+  }
 
-
-  GROUP_CONCAT(
-    DISTINCT members.full_name
-    SEPARATOR ', '
-  ) AS team_members,
-
-
-  reviewer.full_name
-  AS reviewed_by_name,
-
-
-  fv.review_remark,
-
-
-  fv.created_at,
-  fv.updated_at
-
-
-FROM employee_field_visits fv
-
-
-LEFT JOIN users creator
-ON creator.user_id =
-fv.employee_id
-
-
-LEFT JOIN field_visit_members fvm
-ON fvm.visit_id =
-fv.visit_id
-
-
-LEFT JOIN users members
-ON members.user_id =
-fvm.employee_id
-
-
-LEFT JOIN users reviewer
-ON reviewer.user_id =
-fv.reviewed_by
-
-
-
-WHERE
-(
- fv.employee_id = ?
-
- OR EXISTS
- (
-   SELECT 1
-
-   FROM field_visit_members check_member
-
-   WHERE
-   check_member.visit_id =
-   fv.visit_id
-
-   AND
-   check_member.employee_id = ?
- )
-)
-
-
-GROUP BY
-fv.visit_id
-
-ORDER BY
-  fv.visit_date DESC,
-  fv.visit_id DESC
-
-`,
-[
- employeeId,
- employeeId
-]
-);
-
-
-
-const summary={
-
-total:visits.length,
-
-
-approved:visits.filter(
-v =>
-String(v.status).toLowerCase()
-==="approved"
-).length,
-
-
-pending:visits.filter(
-v =>
-String(v.status).toLowerCase()
-==="pending"
-).length,
-
-
-rejected:visits.filter(
-v =>
-String(v.status).toLowerCase()
-==="rejected"
-).length
-
+  return [];
 };
 
 
+const attachFieldVisitStops =
+async (visits) => {
 
-return res.json({
+  if (
+    !Array.isArray(visits) ||
+    !visits.length
+  ) {
+    return [];
+  }
 
-success:true,
+  const visitIds =
+    visits
+      .map(
+        (visit) =>
+          Number(
+            visit.visit_id
+          )
+      )
+      .filter(Boolean);
 
-summary,
+  if (!visitIds.length) {
+    return visits;
+  }
 
-visits
+  const [stopRows] =
+    await db.query(
+      `
+        SELECT
+          stop_id,
+          visit_id,
+          sequence_no,
+          location,
+          visit_time,
+          description,
+          created_at,
+          updated_at
 
-});
+        FROM field_visit_stops
+
+        WHERE visit_id IN (?)
+
+        ORDER BY
+          visit_id ASC,
+          sequence_no ASC,
+          stop_id ASC
+      `,
+      [visitIds]
+    );
+
+  const stopMap =
+    new Map();
+
+  stopRows.forEach(
+    (stop) => {
+
+      const visitId =
+        Number(
+          stop.visit_id
+        );
+
+      if (
+        !stopMap.has(
+          visitId
+        )
+      ) {
+        stopMap.set(
+          visitId,
+          []
+        );
+      }
+
+      stopMap
+        .get(visitId)
+        .push(stop);
+    }
+  );
+
+  return visits.map(
+    (visit) => {
+
+      const visitId =
+        Number(
+          visit.visit_id
+        );
+
+      const savedStops =
+        stopMap.get(
+          visitId
+        ) || [];
+
+      /*
+        OLD DATA SAFETY
+
+        Historical Field Visits do not
+        necessarily have rows inside
+        field_visit_stops.
+
+        Show their existing
+        location/comment as Stop 1.
+      */
+      const legacyStops =
+        visit.location ||
+        visit.comment
+          ? [
+              {
+                stop_id:
+                  null,
+
+                visit_id:
+                  visit.visit_id,
+
+                sequence_no:
+                  1,
+
+                location:
+                  visit.location ||
+                  "",
+
+                visit_time:
+                  null,
+
+                description:
+                  visit.comment ||
+                  "",
+
+                is_legacy:
+                  true,
+              },
+            ]
+          : [];
+
+      return {
+        ...visit,
+
+        visit_stops:
+          savedStops.length
+            ? savedStops
+            : legacyStops,
+      };
+    }
+  );
+};
+
+const getEmployeeFieldVisits =
+async (req, res) => {
+
+  try {
+
+    console.log(
+      "FIELD VISIT REQUEST USER:",
+      req.user
+    );
+
+    const employeeId =
+      Number(
+        req.user?.user_id
+      );
+
+    if (!employeeId) {
+
+      return res
+        .status(401)
+        .json({
+          success: false,
+          message:
+            "Unauthorized.",
+        });
+
+    }
 
 
-}catch(error){
+    const [visits] =
+      await db.query(
+        `
+          SELECT
 
-console.error(
-"Get employee field visits error:",
-error
-);
+            fv.visit_id,
+            fv.employee_id,
+
+            creator.full_name
+              AS employee_name,
+
+            fv.visit_type,
+
+            DATE_FORMAT(
+              fv.visit_date,
+              '%Y-%m-%d'
+            ) AS visit_date,
+
+            fv.duration_type,
+            fv.half_day_session,
+
+            fv.location,
+            fv.comment,
+
+            fv.conclusion,
+            fv.remark,
+
+            fv.status,
+
+            GROUP_CONCAT(
+              DISTINCT
+              members.full_name
+
+              SEPARATOR ', '
+            ) AS team_members,
+
+            reviewer.full_name
+              AS reviewed_by_name,
+
+            fv.review_remark,
+
+            fv.created_at,
+            fv.updated_at
+
+          FROM employee_field_visits fv
+
+          LEFT JOIN users creator
+            ON creator.user_id =
+               fv.employee_id
+
+          LEFT JOIN field_visit_members fvm
+            ON fvm.visit_id =
+               fv.visit_id
+
+          LEFT JOIN users members
+            ON members.user_id =
+               fvm.employee_id
+
+          LEFT JOIN users reviewer
+            ON reviewer.user_id =
+               fv.reviewed_by
+
+          WHERE
+          (
+            fv.employee_id = ?
+
+            OR EXISTS
+            (
+              SELECT 1
+
+              FROM field_visit_members
+                check_member
+
+              WHERE
+                check_member.visit_id =
+                  fv.visit_id
+
+                AND
+
+                check_member.employee_id = ?
+            )
+          )
+
+          GROUP BY
+            fv.visit_id
+
+          ORDER BY
+            fv.visit_date DESC,
+            fv.visit_id DESC
+        `,
+        [
+          employeeId,
+          employeeId,
+        ]
+      );
 
 
-return res.status(500).json({
+    /*
+      Attach new multi-location data.
 
-success:false,
+      Existing old records receive a
+      virtual legacy Stop 1 from their
+      original location/comment.
+    */
+    const visitsWithStops =
+      await attachFieldVisitStops(
+        visits
+      );
 
-message:
-"Failed to fetch field visits.",
 
-error:error.message
+    const summary = {
 
-});
+      total:
+        visitsWithStops.length,
 
-}
+      approved:
+        visitsWithStops.filter(
+          (visit) =>
+            String(
+              visit.status || ""
+            )
+              .toLowerCase() ===
+            "approved"
+        ).length,
+
+      pending:
+        visitsWithStops.filter(
+          (visit) =>
+            String(
+              visit.status || ""
+            )
+              .toLowerCase() ===
+            "pending"
+        ).length,
+
+      rejected:
+        visitsWithStops.filter(
+          (visit) =>
+            String(
+              visit.status || ""
+            )
+              .toLowerCase() ===
+            "rejected"
+        ).length,
+
+    };
+
+
+    return res.json({
+
+      success: true,
+
+      summary,
+
+      visits:
+        visitsWithStops,
+
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      "Get employee field visits error:",
+      error
+    );
+
+
+    return res
+      .status(500)
+      .json({
+
+        success: false,
+
+        message:
+          "Failed to fetch field visits.",
+
+        error:
+          error.message,
+
+      });
+
+  }
 
 };
 
@@ -1494,585 +1744,926 @@ error:error.message
    - NO SUPERADMIN EMAIL
 ========================================================= */
 
-const createEmployeeFieldVisit = async (
+const createEmployeeFieldVisit =
+async (
   req,
   res
 ) => {
+
   try {
+
     const employeeId =
-      Number(req.user?.user_id);
+      Number(
+        req.user?.user_id
+      );
+
 
     if (!employeeId) {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized.",
-      });
+
+      return res
+        .status(401)
+        .json({
+
+          success: false,
+
+          message:
+            "Unauthorized.",
+
+        });
+
     }
+
 
     const visitType =
       String(
         req.body?.visit_type ||
           "Sales Visit"
-      ).trim() || "Sales Visit";
+      ).trim() ||
+      "Sales Visit";
+
 
     const visitDate =
       String(
-        req.body?.visit_date || ""
+        req.body?.visit_date ||
+          ""
       ).trim();
+
 
     const durationType =
-  String(
-    req.body?.duration_type ||
-      "full_day"
-  )
-    .trim()
-    .toLowerCase();
-
-const halfDaySession =
-  String(
-    req.body?.half_day_session ||
-      ""
-  )
-    .trim()
-    .toLowerCase();
-
-    const location =
       String(
-        req.body?.location || ""
+        req.body?.duration_type ||
+          "full_day"
+      )
+        .trim()
+        .toLowerCase();
+
+
+    const halfDaySession =
+      String(
+        req.body?.half_day_session ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+
+    /*
+      NEW MULTI-LOCATION SUPPORT
+
+      Existing frontend still works
+      because location/comment become
+      Stop 1 automatically.
+    */
+    const visitStops =
+      normalizeFieldVisitStops(
+        req.body
+      );
+
+
+    const firstStop =
+      visitStops[0] ||
+      null;
+
+
+    /*
+      KEEP EXISTING COLUMNS.
+
+      This is important because existing
+      attendance/history/code still reads
+      location + comment.
+    */
+    const location =
+      firstStop?.location ||
+      String(
+        req.body?.location ||
+          ""
       ).trim();
+
 
     const comment =
+      firstStop?.description ||
       String(
-        req.body?.comment || ""
+        req.body?.comment ||
+          ""
       ).trim();
+
+
+    const conclusion =
+      String(
+        req.body?.conclusion ||
+          ""
+      ).trim();
+
+
+    const remark =
+      String(
+        req.body?.remark ||
+          ""
+      ).trim();
+
 
     /* =========================
        VALIDATION
     ========================= */
 
+
     if (!visitDate) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Visit date is required.",
-      });
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Visit date is required.",
+
+        });
+
     }
+
 
     if (
-  ![
-    "full_day",
-    "half_day",
-  ].includes(durationType)
-) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Please select Full Day or Half Day.",
-  });
-}
+      ![
+        "full_day",
+        "half_day",
+      ].includes(
+        durationType
+      )
+    ) {
 
-if (
-  durationType === "half_day" &&
-  ![
-    "first_half",
-    "second_half",
-  ].includes(halfDaySession)
-) {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Please select First Half or Second Half.",
-  });
-}
+      return res
+        .status(400)
+        .json({
 
-    if (!location) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Location is required.",
-      });
+          success: false,
+
+          message:
+            "Please select Full Day or Half Day.",
+
+        });
+
     }
+
+
+    if (
+      durationType ===
+        "half_day" &&
+
+      ![
+        "first_half",
+        "second_half",
+      ].includes(
+        halfDaySession
+      )
+    ) {
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Please select First Half or Second Half.",
+
+        });
+
+    }
+
+
+    /*
+      Existing validation preserved.
+    */
+    if (!location) {
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Location is required.",
+
+        });
+
+    }
+
 
     if (!comment) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Comment / reason is required.",
-      });
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Comment / reason is required.",
+
+        });
+
     }
+
+
+    /*
+      Every additional stop must have
+      both location and description.
+    */
+    const invalidStop =
+      visitStops.find(
+        (stop) =>
+          !stop.location ||
+          !stop.description
+      );
+
+
+    if (invalidStop) {
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Each field visit location must have a location and description.",
+
+        });
+
+    }
+
 
     /* =========================
        GET EMPLOYEE DETAILS
     ========================= */
 
+
     const [employeeRows] =
       await db.query(
         `
-        SELECT
-          u.user_id,
-          u.employee_code,
-          u.full_name,
-          u.email,
-          u.designation,
-          u.department_id,
-          d.department_name
+          SELECT
+            u.user_id,
+            u.employee_code,
+            u.full_name,
+            u.email,
+            u.designation,
+            u.department_id,
+            d.department_name
 
-        FROM users u
+          FROM users u
 
-        LEFT JOIN departments d
-          ON d.department_id =
-             u.department_id
+          LEFT JOIN departments d
+            ON d.department_id =
+               u.department_id
 
-        WHERE
-          u.user_id = ?
+          WHERE
+            u.user_id = ?
 
-        LIMIT 1
+          LIMIT 1
         `,
-        [employeeId]
+        [
+          employeeId,
+        ]
       );
 
+
     if (!employeeRows.length) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Employee account not found.",
-      });
+
+      return res
+        .status(404)
+        .json({
+
+          success: false,
+
+          message:
+            "Employee account not found.",
+
+        });
+
     }
+
 
     const employee =
       employeeRows[0];
+
 
     /* =========================
        SAVE FIELD VISIT
     ========================= */
 
+
     const [result] =
       await db.query(
         `
-        INSERT INTO employee_field_visits (
-  employee_id,
-  visit_type,
-  visit_date,
-  duration_type,
-  half_day_session,
-  location,
-  comment,
-  status
-)
+          INSERT INTO employee_field_visits
+          (
+            employee_id,
+            visit_type,
+            visit_date,
+            duration_type,
+            half_day_session,
+            location,
+            comment,
+            conclusion,
+            remark,
+            status
+          )
 
-VALUES (
-  ?, ?, ?, ?, ?, ?, ?,
-  'pending'
-)
+          VALUES
+          (
+            ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            'pending'
+          )
         `,
         [
-  employeeId,
-  visitType,
-  visitDate,
-  durationType,
-  durationType === "half_day"
-    ? halfDaySession
-    : null,
-  location,
-  comment,
-]
+          employeeId,
+
+          visitType,
+
+          visitDate,
+
+          durationType,
+
+          durationType ===
+            "half_day"
+            ? halfDaySession
+            : null,
+
+          location,
+
+          comment,
+
+          conclusion ||
+            null,
+
+          remark ||
+            null,
+        ]
       );
-      if(
- Array.isArray(req.body.visitor_ids) &&
- req.body.visitor_ids.length
-){
-
- const members = req.body.visitor_ids.map(
-  id => [
-    result.insertId,
-    Number(id)
-  ]
- );
-
- await db.query(
- `
- INSERT INTO field_visit_members
- (
-  visit_id,
-  employee_id
- )
- VALUES ?
- `,
- [members]
- );
-
-}
-// CREATE FIELD VISIT REVIEW TOKEN
-
-const reviewToken =
-  crypto.randomBytes(32).toString("hex");
 
 
-await db.query(
-`
-INSERT INTO field_visit_review_tokens
-(
- visit_id,
- token,
- expires_at
-)
-VALUES
-(
- ?,
- ?,
- DATE_ADD(NOW(), INTERVAL 30 DAY)
-)
-`,
-[
- result.insertId,
- reviewToken
-]
-);
+    /*
+      EXISTING VISITOR / TEAM MEMBER
+      LOGIC — UNCHANGED
+    */
+    if (
+      Array.isArray(
+        req.body.visitor_ids
+      ) &&
+
+      req.body
+        .visitor_ids
+        .length
+    ) {
+
+      const members =
+        req.body.visitor_ids.map(
+          (id) => [
+            result.insertId,
+            Number(id),
+          ]
+        );
+
+
+      await db.query(
+        `
+          INSERT INTO field_visit_members
+          (
+            visit_id,
+            employee_id
+          )
+
+          VALUES ?
+        `,
+        [
+          members,
+        ]
+      );
+
+    }
+
+
+    /*
+      NEW:
+      SAVE ORDERED VISIT LOCATIONS
+    */
+    if (
+      visitStops.length
+    ) {
+
+      const stopValues =
+        visitStops.map(
+          (
+            stop,
+            index
+          ) => [
+
+            result.insertId,
+
+            index + 1,
+
+            stop.location,
+
+            stop.visit_time ||
+              null,
+
+            stop.description ||
+              null,
+
+          ]
+        );
+
+
+      await db.query(
+        `
+          INSERT INTO field_visit_stops
+          (
+            visit_id,
+            sequence_no,
+            location,
+            visit_time,
+            description
+          )
+
+          VALUES ?
+        `,
+        [
+          stopValues,
+        ]
+      );
+
+    }
+
+
+    /*
+      EXISTING FIELD VISIT
+      REVIEW TOKEN — UNCHANGED
+    */
+
+    const reviewToken =
+      crypto
+        .randomBytes(32)
+        .toString("hex");
+
+
+    await db.query(
+      `
+        INSERT INTO field_visit_review_tokens
+        (
+          visit_id,
+          token,
+          expires_at
+        )
+
+        VALUES
+        (
+          ?,
+          ?,
+          DATE_ADD(
+            NOW(),
+            INTERVAL 30 DAY
+          )
+        )
+      `,
+      [
+        result.insertId,
+        reviewToken,
+      ]
+    );
+
 
     /* =========================
        GET SAVED VISIT
     ========================= */
 
+
     const [visitRows] =
       await db.query(
         `
-        SELECT
-          visit_id,
-          employee_id,
-          visit_type,
+          SELECT
 
-          DATE_FORMAT(
-            visit_date,
-            '%Y-%m-%d'
-          ) AS visit_date,
+            visit_id,
+            employee_id,
+            visit_type,
 
-          duration_type,
-half_day_session,
+            DATE_FORMAT(
+              visit_date,
+              '%Y-%m-%d'
+            ) AS visit_date,
 
-          location,
-          comment,
-          status,
-          reviewed_by,
-          reviewed_at,
-          review_remark,
-          created_at,
-          updated_at
+            duration_type,
+            half_day_session,
 
-        FROM employee_field_visits
+            location,
+            comment,
 
-        WHERE visit_id = ?
+            conclusion,
+            remark,
 
-        LIMIT 1
+            status,
+
+            reviewed_by,
+            reviewed_at,
+            review_remark,
+
+            created_at,
+            updated_at
+
+          FROM employee_field_visits
+
+          WHERE visit_id = ?
+
+          LIMIT 1
         `,
-        [result.insertId]
+        [
+          result.insertId,
+        ]
       );
+
+
+    const savedVisits =
+      await attachFieldVisitStops(
+        visitRows
+      );
+
+
+    const savedVisit =
+      savedVisits[0] ||
+      null;
+
 
     /* =========================
        GET ALL ADMINS FROM
        EMPLOYEE'S DEPARTMENT
     ========================= */
 
-   const [adminRows] =
-  await db.query(
-    `
-      SELECT DISTINCT
-        u.user_id,
-        u.full_name,
-        u.email
 
-      FROM users u
+    const [adminRows] =
+      await db.query(
+        `
+          SELECT DISTINCT
 
-      INNER JOIN roles r
-        ON r.role_id = u.role_id
+            u.user_id,
+            u.full_name,
+            u.email
 
-      WHERE
-        LOWER(
-          r.role_name
-        ) = 'admin'
+          FROM users u
 
-        AND LOWER(
-          COALESCE(
-            u.status,
-            'active'
-          )
-        ) != 'deleted'
+          INNER JOIN roles r
+            ON r.role_id =
+               u.role_id
 
-        AND u.email IS NOT NULL
+          WHERE
 
-        AND TRIM(
-          u.email
-        ) != ''
+            LOWER(
+              r.role_name
+            ) = 'admin'
 
-        AND (
-          EXISTS (
-            SELECT 1
+            AND LOWER(
+              COALESCE(
+                u.status,
+                'active'
+              )
+            ) != 'deleted'
 
-            FROM user_departments admin_ud
+            AND
+              u.email
+              IS NOT NULL
 
-            WHERE
-              admin_ud.user_id = u.user_id
+            AND
+              TRIM(
+                u.email
+              ) != ''
 
-              AND admin_ud.department_id IN (
-                SELECT
-                  employee_ud.department_id
+            AND
+            (
+              EXISTS
+              (
+                SELECT 1
 
-                FROM user_departments employee_ud
+                FROM user_departments
+                  admin_ud
 
                 WHERE
-                  employee_ud.user_id = ?
+                  admin_ud.user_id =
+                    u.user_id
+
+                  AND
+                  admin_ud.department_id
+                    IN
+                    (
+                      SELECT
+                        employee_ud
+                          .department_id
+
+                      FROM user_departments
+                        employee_ud
+
+                      WHERE
+                        employee_ud.user_id =
+                          ?
+                    )
               )
-          )
 
-          OR u.department_id IN (
-            SELECT
-              employee_ud.department_id
+              OR
 
-            FROM user_departments employee_ud
+              u.department_id
+                IN
+                (
+                  SELECT
+                    employee_ud
+                      .department_id
 
-            WHERE
-              employee_ud.user_id = ?
-          )
+                  FROM user_departments
+                    employee_ud
 
-          OR EXISTS (
-            SELECT 1
+                  WHERE
+                    employee_ud.user_id =
+                      ?
+                )
 
-            FROM user_departments admin_ud
+              OR
 
-            WHERE
-              admin_ud.user_id = u.user_id
+              EXISTS
+              (
+                SELECT 1
 
-              AND admin_ud.department_id = ?
-          )
+                FROM user_departments
+                  admin_ud
 
-          OR u.department_id = ?
-        )
+                WHERE
+                  admin_ud.user_id =
+                    u.user_id
 
-      ORDER BY
-        u.full_name ASC
-    `,
-    [
-      employeeId,
-      employeeId,
-      employee.department_id,
-      employee.department_id,
-    ]
-  );
+                  AND
+                  admin_ud.department_id =
+                    ?
+              )
+
+              OR
+
+              u.department_id =
+                ?
+            )
+
+          ORDER BY
+            u.full_name ASC
+        `,
+        [
+          employeeId,
+          employeeId,
+          employee.department_id,
+          employee.department_id,
+        ]
+      );
+
 
     const adminEmails = [
       ...new Set(
         adminRows
-          .map((admin) =>
-            String(
-              admin.email || ""
-            )
-              .trim()
-              .toLowerCase()
+          .map(
+            (admin) =>
+              String(
+                admin.email ||
+                  ""
+              )
+                .trim()
+                .toLowerCase()
           )
           .filter(Boolean)
       ),
     ];
+
 
     /* =========================
        EMAIL ADMIN(S) + HR
        NO SUPERADMIN
     ========================= */
 
+
     let emailResult = {
-      sent: false,
-      skipped: false,
+
+      sent:
+        false,
+
+      skipped:
+        false,
+
     };
 
-    try {
-      /*
-       Employee Field Visit recipients:
-       TO = active Admin(s) of employee's department
-       CC = Rathika
 
-       Selected visitors/team members are intentionally
-       NOT added to the approval email.
+    try {
+
+      /*
+        EXISTING EMAIL ROUTING
+
+        TO:
+        Department Admin(s)
+
+        CC:
+        Rathika
+
+        Existing custom recipient
+        override remains unchanged.
       */
 
-/*
-========================================================
-DEFAULT FIELD VISIT MAIL RECIPIENTS
 
-Existing system:
-TO = Department Admin(s)
-CC = Rathika
-
-If no Department Admin exists:
-TO = Rathika
-========================================================
-*/
-
-let toEmails = [
-  ...adminEmails,
-];
-
-let ccEmails = [
-  HR_FIELD_VISIT_EMAIL,
-];
+      let toEmails = [
+        ...adminEmails,
+      ];
 
 
-/*
---------------------------------------------------------
-NORMALIZE DEFAULT RECIPIENTS
---------------------------------------------------------
-*/
-
-toEmails = [
-  ...new Set(
-    toEmails
-      .map((email) =>
-        String(email || "")
-          .trim()
-          .toLowerCase()
-      )
-      .filter(Boolean)
-  ),
-];
-
-ccEmails = [
-  ...new Set(
-    ccEmails
-      .map((email) =>
-        String(email || "")
-          .trim()
-          .toLowerCase()
-      )
-      .filter(
-        (email) =>
-          email &&
-          !toEmails.includes(email)
-      )
-  ),
-];
+      let ccEmails = [
+        HR_FIELD_VISIT_EMAIL,
+      ];
 
 
-/*
---------------------------------------------------------
-DEFAULT FALLBACK
+      toEmails = [
+        ...new Set(
+          toEmails
+            .map(
+              (email) =>
+                String(
+                  email ||
+                    ""
+                )
+                  .trim()
+                  .toLowerCase()
+            )
+            .filter(Boolean)
+        ),
+      ];
 
-If no Department Admin exists,
-Rathika still receives the request.
---------------------------------------------------------
-*/
 
-if (toEmails.length === 0) {
-  toEmails = [
-    HR_FIELD_VISIT_EMAIL,
-  ];
+      ccEmails = [
+        ...new Set(
+          ccEmails
+            .map(
+              (email) =>
+                String(
+                  email ||
+                    ""
+                )
+                  .trim()
+                  .toLowerCase()
+            )
+            .filter(
+              (email) =>
+                email &&
+                !toEmails.includes(
+                  email
+                )
+            )
+        ),
+      ];
 
-  ccEmails = [];
-}
+
+      /*
+        EXISTING FALLBACK
+      */
+      if (
+        toEmails.length === 0
+      ) {
+
+        toEmails = [
+          HR_FIELD_VISIT_EMAIL,
+        ];
+
+        ccEmails = [];
+
+      }
 
 
-/*
-========================================================
-CHECK PER-USER CUSTOM FIELD VISIT MAIL RECIPIENTS
+      /*
+        EXISTING CUSTOM MAIL
+        RECIPIENT OVERRIDE
+      */
+      try {
 
-If Administrator has saved custom recipients for
-this user, those recipients completely replace the
-normal Field Visit email routing.
+        const [
+          customRecipientRows,
+        ] =
+          await db.query(
+            `
+              SELECT DISTINCT
 
-This changes email delivery only.
-Approval permissions remain unchanged.
-========================================================
-*/
+                recipient.email
 
-try {
-  const [customRecipientRows] =
-    await db.query(
-      `
-      SELECT DISTINCT
-        recipient.email
+              FROM
+                user_mail_recipient_overrides
+                  override_row
 
-      FROM user_mail_recipient_overrides override_row
+              INNER JOIN users
+                recipient
 
-      INNER JOIN users recipient
-        ON recipient.user_id =
-           override_row.recipient_user_id
+                ON
+                  recipient.user_id =
+                  override_row
+                    .recipient_user_id
 
-      WHERE
-        override_row.source_user_id = ?
+              WHERE
 
-        AND override_row.mail_type =
-            'field_visit'
+                override_row
+                  .source_user_id = ?
 
-        AND LOWER(
-          COALESCE(
-            recipient.status,
-            'active'
-          )
-        ) = 'active'
+                AND
 
-        AND recipient.email IS NOT NULL
+                override_row
+                  .mail_type =
+                  'field_visit'
 
-        AND TRIM(
-          recipient.email
-        ) != ''
+                AND
 
-      ORDER BY
-        recipient.full_name ASC
-      `,
-      [
-        employee.user_id,
-      ]
-    );
+                LOWER(
+                  COALESCE(
+                    recipient.status,
+                    'active'
+                  )
+                ) = 'active'
 
-  const customFieldVisitRecipients = [
-    ...new Set(
-      customRecipientRows
-        .map((row) =>
-          String(
-            row.email || ""
-          )
-            .trim()
-            .toLowerCase()
-        )
-        .filter(Boolean)
-    ),
-  ];
+                AND
 
-  if (
-    customFieldVisitRecipients.length >
-    0
-  ) {
-    toEmails =
-      customFieldVisitRecipients;
+                recipient.email
+                  IS NOT NULL
 
-    /*
-    Once a custom Mail To list exists,
-    do not automatically add Rathika
-    or Department Admin(s).
-    */
+                AND
 
-    ccEmails = [];
-  }
-} catch (mailOverrideError) {
-  /*
-  If custom recipient lookup fails,
-  keep the normal existing Field Visit
-  email recipients.
+                TRIM(
+                  recipient.email
+                ) != ''
 
-  Do not block Field Visit submission.
-  */
+              ORDER BY
+                recipient.full_name ASC
+            `,
+            [
+              employee.user_id,
+            ]
+          );
 
-  console.error(
-    "Field Visit custom mail recipient lookup failed:",
-    mailOverrideError.message
-  );
-}
 
-const durationLabel =
-  durationType === "half_day"
-    ? halfDaySession === "first_half"
-      ? "Half Day - First Half"
-      : "Half Day - Second Half"
-    : "Full Day";
+        const customFieldVisitRecipients = [
+          ...new Set(
+            customRecipientRows
+              .map(
+                (row) =>
+                  String(
+                    row.email ||
+                      ""
+                  )
+                    .trim()
+                    .toLowerCase()
+              )
+              .filter(Boolean)
+          ),
+        ];
 
+
+        if (
+          customFieldVisitRecipients
+            .length > 0
+        ) {
+
+          toEmails =
+            customFieldVisitRecipients;
+
+          ccEmails = [];
+
+        }
+
+      } catch (
+        mailOverrideError
+      ) {
+
+        console.error(
+          "Field Visit custom mail recipient lookup failed:",
+          mailOverrideError.message
+        );
+
+      }
+
+
+      const durationLabel =
+        durationType ===
+          "half_day"
+          ? halfDaySession ===
+              "first_half"
+            ? "Half Day - First Half"
+            : "Half Day - Second Half"
+          : "Full Day";
+
+
+      /*
+        Keep current email presentation
+        unchanged for now.
+
+        It continues showing Stop 1 as
+        Location / Reason.
+      */
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
+
 
       const text = `
 A new Field Visit has been submitted through Valencia RMS.
@@ -2097,6 +2688,7 @@ This Field Visit requires review by the respective Department Admin.
 Regards,
 Valencia RMS
 `;
+
 
       const html = `
         <div style="
@@ -2128,7 +2720,9 @@ Valencia RMS
                 padding: 9px;
                 border: 1px solid #ddd;
               ">
-                <strong>Employee</strong>
+                <strong>
+                  Employee
+                </strong>
               </td>
 
               <td style="
@@ -2153,10 +2747,7 @@ Valencia RMS
                 padding: 9px;
                 border: 1px solid #ddd;
               ">
-                ${
-                  employee.employee_code ||
-                  "-"
-                }
+                ${employee.employee_code || "-"}
               </td>
             </tr>
 
@@ -2174,10 +2765,7 @@ Valencia RMS
                 padding: 9px;
                 border: 1px solid #ddd;
               ">
-                ${
-                  employee.department_name ||
-                  "-"
-                }
+                ${employee.department_name || "-"}
               </td>
             </tr>
 
@@ -2204,7 +2792,9 @@ Valencia RMS
                 padding: 9px;
                 border: 1px solid #ddd;
               ">
-                <strong>Date</strong>
+                <strong>
+                  Date
+                </strong>
               </td>
 
               <td style="
@@ -2215,21 +2805,23 @@ Valencia RMS
               </td>
             </tr>
 
-           <tr>
-  <td style="
-    padding: 9px;
-    border: 1px solid #ddd;
-  ">
-    <strong>Duration</strong>
-  </td>
+            <tr>
+              <td style="
+                padding: 9px;
+                border: 1px solid #ddd;
+              ">
+                <strong>
+                  Duration
+                </strong>
+              </td>
 
-  <td style="
-    padding: 9px;
-    border: 1px solid #ddd;
-  ">
-    ${durationLabel}
-  </td>
-</tr>
+              <td style="
+                padding: 9px;
+                border: 1px solid #ddd;
+              ">
+                ${durationLabel}
+              </td>
+            </tr>
 
             <tr>
               <td style="
@@ -2272,7 +2864,9 @@ Valencia RMS
                 padding: 9px;
                 border: 1px solid #ddd;
               ">
-                <strong>Status</strong>
+                <strong>
+                  Status
+                </strong>
               </td>
 
               <td style="
@@ -2300,53 +2894,78 @@ Valencia RMS
 
         </div>
       `;
+
+
       toEmails = [
- ...new Set(toEmails)
-];
-console.log(
-"FINAL MAIL TO:",
-toEmails
-);
+        ...new Set(
+          toEmails
+        ),
+      ];
 
-console.log(
-"FINAL MAIL CC:",
-ccEmails
-);
-ccEmails = [
- ...new Set(ccEmails)
-];
-console.log(
- "FINAL FIELD VISIT MAIL TO:",
- toEmails
-);
 
-console.log(
- "FINAL FIELD VISIT MAIL CC:",
- ccEmails
-);
-const mailResponse = await sendMail({
+      console.log(
+        "FINAL MAIL TO:",
+        toEmails
+      );
 
-  to: toEmails,
 
-  cc: ccEmails,
+      console.log(
+        "FINAL MAIL CC:",
+        ccEmails
+      );
 
-  subject,
 
-  text,
+      ccEmails = [
+        ...new Set(
+          ccEmails
+        ),
+      ];
 
-  html,
 
-  replyTo:
-    employee.email || undefined,
+      console.log(
+        "FINAL FIELD VISIT MAIL TO:",
+        toEmails
+      );
 
-});
+
+      console.log(
+        "FINAL FIELD VISIT MAIL CC:",
+        ccEmails
+      );
+
+
+      const mailResponse =
+        await sendMail({
+
+          to:
+            toEmails,
+
+          cc:
+            ccEmails,
+
+          subject,
+
+          text,
+
+          html,
+
+          replyTo:
+            employee.email ||
+            undefined,
+
+        });
+
+
       emailResult = {
+
         sent:
-          !mailResponse?.skipped,
+          !mailResponse
+            ?.skipped,
 
         skipped:
           Boolean(
-            mailResponse?.skipped
+            mailResponse
+              ?.skipped
           ),
 
         admin_emails:
@@ -2356,65 +2975,92 @@ const mailResponse = await sendMail({
           HR_FIELD_VISIT_EMAIL,
 
         messageId:
-          mailResponse?.messageId ||
+          mailResponse
+            ?.messageId ||
           null,
+
       };
+
+
     } catch (
       emailError
     ) {
+
       console.error(
         "Field Visit email failed:",
         emailError
       );
 
-      /*
-       Visit must remain saved even
-       when email fails.
-      */
 
+      /*
+        Existing behavior:
+        Field Visit remains saved even
+        if email delivery fails.
+      */
       emailResult = {
-        sent: false,
-        skipped: false,
+
+        sent:
+          false,
+
+        skipped:
+          false,
+
         error:
           emailError.message,
+
       };
+
     }
+
 
     return res
       .status(201)
       .json({
-        success: true,
+
+        success:
+          true,
 
         message:
           "Field visit submitted successfully.",
 
         visit:
-          visitRows[0] ||
-          null,
+          savedVisit,
 
         email:
           emailResult,
+
       });
+
+
   } catch (error) {
+
     console.error(
       "Create employee field visit error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
 
-      message:
-        "Failed to submit field visit.",
+    return res
+      .status(500)
+      .json({
 
-      error:
-        error.message,
+        success:
+          false,
 
-      sqlMessage:
-        error.sqlMessage ||
-        null,
-    });
+        message:
+          "Failed to submit field visit.",
+
+        error:
+          error.message,
+
+        sqlMessage:
+          error.sqlMessage ||
+          null,
+
+      });
+
   }
+
 };
 
 const getEmployeesForFieldVisit = async(req,res)=>{

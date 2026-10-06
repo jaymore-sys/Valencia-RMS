@@ -309,14 +309,155 @@ const combineCsvValues = (
 };
 
 
+const attachFieldVisitStops =
+async (visits) => {
 
+  if (
+    !Array.isArray(visits) ||
+    !visits.length
+  ) {
+    return [];
+  }
+
+  const visitIds =
+    visits
+      .map(
+        (visit) =>
+          Number(
+            visit.visit_id
+          )
+      )
+      .filter(Boolean);
+
+  if (!visitIds.length) {
+    return visits;
+  }
+
+  const [stopRows] =
+    await db.query(
+      `
+        SELECT
+          stop_id,
+          visit_id,
+          sequence_no,
+          location,
+          visit_time,
+          description,
+          created_at,
+          updated_at
+
+        FROM field_visit_stops
+
+        WHERE visit_id IN (?)
+
+        ORDER BY
+          visit_id ASC,
+          sequence_no ASC,
+          stop_id ASC
+      `,
+      [visitIds]
+    );
+
+  const stopMap =
+    new Map();
+
+  stopRows.forEach(
+    (stop) => {
+
+      const visitId =
+        Number(
+          stop.visit_id
+        );
+
+      if (
+        !stopMap.has(
+          visitId
+        )
+      ) {
+        stopMap.set(
+          visitId,
+          []
+        );
+      }
+
+      stopMap
+        .get(visitId)
+        .push(stop);
+    }
+  );
+
+  return visits.map(
+    (visit) => {
+
+      const visitId =
+        Number(
+          visit.visit_id
+        );
+
+      const savedStops =
+        stopMap.get(
+          visitId
+        ) || [];
+
+      /*
+        OLD DATA SAFETY
+
+        Old Admin Field Visits may not have
+        rows in field_visit_stops.
+
+        Keep them visible using the existing
+        location/comment as Stop 1.
+      */
+      const legacyStops =
+        visit.location ||
+        visit.comment
+          ? [
+              {
+                stop_id:
+                  null,
+
+                visit_id:
+                  visit.visit_id,
+
+                sequence_no:
+                  1,
+
+                location:
+                  visit.location ||
+                  "",
+
+                visit_time:
+                  null,
+
+                description:
+                  visit.comment ||
+                  "",
+
+                is_legacy:
+                  true,
+              },
+            ]
+          : [];
+
+      return {
+        ...visit,
+
+        visit_stops:
+          savedStops.length
+            ? savedStops
+            : legacyStops,
+      };
+    }
+  );
+};
 
 /* =========================================================
    FIELD VISITS
 ========================================================= */
 
 
-const getSuperadminFieldVisits = async (
+const getSuperadminFieldVisits =
+async (
   req,
   res
 ) => {
@@ -326,99 +467,177 @@ const getSuperadminFieldVisits = async (
     const {
       reviewer,
       error,
-    } = await getFieldVisitReviewer(req);
+    } =
+      await getFieldVisitReviewer(
+        req
+      );
+
 
     if (error) {
+
       return res
-        .status(error.status)
+        .status(
+          error.status
+        )
         .json({
+
           success: false,
-          message: error.message,
+
+          message:
+            error.message,
+
         });
+
     }
 
-    const [visits] = await db.query(
-      `
-      SELECT
-        fv.visit_id,
-        fv.employee_id,
 
-        u.full_name,
-        u.email,
-        u.employee_code,
+    const [visits] =
+      await db.query(
+        `
+          SELECT
 
-        d.department_name,
+            fv.visit_id,
+            fv.employee_id,
 
-        fv.visit_type,
-        fv.visit_date,
-        fv.duration_type,
-fv.half_day_session,
-        fv.location,
-        fv.comment,
+            u.full_name,
+            u.email,
+            u.employee_code,
 
-        fv.status,
-        fv.review_remark,
+            d.department_name,
 
-        fv.created_at,
-        fv.updated_at
+            fv.visit_type,
 
-      FROM employee_field_visits fv
+            DATE_FORMAT(
+              fv.visit_date,
+              '%Y-%m-%d'
+            ) AS visit_date,
 
-      INNER JOIN users u
-        ON fv.employee_id = u.user_id
+            fv.duration_type,
+            fv.half_day_session,
 
-      INNER JOIN roles r
-        ON r.role_id = u.role_id
+            fv.location,
+            fv.comment,
 
-      LEFT JOIN departments d
-        ON u.department_id = d.department_id
+            fv.conclusion,
+            fv.remark,
 
-      WHERE LOWER(
-        COALESCE(r.role_name, '')
-      ) = 'admin'
+            fv.status,
+            fv.review_remark,
 
-      ORDER BY fv.created_at DESC
-      `
-    );
+            fv.reviewed_by,
+
+            DATE_FORMAT(
+              fv.reviewed_at,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS reviewed_at,
+
+            field_reviewer.full_name
+              AS reviewed_by_name,
+
+            fv.created_at,
+            fv.updated_at
+
+          FROM employee_field_visits fv
+
+          INNER JOIN users u
+            ON fv.employee_id =
+               u.user_id
+
+          INNER JOIN roles r
+            ON r.role_id =
+               u.role_id
+
+          LEFT JOIN departments d
+            ON u.department_id =
+               d.department_id
+
+          LEFT JOIN users
+            field_reviewer
+
+            ON
+              field_reviewer.user_id =
+              fv.reviewed_by
+
+          WHERE
+
+            LOWER(
+              COALESCE(
+                r.role_name,
+                ''
+              )
+            ) = 'admin'
+
+          ORDER BY
+            fv.created_at DESC
+        `
+      );
 
 
-    res.json({
+    const visitsWithStops =
+      await attachFieldVisitStops(
+        visits
+      );
 
-      success:true,
 
-      summary:{
-        total:visits.length,
+    return res.json({
+
+      success: true,
+
+      summary: {
+
+        total:
+          visitsWithStops.length,
 
         approved:
-          visits.filter(
-            v=>v.status==="approved"
+          visitsWithStops.filter(
+            (visit) =>
+              String(
+                visit.status || ""
+              )
+                .trim()
+                .toLowerCase() ===
+              "approved"
           ).length,
 
         pending:
-          visits.filter(
-            v=>v.status==="pending"
+          visitsWithStops.filter(
+            (visit) =>
+              String(
+                visit.status || ""
+              )
+                .trim()
+                .toLowerCase() ===
+              "pending"
           ).length,
 
         rejected:
-          visits.filter(
-            v=>v.status==="rejected"
+          visitsWithStops.filter(
+            (visit) =>
+              String(
+                visit.status || ""
+              )
+                .trim()
+                .toLowerCase() ===
+              "rejected"
           ).length,
 
         employees:
           new Set(
-            visits.map(
-              v=>v.employee_id
+            visitsWithStops.map(
+              (visit) =>
+                visit.employee_id
             )
-          ).size
+          ).size,
+
       },
 
-
-      visits
+      visits:
+        visitsWithStops,
 
     });
 
 
-  } catch(error){
+  } catch (error) {
 
     console.error(
       "Superadmin field visits error:",
@@ -426,250 +645,380 @@ fv.half_day_session,
     );
 
 
-    res.status(500).json({
+    return res
+      .status(500)
+      .json({
 
-      success:false,
+        success: false,
 
-      message:
-        "Failed to fetch field visits"
+        message:
+          "Failed to fetch field visits",
 
-    });
+      });
 
   }
 
 };
 
 
-
 /* =========================================================
    SUPERADMIN - REVIEW ADMIN FIELD VISIT
 ========================================================= */
 
-const reviewSuperadminFieldVisit = async (
+const reviewSuperadminFieldVisit =
+async (
   req,
   res
 ) => {
+
   try {
-   const {
-  reviewer,
-  error,
-} = await getFieldVisitReviewer(req);
 
-if (error) {
-  return res
-    .status(error.status)
-    .json({
-      success: false,
-      message: error.message,
-    });
-}
+    const {
+      reviewer,
+      error,
+    } =
+      await getFieldVisitReviewer(
+        req
+      );
 
-const reviewerId =
-  Number(reviewer.user_id);
 
-    const visitId = Number(
-      req.params.visitId
-    );
+    if (error) {
 
-    if (!visitId) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Invalid field visit.",
-      });
+      return res
+        .status(
+          error.status
+        )
+        .json({
+
+          success: false,
+
+          message:
+            error.message,
+
+        });
+
     }
 
-    const status = String(
-      req.body?.status || ""
-    )
-      .toLowerCase()
-      .trim();
 
-    const reviewRemark = String(
-      req.body?.review_remark ||
-        req.body?.remark ||
-        ""
-    ).trim();
+    const reviewerId =
+      Number(
+        reviewer.user_id
+      );
+
+
+    const visitId =
+      Number(
+        req.params.visitId
+      );
+
+
+    if (!visitId) {
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Invalid field visit.",
+
+        });
+
+    }
+
+
+    const status =
+      String(
+        req.body?.status ||
+          ""
+      )
+        .toLowerCase()
+        .trim();
+
+
+    const reviewRemark =
+      String(
+        req.body
+          ?.review_remark ||
+          req.body?.remark ||
+          ""
+      ).trim();
+
 
     if (
       ![
         "approved",
         "rejected",
-      ].includes(status)
+      ].includes(
+        status
+      )
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Status must be approved or rejected.",
-      });
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Status must be approved or rejected.",
+
+        });
+
     }
 
+
     /*
-      Superadmin may review ONLY visits
+      EXISTING SECURITY RULE
+
+      This queue may review only Field Visits
       created by users whose current role
-      is Admin. Employee visits continue to
-      be reviewed by their department Admin.
+      is Admin.
     */
+
     const [visitRows] =
       await db.query(
         `
-        SELECT
-          fv.visit_id,
-          fv.employee_id,
-          fv.status,
-          u.full_name,
-          u.email,
-          r.role_name
+          SELECT
 
-        FROM employee_field_visits fv
+            fv.visit_id,
+            fv.employee_id,
+            fv.status,
 
-        INNER JOIN users u
-          ON u.user_id =
-             fv.employee_id
+            u.full_name,
+            u.email,
 
-        INNER JOIN roles r
-          ON r.role_id =
-             u.role_id
+            r.role_name
 
-        WHERE fv.visit_id = ?
+          FROM employee_field_visits fv
 
-          AND LOWER(
-            COALESCE(r.role_name, '')
-          ) = 'admin'
+          INNER JOIN users u
+            ON u.user_id =
+               fv.employee_id
 
-        LIMIT 1
+          INNER JOIN roles r
+            ON r.role_id =
+               u.role_id
+
+          WHERE
+            fv.visit_id = ?
+
+            AND
+
+            LOWER(
+              COALESCE(
+                r.role_name,
+                ''
+              )
+            ) = 'admin'
+
+          LIMIT 1
         `,
-        [visitId]
+        [
+          visitId,
+        ]
       );
 
+
     if (!visitRows.length) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Admin field visit not found.",
-      });
+
+      return res
+        .status(404)
+        .json({
+
+          success: false,
+
+          message:
+            "Admin field visit not found.",
+
+        });
+
     }
+
 
     const currentVisit =
       visitRows[0];
 
+
     if (
       String(
-        currentVisit.status || ""
+        currentVisit.status ||
+          ""
       )
         .toLowerCase()
-        .trim() !== "pending"
+        .trim() !==
+      "pending"
     ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Only pending Admin field visits can be reviewed.",
-      });
+
+      return res
+        .status(400)
+        .json({
+
+          success: false,
+
+          message:
+            "Only pending Admin field visits can be reviewed.",
+
+        });
+
     }
+
 
     await db.query(
       `
-      UPDATE employee_field_visits
+        UPDATE employee_field_visits
 
-      SET
-        status = ?,
-        reviewed_by = ?,
-        reviewed_at = NOW(),
-        review_remark = ?,
-        updated_at = NOW()
+        SET
 
-      WHERE visit_id = ?
+          status = ?,
+
+          reviewed_by = ?,
+
+          reviewed_at =
+            NOW(),
+
+          review_remark = ?,
+
+          updated_at =
+            NOW()
+
+        WHERE
+          visit_id = ?
       `,
       [
         status,
+
         reviewerId,
-        reviewRemark || null,
+
+        reviewRemark ||
+          null,
+
         visitId,
       ]
     );
 
+
     const [updatedRows] =
       await db.query(
         `
-        SELECT
-          fv.visit_id,
-          fv.employee_id,
+          SELECT
 
-          u.full_name,
-          u.email,
-          u.employee_code,
+            fv.visit_id,
+            fv.employee_id,
 
-          d.department_name,
+            u.full_name,
+            u.email,
+            u.employee_code,
 
-          fv.visit_type,
+            d.department_name,
 
-          DATE_FORMAT(
-            fv.visit_date,
-            '%Y-%m-%d'
-          ) AS visit_date,
+            fv.visit_type,
 
-          fv.duration_type,
-fv.half_day_session,
+            DATE_FORMAT(
+              fv.visit_date,
+              '%Y-%m-%d'
+            ) AS visit_date,
 
-          fv.location,
-          fv.comment,
-          fv.status,
-          fv.review_remark,
+            fv.duration_type,
+            fv.half_day_session,
 
-          DATE_FORMAT(
-            fv.reviewed_at,
-            '%Y-%m-%d %H:%i:%s'
-          ) AS reviewed_at,
+            fv.location,
+            fv.comment,
 
-          reviewer.full_name
-            AS reviewed_by_name
+            fv.conclusion,
+            fv.remark,
 
-        FROM employee_field_visits fv
+            fv.status,
+            fv.review_remark,
 
-        INNER JOIN users u
-          ON u.user_id =
-             fv.employee_id
+            DATE_FORMAT(
+              fv.reviewed_at,
+              '%Y-%m-%d %H:%i:%s'
+            ) AS reviewed_at,
 
-        LEFT JOIN departments d
-          ON d.department_id =
-             u.department_id
+            field_reviewer.full_name
+              AS reviewed_by_name
 
-        LEFT JOIN users reviewer
-          ON reviewer.user_id =
-             fv.reviewed_by
+          FROM employee_field_visits fv
 
-        WHERE fv.visit_id = ?
+          INNER JOIN users u
+            ON u.user_id =
+               fv.employee_id
 
-        LIMIT 1
+          LEFT JOIN departments d
+            ON d.department_id =
+               u.department_id
+
+          LEFT JOIN users
+            field_reviewer
+
+            ON
+              field_reviewer.user_id =
+              fv.reviewed_by
+
+          WHERE
+            fv.visit_id = ?
+
+          LIMIT 1
         `,
-        [visitId]
+        [
+          visitId,
+        ]
       );
 
+
+    const updatedVisits =
+      await attachFieldVisitStops(
+        updatedRows
+      );
+
+
     return res.json({
+
       success: true,
+
       message:
-        status === "approved"
+        status ===
+          "approved"
           ? "Admin field visit approved successfully."
           : "Admin field visit rejected successfully.",
+
       visit:
-        updatedRows[0] || null,
+        updatedVisits[0] ||
+        null,
+
     });
+
+
   } catch (error) {
+
     console.error(
       "Superadmin review field visit error:",
       error
     );
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to review Admin field visit.",
-      error:
-        error.message,
-      sqlMessage:
-        error.sqlMessage || null,
-    });
+
+    return res
+      .status(500)
+      .json({
+
+        success: false,
+
+        message:
+          "Failed to review Admin field visit.",
+
+        error:
+          error.message,
+
+        sqlMessage:
+          error.sqlMessage ||
+          null,
+
+      });
+
   }
+
 };
 
 
