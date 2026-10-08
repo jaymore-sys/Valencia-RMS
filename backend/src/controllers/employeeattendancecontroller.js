@@ -2326,19 +2326,22 @@ Valencia RMS
         "FINAL FIELD VISIT MAIL CC:",
         ccEmails
       );
-      const mailResponse =
-        await sendMail({
-          to:
-            toEmails,
-          cc:
-            ccEmails,
-          subject,
-          text,
-          html,
-          replyTo:
-            employee.email ||
-            undefined,
-        });
+      const mailResponse = await sendMail({
+  to: toEmails.filter(
+    (email) =>
+      String(email || "").trim().toLowerCase() !==
+      "manish@valencianutrition.com"
+  ),
+  cc: ccEmails.filter(
+    (email) =>
+      String(email || "").trim().toLowerCase() !==
+      "manish@valencianutrition.com"
+  ),
+  subject,
+  text,
+  html,
+  replyTo: employee.email || undefined,
+});
       emailResult = {
         sent:
           !mailResponse

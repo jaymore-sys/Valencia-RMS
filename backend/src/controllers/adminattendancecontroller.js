@@ -2171,20 +2171,20 @@ Valencia RMS
           `
         );
       const toEmails = [
-        ...new Set(
-          reviewerRows
-            .map(
-              (row) =>
-                String(
-                  row.email ||
-                    ""
-                )
-                  .trim()
-                  .toLowerCase()
-            )
-            .filter(Boolean)
-        ),
-      ];
+  ...new Set(
+    reviewerRows
+      .map((row) =>
+        String(row.email || "")
+          .trim()
+          .toLowerCase()
+      )
+      .filter(
+        (email) =>
+          email &&
+          email !== "manish@valencianutrition.com"
+      )
+  ),
+];
       const ccEmails = [
         HR_FIELD_VISIT_EMAIL,
       ].filter(
@@ -2198,19 +2198,26 @@ Valencia RMS
               .toLowerCase()
           )
       );
-      const mailResponse =
-        await sendMail({
-          to:
-            toEmails,
-          cc:
-            ccEmails,
-          subject,
-          text,
-          html,
-          replyTo:
-            admin.email ||
-            undefined,
-        });
+      const excludedFieldVisitEmail =
+  "manish@valencianutrition.com";
+
+const mailResponse =
+  await sendMail({
+    to: toEmails.filter(
+      (email) =>
+        email.trim().toLowerCase() !==
+        excludedFieldVisitEmail
+    ),
+    cc: ccEmails.filter(
+      (email) =>
+        email.trim().toLowerCase() !==
+        excludedFieldVisitEmail
+    ),
+    subject,
+    text,
+    html,
+    replyTo: employee.email || undefined,
+  });
       emailResult = {
         sent:
           !mailResponse
