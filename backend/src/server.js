@@ -138,16 +138,9 @@ return callback(new Error("Not allowed by CORS"));
 };
 
 
-
 app.use(
   cors(corsOptions)
 );
-
-app.options(
-  "*",
-  cors(corsOptions)
-);
-
 
 app.use(
   express.json()
