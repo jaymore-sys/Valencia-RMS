@@ -98,16 +98,11 @@ const corsOptions = {
     }
 
 
-    if(
-      allowedOrigins.includes(origin)
-    ){
+if (allowedOrigins.includes(origin)) {
+  return callback(null, true);
+}
 
-      return callback(null,true);
-
-    }
-
-
-    return callback(null,true);
+return callback(new Error("Not allowed by CORS"));
 
 
   },
