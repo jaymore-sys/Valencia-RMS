@@ -213,7 +213,7 @@ const AdminLayout = () => {
           </NavLink>
 
 
-
+{/*
           <NavLink
             to="/admin/vendors"
             className={({ isActive }) =>
@@ -224,7 +224,7 @@ const AdminLayout = () => {
             <Building2 size={20} />
             <span>Vendor Management</span>
           </NavLink>
-
+*/}
 
         </nav>
 

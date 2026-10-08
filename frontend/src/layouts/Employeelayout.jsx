@@ -190,6 +190,7 @@ const isHR = HR_EMAILS.includes(
             <CalendarDays size={20} />
             <span>Leave Applications</span>
           </NavLink>
+          {/*
            <NavLink 
   to="/employee/vendors" 
   className={({ isActive }) => 
@@ -200,6 +201,7 @@ const isHR = HR_EMAILS.includes(
   <Building2 size={20} /> 
   <span>Vendor Management</span> 
 </NavLink>
+*/}
         </nav>
 
         
