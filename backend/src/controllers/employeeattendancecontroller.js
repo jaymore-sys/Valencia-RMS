@@ -3,50 +3,36 @@ const crypto = require("crypto");
 const {
   sendMail,
 } = require("../utils/emailservice");
-
 const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
-
   const ATTENDANCE_SYSTEM_START_DATE =
   "2026-04-01";
 const tableColumnsCache = {};
-
 const getTableColumns = async (tableName) => {
   if (tableColumnsCache[tableName]) return tableColumnsCache[tableName];
-
   const [columns] = await db.query(`SHOW COLUMNS FROM ${tableName}`);
   const columnNames = columns.map((column) => column.Field);
-
   tableColumnsCache[tableName] = columnNames;
   return columnNames;
 };
-
 const hasColumn = (columns, columnName) => {
   return columns.includes(columnName);
 };
-
 const formatDate = (dateValue) => {
   if (!dateValue) return null;
-
   const value = String(dateValue);
-
   if (/^\d{4}-\d{2}-\d{2}/.test(value)) {
     return value.slice(0, 10);
   }
-
   const date = new Date(dateValue);
-
   if (Number.isNaN(date.getTime())) {
     return value.slice(0, 10);
   }
-
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 };
-
 const getEffectiveAttendanceStartDate = (
   joiningDate,
   importedStartDate
@@ -55,18 +41,15 @@ const getEffectiveAttendanceStartDate = (
     formatDate(
       importedStartDate
     );
-
   if (
     !formattedImportedStartDate
   ) {
     return null;
   }
-
   const formattedJoiningDate =
     formatDate(
       joiningDate
     );
-
   if (
     formattedJoiningDate &&
     formattedJoiningDate >
@@ -74,93 +57,68 @@ const getEffectiveAttendanceStartDate = (
   ) {
     return formattedJoiningDate;
   }
-
   return formattedImportedStartDate;
 };
-
 const getDayName = (dateString) => {
   const date = new Date(`${dateString}T00:00:00`);
   return date.toLocaleDateString("en-US", { weekday: "long" });
 };
-
 const isSunday = (dateString) => {
   return getDayName(dateString) === "Sunday";
 };
-
 const addOneDay = (dateString) => {
   const date = new Date(`${dateString}T00:00:00`);
   date.setDate(date.getDate() + 1);
   return formatDate(date);
 };
-
 const normalizeStatus = (status) => {
   const value = String(status || "")
     .toLowerCase()
     .trim()
     .replace(/\s+/g, "_")
     .replace(/-/g, "_");
-
   if (["present", "p"].includes(value)) return "present";
   if (["absent", "a"].includes(value)) return "absent";
   if (["late", "l"].includes(value)) return "late";
   if (["leave", "on_leave"].includes(value)) return "leave";
   if (["half_day", "halfday"].includes(value)) return "half_day";
-
   return value || "absent";
 };
-
 const formatTime = (timeValue) => {
   if (!timeValue) return "-";
-
   const value = String(timeValue);
-
   if (value.includes("T")) {
     const date = new Date(value);
-
     if (!Number.isNaN(date.getTime())) {
       return date.toTimeString().slice(0, 8);
     }
   }
-
   return value.slice(0, 8);
 };
-
 const calculateMinutesFromTimes = (checkIn, checkOut) => {
   if (!checkIn || !checkOut || checkIn === "-" || checkOut === "-") return 0;
-
   const inParts = String(checkIn).split(":").map(Number);
   const outParts = String(checkOut).split(":").map(Number);
-
   if (inParts.length < 2 || outParts.length < 2) return 0;
   if (Number.isNaN(inParts[0]) || Number.isNaN(outParts[0])) return 0;
-
   const inMinutes = inParts[0] * 60 + inParts[1];
   const outMinutes = outParts[0] * 60 + outParts[1];
-
   if (outMinutes <= inMinutes) return 0;
-
   return outMinutes - inMinutes;
 };
-
 const formatWorkingHours = (totalMinutes) => {
   const minutes = Number(totalMinutes || 0);
-
   if (!minutes || minutes <= 0) return "-";
-
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
-
   if (hours > 0 && remainingMinutes > 0) {
     return `${hours}h ${remainingMinutes}m`;
   }
-
   if (hours > 0) {
     return `${hours}h`;
   }
-
   return `${remainingMinutes}m`;
 };
-
 const timeToMinutes = (timeValue) => {
   if (
     !timeValue ||
@@ -168,12 +126,10 @@ const timeToMinutes = (timeValue) => {
   ) {
     return null;
   }
-
   const parts = String(timeValue)
     .slice(0, 8)
     .split(":")
     .map(Number);
-
   if (
     parts.length < 2 ||
     Number.isNaN(parts[0]) ||
@@ -181,32 +137,24 @@ const timeToMinutes = (timeValue) => {
   ) {
     return null;
   }
-
   return parts[0] * 60 + parts[1];
 };
-
 const isLateCheckIn = (checkIn) => {
   const minutes = timeToMinutes(checkIn);
-
   if (minutes === null) {
     return false;
   }
-
   // After 11:00 AM
   return minutes > 11 * 60;
 };
-
 const isHalfDayCheckIn = (checkIn) => {
   const minutes = timeToMinutes(checkIn);
-
   if (minutes === null) {
     return false;
   }
-
   // After 12:00 PM
   return minutes > 12 * 60;
 };
-
 const getLeaveLabel = (leaveType) => {
   switch (
     String(leaveType || "")
@@ -215,24 +163,18 @@ const getLeaveLabel = (leaveType) => {
   ) {
     case "sick":
       return "Sick Leave";
-
     case "casual":
       return "Casual Leave";
-
     case "mandatory":
       return "Privileged Leave";
-
     case "festival":
       return "Festival Leave";
-
     case "unpaid":
       return "Unpaid Leave";
-
     default:
       return "Leave";
   }
 };
-
 const buildAttendanceWithGeneratedAbsents = (
   attendanceRows,
   employeeId,
@@ -248,17 +190,13 @@ const buildAttendanceWithGeneratedAbsents = (
   ) {
     return [];
   }
-
   const attendanceByDate = new Map();
-
   attendanceRows.forEach((row) => {
     const attendanceDate =
       formatDate(row.attendance_date);
-
     if (!attendanceDate) {
       return;
     }
-
     attendanceByDate.set(
       attendanceDate,
       {
@@ -268,21 +206,17 @@ const buildAttendanceWithGeneratedAbsents = (
       }
     );
   });
-
   /*
     APPROVED LEAVE MAP
   */
   const leaveByDate = new Map();
-
   leaveRows.forEach((leave) => {
     let date = formatDate(
       leave.start_date
     );
-
     const end = formatDate(
       leave.end_date
     );
-
     while (
       date &&
       end &&
@@ -292,22 +226,18 @@ const buildAttendanceWithGeneratedAbsents = (
         date,
         leave
       );
-
       date = addOneDay(date);
     }
   });
-
   /*
     APPROVED FIELD VISIT MAP
   */
   const fieldVisitByDate = new Map();
-
   fieldVisitRows.forEach((visit) => {
     const visitDate =
       formatDate(
         visit.visit_date
       );
-
     if (visitDate) {
       fieldVisitByDate.set(
         visitDate,
@@ -315,12 +245,9 @@ const buildAttendanceWithGeneratedAbsents = (
       );
     }
   });
-
   const finalAttendance = [];
-
   let currentDate =
     startDate;
-
   while (
     currentDate <= endDate
   ) {
@@ -333,31 +260,26 @@ const buildAttendanceWithGeneratedAbsents = (
         attendanceByDate.get(
           currentDate
         );
-
       const leave =
         leaveByDate.get(
           currentDate
         );
-
       const fieldVisit =
         fieldVisitByDate.get(
           currentDate
         );
-
       const checkIn =
         existingRow
           ? formatTime(
               existingRow.check_in_time
             )
           : "-";
-
       const checkOut =
         existingRow
           ? formatTime(
               existingRow.check_out_time
             )
           : "-";
-
       const totalMinutes =
         existingRow
           ? Number(
@@ -369,13 +291,10 @@ const buildAttendanceWithGeneratedAbsents = (
               checkOut
             )
           : 0;
-
       let status = "absent";
       let remarks = "Absent";
       let source = "system";
-
       let isLate = false;
-
       /*
         ========================================
         PRIORITY 1 — APPROVED LEAVE
@@ -386,7 +305,6 @@ const buildAttendanceWithGeneratedAbsents = (
           getLeaveLabel(
             leave.leave_type
           );
-
         if (
           String(
             leave.duration_type ||
@@ -398,7 +316,6 @@ const buildAttendanceWithGeneratedAbsents = (
         ) {
           status =
             "half_day_leave";
-
           const session =
             String(
               leave.half_day_session ||
@@ -406,7 +323,6 @@ const buildAttendanceWithGeneratedAbsents = (
             )
               .replace(/_/g, " ")
               .trim();
-
           remarks = [
             leaveLabel,
             session
@@ -425,7 +341,6 @@ const buildAttendanceWithGeneratedAbsents = (
               .trim()
               .toLowerCase() +
             "_leave";
-
           /*
             Avoid:
             sick_leave_leave
@@ -441,7 +356,6 @@ const buildAttendanceWithGeneratedAbsents = (
                 "_leave"
               );
           }
-
           remarks = [
             leaveLabel,
             leave.reason,
@@ -449,10 +363,8 @@ const buildAttendanceWithGeneratedAbsents = (
             .filter(Boolean)
             .join(" · ");
         }
-
         source = "leave";
       }
-
       /*
         ========================================
         PRIORITY 2 — APPROVED FIELD VISIT
@@ -466,7 +378,6 @@ const buildAttendanceWithGeneratedAbsents = (
           )
             .trim()
             .toLowerCase();
-
         const halfSession =
           String(
             fieldVisit.half_day_session ||
@@ -474,34 +385,27 @@ const buildAttendanceWithGeneratedAbsents = (
           )
             .trim()
             .toLowerCase();
-
         const fullDay =
           durationType ===
           "full_day";
-
         const firstHalf =
           durationType ===
             "half_day" &&
           halfSession ===
             "first_half";
-
         const secondHalf =
           durationType ===
             "half_day" &&
           halfSession ===
             "second_half";
-
         /*
           Full Day FV:
           Never Late.
-
           First Half FV:
           Never Late.
-
           Second Half FV:
           Employee should be in office
           during first half.
-
           Therefore punch > 11:00
           becomes Field Visit + Late.
         */
@@ -512,26 +416,21 @@ const buildAttendanceWithGeneratedAbsents = (
         ) {
           status =
             "field_visit_late";
-
           isLate = true;
         } else {
           status =
             "field_visit";
         }
-
         let durationLabel =
           "Full Day";
-
         if (firstHalf) {
           durationLabel =
             "Half Day - First Half";
         }
-
         if (secondHalf) {
           durationLabel =
             "Half Day - Second Half";
         }
-
         remarks = [
           fieldVisit.visit_type,
           durationLabel,
@@ -543,11 +442,9 @@ const buildAttendanceWithGeneratedAbsents = (
         ]
           .filter(Boolean)
           .join(" · ");
-
         source =
           "field_visit";
       }
-
       /*
         ========================================
         PRIORITY 3 — NORMAL ATTENDANCE
@@ -558,7 +455,6 @@ const buildAttendanceWithGeneratedAbsents = (
           normalizeStatus(
             existingRow.status
           );
-
         /*
           Explicit absent with no punch.
         */
@@ -570,7 +466,6 @@ const buildAttendanceWithGeneratedAbsents = (
         ) {
           status = "absent";
         }
-
         /*
           One punch only.
         */
@@ -583,7 +478,6 @@ const buildAttendanceWithGeneratedAbsents = (
           status =
             "no_punch";
         }
-
         /*
           Explicit Half Day.
         */
@@ -594,7 +488,6 @@ const buildAttendanceWithGeneratedAbsents = (
           status =
             "half_day";
         }
-
         /*
           Punch after 12 PM.
           Half Day has priority over Late.
@@ -609,7 +502,6 @@ const buildAttendanceWithGeneratedAbsents = (
           status =
             "half_day";
         }
-
         /*
           Explicit Late.
         */
@@ -619,10 +511,8 @@ const buildAttendanceWithGeneratedAbsents = (
         ) {
           status =
             "late";
-
           isLate = true;
         }
-
         /*
           Punch after 11 AM.
         */
@@ -635,10 +525,8 @@ const buildAttendanceWithGeneratedAbsents = (
         ) {
           status =
             "late";
-
           isLate = true;
         }
-
         /*
           Normal valid punches.
         */
@@ -649,7 +537,6 @@ const buildAttendanceWithGeneratedAbsents = (
           status =
             "present";
         }
-
         /*
           HR manually marked Present
           without biometric punches.
@@ -661,12 +548,10 @@ const buildAttendanceWithGeneratedAbsents = (
           status =
             "present";
         }
-
         else {
           status =
             "absent";
         }
-
         remarks =
           existingRow.remarks ||
           (
@@ -680,98 +565,73 @@ const buildAttendanceWithGeneratedAbsents = (
                   ? "Incomplete biometric punch"
                   : "-"
           );
-
         source =
           "attendance";
       }
-
       finalAttendance.push({
         attendance_id:
           existingRow?.attendance_id ||
           null,
-
         employee_id:
           employeeId,
-
         attendance_date:
           currentDate,
-
         day_name:
           getDayName(currentDate),
-
         check_in_time:
           checkIn,
-
         check_out_time:
           checkOut,
-
         total_minutes:
           totalMinutes,
-
         working_hours:
           formatWorkingHours(
             totalMinutes
           ),
-
         status,
-
         remarks,
-
         source,
-
         is_late:
           isLate,
-
         leave_id:
           leave?.leave_id ||
           null,
-
         leave_type:
           leave
             ? getLeaveLabel(
                 leave.leave_type
               )
             : null,
-
         leave_duration:
           leave?.duration_type ||
           null,
-
         leave_session:
           leave?.half_day_session ||
           null,
-
         field_visit_id:
           fieldVisit?.visit_id ||
           null,
-
         field_visit_type:
           fieldVisit?.visit_type ||
           null,
-
         field_visit_duration:
           fieldVisit?.duration_type ||
           null,
-
         field_visit_half_day_session:
           fieldVisit?.half_day_session ||
           null,
-
         field_visit_location:
           fieldVisit?.location ||
           null,
-
         is_generated_absent:
           !existingRow &&
           !leave &&
           !fieldVisit,
       });
     }
-
     currentDate =
       addOneDay(currentDate);
   }
-
   return finalAttendance.sort(
     (a, b) =>
       String(
@@ -783,24 +643,20 @@ const buildAttendanceWithGeneratedAbsents = (
       )
   );
 };
-
 const getSummary = (
   attendanceRows
 ) => {
   const summary = {
     total_records:
       attendanceRows.length,
-
     present: 0,
     absent: 0,
     late: 0,
     leave: 0,
-
     half_day: 0,
     field_visit: 0,
     no_punch: 0,
   };
-
   attendanceRows.forEach(
     (row) => {
       const status =
@@ -809,11 +665,9 @@ const getSummary = (
         )
           .trim()
           .toLowerCase();
-
       /*
         Present:
         normal Present + Late.
-
         Half Day contributes 0.5.
       */
       if (
@@ -822,20 +676,17 @@ const getSummary = (
       ) {
         summary.present += 1;
       }
-
       if (
         status === "half_day"
       ) {
         summary.present += 0.5;
         summary.half_day += 0.5;
       }
-
       if (
         status === "absent"
       ) {
         summary.absent += 1;
       }
-
       /*
         Late includes normal Late
         and second-half FV + Late.
@@ -847,7 +698,6 @@ const getSummary = (
       ) {
         summary.late += 1;
       }
-
       if (
         status.includes(
           "leave"
@@ -859,7 +709,6 @@ const getSummary = (
             ? 0.5
             : 1;
       }
-
       if (
         status ===
           "field_visit" ||
@@ -877,7 +726,6 @@ const getSummary = (
             ? 0.5
             : 1;
       }
-
       if (
         status === "no_punch"
       ) {
@@ -885,10 +733,8 @@ const getSummary = (
       }
     }
   );
-
   return summary;
 };
-
 const getEmployeeAttendance = async (
   req,
   res
@@ -896,12 +742,10 @@ const getEmployeeAttendance = async (
   try {
     const employeeId =
       req.user.user_id;
-
     const userColumns =
       await getTableColumns(
         "users"
       );
-
     const selectEmployeeCode =
       hasColumn(
         userColumns,
@@ -909,7 +753,6 @@ const getEmployeeAttendance = async (
       )
         ? "u.employee_code"
         : "u.user_id AS employee_code";
-
     const selectDesignation =
       hasColumn(
         userColumns,
@@ -917,7 +760,6 @@ const getEmployeeAttendance = async (
       )
         ? "u.designation"
         : "NULL AS designation";
-
     const [profileRows] =
       await db.query(
         `
@@ -927,77 +769,56 @@ const getEmployeeAttendance = async (
           u.email,
           ${selectEmployeeCode},
           ${selectDesignation},
-
           DATE_FORMAT(
             ep.joining_date,
             '%Y-%m-%d'
           ) AS joining_date,
-
           r.role_name,
           d.department_name
-
         FROM users u
-
         LEFT JOIN employee_profiles ep
           ON ep.user_id =
              u.user_id
-
         LEFT JOIN roles r
           ON r.role_id =
              u.role_id
-
         LEFT JOIN departments d
           ON d.department_id =
              u.department_id
-
         WHERE u.user_id = ?
-
         LIMIT 1
         `,
         [employeeId]
       );
-
-
     const profile =
       profileRows[0] || {
         user_id:
           employeeId,
-
         full_name:
           req.user.full_name ||
           "-",
-
         email:
           req.user.email ||
           "-",
-
         employee_code:
           req.user.employee_code ||
           "-",
-
         designation:
           req.user.designation ||
           "-",
-
         joining_date:
           null,
-
         role_name:
           req.user.role_name ||
           "employee",
-
         department_name:
           req.user.department_name ||
           "-",
       };
-
-
     /*
       GLOBAL IMPORTED ATTENDANCE RANGE
-
       We never calculate before:
       01-Apr-2026.
-
       But if the current database only has
       attendance imported from a later date,
       such as 01-Jun-2026, calculation starts
@@ -1011,17 +832,13 @@ const getEmployeeAttendance = async (
             MIN(attendance_date),
             '%Y-%m-%d'
           ) AS start_date,
-
           DATE_FORMAT(
             MAX(attendance_date),
             '%Y-%m-%d'
           ) AS end_date
-
         FROM attendance
-
         WHERE
           attendance_date >= ?
-
           AND attendance_date <=
               CURDATE()
         `,
@@ -1029,26 +846,18 @@ const getEmployeeAttendance = async (
           ATTENDANCE_SYSTEM_START_DATE,
         ]
       );
-
-
     const importedStartDate =
       rangeRows[0]
         ?.start_date ||
       null;
-
-
     const attendanceEndDate =
       rangeRows[0]
         ?.end_date ||
       null;
-
-
     /*
       FINAL START DATE
-
       Existing / older employee:
       → first imported attendance date
-
       Employee with a joining date
       later than imported attendance:
       → joining date
@@ -1058,9 +867,7 @@ const getEmployeeAttendance = async (
         profile.joining_date,
         importedStartDate
       );
-
       let attendanceRows = [];
-
 /*
   ========================================
   GET BIOMETRIC / MANUAL ATTENDANCE
@@ -1078,12 +885,10 @@ if (
         SELECT
           attendance_id,
           employee_id,
-
           DATE_FORMAT(
             attendance_date,
             '%Y-%m-%d'
           ) AS attendance_date,
-
           check_in_time,
           check_out_time,
           total_minutes,
@@ -1091,14 +896,10 @@ if (
           remarks,
           created_at,
           updated_at
-
         FROM attendance
-
         WHERE employee_id = ?
-
           AND attendance_date
               BETWEEN ? AND ?
-
         ORDER BY
           attendance_date DESC
       `,
@@ -1108,17 +909,14 @@ if (
         attendanceEndDate,
       ]
     );
-
   attendanceRows = rows;
 }
-
 /*
   ========================================
   GET APPROVED LEAVES
   ========================================
 */
 let leaveRows = [];
-
 if (
   attendanceStartDate &&
   attendanceEndDate &&
@@ -1132,37 +930,28 @@ if (
           leave_id,
           employee_id,
           leave_type,
-
           DATE_FORMAT(
             start_date,
             '%Y-%m-%d'
           ) AS start_date,
-
           DATE_FORMAT(
             end_date,
             '%Y-%m-%d'
           ) AS end_date,
-
           duration_type,
           half_day_session,
           reason,
           status
-
         FROM leave_applications
-
         WHERE employee_id = ?
-
           AND LOWER(
             TRIM(status)
           ) = 'approved'
-
           AND COALESCE(
             revert_status,
             'none'
           ) <> 'approved'
-
           AND start_date <= ?
-
           AND end_date >= ?
       `,
       [
@@ -1171,17 +960,14 @@ if (
         attendanceStartDate,
       ]
     );
-
   leaveRows = rows;
 }
-
 /*
   ========================================
   GET APPROVED FIELD VISITS
   ========================================
 */
 let fieldVisitRows = [];
-
 if (
   attendanceStartDate &&
   attendanceEndDate &&
@@ -1195,44 +981,33 @@ if (
           fv.visit_id,
           fv.employee_id,
           fv.visit_type,
-
           DATE_FORMAT(
             fv.visit_date,
             '%Y-%m-%d'
           ) AS visit_date,
-
           fv.duration_type,
           fv.half_day_session,
           fv.location,
           fv.comment,
           fv.status
-
         FROM employee_field_visits fv
-
         WHERE LOWER(
           TRIM(fv.status)
         ) = 'approved'
-
           AND fv.visit_date
               BETWEEN ? AND ?
-
           AND (
             fv.employee_id = ?
-
             OR EXISTS (
               SELECT 1
-
               FROM field_visit_members fvm
-
               WHERE
                 fvm.visit_id =
                   fv.visit_id
-
                 AND
                 fvm.employee_id = ?
             )
           )
-
         ORDER BY
           fv.visit_date ASC,
           fv.visit_id ASC
@@ -1244,12 +1019,8 @@ if (
         employeeId,
       ]
     );
-
   fieldVisitRows = rows;
 }
-
-
-    
     const attendance =
   buildAttendanceWithGeneratedAbsents(
     attendanceRows,
@@ -1259,23 +1030,15 @@ if (
     leaveRows,
     fieldVisitRows
   );
-
-
     const summary =
       getSummary(
         attendance
       );
-
-
     return res.json({
       success: true,
-
       profile,
-
       summary,
-
       attendance,
-
       data: {
         profile,
         summary,
@@ -1287,21 +1050,17 @@ if (
       "Employee attendance fetch error:",
       error
     );
-
     return res
       .status(500)
       .json({
         success: false,
-
         message:
           "Failed to fetch employee attendance.",
-
         error:
           error.message,
       });
   }
 };
-
 /* =========================================================
    EMPLOYEE - GET FIELD VISITS
 ========================================================= */
@@ -1310,20 +1069,16 @@ const normalizeFieldVisitStops = (body = {}) => {
     Array.isArray(body.visit_stops)
       ? body.visit_stops
       : [];
-
   const stops = suppliedStops
     .map((stop, index) => ({
       sequence_no: index + 1,
-
       location: String(
         stop?.location || ""
       ).trim(),
-
       visit_time:
         String(
           stop?.visit_time || ""
         ).trim() || null,
-
       description: String(
         stop?.description || ""
       ).trim(),
@@ -1333,29 +1088,23 @@ const normalizeFieldVisitStops = (body = {}) => {
         stop.location ||
         stop.description
     );
-
   if (stops.length) {
     return stops;
   }
-
   /*
     BACKWARD COMPATIBILITY
-
     Existing frontend sends:
     location + comment
-
     Convert that into Stop 1 internally.
   */
   const legacyLocation =
     String(
       body.location || ""
     ).trim();
-
   const legacyComment =
     String(
       body.comment || ""
     ).trim();
-
   if (
     legacyLocation ||
     legacyComment
@@ -1365,30 +1114,35 @@ const normalizeFieldVisitStops = (body = {}) => {
         sequence_no: 1,
         location:
           legacyLocation,
-
         visit_time:
           null,
-
         description:
           legacyComment,
       },
     ];
   }
-
   return [];
 };
-
-
+const countFieldVisitWords = (value) =>
+  String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+const getFieldVisitDescriptionWordCount = (visitStops = []) =>
+  visitStops.reduce(
+    (total, stop) =>
+      total + countFieldVisitWords(stop?.description),
+    0
+  );
 const attachFieldVisitStops =
 async (visits) => {
-
   if (
     !Array.isArray(visits) ||
     !visits.length
   ) {
     return [];
   }
-
   const visitIds =
     visits
       .map(
@@ -1398,11 +1152,9 @@ async (visits) => {
           )
       )
       .filter(Boolean);
-
   if (!visitIds.length) {
     return visits;
   }
-
   const [stopRows] =
     await db.query(
       `
@@ -1415,11 +1167,8 @@ async (visits) => {
           description,
           created_at,
           updated_at
-
         FROM field_visit_stops
-
         WHERE visit_id IN (?)
-
         ORDER BY
           visit_id ASC,
           sequence_no ASC,
@@ -1427,18 +1176,14 @@ async (visits) => {
       `,
       [visitIds]
     );
-
   const stopMap =
     new Map();
-
   stopRows.forEach(
     (stop) => {
-
       const visitId =
         Number(
           stop.visit_id
         );
-
       if (
         !stopMap.has(
           visitId
@@ -1449,33 +1194,26 @@ async (visits) => {
           []
         );
       }
-
       stopMap
         .get(visitId)
         .push(stop);
     }
   );
-
   return visits.map(
     (visit) => {
-
       const visitId =
         Number(
           visit.visit_id
         );
-
       const savedStops =
         stopMap.get(
           visitId
         ) || [];
-
       /*
         OLD DATA SAFETY
-
         Historical Field Visits do not
         necessarily have rows inside
         field_visit_stops.
-
         Show their existing
         location/comment as Stop 1.
       */
@@ -1486,33 +1224,25 @@ async (visits) => {
               {
                 stop_id:
                   null,
-
                 visit_id:
                   visit.visit_id,
-
                 sequence_no:
                   1,
-
                 location:
                   visit.location ||
                   "",
-
                 visit_time:
                   null,
-
                 description:
                   visit.comment ||
                   "",
-
                 is_legacy:
                   true,
               },
             ]
           : [];
-
       return {
         ...visit,
-
         visit_stops:
           savedStops.length
             ? savedStops
@@ -1521,24 +1251,18 @@ async (visits) => {
     }
   );
 };
-
 const getEmployeeFieldVisits =
 async (req, res) => {
-
   try {
-
     console.log(
       "FIELD VISIT REQUEST USER:",
       req.user
     );
-
     const employeeId =
       Number(
         req.user?.user_id
       );
-
     if (!employeeId) {
-
       return res
         .status(401)
         .json({
@@ -1546,96 +1270,67 @@ async (req, res) => {
           message:
             "Unauthorized.",
         });
-
     }
-
-
     const [visits] =
       await db.query(
         `
           SELECT
-
             fv.visit_id,
             fv.employee_id,
-
             creator.full_name
               AS employee_name,
-
             fv.visit_type,
-
             DATE_FORMAT(
               fv.visit_date,
               '%Y-%m-%d'
             ) AS visit_date,
-
             fv.duration_type,
             fv.half_day_session,
-
             fv.location,
             fv.comment,
-
             fv.conclusion,
             fv.remark,
-
             fv.status,
-
             GROUP_CONCAT(
               DISTINCT
               members.full_name
-
               SEPARATOR ', '
             ) AS team_members,
-
             reviewer.full_name
               AS reviewed_by_name,
-
             fv.review_remark,
-
             fv.created_at,
             fv.updated_at
-
           FROM employee_field_visits fv
-
           LEFT JOIN users creator
             ON creator.user_id =
                fv.employee_id
-
           LEFT JOIN field_visit_members fvm
             ON fvm.visit_id =
                fv.visit_id
-
           LEFT JOIN users members
             ON members.user_id =
                fvm.employee_id
-
           LEFT JOIN users reviewer
             ON reviewer.user_id =
                fv.reviewed_by
-
           WHERE
           (
             fv.employee_id = ?
-
             OR EXISTS
             (
               SELECT 1
-
               FROM field_visit_members
                 check_member
-
               WHERE
                 check_member.visit_id =
                   fv.visit_id
-
                 AND
-
                 check_member.employee_id = ?
             )
           )
-
           GROUP BY
             fv.visit_id
-
           ORDER BY
             fv.visit_date DESC,
             fv.visit_id DESC
@@ -1645,11 +1340,8 @@ async (req, res) => {
           employeeId,
         ]
       );
-
-
     /*
       Attach new multi-location data.
-
       Existing old records receive a
       virtual legacy Stop 1 from their
       original location/comment.
@@ -1658,13 +1350,9 @@ async (req, res) => {
       await attachFieldVisitStops(
         visits
       );
-
-
     const summary = {
-
       total:
         visitsWithStops.length,
-
       approved:
         visitsWithStops.filter(
           (visit) =>
@@ -1674,7 +1362,6 @@ async (req, res) => {
               .toLowerCase() ===
             "approved"
         ).length,
-
       pending:
         visitsWithStops.filter(
           (visit) =>
@@ -1684,7 +1371,15 @@ async (req, res) => {
               .toLowerCase() ===
             "pending"
         ).length,
-
+      changes_requested:
+        visitsWithStops.filter(
+          (visit) =>
+            String(
+              visit.status || ""
+            )
+              .toLowerCase() ===
+            "changes_requested"
+        ).length,
       rejected:
         visitsWithStops.filter(
           (visit) =>
@@ -1694,48 +1389,29 @@ async (req, res) => {
               .toLowerCase() ===
             "rejected"
         ).length,
-
     };
-
-
     return res.json({
-
       success: true,
-
       summary,
-
       visits:
         visitsWithStops,
-
     });
-
-
   } catch (error) {
-
     console.error(
       "Get employee field visits error:",
       error
     );
-
-
     return res
       .status(500)
       .json({
-
         success: false,
-
         message:
           "Failed to fetch field visits.",
-
         error:
           error.message,
-
       });
-
   }
-
 };
-
 /* =========================================================
    EMPLOYEE - CREATE FIELD VISIT
    EMAIL:
@@ -1743,52 +1419,36 @@ async (req, res) => {
    - HR
    - NO SUPERADMIN EMAIL
 ========================================================= */
-
 const createEmployeeFieldVisit =
 async (
   req,
   res
 ) => {
-
   try {
-
     const employeeId =
       Number(
         req.user?.user_id
       );
-
-
     if (!employeeId) {
-
       return res
         .status(401)
         .json({
-
           success: false,
-
           message:
             "Unauthorized.",
-
         });
-
     }
-
-
     const visitType =
       String(
         req.body?.visit_type ||
           "Sales Visit"
       ).trim() ||
       "Sales Visit";
-
-
     const visitDate =
       String(
         req.body?.visit_date ||
           ""
       ).trim();
-
-
     const durationType =
       String(
         req.body?.duration_type ||
@@ -1796,8 +1456,6 @@ async (
       )
         .trim()
         .toLowerCase();
-
-
     const halfDaySession =
       String(
         req.body?.half_day_session ||
@@ -1805,11 +1463,8 @@ async (
       )
         .trim()
         .toLowerCase();
-
-
     /*
       NEW MULTI-LOCATION SUPPORT
-
       Existing frontend still works
       because location/comment become
       Stop 1 automatically.
@@ -1818,16 +1473,11 @@ async (
       normalizeFieldVisitStops(
         req.body
       );
-
-
     const firstStop =
       visitStops[0] ||
       null;
-
-
     /*
       KEEP EXISTING COLUMNS.
-
       This is important because existing
       attendance/history/code still reads
       location + comment.
@@ -1838,51 +1488,34 @@ async (
         req.body?.location ||
           ""
       ).trim();
-
-
     const comment =
       firstStop?.description ||
       String(
         req.body?.comment ||
           ""
       ).trim();
-
-
     const conclusion =
       String(
         req.body?.conclusion ||
           ""
       ).trim();
-
-
     const remark =
       String(
         req.body?.remark ||
           ""
       ).trim();
-
-
     /* =========================
        VALIDATION
     ========================= */
-
-
     if (!visitDate) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Visit date is required.",
-
         });
-
     }
-
-
     if (
       ![
         "full_day",
@@ -1891,25 +1524,17 @@ async (
         durationType
       )
     ) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Please select Full Day or Half Day.",
-
         });
-
     }
-
-
     if (
       durationType ===
         "half_day" &&
-
       ![
         "first_half",
         "second_half",
@@ -1917,56 +1542,35 @@ async (
         halfDaySession
       )
     ) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Please select First Half or Second Half.",
-
         });
-
     }
-
-
     /*
       Existing validation preserved.
     */
     if (!location) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Location is required.",
-
         });
-
     }
-
-
     if (!comment) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Comment / reason is required.",
-
         });
-
     }
-
-
     /*
       Every additional stop must have
       both location and description.
@@ -1977,29 +1581,29 @@ async (
           !stop.location ||
           !stop.description
       );
-
-
     if (invalidStop) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Each field visit location must have a location and description.",
-
         });
-
     }
-
-
+    const descriptionWordCount =
+      getFieldVisitDescriptionWordCount(visitStops);
+    if (descriptionWordCount < 100) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+        word_count: descriptionWordCount,
+        minimum_words: 100,
+      });
+    }
     /* =========================
        GET EMPLOYEE DETAILS
     ========================= */
-
-
     const [employeeRows] =
       await db.query(
         `
@@ -2011,49 +1615,32 @@ async (
             u.designation,
             u.department_id,
             d.department_name
-
           FROM users u
-
           LEFT JOIN departments d
             ON d.department_id =
                u.department_id
-
           WHERE
             u.user_id = ?
-
           LIMIT 1
         `,
         [
           employeeId,
         ]
       );
-
-
     if (!employeeRows.length) {
-
       return res
         .status(404)
         .json({
-
           success: false,
-
           message:
             "Employee account not found.",
-
         });
-
     }
-
-
     const employee =
       employeeRows[0];
-
-
     /* =========================
        SAVE FIELD VISIT
     ========================= */
-
-
     const [result] =
       await db.query(
         `
@@ -2070,7 +1657,6 @@ async (
             remark,
             status
           )
-
           VALUES
           (
             ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -2079,31 +1665,21 @@ async (
         `,
         [
           employeeId,
-
           visitType,
-
           visitDate,
-
           durationType,
-
           durationType ===
             "half_day"
             ? halfDaySession
             : null,
-
           location,
-
           comment,
-
           conclusion ||
             null,
-
           remark ||
             null,
         ]
       );
-
-
     /*
       EXISTING VISITOR / TEAM MEMBER
       LOGIC — UNCHANGED
@@ -2112,12 +1688,10 @@ async (
       Array.isArray(
         req.body.visitor_ids
       ) &&
-
       req.body
         .visitor_ids
         .length
     ) {
-
       const members =
         req.body.visitor_ids.map(
           (id) => [
@@ -2125,8 +1699,6 @@ async (
             Number(id),
           ]
         );
-
-
       await db.query(
         `
           INSERT INTO field_visit_members
@@ -2134,17 +1706,13 @@ async (
             visit_id,
             employee_id
           )
-
           VALUES ?
         `,
         [
           members,
         ]
       );
-
     }
-
-
     /*
       NEW:
       SAVE ORDERED VISIT LOCATIONS
@@ -2152,30 +1720,21 @@ async (
     if (
       visitStops.length
     ) {
-
       const stopValues =
         visitStops.map(
           (
             stop,
             index
           ) => [
-
             result.insertId,
-
             index + 1,
-
             stop.location,
-
             stop.visit_time ||
               null,
-
             stop.description ||
               null,
-
           ]
         );
-
-
       await db.query(
         `
           INSERT INTO field_visit_stops
@@ -2186,28 +1745,21 @@ async (
             visit_time,
             description
           )
-
           VALUES ?
         `,
         [
           stopValues,
         ]
       );
-
     }
-
-
     /*
       EXISTING FIELD VISIT
       REVIEW TOKEN — UNCHANGED
     */
-
     const reviewToken =
       crypto
         .randomBytes(32)
         .toString("hex");
-
-
     await db.query(
       `
         INSERT INTO field_visit_review_tokens
@@ -2216,7 +1768,6 @@ async (
           token,
           expires_at
         )
-
         VALUES
         (
           ?,
@@ -2232,124 +1783,89 @@ async (
         reviewToken,
       ]
     );
-
-
     /* =========================
        GET SAVED VISIT
     ========================= */
-
-
     const [visitRows] =
       await db.query(
         `
           SELECT
-
             visit_id,
             employee_id,
             visit_type,
-
             DATE_FORMAT(
               visit_date,
               '%Y-%m-%d'
             ) AS visit_date,
-
             duration_type,
             half_day_session,
-
             location,
             comment,
-
             conclusion,
             remark,
-
             status,
-
             reviewed_by,
             reviewed_at,
             review_remark,
-
             created_at,
             updated_at
-
           FROM employee_field_visits
-
           WHERE visit_id = ?
-
           LIMIT 1
         `,
         [
           result.insertId,
         ]
       );
-
-
     const savedVisits =
       await attachFieldVisitStops(
         visitRows
       );
-
-
     const savedVisit =
       savedVisits[0] ||
       null;
-
-
     /* =========================
        GET ALL ADMINS FROM
        EMPLOYEE'S DEPARTMENT
     ========================= */
-
-
     const [adminRows] =
       await db.query(
         `
           SELECT DISTINCT
-
             u.user_id,
             u.full_name,
             u.email
-
           FROM users u
-
           INNER JOIN roles r
             ON r.role_id =
                u.role_id
-
           WHERE
-
             LOWER(
               r.role_name
             ) = 'admin'
-
             AND LOWER(
               COALESCE(
                 u.status,
                 'active'
               )
             ) != 'deleted'
-
             AND
               u.email
               IS NOT NULL
-
             AND
               TRIM(
                 u.email
               ) != ''
-
             AND
             (
               EXISTS
               (
                 SELECT 1
-
                 FROM user_departments
                   admin_ud
-
                 WHERE
                   admin_ud.user_id =
                     u.user_id
-
                   AND
                   admin_ud.department_id
                     IN
@@ -2357,57 +1873,43 @@ async (
                       SELECT
                         employee_ud
                           .department_id
-
                       FROM user_departments
                         employee_ud
-
                       WHERE
                         employee_ud.user_id =
                           ?
                     )
               )
-
               OR
-
               u.department_id
                 IN
                 (
                   SELECT
                     employee_ud
                       .department_id
-
                   FROM user_departments
                     employee_ud
-
                   WHERE
                     employee_ud.user_id =
                       ?
                 )
-
               OR
-
               EXISTS
               (
                 SELECT 1
-
                 FROM user_departments
                   admin_ud
-
                 WHERE
                   admin_ud.user_id =
                     u.user_id
-
                   AND
                   admin_ud.department_id =
                     ?
               )
-
               OR
-
               u.department_id =
                 ?
             )
-
           ORDER BY
             u.full_name ASC
         `,
@@ -2418,8 +1920,6 @@ async (
           employee.department_id,
         ]
       );
-
-
     const adminEmails = [
       ...new Set(
         adminRows
@@ -2435,51 +1935,32 @@ async (
           .filter(Boolean)
       ),
     ];
-
-
     /* =========================
        EMAIL ADMIN(S) + HR
        NO SUPERADMIN
     ========================= */
-
-
     let emailResult = {
-
       sent:
         false,
-
       skipped:
         false,
-
     };
-
-
     try {
-
       /*
         EXISTING EMAIL ROUTING
-
         TO:
         Department Admin(s)
-
         CC:
         Rathika
-
         Existing custom recipient
         override remains unchanged.
       */
-
-
       let toEmails = [
         ...adminEmails,
       ];
-
-
       let ccEmails = [
         HR_FIELD_VISIT_EMAIL,
       ];
-
-
       toEmails = [
         ...new Set(
           toEmails
@@ -2495,8 +1976,6 @@ async (
             .filter(Boolean)
         ),
       ];
-
-
       ccEmails = [
         ...new Set(
           ccEmails
@@ -2518,82 +1997,59 @@ async (
             )
         ),
       ];
-
-
       /*
         EXISTING FALLBACK
       */
       if (
         toEmails.length === 0
       ) {
-
         toEmails = [
           HR_FIELD_VISIT_EMAIL,
         ];
-
         ccEmails = [];
-
       }
-
-
       /*
         EXISTING CUSTOM MAIL
         RECIPIENT OVERRIDE
       */
       try {
-
         const [
           customRecipientRows,
         ] =
           await db.query(
             `
               SELECT DISTINCT
-
                 recipient.email
-
               FROM
                 user_mail_recipient_overrides
                   override_row
-
               INNER JOIN users
                 recipient
-
                 ON
                   recipient.user_id =
                   override_row
                     .recipient_user_id
-
               WHERE
-
                 override_row
                   .source_user_id = ?
-
                 AND
-
                 override_row
                   .mail_type =
                   'field_visit'
-
                 AND
-
                 LOWER(
                   COALESCE(
                     recipient.status,
                     'active'
                   )
                 ) = 'active'
-
                 AND
-
                 recipient.email
                   IS NOT NULL
-
                 AND
-
                 TRIM(
                   recipient.email
                 ) != ''
-
               ORDER BY
                 recipient.full_name ASC
             `,
@@ -2601,8 +2057,6 @@ async (
               employee.user_id,
             ]
           );
-
-
         const customFieldVisitRecipients = [
           ...new Set(
             customRecipientRows
@@ -2618,32 +2072,22 @@ async (
               .filter(Boolean)
           ),
         ];
-
-
         if (
           customFieldVisitRecipients
             .length > 0
         ) {
-
           toEmails =
             customFieldVisitRecipients;
-
           ccEmails = [];
-
         }
-
       } catch (
         mailOverrideError
       ) {
-
         console.error(
           "Field Visit custom mail recipient lookup failed:",
           mailOverrideError.message
         );
-
       }
-
-
       const durationLabel =
         durationType ===
           "half_day"
@@ -2652,69 +2096,52 @@ async (
             ? "Half Day - First Half"
             : "Half Day - Second Half"
           : "Full Day";
-
-
       /*
         Keep current email presentation
         unchanged for now.
-
         It continues showing Stop 1 as
         Location / Reason.
       */
       const subject =
         `Field Visit Submitted - ${employee.full_name}`;
-
-
       const text = `
 A new Field Visit has been submitted through Valencia RMS.
-
 Employee: ${employee.full_name || "-"}
 Employee Code: ${employee.employee_code || "-"}
 Department: ${employee.department_name || "-"}
 Designation: ${employee.designation || "-"}
-
 Visit Type: ${visitType}
 Date: ${visitDate}
 Duration: ${durationLabel}
 Location: ${location}
-
 Reason:
 ${comment}
-
 Status: Pending
-
 This Field Visit requires review by the respective Department Admin.
-
 Regards,
 Valencia RMS
 `;
-
-
       const html = `
         <div style="
           font-family: Arial, sans-serif;
           color: #111827;
           line-height: 1.6;
         ">
-
           <h2 style="
             color: #ff5733;
             margin-bottom: 6px;
           ">
             Field Visit Submitted
           </h2>
-
           <p>
             A new Field Visit has been
             submitted through Valencia RMS.
           </p>
-
           <table style="
             width: 100%;
             max-width: 650px;
             border-collapse: collapse;
           ">
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2724,7 +2151,6 @@ Valencia RMS
                   Employee
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2732,7 +2158,6 @@ Valencia RMS
                 ${employee.full_name || "-"}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2742,7 +2167,6 @@ Valencia RMS
                   Employee Code
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2750,7 +2174,6 @@ Valencia RMS
                 ${employee.employee_code || "-"}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2760,7 +2183,6 @@ Valencia RMS
                   Department
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2768,7 +2190,6 @@ Valencia RMS
                 ${employee.department_name || "-"}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2778,7 +2199,6 @@ Valencia RMS
                   Visit Type
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2786,7 +2206,6 @@ Valencia RMS
                 ${visitType}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2796,7 +2215,6 @@ Valencia RMS
                   Date
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2804,7 +2222,6 @@ Valencia RMS
                 ${visitDate}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2814,7 +2231,6 @@ Valencia RMS
                   Duration
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2822,7 +2238,6 @@ Valencia RMS
                 ${durationLabel}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2832,7 +2247,6 @@ Valencia RMS
                   Location
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2840,7 +2254,6 @@ Valencia RMS
                 ${location}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2850,7 +2263,6 @@ Valencia RMS
                   Comment / Reason
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2858,7 +2270,6 @@ Valencia RMS
                 ${comment}
               </td>
             </tr>
-
             <tr>
               <td style="
                 padding: 9px;
@@ -2868,7 +2279,6 @@ Valencia RMS
                   Status
                 </strong>
               </td>
-
               <td style="
                 padding: 9px;
                 border: 1px solid #ddd;
@@ -2876,9 +2286,7 @@ Valencia RMS
                 Pending
               </td>
             </tr>
-
           </table>
-
           <p style="
             margin-top: 20px;
           ">
@@ -2886,246 +2294,328 @@ Valencia RMS
             review by the respective
             Department Admin.
           </p>
-
           <p>
             Regards,<br />
             Valencia RMS
           </p>
-
         </div>
       `;
-
-
       toEmails = [
         ...new Set(
           toEmails
         ),
       ];
-
-
       console.log(
         "FINAL MAIL TO:",
         toEmails
       );
-
-
       console.log(
         "FINAL MAIL CC:",
         ccEmails
       );
-
-
       ccEmails = [
         ...new Set(
           ccEmails
         ),
       ];
-
-
       console.log(
         "FINAL FIELD VISIT MAIL TO:",
         toEmails
       );
-
-
       console.log(
         "FINAL FIELD VISIT MAIL CC:",
         ccEmails
       );
-
-
       const mailResponse =
         await sendMail({
-
           to:
             toEmails,
-
           cc:
             ccEmails,
-
           subject,
-
           text,
-
           html,
-
           replyTo:
             employee.email ||
             undefined,
-
         });
-
-
       emailResult = {
-
         sent:
           !mailResponse
             ?.skipped,
-
         skipped:
           Boolean(
             mailResponse
               ?.skipped
           ),
-
         admin_emails:
           adminEmails,
-
         hr_email:
           HR_FIELD_VISIT_EMAIL,
-
         messageId:
           mailResponse
             ?.messageId ||
           null,
-
       };
-
-
     } catch (
       emailError
     ) {
-
       console.error(
         "Field Visit email failed:",
         emailError
       );
-
-
       /*
         Existing behavior:
         Field Visit remains saved even
         if email delivery fails.
       */
       emailResult = {
-
         sent:
           false,
-
         skipped:
           false,
-
         error:
           emailError.message,
-
       };
-
     }
-
-
     return res
       .status(201)
       .json({
-
         success:
           true,
-
         message:
           "Field visit submitted successfully.",
-
         visit:
           savedVisit,
-
         email:
           emailResult,
-
       });
-
-
   } catch (error) {
-
     console.error(
       "Create employee field visit error:",
       error
     );
-
-
     return res
       .status(500)
       .json({
-
         success:
           false,
-
         message:
           "Failed to submit field visit.",
-
         error:
           error.message,
-
         sqlMessage:
           error.sqlMessage ||
           null,
-
       });
-
   }
-
 };
-
+const resubmitEmployeeFieldVisit = async (req, res) => {
+  let connection;
+  try {
+    const employeeId = Number(req.user?.user_id);
+    const visitId = Number(req.params.visitId);
+    if (!employeeId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized.",
+      });
+    }
+    if (!visitId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid field visit.",
+      });
+    }
+    const visitDate = String(req.body?.visit_date || "").trim();
+    const conclusion = String(req.body?.conclusion || "").trim();
+    if (!visitDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Visit date is required.",
+      });
+    }
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    const [visitRows] = await connection.query(
+      `
+        SELECT visit_id, status, comment
+        FROM employee_field_visits
+        WHERE visit_id = ? AND employee_id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [visitId, employeeId]
+    );
+    if (!visitRows.length) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Field visit not found.",
+      });
+    }
+    if (
+      String(visitRows[0].status || "")
+        .trim()
+        .toLowerCase() !== "changes_requested"
+    ) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message:
+          "Only a field visit returned for changes can be edited and resubmitted.",
+      });
+    }
+    const [existingStops] = await connection.query(
+      `
+        SELECT stop_id, description
+        FROM field_visit_stops
+        WHERE visit_id = ?
+        ORDER BY sequence_no, stop_id
+      `,
+      [visitId]
+    );
+    const submittedStops = Array.isArray(req.body?.visit_stops)
+      ? req.body.visit_stops
+      : [];
+    const descriptions = existingStops.length
+      ? existingStops.map((stop, index) => {
+          const submitted =
+            submittedStops.find(
+              (item) => Number(item?.stop_id) === Number(stop.stop_id)
+            ) || submittedStops[index];
+          return String(
+            submitted?.description ??
+              (index === 0 ? req.body?.comment || "" : "")
+          ).trim();
+        })
+      : [
+          String(
+            submittedStops[0]?.description || req.body?.comment || ""
+          ).trim(),
+        ];
+    if (descriptions.some((description) => !description)) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Description is required for every existing visit location.",
+      });
+    }
+    const descriptionWordCount = descriptions.reduce(
+      (total, description) => total + countFieldVisitWords(description),
+      0
+    );
+    if (descriptionWordCount < 100) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+        word_count: descriptionWordCount,
+        minimum_words: 100,
+      });
+    }
+    await connection.query(
+      `
+        UPDATE employee_field_visits
+        SET
+          visit_date = ?,
+          comment = ?,
+          conclusion = ?,
+          status = 'pending',
+          updated_at = NOW()
+        WHERE visit_id = ? AND employee_id = ?
+      `,
+      [
+        visitDate,
+        descriptions[0],
+        conclusion || null,
+        visitId,
+        employeeId,
+      ]
+    );
+    for (let index = 0; index < existingStops.length; index += 1) {
+      await connection.query(
+        `
+          UPDATE field_visit_stops
+          SET description = ?, updated_at = NOW()
+          WHERE stop_id = ? AND visit_id = ?
+        `,
+        [descriptions[index], existingStops[index].stop_id, visitId]
+      );
+    }
+    await connection.commit();
+    return res.json({
+      success: true,
+      message:
+        "Visit date, description and conclusion updated and resubmitted for approval.",
+      visit_id: visitId,
+      status: "pending",
+      word_count: descriptionWordCount,
+    });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error("Resubmit employee field visit error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update and resubmit field visit.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+};
 const getEmployeesForFieldVisit = async(req,res)=>{
-
 try{
-
 const [rows] = await db.query(
 `
-SELECT 
+SELECT
 u.user_id,
 u.full_name,
 r.role_name
-
 FROM users u
-
 LEFT JOIN roles r
 ON r.role_id = u.role_id
-
 WHERE u.user_id != ?
-
 AND LOWER(r.role_name) IN (
 'employee',
 'admin',
 'administrator'
 )
-
 ORDER BY u.full_name ASC
 `,
 [
 req.user.user_id
 ]
 );
-
-
 console.log(
 "FIELD VISIT EMPLOYEE LIST:",
 rows
 );
-
-
 res.json({
 success:true,
 employees:rows
 });
-
-
 }
 catch(error){
-
 console.error(
 "GET EMPLOYEES FIELD VISIT ERROR",
 error
 );
-
 res.status(500).json({
 success:false,
 message:error.message
 });
-
 }
-
 };
 module.exports = {
   getEmployeeAttendance,
   getEmployeeFieldVisits,
   createEmployeeFieldVisit,
+  resubmitEmployeeFieldVisit,
   getEmployeesForFieldVisit
 };

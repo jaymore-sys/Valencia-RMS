@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCw, Search, X } from "lucide-react";
+import {
+  Pencil,
+  Plus,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 import api from "../../api/axios";
 
 const API_BASE = "/employee-projects";
@@ -348,11 +354,32 @@ const EmployeeProjects = () => {
   const [addingSubtask, setAddingSubtask] = useState(false);
   const [togglingSubtaskId, setTogglingSubtaskId] = useState(null);
   const [confirmSubtask, setConfirmSubtask] = useState(null);
+  const [editingSubtask, setEditingSubtask] = useState(null);
+const [savingSubtask, setSavingSubtask] = useState(false);
 
   const [error, setError] = useState("");
   const [modalError, setModalError] = useState("");
   const [modalSuccess, setModalSuccess] = useState("");
+const loggedInUser = JSON.parse(
+  sessionStorage.getItem("user") ||
+  localStorage.getItem("user") ||
+  "{}"
+);
 
+const loggedInUserId = Number(
+  loggedInUser?.user_id ||
+  loggedInUser?.id ||
+  0
+);
+
+const canEditSubtask = (subtask) => {
+  return (
+    Number(subtask?.created_by_user_id || 0) === loggedInUserId &&
+    !isSubtaskDone(subtask) &&
+    !isProjectLocked(selectedProject) &&
+    !isMainTaskLocked(selectedMainTask)
+  );
+};
   const selectedMainTask = useMemo(() => {
     const tasks = getMainTasks(selectedProject);
 
@@ -611,10 +638,13 @@ const EmployeeProjects = () => {
 
     setConfirmSubtask(null);
     setTogglingSubtaskId(null);
+    setEditingSubtask(null);
+    setSavingSubtask(false);
   };
 
   const selectMainTask = (task) => {
     setSelectedMainTaskId(getMainTaskId(task));
+    setEditingSubtask(null);
 
     setSubtaskTitle("");
     setSubtaskDescription("");
@@ -739,6 +769,196 @@ const EmployeeProjects = () => {
       setAddingSubtask(false);
     }
   };
+
+  const handleEditSubtask = (subtask) => {
+  if (!canEditSubtask(subtask)) {
+    return;
+  }
+
+  setEditingSubtask(subtask);
+
+  setSubtaskTitle(
+    getSubtaskTitle(subtask)
+  );
+
+  setSubtaskDescription(
+    getSubtaskDescription(subtask)
+  );
+
+  setSubtaskStartDate(
+    getSubtaskStartDate(subtask)
+  );
+
+  setSubtaskEndDate(
+    getSubtaskEndDate(subtask)
+  );
+
+  setModalError("");
+  setModalSuccess("");
+};
+
+const cancelEditSubtask = () => {
+  setEditingSubtask(null);
+
+  setSubtaskTitle("");
+  setSubtaskDescription("");
+  setSubtaskStartDate("");
+  setSubtaskEndDate("");
+
+  setModalError("");
+};
+
+const handleSaveSubtask = async (event) => {
+  event?.preventDefault?.();
+
+  if (
+    !selectedProject ||
+    !selectedMainTask ||
+    !editingSubtask ||
+    savingSubtask
+  ) {
+    return;
+  }
+
+  setModalError("");
+  setModalSuccess("");
+
+  if (!subtaskTitle.trim()) {
+    setModalError("Please enter Subtask title.");
+    return;
+  }
+
+  if (!subtaskStartDate || !subtaskEndDate) {
+    setModalError(
+      "Please select Subtask start date and deadline."
+    );
+    return;
+  }
+
+  if (
+    compareDateOnly(
+      subtaskEndDate,
+      subtaskStartDate
+    ) < 0
+  ) {
+    setModalError(
+      "Subtask deadline cannot be before Subtask start date."
+    );
+    return;
+  }
+
+  const mainStartDate =
+    getMainTaskStartDate(selectedMainTask);
+
+  const mainEndDate =
+    getMainTaskEndDate(selectedMainTask);
+
+  if (
+    mainStartDate &&
+    compareDateOnly(
+      subtaskStartDate,
+      mainStartDate
+    ) < 0
+  ) {
+    setModalError(
+      `Subtask start date cannot be before Main Task start date ${formatDisplayDate(
+        mainStartDate
+      )}.`
+    );
+    return;
+  }
+
+  if (
+    mainEndDate &&
+    compareDateOnly(
+      subtaskEndDate,
+      mainEndDate
+    ) > 0
+  ) {
+    setModalError(
+      `Subtask deadline cannot exceed Main Task deadline ${formatDisplayDate(
+        mainEndDate
+      )}.`
+    );
+    return;
+  }
+
+  const subtaskId =
+    getSubtaskId(editingSubtask);
+
+  const mainTaskId =
+    getMainTaskId(selectedMainTask);
+
+  if (!subtaskId) {
+    setModalError(
+      "Unable to identify this Subtask."
+    );
+    return;
+  }
+
+  try {
+    setSavingSubtask(true);
+
+    const response = await api.patch(
+      `${API_BASE}/projects/${selectedProject.project_id}/subtasks/${subtaskId}`,
+      {
+        task_title: subtaskTitle.trim(),
+        title: subtaskTitle.trim(),
+
+        task_description:
+          subtaskDescription.trim(),
+
+        description:
+          subtaskDescription.trim(),
+
+        start_date:
+          subtaskStartDate,
+
+        due_date:
+          subtaskEndDate,
+
+        end_date:
+          subtaskEndDate,
+      }
+    );
+
+    setEditingSubtask(null);
+
+    setSubtaskTitle("");
+    setSubtaskDescription("");
+    setSubtaskStartDate("");
+    setSubtaskEndDate("");
+
+    await refreshSelectedProject(
+      selectedProject.project_id,
+      mainTaskId,
+      selectedProject
+    );
+
+    await fetchProjects();
+
+    setModalSuccess(
+      response.data?.message ||
+      "Subtask updated successfully."
+    );
+  }
+  catch (err) {
+    console.error(
+      "Edit employee Subtask error:",
+      err
+    );
+
+    setModalError(
+      err?.response?.data?.sqlMessage ||
+      err?.response?.data?.error ||
+      err?.response?.data?.message ||
+      "Failed to update Subtask."
+    );
+  }
+  finally {
+    setSavingSubtask(false);
+  }
+};
 
   const handleToggleSubtask = (subtask) => {
     if (!selectedProject || !selectedMainTask) return;
@@ -1339,23 +1559,67 @@ const EmployeeProjects = () => {
                   {canAddSubtask && (
                     <form
                       style={styles.subtaskForm}
-                      onSubmit={handleAddSubtask}
+                      onSubmit={
+                        editingSubtask
+                          ? handleSaveSubtask
+                          : handleAddSubtask
+                      }
                     >
                       <div style={styles.formTitleRow}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <Plus size={18} />
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                          }}
+                        >
+                          {editingSubtask ? (
+                            <Pencil size={18} />
+                          ) : (
+                            <Plus size={18} />
+                          )}
+
                           <h3 style={{ margin: 0 }}>
-                            Add Subtask
+                            {editingSubtask
+                              ? "Edit Subtask"
+                              : "Add Subtask"}
                           </h3>
                         </div>
 
-                        <button
-                          type="submit"
-                          style={styles.addBtn}
-                          disabled={addingSubtask}
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "8px",
+                          }}
                         >
-                          {addingSubtask ? "Adding..." : "Add"}
-                        </button>
+                          {editingSubtask && (
+                            <button
+                              type="button"
+                              style={styles.editCancelBtn}
+                              onClick={cancelEditSubtask}
+                              disabled={savingSubtask}
+                            >
+                              Cancel Edit
+                            </button>
+                          )}
+
+                          <button
+                            type="submit"
+                            style={styles.addBtn}
+                            disabled={
+                              addingSubtask ||
+                              savingSubtask
+                            }
+                          >
+                            {editingSubtask
+                              ? savingSubtask
+                                ? "Saving..."
+                                : "Save Changes"
+                              : addingSubtask
+                                ? "Adding..."
+                                : "Add"}
+                          </button>
+                        </div>
                       </div>
 
                       <p style={styles.formHint}>
@@ -1483,6 +1747,7 @@ const EmployeeProjects = () => {
                         {selectedSubtasks.map((subtask) => {
                           const subtaskId = getSubtaskId(subtask);
                           const done = isSubtaskDone(subtask);
+                          const editable = canEditSubtask(subtask);
 
                           return (
                             <div
@@ -1544,6 +1809,21 @@ const EmployeeProjects = () => {
                                   selectedMainTask
                                 )}
                               </span>
+
+                              {editable ? (
+                                <button
+                                  type="button"
+                                  style={styles.editSubtaskBtn}
+                                  onClick={() =>
+                                    handleEditSubtask(subtask)
+                                  }
+                                  title="Edit Subtask"
+                                >
+                                  <Pencil size={16} />
+                                </button>
+                              ) : (
+                                <span style={styles.editPlaceholder} />
+                              )}
                             </div>
                           );
                         })}
@@ -2308,7 +2588,7 @@ const styles = {
     borderRadius: "16px",
     padding: "14px",
     display: "grid",
-    gridTemplateColumns: "24px 1fr 100px",
+    gridTemplateColumns: "24px minmax(0, 1fr) 100px 42px",
     gap: "12px",
     alignItems: "center",
   },
@@ -2344,6 +2624,34 @@ const styles = {
     padding: "4px 8px",
     fontSize: "12px",
     fontWeight: 900,
+  },
+
+  editSubtaskBtn: {
+    width: "38px",
+    height: "38px",
+    border: "1px solid #fed7cc",
+    background: "#fff7f4",
+    color: "#ff5733",
+    borderRadius: "11px",
+    display: "grid",
+    placeItems: "center",
+    cursor: "pointer",
+  },
+
+  editPlaceholder: {
+    width: "38px",
+    height: "38px",
+  },
+
+  editCancelBtn: {
+    height: "46px",
+    padding: "0 16px",
+    borderRadius: "13px",
+    border: "1px solid #d1d5db",
+    background: "#ffffff",
+    color: "#475569",
+    fontWeight: 800,
+    cursor: "pointer",
   },
 
   confirmOverlay: {

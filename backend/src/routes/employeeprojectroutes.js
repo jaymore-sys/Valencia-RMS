@@ -3,10 +3,13 @@ const express = require("express");
 const authMiddleware = require("../middleware/authmiddleware");
 const { requireRole } = require("../middleware/rolemiddleware");
 
+
+
 const {
   getEmployeeProjects,
   getEmployeeProjectSubtasks,
   addEmployeeProjectSubtask,
+  updateEmployeeProjectSubtask,
   updateEmployeeProjectSubtaskStatus,
 } = require("../controllers/employeeprojectcontroller");
 
@@ -31,6 +34,18 @@ router.post(
   authMiddleware,
   requireRole("employee", "administrator", "admin", "superadmin"),
   addEmployeeProjectSubtask
+);
+
+router.patch(
+  "/projects/:projectId/subtasks/:subtaskId",
+  authMiddleware,
+  requireRole(
+    "employee",
+    "administrator",
+    "admin",
+    "superadmin"
+  ),
+  updateEmployeeProjectSubtask
 );
 
 router.patch(

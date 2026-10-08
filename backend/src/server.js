@@ -44,7 +44,7 @@ const calendarRoutes = require("./routes/calendarroutes");
 const leaveReviewRoutes = require("./routes/leavereviewroutes");
 const fieldVisitReviewRoutes = require("./routes/fieldvisitreviewroutes");
 
-
+const vendorRoutes = require("./routes/vendorroutes");
 const {
   startDeadlineEmailJob
 } = require("./jobs/deadlineemailjob");
@@ -401,7 +401,10 @@ employeeMiniTaskRoutes
 );
 
 
-
+app.use(
+  "/api/vendors",
+  vendorRoutes
+);
 app.use(
 "/api/admin-mini-tasks",
 adminMiniTaskRoutes

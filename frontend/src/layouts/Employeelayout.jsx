@@ -10,8 +10,9 @@ import {
    FolderKanban,
   LogOut,
   MapPin,
-  User,
-  UsersRound
+ User,
+UsersRound,
+Building2
 } from "lucide-react";
 
 import "./Employeelayout.css";
@@ -120,6 +121,8 @@ const isHR = HR_EMAILS.includes(
             <span>Tasks</span>
           </NavLink>
 
+         
+
           <NavLink
   to="/employee/calendar"
   className={({ isActive }) =>
@@ -187,7 +190,19 @@ const isHR = HR_EMAILS.includes(
             <CalendarDays size={20} />
             <span>Leave Applications</span>
           </NavLink>
+           <NavLink 
+  to="/employee/vendors" 
+  className={({ isActive }) => 
+    isActive ? "active" : "" 
+  } 
+  title="Vendor Management" 
+> 
+  <Building2 size={20} /> 
+  <span>Vendor Management</span> 
+</NavLink>
         </nav>
+
+        
 
         {/* ================= USER / LOGOUT ================= */}
         <div className="employee-sidebar-bottom">

@@ -19,6 +19,7 @@ import {
   User,
   Users,
   MapPin,
+  Building2,
 } from "lucide-react";
 
 import valenciaLogo from "../assets/VNL_logo.webp";
@@ -28,8 +29,8 @@ const getStoredUser = () => {
   try {
     return JSON.parse(
       sessionStorage.getItem("user") ||
-        localStorage.getItem("user") ||
-        "{}"
+      localStorage.getItem("user") ||
+      "{}"
     );
   } catch {
     return {};
@@ -65,9 +66,8 @@ const AdminLayout = () => {
 
   return (
     <div
-      className={`admin-dashboard-shell ${
-        sidebarCollapsed ? "sidebar-collapsed" : ""
-      }`}
+      className={`admin-dashboard-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""
+        }`}
     >
       <aside className="admin-sidebar">
         <button
@@ -131,6 +131,8 @@ const AdminLayout = () => {
             <span>Tasks</span>
           </NavLink>
 
+
+
           <NavLink
             to="/admin/calendar"
             className={({ isActive }) =>
@@ -143,15 +145,15 @@ const AdminLayout = () => {
           </NavLink>
 
           <NavLink
-  to="/admin/reports"
-  className={({ isActive }) =>
-    isActive ? "active" : ""
-  }
-  title="Reports"
->
-  <FileBarChart size={20} />
-  <span>Reports</span>
-</NavLink> 
+            to="/admin/reports"
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+            title="Reports"
+          >
+            <FileBarChart size={20} />
+            <span>Reports</span>
+          </NavLink>
 
           <NavLink
             to="/admin/profile"
@@ -187,15 +189,15 @@ const AdminLayout = () => {
           </NavLink>
 
           <NavLink
-  to="/admin/field-visits"
-  className={({ isActive }) =>
-    isActive ? "active" : ""
-  }
-  title="Field Visits"
->
-  <MapPin size={20} />
-  <span>Field Visits</span>
-</NavLink>
+            to="/admin/field-visits"
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+            title="Field Visits"
+          >
+            <MapPin size={20} />
+            <span>Field Visits</span>
+          </NavLink>
 
 
 
@@ -209,6 +211,21 @@ const AdminLayout = () => {
             <CalendarDays size={18} />
             <span>Leave Applications</span>
           </NavLink>
+
+
+
+          <NavLink
+            to="/admin/vendors"
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+            title="Vendor Management"
+          >
+            <Building2 size={20} />
+            <span>Vendor Management</span>
+          </NavLink>
+
+
         </nav>
 
         <div className="admin-sidebar-bottom">
@@ -243,14 +260,14 @@ const AdminLayout = () => {
       </aside>
 
       <main
-  className={
-    location.pathname === "/admin/calendar"
-      ? "admin-main admin-main-calendar"
-      : "admin-main"
-  }
->
-  <Outlet />
-</main>
+        className={
+          location.pathname === "/admin/calendar"
+            ? "admin-main admin-main-calendar"
+            : "admin-main"
+        }
+      >
+        <Outlet />
+      </main>
     </div>
   );
 };

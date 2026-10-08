@@ -9,6 +9,10 @@ const {
   saveHrAttendance,
   importHrAttendance,
   exportHrAttendance,
+  getHrLeaveManagement,
+  addHrEmployeeExtraLeave,
+  reduceHrEmployeeLeave,
+  applyHrEmployeeLeave,
 } = require("../controllers/hrattendancecontroller");
 
 const router = express.Router();
@@ -19,14 +23,11 @@ const HR_EMAILS = [
 
 const upload = multer({
   storage: multer.memoryStorage(),
-
   limits: {
     fileSize: 10 * 1024 * 1024,
   },
-
   fileFilter: (req, file, cb) => {
     const name = String(file.originalname || "").toLowerCase();
-
     const valid =
       name.endsWith(".xlsx") ||
       name.endsWith(".xls") ||
@@ -34,9 +35,7 @@ const upload = multer({
 
     if (!valid) {
       return cb(
-        new Error(
-          "Only XLSX, XLS and CSV files are allowed."
-        )
+        new Error("Only XLSX, XLS and CSV files are allowed.")
       );
     }
 
@@ -65,11 +64,33 @@ router.get(
   onlyHR,
   getHrEmployeeSummary
 );
+
 router.get(
-  "/",
+  "/leave-management/:userId",
   authMiddleware,
   onlyHR,
-  getHrAttendance
+  getHrLeaveManagement
+);
+
+router.post(
+  "/leave-management/:userId/apply",
+  authMiddleware,
+  onlyHR,
+  applyHrEmployeeLeave
+);
+
+router.post(
+  "/leave-management/:userId/extra",
+  authMiddleware,
+  onlyHR,
+  addHrEmployeeExtraLeave
+);
+
+router.post(
+  "/leave-management/:userId/reduce",
+  authMiddleware,
+  onlyHR,
+  reduceHrEmployeeLeave
 );
 
 router.get(
@@ -80,13 +101,6 @@ router.get(
 );
 
 router.post(
-  "/",
-  authMiddleware,
-  onlyHR,
-  saveHrAttendance
-);
-
-router.post(
   "/import",
   authMiddleware,
   onlyHR,
@@ -94,5 +108,18 @@ router.post(
   importHrAttendance
 );
 
+router.get(
+  "/",
+  authMiddleware,
+  onlyHR,
+  getHrAttendance
+);
+
+router.post(
+  "/",
+  authMiddleware,
+  onlyHR,
+  saveHrAttendance
+);
 
 module.exports = router;

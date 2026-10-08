@@ -1,5 +1,4 @@
 const express = require("express");
-
 const authMiddleware = require("../middleware/authmiddleware");
 const employeeAttendanceController = require("../controllers/employeeattendancecontroller");
 
@@ -36,21 +35,31 @@ router.get(
    FIELD VISITS
 ========================================================= */
 router.get(
- "/field-visits",
- authMiddleware,
- onlyEmployee,
- employeeAttendanceController.getEmployeeFieldVisits
+  "/field-visits",
+  authMiddleware,
+  onlyEmployee,
+  employeeAttendanceController.getEmployeeFieldVisits
 );
+
 router.get(
   "/employees",
   authMiddleware,
   onlyEmployee,
   employeeAttendanceController.getEmployeesForFieldVisit
 );
+
 router.post(
   "/field-visits",
   authMiddleware,
   onlyEmployee,
   employeeAttendanceController.createEmployeeFieldVisit
 );
+
+router.put(
+  "/field-visits/:visitId/resubmit",
+  authMiddleware,
+  onlyEmployee,
+  employeeAttendanceController.resubmitEmployeeFieldVisit
+);
+
 module.exports = router;

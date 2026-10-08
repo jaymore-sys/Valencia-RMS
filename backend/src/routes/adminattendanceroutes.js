@@ -1,21 +1,14 @@
 const express = require("express");
 const authMiddleware = require("../middleware/authmiddleware");
 const { requireRole } = require("../middleware/rolemiddleware");
-
 const {
-
   getDepartmentAttendance,
-
   getDepartmentFieldVisits,
-
   reviewFieldVisit,
-
   createAdminFieldVisit,
-
   getAdminFieldVisits,
-
   getEmployeesForFieldVisit,
-
+  resubmitAdminFieldVisit,
 } = require("../controllers/adminattendancecontroller");
 
 const router = express.Router();
@@ -34,6 +27,13 @@ router.post(
   createAdminFieldVisit
 );
 
+router.put(
+  "/field-visits/:visitId/resubmit",
+  authMiddleware,
+  requireRole("admin"),
+  resubmitAdminFieldVisit
+);
+
 router.get(
   "/department-attendance",
   authMiddleware,
@@ -47,26 +47,29 @@ router.get(
   requireRole("admin"),
   getDepartmentAttendance
 );
+
 /* =========================================================
    FIELD VISITS
 ========================================================= */
-
 router.get(
   "/field-visits",
   authMiddleware,
   requireRole("admin"),
   getDepartmentFieldVisits
 );
+
 router.get(
   "/field-visit-employees",
   authMiddleware,
   requireRole("admin"),
   getEmployeesForFieldVisit
 );
+
 router.post(
   "/field-visits/:visitId/review",
   authMiddleware,
   requireRole("admin"),
   reviewFieldVisit
 );
+
 module.exports = router;

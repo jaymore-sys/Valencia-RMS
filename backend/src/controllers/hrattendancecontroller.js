@@ -4,6 +4,9 @@ const XLSX = require("xlsx");
 const {
   buildLeaveBalances,
 } = require("../utils/leavepolicy");
+const {
+  applyEmployeeLeave,
+} = require("./employeeleavecontroller");
 
 const HR_EMAILS = [
   "rathika.haleangadi@valencianutrition.com",
@@ -1804,6 +1807,27 @@ const buildHrAttendanceData = async (
           "No biometric attendance found";
       }
 
+      // Sundays remain weekly offs. Valid biometric work is an extra day,
+      // never a normal present/late/half-day or a salary deduction.
+      if (sunday && !conflictReason && !leave && !fieldVisit) {
+        isLateMark = false;
+        lateMarkReason = null;
+        if (checkIn && checkOut && totalMinutes > 0) {
+          finalStatus = "Extra Working Day";
+          source = "attendance";
+          detail = attendance?.remarks || "Sunday work";
+        } else if (checkIn || checkOut) {
+          finalStatus = "Needs Review";
+          source = "attendance";
+          detail = "Incomplete Sunday biometric punches";
+          needsAttention = true;
+        } else {
+          finalStatus = "Weekly Off";
+          source = "calendar";
+          detail = "Sunday";
+        }
+      }
+
       records.push({
         user_id:
           user.user_id,
@@ -1844,6 +1868,10 @@ const buildHrAttendanceData = async (
 
         day_name:
           dayName,
+
+        is_sunday: sunday,
+        extra_working_day: sunday && finalStatus === "Extra Working Day",
+        extra_working_minutes: sunday && finalStatus === "Extra Working Day" ? totalMinutes : 0,
 
         check_in_time:
           checkIn || "-",
@@ -1991,6 +2019,7 @@ const buildHrAttendanceData = async (
 
     weekly_off: 0,
     holiday: 0,
+    extra_working_days: 0,
 
     field_visit: 0,
 
@@ -2008,6 +2037,12 @@ const buildHrAttendanceData = async (
     )
       .trim()
       .toLowerCase();
+
+    if (record.is_sunday) {
+      summary.weekly_off += 1;
+      if (record.extra_working_day) summary.extra_working_days += 1;
+      return;
+    }
 
     if (
       status === "present" ||
@@ -3345,6 +3380,8 @@ const exportHrAttendance = async (
 
             const totals = {
               working_days: 0,
+              extra_working_days: 0,
+              extra_working_minutes: 0,
               present: 0,
               absent: 0,
               late: 0,
@@ -3376,6 +3413,15 @@ const exportHrAttendance = async (
                     )
                       .trim()
                       .toLowerCase();
+
+                  if (record.is_sunday) {
+                    totals.weekly_off += 1;
+                    if (record.extra_working_day) {
+                      totals.extra_working_days += 1;
+                      totals.extra_working_minutes += Number(record.extra_working_minutes || 0);
+                    }
+                    return;
+                  }
 
                   if (
                     status !==
@@ -3622,6 +3668,9 @@ totals.total_days =
               "Working Days":
                 totals
                   .working_days,
+
+              "Extra Working Days": totals.extra_working_days,
+              "Extra Working Hours": formatWorkingHours(totals.extra_working_minutes),
 
               Present:
                 totals.present,
@@ -4616,6 +4665,8 @@ const getHrEmployeeSummary = async (
 
       const summary = {
         working_days: 0,
+        extra_working_days: 0,
+        extra_working_minutes: 0,
 
         present: 0,
         absent: 0,
@@ -4655,6 +4706,15 @@ const getHrEmployeeSummary = async (
               )
                 .trim()
                 .toLowerCase();
+
+            if (record.is_sunday) {
+              summary.weekly_off += 1;
+              if (record.extra_working_day) {
+                summary.extra_working_days += 1;
+                summary.extra_working_minutes += Number(record.extra_working_minutes || 0);
+              }
+              return;
+            }
 
             const isWeeklyOff =
               status ===
@@ -5053,6 +5113,650 @@ summary.total_days =
 };
 
 /* =========================================================
+   HR LEAVE MANAGEMENT
+========================================================= */
+
+const HR_MANAGED_LEAVE_TYPES = [
+  "sick",
+  "casual",
+  "mandatory",
+  "festival",
+];
+
+const normalizeHrManagedLeaveType = (value) => {
+  const type = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_");
+
+  if (["sick", "sick_leave"].includes(type)) return "sick";
+  if (["casual", "casual_leave"].includes(type)) return "casual";
+  if (
+    [
+      "mandatory",
+      "mandatory_leave",
+      "privileged",
+      "privileged_leave",
+    ].includes(type)
+  ) {
+    return "mandatory";
+  }
+  if (["festival", "festival_leave"].includes(type)) return "festival";
+
+  return "";
+};
+
+const getHrManagedUser = async (connectionOrDb, userId) => {
+  const [rows] = await connectionOrDb.query(
+    `
+    SELECT
+      u.user_id,
+      u.employee_code,
+      u.full_name,
+      u.email,
+      u.status,
+      u.department_id,
+      d.department_name,
+      r.role_name
+    FROM users u
+    LEFT JOIN departments d
+      ON d.department_id = u.department_id
+    LEFT JOIN roles r
+      ON r.role_id = u.role_id
+    WHERE u.user_id = ?
+      AND LOWER(COALESCE(u.status, 'active')) != 'deleted'
+    LIMIT 1
+    `,
+    [userId]
+  );
+
+  return rows[0] || null;
+};
+
+const getIndiaTodayForHrLeave = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = {};
+  parts.forEach((part) => {
+    values[part.type] = part.value;
+  });
+
+  return `${values.year}-${values.month}-${values.day}`;
+};
+
+const calculateHrManagedLeaveDays = (startDate, endDate) => {
+  const start = Date.parse(`${startDate}T00:00:00Z`);
+  const end = Date.parse(`${endDate}T00:00:00Z`);
+
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) {
+    return 0;
+  }
+
+  return Math.floor((end - start) / 86400000) + 1;
+};
+
+const getHrLeaveManagement = async (req, res) => {
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const userId = Number(req.params.userId);
+    const requestedYear = Number(req.query.year);
+    const year =
+      Number.isInteger(requestedYear) && requestedYear >= 2000
+        ? requestedYear
+        : Number(getIndiaTodayForHrLeave().slice(0, 4));
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid employee ID is required.",
+      });
+    }
+
+    const user = await getHrManagedUser(db, userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    const balances = await buildLeaveBalances(db, userId, year);
+
+    const [leaveHistory] = await db.query(
+      `
+      SELECT
+        la.leave_id,
+        la.leave_type,
+        DATE_FORMAT(la.start_date, '%Y-%m-%d') AS start_date,
+        DATE_FORMAT(la.end_date, '%Y-%m-%d') AS end_date,
+        la.total_days,
+        la.reason,
+        la.status,
+        DATE_FORMAT(la.applied_at, '%Y-%m-%d %H:%i:%s') AS applied_at,
+        DATE_FORMAT(la.reviewed_at, '%Y-%m-%d %H:%i:%s') AS reviewed_at,
+        reviewer.full_name AS reviewed_by_name
+      FROM leave_applications la
+      LEFT JOIN users reviewer
+        ON reviewer.user_id = la.reviewed_by
+      WHERE la.employee_id = ?
+        AND YEAR(la.start_date) = ?
+      ORDER BY la.applied_at DESC, la.leave_id DESC
+      LIMIT 50
+      `,
+      [userId, year]
+    );
+
+    let adjustmentHistory = [];
+
+    try {
+      const [adjustmentColumns] = await db.query(
+        "SHOW COLUMNS FROM employee_leave_adjustments"
+      );
+      const columns = new Set(
+        adjustmentColumns.map((row) => String(row.Field))
+      );
+      const timeColumn = columns.has("created_at")
+        ? "created_at"
+        : columns.has("adjusted_at")
+        ? "adjusted_at"
+        : null;
+      const noteColumn = columns.has("reason")
+        ? "reason"
+        : columns.has("remark")
+        ? "remark"
+        : columns.has("remarks")
+        ? "remarks"
+        : null;
+
+      const [rows] = await db.query(
+        `
+        SELECT
+          ela.adjustment_id,
+          ela.leave_type,
+          ela.adjustment_days,
+          ela.adjusted_by,
+          ${
+            timeColumn
+              ? `DATE_FORMAT(ela.${timeColumn}, '%Y-%m-%d %H:%i:%s')`
+              : "NULL"
+          } AS adjusted_at,
+          ${noteColumn ? `ela.${noteColumn}` : "NULL"} AS reason,
+          adjusted_by_user.full_name AS adjusted_by_name
+        FROM employee_leave_adjustments ela
+        LEFT JOIN users adjusted_by_user
+          ON adjusted_by_user.user_id = ela.adjusted_by
+        WHERE ela.employee_id = ?
+        ORDER BY ${
+          timeColumn
+            ? `ela.${timeColumn} DESC, ela.adjustment_id DESC`
+            : "ela.adjustment_id DESC"
+        }
+        LIMIT 50
+        `,
+        [userId]
+      );
+
+      adjustmentHistory = rows;
+    } catch (adjustmentError) {
+      console.error(
+        "HR leave adjustment history error:",
+        adjustmentError.message
+      );
+    }
+
+    return res.json({
+      success: true,
+      year,
+      user,
+      balances,
+      leave_history: leaveHistory.map((leave) => ({
+        ...leave,
+        total_days: Number(leave.total_days || 0),
+      })),
+      adjustment_history: adjustmentHistory.map((adjustment) => ({
+        ...adjustment,
+        adjustment_days: Number(adjustment.adjustment_days || 0),
+      })),
+    });
+  } catch (error) {
+    console.error("getHrLeaveManagement error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load employee leave management.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  }
+};
+
+const addHrEmployeeExtraLeave = async (req, res) => {
+  let connection;
+
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const userId = Number(req.params.userId);
+    const hrUserId = Number(req.user?.user_id || 0);
+    const leaveType = normalizeHrManagedLeaveType(req.body.leave_type);
+    const adjustmentDays = Number(
+      req.body.adjustment_days ?? req.body.days
+    );
+    const reason = String(req.body.reason || "").trim();
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid employee ID is required.",
+      });
+    }
+
+    if (!HR_MANAGED_LEAVE_TYPES.includes(leaveType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a valid leave type.",
+      });
+    }
+
+    if (!Number.isFinite(adjustmentDays) || adjustmentDays <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Extra leave days must be greater than 0.",
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const user = await getHrManagedUser(connection, userId);
+
+    if (!user) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    const [adjustmentColumns] = await connection.query(
+      "SHOW COLUMNS FROM employee_leave_adjustments"
+    );
+    const columns = new Set(
+      adjustmentColumns.map((row) => String(row.Field))
+    );
+    const insertColumns = [
+      "employee_id",
+      "leave_type",
+      "adjustment_days",
+      "adjusted_by",
+    ];
+    const insertValues = [userId, leaveType, adjustmentDays, hrUserId];
+    const noteColumn = columns.has("reason")
+      ? "reason"
+      : columns.has("remark")
+      ? "remark"
+      : columns.has("remarks")
+      ? "remarks"
+      : null;
+
+    if (noteColumn) {
+      insertColumns.push(noteColumn);
+      insertValues.push(reason || "Extra leave credited by HR");
+    }
+
+    const placeholders = insertColumns.map(() => "?").join(", ");
+    const [result] = await connection.query(
+      `
+      INSERT INTO employee_leave_adjustments
+      (${insertColumns.join(", ")})
+      VALUES (${placeholders})
+      `,
+      insertValues
+    );
+
+    const year = Number(getIndiaTodayForHrLeave().slice(0, 4));
+    const balances = await buildLeaveBalances(connection, userId, year);
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Extra leave added successfully.",
+      adjustment_id: result.insertId,
+      balances,
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+
+    console.error("addHrEmployeeExtraLeave error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to add extra leave.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+const reduceHrEmployeeLeave = async (req, res) => {
+  let connection;
+
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const userId = Number(req.params.userId);
+    const hrUserId = Number(req.user?.user_id || 0);
+    const leaveType = normalizeHrManagedLeaveType(req.body.leave_type);
+    const durationType = String(req.body.duration_type || "full_day")
+      .trim()
+      .toLowerCase();
+    const halfDaySession = String(req.body.half_day_session || "")
+      .trim()
+      .toLowerCase();
+    const startDate = String(req.body.start_date || "").trim();
+    let endDate = String(req.body.end_date || "").trim();
+    const reason =
+      String(req.body.reason || "").trim() ||
+      "Historical leave recorded by HR";
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid employee ID is required.",
+      });
+    }
+
+    if (!HR_MANAGED_LEAVE_TYPES.includes(leaveType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a valid leave type.",
+      });
+    }
+
+    if (!["full_day", "half_day"].includes(durationType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select Full Day or Half Day.",
+      });
+    }
+
+    if (!datePattern.test(startDate)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a valid leave date.",
+      });
+    }
+
+    if (durationType === "half_day") {
+      if (!["first_half", "second_half"].includes(halfDaySession)) {
+        return res.status(400).json({
+          success: false,
+          message: "Please select First Half or Second Half.",
+        });
+      }
+      endDate = startDate;
+    } else if (!datePattern.test(endDate) || endDate < startDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Please select a valid leave date range.",
+      });
+    }
+
+    const today = getIndiaTodayForHrLeave();
+
+    if (startDate > today || endDate > today) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Historical leave can only be recorded for today or a past date.",
+      });
+    }
+
+    if (startDate.slice(0, 4) !== endDate.slice(0, 4)) {
+      return res.status(400).json({
+        success: false,
+        message: "Please save separate leave records for each calendar year.",
+      });
+    }
+
+    const totalDays =
+      durationType === "half_day"
+        ? 0.5
+        : calculateHrManagedLeaveDays(startDate, endDate);
+
+    if (totalDays <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Unable to calculate leave days.",
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const user = await getHrManagedUser(connection, userId);
+
+    if (!user) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    const leaveYear = Number(startDate.slice(0, 4));
+    const balances = await buildLeaveBalances(connection, userId, leaveYear);
+    const available = Number(balances[leaveType]?.available || 0);
+
+    if (totalDays > available) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Employee only has ${available} day(s) available for this leave type.`,
+      });
+    }
+
+    const [overlappingRows] = await connection.query(
+      `
+      SELECT leave_id
+      FROM leave_applications
+      WHERE employee_id = ?
+        AND status IN ('pending', 'approved')
+        AND NOT (end_date < ? OR start_date > ?)
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [userId, startDate, endDate]
+    );
+
+    if (overlappingRows.length) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message:
+          "This employee already has a pending or approved leave record for the selected date(s).",
+      });
+    }
+
+    const [leaveColumns] = await connection.query(
+      "SHOW COLUMNS FROM leave_applications"
+    );
+    const columns = new Set(leaveColumns.map((row) => String(row.Field)));
+    const insertColumns = [
+      "employee_id",
+      "leave_type",
+      "start_date",
+      "end_date",
+      "total_days",
+      "reason",
+      "status",
+    ];
+    const insertValues = [
+      userId,
+      leaveType,
+      startDate,
+      endDate,
+      totalDays,
+      reason,
+      "approved",
+    ];
+
+    if (columns.has("duration_type")) {
+      insertColumns.push("duration_type");
+      insertValues.push(durationType);
+    }
+    if (columns.has("half_day_session")) {
+      insertColumns.push("half_day_session");
+      insertValues.push(
+        durationType === "half_day" ? halfDaySession : null
+      );
+    }
+    if (columns.has("reviewed_by")) {
+      insertColumns.push("reviewed_by");
+      insertValues.push(hrUserId);
+    }
+    if (columns.has("reviewed_at")) {
+      insertColumns.push("reviewed_at");
+      insertValues.push(new Date());
+    }
+
+    const placeholders = insertColumns.map(() => "?").join(", ");
+    const [result] = await connection.query(
+      `
+      INSERT INTO leave_applications
+      (${insertColumns.join(", ")})
+      VALUES (${placeholders})
+      `,
+      insertValues
+    );
+
+    const updatedBalances = await buildLeaveBalances(
+      connection,
+      userId,
+      leaveYear
+    );
+
+    await connection.commit();
+
+    return res.status(201).json({
+      success: true,
+      message: "Historical leave recorded successfully.",
+      leave_id: result.insertId,
+      balances: updatedBalances,
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {}
+    }
+
+    console.error("reduceHrEmployeeLeave error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to record historical leave.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
+const applyHrEmployeeLeave = async (req, res) => {
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const employeeId = Number(req.params.userId);
+
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid employee ID is required.",
+      });
+    }
+
+    const employee = await getHrManagedUser(db, employeeId);
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    const originalUser = req.user;
+    const hrName = String(
+      originalUser?.full_name || originalUser?.email || "HR"
+    ).trim();
+    const originalReason = String(req.body.reason || "").trim();
+
+    req.body = {
+      ...req.body,
+      reason: originalReason
+        ? `${originalReason}\n\nSubmitted by HR (${hrName}) on behalf of ${employee.full_name}.`
+        : `Submitted by HR (${hrName}) on behalf of ${employee.full_name}.`,
+    };
+    req.user = {
+      ...originalUser,
+      user_id: employeeId,
+    };
+
+    try {
+      return await applyEmployeeLeave(req, res);
+    } finally {
+      req.user = originalUser;
+    }
+  } catch (error) {
+    console.error("applyHrEmployeeLeave error:", error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to submit employee leave application.",
+        error: error.message,
+      });
+    }
+  }
+};
+
+/* =========================================================
    EXPORTS
 ========================================================= */
 
@@ -5063,4 +5767,8 @@ module.exports = {
   importHrAttendance,
   exportHrAttendance,
   approveHrLeaveApplication,
+  getHrLeaveManagement,
+  addHrEmployeeExtraLeave,
+  reduceHrEmployeeLeave,
+  applyHrEmployeeLeave,
 };

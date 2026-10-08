@@ -17,8 +17,9 @@ import {
   LogOut,
   Users,
   MapPin,
-  ClipboardCheck,
+    ClipboardCheck,
   UserRound,
+  Building2,
 } from "lucide-react";
 
 import vnlLogo from "../assets/VNL_logo.webp";
@@ -201,6 +202,8 @@ const SuperadminLayout = () => {
 
         </div>
 
+     
+
 
 
 
@@ -272,6 +275,17 @@ const SuperadminLayout = () => {
             </span>
 
           </NavLink>
+
+          <NavLink
+  to="/superadmin/vendors"
+  title="Vendor Management"
+>
+  <Building2/>
+
+  <span>
+    Vendor Management
+  </span>
+</NavLink>
 
 
 

@@ -10,8 +10,9 @@ import {
   FileText,
   FolderKanban,
   LogOut,
-  User,
+  User, 
   Users,
+  Building2,
 } from "lucide-react";
 
 import valenciaLogo from "../assets/VNL_logo.webp";
@@ -154,6 +155,19 @@ const AdministratorLayout = () => {
             </span>
 
           </NavLink>
+          <NavLink 
+  to="/administrator/vendors" 
+  className={({ isActive }) => 
+    isActive ? "active" : "" 
+  } 
+  title="Vendor Management" 
+> 
+  <Building2 size={20} /> 
+
+  <span> 
+    Vendor Management 
+  </span> 
+</NavLink>
 
 
           <NavLink

@@ -5,91 +5,76 @@ import {
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
-
 import LeaveReview from "./pages/LeaveReview";
+
 
 /* ================= ADMINISTRATOR ================= */
 
 import AdministratorLayout from "./layouts/Administratorlayout";
 
 import AdministratorOverview from "./pages/administrator/administratorOverview";
-
 import AdministratorProjects from "./pages/administrator/administratorProjects";
-
 import AdministratorTasks from "./pages/administrator/administratorTasks";
-
 import AdministratorCalendar from "./pages/administrator/administratorCalendar";
-
 import AdministratorReports from "./pages/administrator/administratorReports";
-
 import AdministratorProfile from "./pages/administrator/administratorProfile";
-
 import AdministratorUsers from "./pages/administrator/administratorUsers";
-
 import AdministratorAttendance from "./pages/administrator/administratorAttendance";
-
 import AdministratorLeaveApplications from "./pages/administrator/administratorLeaveApplications";
+
 
 /* ================= EMPLOYEE ================= */
 
 import EmployeeLayout from "./layouts/Employeelayout";
 
 import EmployeeOverview from "./pages/employee/employeeOverview";
-
 import EmployeeProjects from "./pages/employee/employeeProjects";
-
 import EmployeeTasks from "./pages/employee/employeeTasks";
-
 import EmployeeCalendar from "./pages/employee/employeeCalendar";
-
 import EmployeeProfile from "./pages/employee/employeeProfile";
-
 import EmployeeAttendance from "./pages/employee/employeeAttendance";
-
 import EmployeeLeaveApplications from "./pages/employee/employeeLeaveApplications";
 import EmployeeFieldVisits from "./pages/employee/employeeFieldVisits";
 import HrAttendance from "./pages/employee/hrAttendance";
+
+
 /* ================= ADMIN ================= */
 
 import AdminLayout from "./layouts/Adminlayout";
 
 import AdminOverview from "./pages/admin/adminOverview";
-
 import AdminProjects from "./pages/admin/adminProjects";
-
 import AdminTasks from "./pages/admin/adminTasks";
-
 import AdminCalendar from "./pages/admin/adminCalendar";
 import AdminReports from "./pages/admin/adminReports";
 import AdminProfile from "./pages/admin/adminProfile";
-
 import AdminUsers from "./pages/admin/adminUsers";
-
 import AdminAttendance from "./pages/admin/adminAttendance";
-
 import AdminLeaveApplications from "./pages/admin/adminLeaveApplications";
 import AdminFieldVisits from "./pages/admin/adminFieldVisits";
+
+
 /* ================= SUPERADMIN ================= */
 
 import SuperadminLayout from "./layouts/Superadminlayout";
 
 import SuperadminOverview from "./pages/superadmin/superadminOverview";
-
 import SuperadminUsers from "./pages/superadmin/superadminUsers";
-
 import SuperadminTasks from "./pages/superadmin/superadminTasks";
-
 import SuperadminProjects from "./pages/superadmin/superadminProjects";
-
 import SuperadminFieldVisits from "./pages/superadmin/superadminFieldVisits";
-
-/* NEW SUPERADMIN PAGES */
-
 import SuperadminCalendar from "./pages/superadmin/superadminCalendar";
-
 import SuperadminAttendance from "./pages/superadmin/superadminAttendance";
 import SuperadminLeaveApplications from "./pages/superadmin/superadminLeaveApplications";
 import SuperadminProfile from "./pages/superadmin/superadminProfile";
+
+
+/* ================= SHARED ================= */
+
+import VendorManagement from "./pages/shared/VendorManagement";
+
+
+
 /* ========================================================
    AUTH HELPERS
 ======================================================== */
@@ -106,27 +91,58 @@ const getStoredUser = () => {
   }
 };
 
+
+
 /* ========================================================
-   DEFAULT ROUTE BY ROLE
+   FIELD VISIT REVIEW REDIRECT
 ======================================================== */
 
-
 function FieldVisitReviewRedirect() {
-  const token = window.location.pathname.split("/field-visit-review/")[1];
+  const token =
+    window.location.pathname.split(
+      "/field-visit-review/"
+    )[1];
 
-const target = `/admin/field-visits?fieldVisitToken=${token}`;
+  const target =
+    `/admin/field-visits?fieldVisitToken=${token}`;
+
   const authToken =
     sessionStorage.getItem("token") ||
     localStorage.getItem("token");
 
   if (!authToken) {
-    localStorage.setItem("redirectAfterLogin", target);
-    return <Navigate to="/login" replace />;
+    localStorage.setItem(
+      "redirectAfterLogin",
+      target
+    );
+
+    return (
+      <Navigate
+        to="/login"
+        replace
+      />
+    );
   }
 
-  window.history.replaceState({}, "", target);
-  return <Navigate to={target} replace />;
+  window.history.replaceState(
+    {},
+    "",
+    target
+  );
+
+  return (
+    <Navigate
+      to={target}
+      replace
+    />
+  );
 }
+
+
+
+/* ========================================================
+   DEFAULT ROUTE BY ROLE
+======================================================== */
 
 const getDefaultRouteByRole = (
   roleName
@@ -160,6 +176,8 @@ const getDefaultRouteByRole = (
 
   return "/login";
 };
+
+
 
 /* ========================================================
    PROTECTED ROUTE
@@ -210,6 +228,13 @@ const ProtectedRoute = ({
 
   return children;
 };
+
+
+
+/* ========================================================
+   HR PROTECTED ROUTE
+======================================================== */
+
 const HR_EMAILS = [
   "rathika.haleangadi@valencianutrition.com",
 ];
@@ -242,6 +267,13 @@ const HrProtectedRoute = ({
 
   return children;
 };
+
+
+
+/* ========================================================
+   LEAVE REVIEWER PROTECTED ROUTE
+======================================================== */
+
 const LEAVE_REVIEWER_EMAILS = [
   "manish@valencianutrition.com",
   "premal.mehta@valencianutrition.com",
@@ -255,19 +287,22 @@ const LeaveReviewerProtectedRoute = ({
     sessionStorage.getItem("token") ||
     localStorage.getItem("token");
 
-  const user = getStoredUser();
+  const user =
+    getStoredUser();
 
-  const roleName = String(
-    user?.role_name || ""
-  )
-    .trim()
-    .toLowerCase();
+  const roleName =
+    String(
+      user?.role_name || ""
+    )
+      .trim()
+      .toLowerCase();
 
-  const email = String(
-    user?.email || ""
-  )
-    .trim()
-    .toLowerCase();
+  const email =
+    String(
+      user?.email || ""
+    )
+      .trim()
+      .toLowerCase();
 
   if (!token) {
     return (
@@ -280,7 +315,9 @@ const LeaveReviewerProtectedRoute = ({
 
   const allowed =
     roleName === "admin" ||
-    LEAVE_REVIEWER_EMAILS.includes(email);
+    LEAVE_REVIEWER_EMAILS.includes(
+      email
+    );
 
   if (!allowed) {
     return (
@@ -296,17 +333,22 @@ const LeaveReviewerProtectedRoute = ({
   return children;
 };
 
-/* ========================================================
-   APP
-======================================================== */
-const LeaveApprovalsRedirect = () => {
-  const user = getStoredUser();
 
-  const roleName = String(
-    user?.role_name || ""
-  )
-    .trim()
-    .toLowerCase();
+
+/* ========================================================
+   LEAVE APPROVALS REDIRECT
+======================================================== */
+
+const LeaveApprovalsRedirect = () => {
+  const user =
+    getStoredUser();
+
+  const roleName =
+    String(
+      user?.role_name || ""
+    )
+      .trim()
+      .toLowerCase();
 
   const queryString =
     window.location.search || "";
@@ -316,10 +358,14 @@ const LeaveApprovalsRedirect = () => {
     Open the existing Admin Leave page
     inside the normal AdminLayout.
   */
-  if (roleName === "admin") {
+  if (
+    roleName === "admin"
+  ) {
     return (
       <Navigate
-        to={`/admin/leave-applications${queryString}`}
+        to={
+          `/admin/leave-applications${queryString}`
+        }
         replace
       />
     );
@@ -336,9 +382,17 @@ const LeaveApprovalsRedirect = () => {
   );
 };
 
+
+
+/* ========================================================
+   APP
+======================================================== */
+
 const App = () => {
   return (
     <Routes>
+
+
       {/* ===================================================
           LOGIN
       =================================================== */}
@@ -355,8 +409,12 @@ const App = () => {
 
       <Route
         path="/login"
-        element={<LoginPage />}
+        element={
+          <LoginPage />
+        }
       />
+
+
 
       {/* ===================================================
           ADMINISTRATOR
@@ -374,6 +432,7 @@ const App = () => {
           </ProtectedRoute>
         }
       >
+
         <Route
           index
           element={
@@ -384,12 +443,14 @@ const App = () => {
           }
         />
 
+
         <Route
           path="overview"
           element={
             <AdministratorOverview />
           }
         />
+
 
         <Route
           path="projects"
@@ -398,12 +459,24 @@ const App = () => {
           }
         />
 
+
         <Route
           path="tasks"
           element={
             <AdministratorTasks />
           }
         />
+
+
+        {/* VENDOR MANAGEMENT */}
+
+        <Route
+          path="vendors"
+          element={
+            <VendorManagement />
+          }
+        />
+
 
         <Route
           path="calendar"
@@ -412,12 +485,14 @@ const App = () => {
           }
         />
 
+
         <Route
           path="leave-applications"
           element={
             <AdministratorLeaveApplications />
           }
         />
+
 
         <Route
           path="reports"
@@ -427,13 +502,13 @@ const App = () => {
         />
 
 
-
         <Route
           path="profile"
           element={
             <AdministratorProfile />
           }
         />
+
 
         <Route
           path="users"
@@ -442,13 +517,17 @@ const App = () => {
           }
         />
 
+
         <Route
           path="attendance"
           element={
             <AdministratorAttendance />
           }
         />
+
       </Route>
+
+
 
       {/* ===================================================
           EMPLOYEE
@@ -466,6 +545,7 @@ const App = () => {
           </ProtectedRoute>
         }
       >
+
         <Route
           index
           element={
@@ -477,13 +557,13 @@ const App = () => {
         />
 
 
-
         <Route
           path="overview"
           element={
             <EmployeeOverview />
           }
         />
+
 
         <Route
           path="projects"
@@ -492,12 +572,24 @@ const App = () => {
           }
         />
 
+
         <Route
           path="tasks"
           element={
             <EmployeeTasks />
           }
         />
+
+
+        {/* VENDOR MANAGEMENT */}
+
+        <Route
+          path="vendors"
+          element={
+            <VendorManagement />
+          }
+        />
+
 
         <Route
           path="calendar"
@@ -506,12 +598,14 @@ const App = () => {
           }
         />
 
+
         <Route
           path="profile"
           element={
             <EmployeeProfile />
           }
         />
+
 
         <Route
           path="attendance"
@@ -520,12 +614,14 @@ const App = () => {
           }
         />
 
+
         <Route
-  path="field-visits"
-  element={
-    <EmployeeFieldVisits />
-  }
-/>
+          path="field-visits"
+          element={
+            <EmployeeFieldVisits />
+          }
+        />
+
 
         <Route
           path="hr-attendance"
@@ -535,13 +631,18 @@ const App = () => {
             </HrProtectedRoute>
           }
         />
+
+
         <Route
           path="leave-applications"
           element={
             <EmployeeLeaveApplications />
           }
         />
+
       </Route>
+
+
 
       {/* ===================================================
           ADMIN
@@ -559,6 +660,7 @@ const App = () => {
           </ProtectedRoute>
         }
       >
+
         <Route
           index
           element={
@@ -569,12 +671,14 @@ const App = () => {
           }
         />
 
+
         <Route
           path="overview"
           element={
             <AdminOverview />
           }
         />
+
 
         <Route
           path="projects"
@@ -583,12 +687,24 @@ const App = () => {
           }
         />
 
+
         <Route
           path="tasks"
           element={
             <AdminTasks />
           }
         />
+
+
+        {/* VENDOR MANAGEMENT */}
+
+        <Route
+          path="vendors"
+          element={
+            <VendorManagement />
+          }
+        />
+
 
         <Route
           path="calendar"
@@ -597,12 +713,14 @@ const App = () => {
           }
         />
 
+
         <Route
-  path="reports"
-  element={
-    <AdminReports />
-  }
-/>
+          path="reports"
+          element={
+            <AdminReports />
+          }
+        />
+
 
         <Route
           path="profile"
@@ -611,12 +729,14 @@ const App = () => {
           }
         />
 
+
         <Route
           path="users"
           element={
             <AdminUsers />
           }
         />
+
 
         <Route
           path="attendance"
@@ -625,12 +745,14 @@ const App = () => {
           }
         />
 
+
         <Route
-  path="field-visits"
-  element={
-    <AdminFieldVisits />
-  }
-/>
+          path="field-visits"
+          element={
+            <AdminFieldVisits />
+          }
+        />
+
 
         <Route
           path="leave-applications"
@@ -638,11 +760,14 @@ const App = () => {
             <AdminLeaveApplications />
           }
         />
+
       </Route>
 
+
+
       {/* ===================================================
-    SUPERADMIN
-=================================================== */}
+          SUPERADMIN
+      =================================================== */}
 
       <Route
         path="/superadmin"
@@ -710,6 +835,16 @@ const App = () => {
         />
 
 
+        {/* VENDOR MANAGEMENT */}
+
+        <Route
+          path="vendors"
+          element={
+            <VendorManagement />
+          }
+        />
+
+
         {/* CALENDAR */}
 
         <Route
@@ -749,28 +884,46 @@ const App = () => {
           }
         />
 
+
         <Route
           path="profile"
           element={
-            <SuperadminProfile />}
+            <SuperadminProfile />
+          }
         />
 
       </Route>
 
 
+
+      {/* ===================================================
+          SPECIAL REVIEW LINKS
+      =================================================== */}
+
       <Route
         path="/field-visit-review/:token"
-        element={<FieldVisitReviewRedirect />}
+        element={
+          <FieldVisitReviewRedirect />
+        }
       />
+
 
       <Route
         path="/leave-review/:token"
-        element={<LeaveReview />}
+        element={
+          <LeaveReview />
+        }
       />
+
+
       <Route
-  path="/leave-approvals"
-  element={<LeaveApprovalsRedirect />}
-/>
+        path="/leave-approvals"
+        element={
+          <LeaveApprovalsRedirect />
+        }
+      />
+
+
 
       {/* ===================================================
           FALLBACK
@@ -788,8 +941,11 @@ const App = () => {
           />
         }
       />
+
+
     </Routes>
   );
 };
+
 
 export default App;

@@ -338,7 +338,9 @@ const getAdminProjects = async (req, res) => {
         MAIN TASKS
         ----------------------------------------------
         */
-        const [mainTaskRows] = await db.query(`SELECT t.task_id, t.project_id, t.parent_task_id, t.created_by_user_id, t.assigned_to_user_id, t.task_title, t.task_description, t.task_type, t.status, t.priority, COALESCE( t.progress, 0 ) AS progress, COALESCE( t.is_checked, 0 ) AS is_checked, DATE_FORMAT( t.start_date, '%Y-%m-%d' ) AS start_date, DATE_FORMAT( t.due_date, '%Y-%m-%d' ) AS due_date, t.review_status, t.reviewed_by_user_id, t.reviewed_at, t.review_note, t.created_at, t.updated_at, creator.full_name AS created_by_name, creator.email AS created_by_email, reviewer.full_name AS reviewed_by_name, ( SELECT COUNT(*) FROM tasks st WHERE st.parent_task_id = t.task_id ) AS total_subtasks, ( SELECT COUNT(*) FROM tasks st WHERE st.parent_task_id = t.task_id AND ( COALESCE( st.is_checked, 0 ) = 1 OR LOWER( REPLACE( COALESCE( st.status, '' ), ' ', '_' ) ) IN ( 'completed', 'done', 'complete' ) ) ) AS completed_subtasks FROM tasks t LEFT JOIN users creator ON creator.user_id = t.created_by_user_id LEFT JOIN users reviewer ON reviewer.user_id = t.reviewed_by_user_id WHERE t.project_id IN (?) AND ( t.parent_task_id IS NULL OR t.parent_task_id = 0 ) ORDER BY t.task_id DESC`, [projectIds]);
+        const [mainTaskRows] = await db.query(`SELECT t.task_id, t.project_id, t.parent_task_id, t.created_by_user_id, t.assigned_to_user_id, t.task_title, t.task_description, t.task_type,
+COALESCE(t.creation_source, 'admin_assigned') AS creation_source,
+t.status, t.priority, COALESCE( t.progress, 0 ) AS progress, COALESCE( t.is_checked, 0 ) AS is_checked, DATE_FORMAT( t.start_date, '%Y-%m-%d' ) AS start_date, DATE_FORMAT( t.due_date, '%Y-%m-%d' ) AS due_date, t.review_status, t.reviewed_by_user_id, t.reviewed_at, t.review_note, t.created_at, t.updated_at, creator.full_name AS created_by_name, creator.email AS created_by_email, reviewer.full_name AS reviewed_by_name, ( SELECT COUNT(*) FROM tasks st WHERE st.parent_task_id = t.task_id ) AS total_subtasks, ( SELECT COUNT(*) FROM tasks st WHERE st.parent_task_id = t.task_id AND ( COALESCE( st.is_checked, 0 ) = 1 OR LOWER( REPLACE( COALESCE( st.status, '' ), ' ', '_' ) ) IN ( 'completed', 'done', 'complete' ) ) ) AS completed_subtasks FROM tasks t LEFT JOIN users creator ON creator.user_id = t.created_by_user_id LEFT JOIN users reviewer ON reviewer.user_id = t.reviewed_by_user_id WHERE t.project_id IN (?) AND ( t.parent_task_id IS NULL OR t.parent_task_id = 0 ) ORDER BY t.task_id DESC`, [projectIds]);
         /*
         ----------------------------------------------
         MAIN TASK ASSIGNEES
@@ -952,7 +954,44 @@ const createMainTask = async (req, res) => {
             });
         }
         const primaryEmployeeId = assigneeIds[0];
-        const [taskResult] = await connection.query(`INSERT INTO tasks ( project_id, parent_task_id, created_by_user_id, assigned_to_user_id, task_title, task_description, task_type, status, priority, progress, is_checked, start_date, due_date, review_status, created_at, updated_at ) VALUES ( ?, NULL, ?, ?, ?, ?, 'main', 'not_started', ?, 0, 0, ?, ?, 'none', NOW(), NOW() )`, [
+        const [taskResult] = await connection.query(`INSERT INTO tasks (
+    project_id,
+    parent_task_id,
+    created_by_user_id,
+    assigned_to_user_id,
+    task_title,
+    task_description,
+    task_type,
+    creation_source,
+    status,
+    priority,
+    progress,
+    is_checked,
+    start_date,
+    due_date,
+    review_status,
+    created_at,
+    updated_at
+)
+VALUES (
+    ?,
+    NULL,
+    ?,
+    ?,
+    ?,
+    ?,
+    'main',
+    'admin_assigned',
+    'not_started',
+    ?,
+    0,
+    0,
+    ?,
+    ?,
+    'none',
+    NOW(),
+    NOW()
+)`, [
             projectId,
             adminUserId || null,
             primaryEmployeeId,
@@ -1005,6 +1044,349 @@ const createMainTask = async (req, res) => {
             message: "Failed to add Main Task.",
             error: error.message,
             sqlMessage: error.sqlMessage || null,
+        });
+    }
+    finally {
+        connection.release();
+    }
+};
+
+/*
+========================================================
+CREATE EMPLOYEE SELF MAIN TASK
+========================================================
+*/
+
+const createEmployeeMainTask = async (req, res) => {
+    const connection = await db.getConnection();
+
+    try {
+        const employeeUserId = getLoggedInUserId(req);
+
+        if (!employeeUserId) {
+            return res.status(401).json({
+                success: false,
+                message: "Employee account not found.",
+            });
+        }
+
+        const [[employeeAccount]] = await connection.query(
+            `
+            SELECT
+                u.user_id,
+                u.full_name,
+                u.email,
+                LOWER(COALESCE(r.role_name, '')) AS role_name
+            FROM users u
+            LEFT JOIN roles r
+                ON r.role_id = u.role_id
+            WHERE u.user_id = ?
+              AND LOWER(COALESCE(u.status, 'active')) = 'active'
+            LIMIT 1
+            `,
+            [employeeUserId]
+        );
+
+        if (!employeeAccount) {
+            return res.status(404).json({
+                success: false,
+                message: "Employee account not found or inactive.",
+            });
+        }
+
+        if (employeeAccount.role_name !== "employee") {
+            return res.status(403).json({
+                success: false,
+                message: "Only Employees can use this Main Task option.",
+            });
+        }
+
+        const projectId = Number(
+            req.params.projectId ||
+            req.body.project_id ||
+            0
+        );
+
+        const taskTitle =
+            req.body.task_title ||
+            req.body.title;
+
+        const taskDescription =
+            req.body.task_description ||
+            req.body.description ||
+            "";
+
+        const priority =
+            req.body.priority ||
+            "medium";
+
+        const requestedStartDate = formatDateOnly(
+            req.body.start_date ||
+            req.body.startDate
+        );
+
+        const requestedDueDate = formatDateOnly(
+            req.body.due_date ||
+            req.body.end_date ||
+            req.body.endDate ||
+            req.body.deadline
+        );
+
+        if (!projectId) {
+            return res.status(400).json({
+                success: false,
+                message: "Project ID is required.",
+            });
+        }
+
+        if (!taskTitle || !String(taskTitle).trim()) {
+            return res.status(400).json({
+                success: false,
+                message: "Main Task title is required.",
+            });
+        }
+
+        await connection.beginTransaction();
+
+        /*
+        Employee must already belong to this Project.
+        This also automatically supports approved
+        Interdepartment employees because they are added
+        into project_assignments.
+        */
+        const [projectRows] = await connection.query(
+            `
+            SELECT
+                p.project_id,
+                p.project_title,
+                p.status,
+                DATE_FORMAT(p.start_date, '%Y-%m-%d') AS start_date,
+                DATE_FORMAT(p.due_date, '%Y-%m-%d') AS due_date
+            FROM projects p
+            INNER JOIN project_assignments pa
+                ON pa.project_id = p.project_id
+               AND pa.employee_id = ?
+               AND COALESCE(pa.assignment_status, 'assigned') <> 'removed'
+            WHERE p.project_id = ?
+            LIMIT 1
+            FOR UPDATE
+            `,
+            [employeeUserId, projectId]
+        );
+
+        if (!projectRows.length) {
+            await connection.rollback();
+
+            return res.status(403).json({
+                success: false,
+                message:
+                    "You can create a Main Task only inside a Project assigned to you.",
+            });
+        }
+
+        const project = projectRows[0];
+
+        const projectStatus = normalizeStatus(project.status);
+
+        if (
+            ![
+                "not_started",
+                "ongoing",
+                "under_review",
+            ].includes(projectStatus)
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Main Tasks cannot be added while this Project is completed, rejected, or on hold.",
+            });
+        }
+
+        const taskStartDate =
+            requestedStartDate ||
+            project.start_date;
+
+        const taskDueDate =
+            requestedDueDate ||
+            project.due_date;
+
+        if (!taskStartDate || !taskDueDate) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Main Task start date and deadline are required.",
+            });
+        }
+
+        if (taskStartDate > taskDueDate) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    "Main Task start date cannot be after its deadline.",
+            });
+        }
+
+        if (
+            project.start_date &&
+            taskStartDate < project.start_date
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    `Main Task start date cannot be before Project start date (${project.start_date}).`,
+            });
+        }
+
+        if (
+            project.due_date &&
+            taskDueDate > project.due_date
+        ) {
+            await connection.rollback();
+
+            return res.status(400).json({
+                success: false,
+                message:
+                    `Main Task deadline cannot exceed Project deadline (${project.due_date}).`,
+            });
+        }
+
+        /*
+        Employee is automatically the creator
+        AND the only assignee.
+        */
+        const [taskResult] = await connection.query(
+            `
+            INSERT INTO tasks (
+                project_id,
+                parent_task_id,
+                created_by_user_id,
+                assigned_to_user_id,
+                task_title,
+                task_description,
+                task_type,
+                creation_source,
+                status,
+                priority,
+                progress,
+                is_checked,
+                start_date,
+                due_date,
+                review_status,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                ?,
+                NULL,
+                ?,
+                ?,
+                ?,
+                ?,
+                'main',
+                'employee_self',
+                'not_started',
+                ?,
+                0,
+                0,
+                ?,
+                ?,
+                'none',
+                NOW(),
+                NOW()
+            )
+            `,
+            [
+                projectId,
+                employeeUserId,
+                employeeUserId,
+                String(taskTitle).trim(),
+                String(taskDescription).trim(),
+                priority,
+                taskStartDate,
+                taskDueDate,
+            ]
+        );
+
+        const taskId = Number(taskResult.insertId);
+
+        await syncMainTaskAssignments(
+            connection,
+            taskId,
+            [employeeUserId],
+            employeeUserId
+        );
+
+        /*
+        Same behaviour as Admin-added Main Task:
+        if Project was Under Review, reopen it.
+        */
+        if (projectStatus === "under_review") {
+            await connection.query(
+                `
+                UPDATE projects
+                SET
+                    status = 'ongoing',
+                    updated_at = NOW()
+                WHERE project_id = ?
+                `,
+                [projectId]
+            );
+        }
+
+        await connection.commit();
+
+        return res.status(201).json({
+            success: true,
+            message:
+                "Main Task created for yourself successfully.",
+
+            task_id: taskId,
+            project_id: projectId,
+
+            assignee_ids: [
+                employeeUserId,
+            ],
+
+            created_by_user_id:
+                employeeUserId,
+
+            creation_source:
+                "employee_self",
+
+            start_date:
+                taskStartDate,
+
+            due_date:
+                taskDueDate,
+        });
+    }
+    catch (error) {
+        try {
+            await connection.rollback();
+        }
+        catch {}
+
+        console.error(
+            "Create employee Main Task error:",
+            error
+        );
+
+        return res.status(500).json({
+            success: false,
+            message:
+                "Failed to create employee Main Task.",
+            error:
+                error.message,
+            sqlMessage:
+                error.sqlMessage || null,
         });
     }
     finally {
@@ -1954,8 +2336,13 @@ module.exports = {
     getProjectUsers: getAssignableUsersForAdminProjects,
     getUsersForProjects: getAssignableUsersForAdminProjects,
     createMainTask,
-    addMainTask: createMainTask,
-    createProjectTask: createMainTask,
+
+createEmployeeMainTask,
+addEmployeeMainTask: createEmployeeMainTask,
+createSelfMainTask: createEmployeeMainTask,
+
+addMainTask: createMainTask,
+createProjectTask: createMainTask,
     addProjectTask: createMainTask,
     createAdminProjectTask: createMainTask,
     updateMainTask,

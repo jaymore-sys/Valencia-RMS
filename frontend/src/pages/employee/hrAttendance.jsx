@@ -134,6 +134,18 @@ const HR_DEPARTMENTS = [
   "Valencia Engineers Group",
 ];
 
+const createManagedLeaveForm = (today) => ({
+  leave_type: "sick",
+  adjustment_days: "1",
+  duration_type: "full_day",
+  half_day_session: "first_half",
+  start_date: today,
+  end_date: today,
+  subject: "",
+  unpaid_for: "sick",
+  reason: "",
+});
+
 /* =========================================================
    STATUS
 ========================================================= */
@@ -238,6 +250,16 @@ const [
 
   const [showExport, setShowExport] = useState(false);
   const [showAddAttendance, setShowAddAttendance] = useState(false);
+  const [showLeaveManagement, setShowLeaveManagement] = useState(false);
+  const [leaveManagementEmployeeId, setLeaveManagementEmployeeId] =
+    useState("");
+  const [leaveManagementData, setLeaveManagementData] = useState(null);
+  const [leaveManagementLoading, setLeaveManagementLoading] = useState(false);
+  const [leaveManagementSaving, setLeaveManagementSaving] = useState(false);
+  const [leaveManagementAction, setLeaveManagementAction] = useState("apply");
+  const [managedLeaveForm, setManagedLeaveForm] = useState(() =>
+    createManagedLeaveForm(today)
+  );
 
   const [selectedLeave, setSelectedLeave] = useState(null);
   const [reviewRemark, setReviewRemark] = useState("");
@@ -1047,6 +1069,175 @@ const employeeSummaryStatus = (record) => {
   };
 
   /* =========================================================
+     HR LEAVE MANAGEMENT
+  ========================================================= */
+
+  const resetManagedLeaveForm = () => {
+    setManagedLeaveForm(createManagedLeaveForm(today));
+  };
+
+  const openLeaveManagement = () => {
+    setShowLeaveManagement(true);
+    setLeaveManagementEmployeeId("");
+    setLeaveManagementData(null);
+    setLeaveManagementAction("apply");
+    resetManagedLeaveForm();
+  };
+
+  const closeLeaveManagement = () => {
+    setShowLeaveManagement(false);
+    setLeaveManagementEmployeeId("");
+    setLeaveManagementData(null);
+    setLeaveManagementAction("apply");
+    resetManagedLeaveForm();
+  };
+
+  const loadLeaveManagement = async (employeeId) => {
+    if (!employeeId) {
+      setLeaveManagementEmployeeId("");
+      setLeaveManagementData(null);
+      return;
+    }
+
+    try {
+      setLeaveManagementEmployeeId(String(employeeId));
+      setLeaveManagementLoading(true);
+
+      const response = await api.get(
+        `/hr-attendance/leave-management/${employeeId}`,
+        {
+          params: {
+            year: Number(today.slice(0, 4)),
+          },
+        }
+      );
+
+      setLeaveManagementData(response.data || null);
+    } catch (err) {
+      setLeaveManagementData(null);
+      notify(
+        err?.response?.data?.message ||
+          "Failed to load employee leave information.",
+        "error"
+      );
+    } finally {
+      setLeaveManagementLoading(false);
+    }
+  };
+
+  const selectLeaveManagementAction = (action) => {
+    setLeaveManagementAction(action);
+    resetManagedLeaveForm();
+  };
+
+  const updateManagedLeaveForm = (name, value) => {
+    setManagedLeaveForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "start_date" && current.duration_type === "half_day"
+        ? { end_date: value }
+        : {}),
+      ...(name === "duration_type" && value === "half_day"
+        ? { end_date: current.start_date }
+        : {}),
+      ...(name === "leave_type" && value === "festival"
+        ? { duration_type: "full_day" }
+        : {}),
+      ...(name === "leave_type" && value === "unpaid"
+        ? { subject: "Unpaid Sick Leave", unpaid_for: "sick" }
+        : {}),
+    }));
+  };
+
+  const saveManagedLeave = async () => {
+    if (!leaveManagementEmployeeId) {
+      notify("Please select an employee.", "error");
+      return;
+    }
+
+    let endpoint = "apply";
+    let payload;
+
+    if (leaveManagementAction === "extra") {
+      endpoint = "extra";
+      payload = {
+        leave_type: managedLeaveForm.leave_type,
+        adjustment_days: Number(managedLeaveForm.adjustment_days),
+        reason: managedLeaveForm.reason.trim(),
+      };
+    } else if (leaveManagementAction === "reduce") {
+      endpoint = "reduce";
+      payload = {
+        leave_type: managedLeaveForm.leave_type,
+        duration_type: managedLeaveForm.duration_type,
+        half_day_session:
+          managedLeaveForm.duration_type === "half_day"
+            ? managedLeaveForm.half_day_session
+            : null,
+        start_date: managedLeaveForm.start_date,
+        end_date:
+          managedLeaveForm.duration_type === "half_day"
+            ? managedLeaveForm.start_date
+            : managedLeaveForm.end_date,
+        reason: managedLeaveForm.reason.trim(),
+      };
+    } else {
+      payload = {
+        leave_type: managedLeaveForm.leave_type,
+        unpaid_for:
+          managedLeaveForm.leave_type === "unpaid" ? "sick" : undefined,
+        subject:
+          managedLeaveForm.leave_type === "unpaid"
+            ? managedLeaveForm.subject || "Unpaid Sick Leave"
+            : undefined,
+        duration_type:
+          managedLeaveForm.leave_type === "festival"
+            ? "full_day"
+            : managedLeaveForm.duration_type,
+        half_day_session:
+          managedLeaveForm.duration_type === "half_day"
+            ? managedLeaveForm.half_day_session
+            : null,
+        start_date: managedLeaveForm.start_date,
+        end_date:
+          managedLeaveForm.leave_type === "festival" ||
+          managedLeaveForm.duration_type === "half_day"
+            ? managedLeaveForm.start_date
+            : managedLeaveForm.end_date,
+        reason: managedLeaveForm.reason.trim(),
+      };
+    }
+
+    try {
+      setLeaveManagementSaving(true);
+
+      const response = await api.post(
+        `/hr-attendance/leave-management/${leaveManagementEmployeeId}/${endpoint}`,
+        payload
+      );
+
+      notify(
+        response.data?.message || "Employee leave updated successfully."
+      );
+
+      resetManagedLeaveForm();
+      await loadLeaveManagement(leaveManagementEmployeeId);
+      await fetchAttendance({ nextPage: page });
+
+      if (activeTab === "employee-summary") {
+        await fetchEmployeeSummary();
+      }
+    } catch (err) {
+      notify(
+        err?.response?.data?.message || "Failed to update employee leave.",
+        "error"
+      );
+    } finally {
+      setLeaveManagementSaving(false);
+    }
+  };
+
+  /* =========================================================
      ADD ATTENDANCE
   ========================================================= */
 
@@ -1439,6 +1630,14 @@ await fetchEmployeeSummary({
               </div>
             )}
           </div>
+
+          <button
+            className="hr-button leave-management"
+            onClick={openLeaveManagement}
+          >
+            <CalendarDays size={16} />
+            Manage Leave
+          </button>
 
           <button className="hr-button primary" onClick={openAddAttendance}>
             <Plus size={16} />
@@ -2070,6 +2269,377 @@ await fetchEmployeeSummary({
   </>
 )}
 
+      {/* MANAGE EMPLOYEE LEAVE */}
+
+      {showLeaveManagement && (
+        <Modal
+          title="Manage Employee Leave"
+          subtitle="Apply, credit or record leave for an employee"
+          onClose={closeLeaveManagement}
+        >
+          <div className="hr-leave-manager">
+            <div className="hr-form hr-leave-employee-picker">
+              <label>Employee</label>
+
+              <select
+                value={leaveManagementEmployeeId}
+                onChange={(event) => {
+                  resetManagedLeaveForm();
+                  setLeaveManagementAction("apply");
+                  loadLeaveManagement(event.target.value);
+                }}
+              >
+                <option value="">Select Employee</option>
+
+                {users.map((user) => (
+                  <option key={user.user_id} value={user.user_id}>
+                    {user.full_name} — {user.employee_code || "No code"}
+                    {user.department_name
+                      ? ` — ${user.department_name}`
+                      : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {leaveManagementLoading ? (
+              <Empty text="Loading employee leave information..." />
+            ) : leaveManagementData ? (
+              <>
+                <div className="hr-leave-employee-bar">
+                  <div>
+                    <strong>{leaveManagementData.user?.full_name}</strong>
+                    <span>
+                      {leaveManagementData.user?.employee_code || "-"} ·{" "}
+                      {leaveManagementData.user?.department_name || "-"}
+                    </span>
+                  </div>
+
+                  <small>Balance year: {leaveManagementData.year}</small>
+                </div>
+
+                <div className="hr-summary-section hr-leave-balance-section">
+                  <h4>Current Leave Balance</h4>
+
+                  <div className="hr-summary-cards">
+                    <LeaveBalance
+                      label="Sick Leave"
+                      balance={leaveManagementData.balances?.sick}
+                    />
+                    <LeaveBalance
+                      label="Casual Leave"
+                      balance={leaveManagementData.balances?.casual}
+                    />
+                    <LeaveBalance
+                      label="Privileged Leave"
+                      balance={leaveManagementData.balances?.mandatory}
+                    />
+                    <LeaveBalance
+                      label="Festival Leave"
+                      balance={leaveManagementData.balances?.festival}
+                    />
+                  </div>
+                </div>
+
+                <div className="hr-leave-action-tabs">
+                  <button
+                    className={leaveManagementAction === "apply" ? "active" : ""}
+                    onClick={() => selectLeaveManagementAction("apply")}
+                  >
+                    Apply Leave
+                  </button>
+                  <button
+                    className={leaveManagementAction === "extra" ? "active" : ""}
+                    onClick={() => selectLeaveManagementAction("extra")}
+                  >
+                    Add Extra Leave
+                  </button>
+                  <button
+                    className={leaveManagementAction === "reduce" ? "active" : ""}
+                    onClick={() => selectLeaveManagementAction("reduce")}
+                  >
+                    Reduce Leave
+                  </button>
+                </div>
+
+                <div className="hr-form hr-managed-leave-form">
+                  {leaveManagementAction === "extra" ? (
+                    <>
+                      <div className="hr-form-two">
+                        <div>
+                          <label>Leave Type</label>
+                          <select
+                            value={managedLeaveForm.leave_type}
+                            onChange={(event) =>
+                              updateManagedLeaveForm(
+                                "leave_type",
+                                event.target.value
+                              )
+                            }
+                          >
+                            <option value="sick">Sick Leave</option>
+                            <option value="casual">Casual Leave</option>
+                            <option value="mandatory">Privileged Leave</option>
+                            <option value="festival">Festival Leave</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label>Extra Days</label>
+                          <input
+                            type="number"
+                            min="0.5"
+                            step="0.5"
+                            value={managedLeaveForm.adjustment_days}
+                            onChange={(event) =>
+                              updateManagedLeaveForm(
+                                "adjustment_days",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <label>Reason / Reference</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Example: OT compensation approved"
+                        value={managedLeaveForm.reason}
+                        onChange={(event) =>
+                          updateManagedLeaveForm("reason", event.target.value)
+                        }
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div className="hr-form-two">
+                        <div>
+                          <label>Leave Type</label>
+                          <select
+                            value={managedLeaveForm.leave_type}
+                            onChange={(event) =>
+                              updateManagedLeaveForm(
+                                "leave_type",
+                                event.target.value
+                              )
+                            }
+                          >
+                            <option value="sick">Sick Leave</option>
+                            <option value="casual">Casual Leave</option>
+                            <option value="mandatory">Privileged Leave</option>
+                            <option value="festival">Festival Leave</option>
+                            {leaveManagementAction === "apply" && (
+                              <option value="unpaid">Unpaid Sick Leave</option>
+                            )}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label>Duration</label>
+                          <select
+                            value={
+                              managedLeaveForm.leave_type === "festival"
+                                ? "full_day"
+                                : managedLeaveForm.duration_type
+                            }
+                            disabled={managedLeaveForm.leave_type === "festival"}
+                            onChange={(event) =>
+                              updateManagedLeaveForm(
+                                "duration_type",
+                                event.target.value
+                              )
+                            }
+                          >
+                            <option value="full_day">Full Day</option>
+                            <option value="half_day">Half Day</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {managedLeaveForm.duration_type === "half_day" &&
+                        managedLeaveForm.leave_type !== "festival" && (
+                          <>
+                            <label>Half-Day Session</label>
+                            <select
+                              value={managedLeaveForm.half_day_session}
+                              onChange={(event) =>
+                                updateManagedLeaveForm(
+                                  "half_day_session",
+                                  event.target.value
+                                )
+                              }
+                            >
+                              <option value="first_half">First Half</option>
+                              <option value="second_half">Second Half</option>
+                            </select>
+                          </>
+                        )}
+
+                      <div className="hr-form-two">
+                        <div>
+                          <label>
+                            {managedLeaveForm.leave_type === "festival"
+                              ? "Festival Date"
+                              : "From Date"}
+                          </label>
+                          <input
+                            type="date"
+                            value={managedLeaveForm.start_date}
+                            onChange={(event) =>
+                              updateManagedLeaveForm(
+                                "start_date",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </div>
+
+                        {managedLeaveForm.leave_type !== "festival" &&
+                          managedLeaveForm.duration_type !== "half_day" && (
+                            <div>
+                              <label>To Date</label>
+                              <input
+                                type="date"
+                                value={managedLeaveForm.end_date}
+                                onChange={(event) =>
+                                  updateManagedLeaveForm(
+                                    "end_date",
+                                    event.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          )}
+                      </div>
+
+                      {managedLeaveForm.leave_type === "unpaid" && (
+                        <>
+                          <label>Subject</label>
+                          <input
+                            type="text"
+                            value={
+                              managedLeaveForm.subject || "Unpaid Sick Leave"
+                            }
+                            onChange={(event) =>
+                              updateManagedLeaveForm(
+                                "subject",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </>
+                      )}
+
+                      <label>
+                        {leaveManagementAction === "reduce"
+                          ? "Historical Leave Remark"
+                          : "Reason"}
+                      </label>
+                      <textarea
+                        rows={3}
+                        placeholder={
+                          leaveManagementAction === "reduce"
+                            ? "Optional note for the historical record"
+                            : "Enter the employee's leave reason"
+                        }
+                        value={managedLeaveForm.reason}
+                        onChange={(event) =>
+                          updateManagedLeaveForm("reason", event.target.value)
+                        }
+                      />
+                    </>
+                  )}
+                </div>
+
+                <div className="hr-leave-history-section">
+                  <h4>Recent Leave History</h4>
+
+                  <div className="hr-leave-history-list">
+                    {leaveManagementData.leave_history?.length ? (
+                      leaveManagementData.leave_history.map((leave) => (
+                        <div className="hr-leave-history-row" key={leave.leave_id}>
+                          <div>
+                            <strong>{titleCase(leave.leave_type)}</strong>
+                            <small>
+                              {displayDate(leave.start_date)}
+                              {leave.end_date !== leave.start_date
+                                ? ` – ${displayDate(leave.end_date)}`
+                                : ""}
+                            </small>
+                          </div>
+                          <span>{leave.total_days} day(s)</span>
+                          <StatusBadge value={titleCase(leave.status)} />
+                          <small>{leave.reason || "-"}</small>
+                        </div>
+                      ))
+                    ) : (
+                      <Empty text="No leave history found for this year." />
+                    )}
+                  </div>
+                </div>
+
+                {leaveManagementData.adjustment_history?.length > 0 && (
+                  <div className="hr-leave-history-section">
+                    <h4>Extra Leave Credits</h4>
+
+                    <div className="hr-leave-history-list">
+                      {leaveManagementData.adjustment_history.map(
+                        (adjustment) => (
+                          <div
+                            className="hr-leave-history-row adjustment"
+                            key={adjustment.adjustment_id}
+                          >
+                            <div>
+                              <strong>{titleCase(adjustment.leave_type)}</strong>
+                              <small>
+                                {adjustment.adjusted_at
+                                  ? displayDateTime(adjustment.adjusted_at)
+                                  : "Adjustment record"}
+                              </small>
+                            </div>
+                            <span>+{adjustment.adjustment_days} day(s)</span>
+                            <span>{adjustment.adjusted_by_name || "HR"}</span>
+                            <small>{adjustment.reason || "-"}</small>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <Empty text="Select an employee to manage leave." />
+            )}
+          </div>
+
+          <div className="hr-modal-footer">
+            {leaveManagementData && (
+              <button
+                className="hr-button primary"
+                onClick={saveManagedLeave}
+                disabled={leaveManagementSaving}
+              >
+                {leaveManagementSaving
+                  ? "Saving..."
+                  : leaveManagementAction === "extra"
+                  ? "Add Extra Leave"
+                  : leaveManagementAction === "reduce"
+                  ? "Record Leave"
+                  : "Submit Leave Request"}
+              </button>
+            )}
+
+            <button
+              className="hr-button secondary"
+              onClick={closeLeaveManagement}
+            >
+              Close
+            </button>
+          </div>
+        </Modal>
+      )}
+
       {/* ADD ATTENDANCE */}
 
       {showAddAttendance && (
@@ -2470,6 +3040,18 @@ await fetchEmployeeSummary({
         selectedEmployeeSummary
           .attendance?.working_days
       }
+    />
+
+    <SummaryItem
+      label="Extra Working Days"
+      value={selectedEmployeeSummary.attendance?.extra_working_days || 0}
+    />
+    <SummaryItem
+      label="Extra Working Hours"
+      value={(() => {
+        const minutes = Number(selectedEmployeeSummary.attendance?.extra_working_minutes || 0);
+        return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+      })()}
     />
 
     <SummaryItem

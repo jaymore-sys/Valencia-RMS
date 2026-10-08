@@ -3,36 +3,26 @@ const crypto = require("crypto");
 const {
   sendMail,
 } = require("../utils/emailservice");
-
 const HR_FIELD_VISIT_EMAIL =
   "rathika.haleangadi@valencianutrition.com";
-
-
 const ATTENDANCE_SYSTEM_START_DATE =
-  "2026-04-01";  
+  "2026-04-01";
 const OFFICE_START_MINUTES = 11 * 60; // 11:00 AM
 const OFFICE_END_MINUTES = 19 * 60 + 30; // 7:30 PM
-
 const formatDateOnly = (value) => {
   if (!value) return null;
-
   if (typeof value === "string") {
     return value.slice(0, 10);
   }
-
   const date = new Date(value);
-
   if (Number.isNaN(date.getTime())) {
     return null;
   }
-
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
-
   return `${year}-${month}-${day}`;
 };
-
 const getEffectiveAttendanceStartDate = (
   joiningDate,
   importedStartDate
@@ -41,16 +31,13 @@ const getEffectiveAttendanceStartDate = (
     formatDateOnly(
       importedStartDate
     );
-
   if (!formattedImportedStartDate) {
     return null;
   }
-
   const formattedJoiningDate =
     formatDateOnly(
       joiningDate
     );
-
   if (
     formattedJoiningDate &&
     formattedJoiningDate >
@@ -58,146 +45,108 @@ const getEffectiveAttendanceStartDate = (
   ) {
     return formattedJoiningDate;
   }
-
   return formattedImportedStartDate;
 };
-
-
 const parseDateOnly = (dateString) => {
   return new Date(`${dateString}T00:00:00`);
 };
-
 const addOneDay = (date) => {
   const next = new Date(date);
   next.setDate(next.getDate() + 1);
   return next;
 };
-
 const buildWorkingDates = (startDate, endDate) => {
   if (!startDate || !endDate) {
     return [];
   }
-
   const dates = [];
-
   let current = parseDateOnly(startDate);
   const last = parseDateOnly(endDate);
-
   while (current <= last) {
     const day = current.getDay();
-
     // Sunday = 0
     if (day !== 0) {
       const year = current.getFullYear();
       const month = String(
         current.getMonth() + 1
       ).padStart(2, "0");
-
       const date = String(
         current.getDate()
       ).padStart(2, "0");
-
       dates.push(
         `${year}-${month}-${date}`
       );
     }
-
     current = addOneDay(current);
   }
-
   return dates;
 };
-
 const normalizeStatus = (status) => {
   const value = String(status || "")
     .toLowerCase()
     .trim();
-
   if (value.includes("leave")) {
     return "leave";
   }
-
   if (value.includes("late")) {
     return "late";
   }
-
   if (value.includes("absent")) {
     return "absent";
   }
-
   if (value.includes("present")) {
     return "present";
   }
-
   return value || "present";
 };
-
 const getDisplayStatus = (status) => {
   const value = normalizeStatus(status);
-
   if (value === "leave") {
     return "Leave";
   }
-
   if (value === "late") {
     return "Late";
   }
-
   if (value === "absent") {
     return "Absent";
   }
-
   return "Present";
 };
-
 const timeToMinutes = (timeValue) => {
   if (!timeValue) {
     return null;
   }
-
   const parts = String(timeValue).split(":");
-
   if (parts.length < 2) {
     return null;
   }
-
   const hours = Number(parts[0]);
   const minutes = Number(parts[1]);
-
   if (
     Number.isNaN(hours) ||
     Number.isNaN(minutes)
   ) {
     return null;
   }
-
   return hours * 60 + minutes;
 };
-
 const formatMinutes = (minutes) => {
   const value = Number(minutes || 0);
-
   if (!value || value <= 0) {
     return "-";
   }
-
   const hours = Math.floor(
     value / 60
   );
-
   const mins = value % 60;
-
   if (hours && mins) {
     return `${hours}h ${mins}m`;
   }
-
   if (hours) {
     return `${hours}h`;
   }
-
   return `${mins}m`;
 };
-
 const calculateWorkingHours = (
   record
 ) => {
@@ -209,39 +158,29 @@ const calculateWorkingHours = (
       Number(record.total_minutes)
     );
   }
-
   const checkIn = timeToMinutes(
     record.check_in_time
   );
-
   const checkOut = timeToMinutes(
     record.check_out_time
   );
-
   if (
     checkIn === null ||
     checkOut === null
   ) {
     return "-";
   }
-
   let diff = checkOut - checkIn;
-
   if (diff < 0) {
     diff += 24 * 60;
   }
-
   return formatMinutes(diff);
 };
-
 /*
   IMPORTANT ATTENDANCE RULE
-
   Office starts at 11:00 AM.
-
   Check in at 11:00:00 = Present
   Check in after 11:00:00 = Late
-
   Leave and Absent always take priority.
 */
 const deriveAttendanceStatus = (
@@ -249,22 +188,18 @@ const deriveAttendanceStatus = (
 ) => {
   const storedStatus =
     normalizeStatus(record.status);
-
   // Never override leave.
   if (storedStatus === "leave") {
     return "leave";
   }
-
   // Never override explicitly absent.
   if (storedStatus === "absent") {
     return "absent";
   }
-
   const checkInMinutes =
     timeToMinutes(
       record.check_in_time
     );
-
   if (checkInMinutes !== null) {
     if (
       checkInMinutes >
@@ -272,15 +207,12 @@ const deriveAttendanceStatus = (
     ) {
       return "late";
     }
-
     return "present";
   }
-
   // No usable check-in time.
   // Fall back to DB status.
   return storedStatus || "present";
 };
-
 const getLateRemark = (
   record,
   finalStatus
@@ -289,38 +221,31 @@ const getLateRemark = (
     String(
       record.remarks || ""
     ).trim();
-
   if (finalStatus !== "late") {
     return originalRemark || "-";
   }
-
   const checkInMinutes =
     timeToMinutes(
       record.check_in_time
     );
-
   if (checkInMinutes === null) {
     return (
       originalRemark ||
       "Late"
     );
   }
-
   const minutesLate =
     checkInMinutes -
     OFFICE_START_MINUTES;
-
   const automaticRemark =
     minutesLate > 0
       ? `Late by ${minutesLate} minute${
           minutesLate === 1 ? "" : "s"
         }`
       : "Late";
-
   if (!originalRemark) {
     return automaticRemark;
   }
-
   // Avoid repeating a late remark if the CSV/DB already contains it.
   if (
     originalRemark
@@ -329,10 +254,8 @@ const getLateRemark = (
   ) {
     return originalRemark;
   }
-
   return `${originalRemark} · ${automaticRemark}`;
 };
-
 const getLoggedInAdmin = async (
   req
 ) => {
@@ -341,7 +264,6 @@ const getLoggedInAdmin = async (
     req.user?.id ||
     req.user?.userId ||
     req.user?.uid;
-
   if (!loggedInUserId) {
     return {
       error: {
@@ -351,7 +273,6 @@ const getLoggedInAdmin = async (
       },
     };
   }
-
   const [rows] = await db.query(
     `
       SELECT
@@ -363,35 +284,26 @@ const getLoggedInAdmin = async (
         u.designation,
         u.department_id,
 u.status,
-
 DATE_FORMAT(
   ep.joining_date,
   '%Y-%m-%d'
 ) AS joining_date,
-
 r.role_name,
 d.department_name
-
 FROM users u
-
 LEFT JOIN employee_profiles ep
   ON ep.user_id =
      u.user_id
-
 LEFT JOIN roles r
         ON r.role_id = u.role_id
-
       LEFT JOIN departments d
         ON d.department_id =
         u.department_id
-
       WHERE u.user_id = ?
-
       LIMIT 1
     `,
     [loggedInUserId]
   );
-
   if (!rows.length) {
     return {
       error: {
@@ -401,15 +313,12 @@ LEFT JOIN roles r
       },
     };
   }
-
   const admin = rows[0];
-
   const roleName = String(
     admin.role_name || ""
   )
     .toLowerCase()
     .trim();
-
   if (roleName !== "admin") {
     return {
       error: {
@@ -419,7 +328,6 @@ LEFT JOIN roles r
       },
     };
   }
-
   if (!admin.department_id) {
     return {
       error: {
@@ -429,28 +337,23 @@ LEFT JOIN roles r
       },
     };
   }
-
   return {
     admin,
   };
 };
-
 const buildUserAttendanceSummary = ({
   user,
   records,
   workingDates,
 }) => {
   const recordMap = new Map();
-
   records.forEach((record) => {
     const date = formatDateOnly(
       record.attendance_date
     );
-
     if (!date) {
       return;
     }
-
     if (!recordMap.has(date)) {
       recordMap.set(
         date,
@@ -458,43 +361,32 @@ const buildUserAttendanceSummary = ({
       );
     }
   });
-
   let present = 0;
   let absent = 0;
   let late = 0;
   let leave = 0;
-
   const completedRecords =
     workingDates.map((date) => {
       const record =
         recordMap.get(date);
-
       if (!record) {
         absent += 1;
-
         return {
           attendance_id: null,
           employee_id: user.user_id,
           attendance_date: date,
-
           status: "Absent",
-
           check_in_time: "-",
           check_out_time: "-",
-
           total_minutes: 0,
           working_hours: "-",
-
           remarks:
             "No attendance record",
-
           is_missing_date: true,
         };
       }
-
       /*
         THIS IS THE IMPORTANT CHANGE.
-
         We calculate status based on
         check-in time instead of blindly
         trusting attendance.status.
@@ -503,7 +395,6 @@ const buildUserAttendanceSummary = ({
         deriveAttendanceStatus(
           record
         );
-
       if (finalStatus === "leave") {
         leave += 1;
       } else if (
@@ -516,11 +407,9 @@ const buildUserAttendanceSummary = ({
         /*
           A late employee is still present,
           so both numbers increase.
-
           Example:
           Present = 37
           Late = 5
-
           The five late days are included
           within the 37 present days.
         */
@@ -529,50 +418,39 @@ const buildUserAttendanceSummary = ({
       } else {
         present += 1;
       }
-
       return {
         attendance_id:
           record.attendance_id,
-
         employee_id:
           record.employee_id,
-
         attendance_date:
           date,
-
         status:
           getDisplayStatus(
             finalStatus
           ),
-
         check_in_time:
           record.check_in_time ||
           "-",
-
         check_out_time:
           record.check_out_time ||
           "-",
-
         total_minutes:
           Number(
             record.total_minutes ||
               0
           ),
-
         working_hours:
           calculateWorkingHours(
             record
           ),
-
         remarks:
           getLateRemark(
             record,
             finalStatus
           ),
-
         is_missing_date:
           false,
-
         /*
           Additional information.
           This will be useful later if
@@ -580,20 +458,16 @@ const buildUserAttendanceSummary = ({
         */
         is_late:
           finalStatus === "late",
-
         office_start_time:
           "11:00:00",
-
         office_end_time:
           "19:30:00",
       };
     });
-
   const sortedActualRecords =
     records
       .map((record) => ({
         ...record,
-
         attendance_date:
           formatDateOnly(
             record.attendance_date
@@ -612,53 +486,38 @@ const buildUserAttendanceSummary = ({
           )
         )
       );
-
   const latestAttendance =
     sortedActualRecords[0]
       ?.attendance_date || "-";
-
   return {
     user_id:
       user.user_id,
-
     employee_code:
       user.employee_code,
-
     full_name:
       user.full_name,
-
     email:
       user.email,
-
     phone:
       user.phone,
-
     designation:
       user.designation,
-
     department_id:
       user.department_id,
-
     department_name:
       user.department_name,
-
     role_name:
       user.role_name,
-
     status:
       user.status,
-
     total:
       workingDates.length,
-
     present,
     absent,
     late,
     leave,
-
     latest_attendance_date:
       latestAttendance,
-
     records:
       completedRecords.sort(
         (a, b) =>
@@ -672,7 +531,6 @@ const buildUserAttendanceSummary = ({
       ),
   };
 };
-
 const getDepartmentAttendance = async (
   req,
   res
@@ -685,7 +543,6 @@ const getDepartmentAttendance = async (
       await getLoggedInAdmin(
         req
       );
-
     if (error) {
       return res
         .status(error.status)
@@ -695,8 +552,6 @@ const getDepartmentAttendance = async (
             error.message,
         });
     }
-
-
     /*
       GET EVERY ACTIVE USER
       IN ADMIN'S DEPARTMENT
@@ -713,29 +568,22 @@ const getDepartmentAttendance = async (
           u.designation,
           u.department_id,
           u.status,
-
           DATE_FORMAT(
             ep.joining_date,
             '%Y-%m-%d'
           ) AS joining_date,
-
           r.role_name,
           d.department_name
-
         FROM users u
-
         LEFT JOIN employee_profiles ep
           ON ep.user_id =
              u.user_id
-
         LEFT JOIN roles r
           ON r.role_id =
              u.role_id
-
         LEFT JOIN departments d
           ON d.department_id =
              u.department_id
-
         WHERE
   (
     EXISTS (
@@ -748,23 +596,19 @@ const getDepartmentAttendance = async (
           WHERE admin_ud.user_id = ?
         )
     )
-
     OR u.department_id IN (
       SELECT admin_ud.department_id
       FROM user_departments admin_ud
       WHERE admin_ud.user_id = ?
     )
-
     OR EXISTS (
       SELECT 1
       FROM user_departments employee_ud
       WHERE employee_ud.user_id = u.user_id
         AND employee_ud.department_id = ?
     )
-
     OR u.department_id = ?
   )
-
   AND LOWER(
             COALESCE(
               u.status,
@@ -773,7 +617,6 @@ const getDepartmentAttendance = async (
           ) NOT IN (
             'deleted'
           )
-
         ORDER BY
           u.full_name ASC
         `,
@@ -784,35 +627,26 @@ const getDepartmentAttendance = async (
   admin.department_id,
         ]
       );
-
-
     const userIds =
       users.map(
         (user) =>
           user.user_id
       );
-
-
     if (!userIds.length) {
       return res
         .status(200)
         .json({
           success: true,
-
           admin,
-
           date_range: {
             start_date: null,
             end_date: null,
             working_days: 0,
           },
-
           my_attendance:
             null,
-
           employee_summary:
             [],
-
           department_totals: {
             people: 0,
             total: 0,
@@ -823,12 +657,9 @@ const getDepartmentAttendance = async (
           },
         });
     }
-
-
     /*
       GLOBAL IMPORTED
       ATTENDANCE RANGE
-
       Never use anything
       before 01-Apr-2026.
     */
@@ -840,17 +671,13 @@ const getDepartmentAttendance = async (
             MIN(attendance_date),
             '%Y-%m-%d'
           ) AS start_date,
-
           DATE_FORMAT(
             MAX(attendance_date),
             '%Y-%m-%d'
           ) AS end_date
-
         FROM attendance
-
         WHERE
           attendance_date >= ?
-
           AND attendance_date <=
               CURDATE()
         `,
@@ -858,24 +685,17 @@ const getDepartmentAttendance = async (
           ATTENDANCE_SYSTEM_START_DATE,
         ]
       );
-
-
     const startDate =
       rangeRows[0]
         ?.start_date ||
       null;
-
-
     const endDate =
       rangeRows[0]
         ?.end_date ||
       null;
-
-
     /*
       COMPANY WORKING DATES
       BETWEEN IMPORT RANGE.
-
       Sundays excluded.
     */
     const workingDates =
@@ -883,16 +703,12 @@ const getDepartmentAttendance = async (
         startDate,
         endDate
       );
-
-
     /*
       GET ACTUAL ATTENDANCE
       FOR DEPARTMENT USERS
     */
     let attendanceRows =
       [];
-
-
     if (
       startDate &&
       endDate
@@ -909,19 +725,15 @@ const getDepartmentAttendance = async (
             a.total_minutes,
             a.status,
             a.remarks
-
           FROM attendance a
-
           WHERE
             a.employee_id IN (
               ${userIds
                 .map(() => "?")
                 .join(",")}
             )
-
             AND a.attendance_date
               BETWEEN ? AND ?
-
           ORDER BY
             a.attendance_date DESC
           `,
@@ -931,12 +743,9 @@ const getDepartmentAttendance = async (
             endDate,
           ]
         );
-
       attendanceRows =
         rows;
     }
-
-
     /*
       BUILD EACH USER'S
       INDIVIDUAL ATTENDANCE
@@ -947,7 +756,6 @@ const getDepartmentAttendance = async (
           /*
             Older employee:
             → imported start date
-
             Joined later:
             → joining date
           */
@@ -956,8 +764,6 @@ const getDepartmentAttendance = async (
               user.joining_date,
               startDate
             );
-
-
           if (!userStartDate) {
             return (
               buildUserAttendanceSummary(
@@ -969,8 +775,6 @@ const getDepartmentAttendance = async (
               )
             );
           }
-
-
           /*
             Only this user's
             real records and only
@@ -985,7 +789,6 @@ const getDepartmentAttendance = async (
                     record
                       .attendance_date
                   );
-
                 return (
                   Number(
                     record.employee_id
@@ -999,8 +802,6 @@ const getDepartmentAttendance = async (
                 );
               }
             );
-
-
           /*
             Dates before employee
             joined are completely
@@ -1012,15 +813,11 @@ const getDepartmentAttendance = async (
                 date >=
                 userStartDate
             );
-
-
           return (
             buildUserAttendanceSummary(
               {
                 user,
-
                 records,
-
                 workingDates:
                   userWorkingDates,
               }
@@ -1028,8 +825,6 @@ const getDepartmentAttendance = async (
           );
         }
       );
-
-
     /*
       LOGGED-IN ADMIN
       USES SAME START LOGIC
@@ -1039,8 +834,6 @@ const getDepartmentAttendance = async (
         admin.joining_date,
         startDate
       );
-
-
     const adminWorkingDates =
       adminStartDate
         ? workingDates.filter(
@@ -1049,8 +842,6 @@ const getDepartmentAttendance = async (
               adminStartDate
           )
         : [];
-
-
     const myAttendance =
       summaries.find(
         (item) =>
@@ -1064,15 +855,11 @@ const getDepartmentAttendance = async (
       buildUserAttendanceSummary(
         {
           user: admin,
-
           records: [],
-
           workingDates:
             adminWorkingDates,
         }
       );
-
-
     /*
       REMOVE ADMIN FROM
       EMPLOYEE SUMMARY
@@ -1087,8 +874,6 @@ const getDepartmentAttendance = async (
             admin.user_id
           )
       );
-
-
     /*
       DEPARTMENT TOTALS
     */
@@ -1099,37 +884,31 @@ const getDepartmentAttendance = async (
           item
         ) => {
           acc.people += 1;
-
           acc.total +=
             Number(
               item.total ||
                 0
             );
-
           acc.present +=
             Number(
               item.present ||
                 0
             );
-
           acc.absent +=
             Number(
               item.absent ||
                 0
             );
-
           acc.late +=
             Number(
               item.late ||
                 0
             );
-
           acc.leave +=
             Number(
               item.leave ||
                 0
             );
-
           return acc;
         },
         {
@@ -1141,93 +920,70 @@ const getDepartmentAttendance = async (
           leave: 0,
         }
       );
-
-
     return res
       .status(200)
       .json({
         success: true,
-
         admin,
-
         office_hours: {
           start_time:
             "11:00:00",
-
           end_time:
             "19:30:00",
-
           late_after:
             "11:00:00",
         },
-
         date_range: {
           start_date:
             startDate,
-
           end_date:
             endDate,
-
           working_days:
             workingDates.length,
-
           note:
             "Attendance is calculated from the imported attendance range or the employee joining date when the joining date is later. Sundays are excluded.",
         },
-
         my_attendance:
           myAttendance,
-
         employee_summary:
           employeeSummary,
-
         department_totals:
           departmentTotals,
       });
-
   } catch (error) {
     console.error(
       "Get admin department attendance error:",
       error
     );
-
     return res
       .status(500)
       .json({
         success: false,
-
         message:
           "Failed to fetch admin attendance.",
-
         error:
           error.message,
-
         sqlMessage:
           error.sqlMessage ||
           null,
       });
   }
 };
-
 const normalizeFieldVisitStops = (body = {}) => {
   const suppliedStops =
     Array.isArray(body.visit_stops)
       ? body.visit_stops
       : [];
-
   const stops = suppliedStops
     .map((stop, index) => ({
       sequence_no: index + 1,
-
       location: String(
         stop?.location || ""
       ).trim(),
-
       visit_time:
         String(
           stop?.visit_time || ""
         ).trim() || null,
-
       description: String(
         stop?.description || ""
       ).trim(),
@@ -1237,29 +993,23 @@ const normalizeFieldVisitStops = (body = {}) => {
         stop.location ||
         stop.description
     );
-
   if (stops.length) {
     return stops;
   }
-
   /*
     BACKWARD COMPATIBILITY
-
     Existing frontend still sends
     location + comment.
-
     Treat that as Stop 1.
   */
   const legacyLocation =
     String(
       body.location || ""
     ).trim();
-
   const legacyComment =
     String(
       body.comment || ""
     ).trim();
-
   if (
     legacyLocation ||
     legacyComment
@@ -1276,21 +1026,28 @@ const normalizeFieldVisitStops = (body = {}) => {
       },
     ];
   }
-
   return [];
 };
-
-
+const countFieldVisitWords = (value) =>
+  String(value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .length;
+const getFieldVisitDescriptionWordCount = (visitStops = []) =>
+  visitStops.reduce(
+    (total, stop) =>
+      total + countFieldVisitWords(stop?.description),
+    0
+  );
 const attachFieldVisitStops =
 async (visits) => {
-
   if (
     !Array.isArray(visits) ||
     !visits.length
   ) {
     return [];
   }
-
   const visitIds =
     visits
       .map(
@@ -1300,11 +1057,9 @@ async (visits) => {
           )
       )
       .filter(Boolean);
-
   if (!visitIds.length) {
     return visits;
   }
-
   const [stopRows] =
     await db.query(
       `
@@ -1317,11 +1072,8 @@ async (visits) => {
           description,
           created_at,
           updated_at
-
         FROM field_visit_stops
-
         WHERE visit_id IN (?)
-
         ORDER BY
           visit_id ASC,
           sequence_no ASC,
@@ -1329,18 +1081,14 @@ async (visits) => {
       `,
       [visitIds]
     );
-
   const stopMap =
     new Map();
-
   stopRows.forEach(
     (stop) => {
-
       const visitId =
         Number(
           stop.visit_id
         );
-
       if (
         !stopMap.has(
           visitId
@@ -1351,29 +1099,23 @@ async (visits) => {
           []
         );
       }
-
       stopMap
         .get(visitId)
         .push(stop);
     }
   );
-
   return visits.map(
     (visit) => {
-
       const visitId =
         Number(
           visit.visit_id
         );
-
       const savedStops =
         stopMap.get(
           visitId
         ) || [];
-
       /*
         OLD DATA SAFETY
-
         Existing visits that pre-date
         field_visit_stops remain visible
         using their original
@@ -1386,33 +1128,25 @@ async (visits) => {
               {
                 stop_id:
                   null,
-
                 visit_id:
                   visit.visit_id,
-
                 sequence_no:
                   1,
-
                 location:
                   visit.location ||
                   "",
-
                 visit_time:
                   null,
-
                 description:
                   visit.comment ||
                   "",
-
                 is_legacy:
                   true,
               },
             ]
           : [];
-
       return {
         ...visit,
-
         visit_stops:
           savedStops.length
             ? savedStops
@@ -1421,12 +1155,9 @@ async (visits) => {
     }
   );
 };
-
 const getDepartmentFieldVisits =
 async (req, res) => {
-
   try {
-
     const {
       admin,
       error,
@@ -1434,150 +1165,106 @@ async (req, res) => {
       await getLoggedInAdmin(
         req
       );
-
-
     if (error) {
-
       return res
         .status(
           error.status
         )
         .json({
-
           success: false,
-
           message:
             error.message,
-
         });
-
     }
-
-
     const [visits] =
       await db.query(
         `
           SELECT
-
             fv.*,
-
             creator.full_name
               AS full_name,
-
             creator.employee_code,
-
             (
               SELECT GROUP_CONCAT(
                 DISTINCT
                 member_user.full_name
-
                 ORDER BY
                   member_user.full_name
-
                 SEPARATOR ', '
               )
-
               FROM field_visit_members
                 member_link
-
               INNER JOIN users
                 member_user
-
                 ON
                   member_user.user_id =
                   member_link.employee_id
-
               WHERE
                 member_link.visit_id =
                 fv.visit_id
-
             ) AS team_members
-
           FROM employee_field_visits fv
-
           LEFT JOIN users creator
             ON creator.user_id =
                fv.employee_id
-
           LEFT JOIN roles creator_role
             ON creator_role.role_id =
                creator.role_id
-
           WHERE
           (
             EXISTS
             (
               SELECT 1
-
               FROM user_departments
                 creator_ud
-
               WHERE
                 creator_ud.user_id =
                   creator.user_id
-
                 AND
-
                 creator_ud.department_id
                 IN
                 (
                   SELECT
                     admin_ud.department_id
-
                   FROM user_departments
                     admin_ud
-
                   WHERE
                     admin_ud.user_id = ?
                 )
             )
-
             OR
-
             creator.department_id
             IN
             (
               SELECT
                 admin_ud.department_id
-
               FROM user_departments
                 admin_ud
-
               WHERE
                 admin_ud.user_id = ?
             )
-
             OR
-
             EXISTS
             (
               SELECT 1
-
               FROM user_departments
                 creator_ud
-
               WHERE
                 creator_ud.user_id =
                   creator.user_id
-
                 AND
                 creator_ud.department_id = ?
             )
-
             OR
-
             creator.department_id = ?
           )
-
           AND
-
           LOWER(
             COALESCE(
               creator_role.role_name,
               ''
             )
           ) = 'employee'
-
           ORDER BY
             fv.visit_date DESC,
             fv.visit_id DESC
@@ -1589,21 +1276,14 @@ async (req, res) => {
           admin.department_id,
         ]
       );
-
-
     const visitsWithStops =
       await attachFieldVisitStops(
         visits
       );
-
-
     visitsWithStops.forEach(
       (visit) => {
-
         visit.all_people = [
-
           visit.full_name,
-
           ...(
             visit.team_members
               ? visit.team_members.split(
@@ -1611,90 +1291,66 @@ async (req, res) => {
                 )
               : []
           ),
-
         ].filter(Boolean);
-
       }
     );
-
-
     const summary = {
-
       total:
         visitsWithStops.length,
-
       approved:
         visitsWithStops.filter(
           (visit) =>
             visit.status ===
             "approved"
         ).length,
-
       pending:
         visitsWithStops.filter(
           (visit) =>
             visit.status ===
             "pending"
         ).length,
-
+      changes_requested:
+        visitsWithStops.filter(
+          (visit) =>
+            visit.status ===
+            "changes_requested"
+        ).length,
       rejected:
         visitsWithStops.filter(
           (visit) =>
             visit.status ===
             "rejected"
         ).length,
-
     };
-
-
     return res.json({
-
       success: true,
-
       summary,
-
       visits:
         visitsWithStops,
-
     });
-
-
   } catch (error) {
-
     console.error(
       "Department field visits error",
       error
     );
-
-
     return res
       .status(500)
       .json({
-
         success: false,
-
         message:
           "Failed to fetch field visits.",
-
       });
-
   }
-
 };
-
-
 /* =========================================================
    ADMIN - REVIEW FIELD VISIT
 ========================================================= */
-
 const reviewFieldVisit =
 async (
   req,
   res
 ) => {
-
   try {
-
     const {
       admin,
       error,
@@ -1702,48 +1358,30 @@ async (
       await getLoggedInAdmin(
         req
       );
-
-
     if (error) {
-
       return res
         .status(
           error.status
         )
         .json({
-
           success: false,
-
           message:
             error.message,
-
         });
-
     }
-
-
     const visitId =
       Number(
         req.params.visitId
       );
-
-
     if (!visitId) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Invalid field visit.",
-
         });
-
     }
-
-
     const status =
       String(
         req.body?.status ||
@@ -1751,8 +1389,6 @@ async (
       )
         .toLowerCase()
         .trim();
-
-
     const reviewRemark =
       String(
         req.body
@@ -1760,146 +1396,116 @@ async (
           req.body?.remark ||
           ""
       ).trim();
-
-
     if (
       ![
         "approved",
+        "changes_requested",
         "rejected",
       ].includes(
         status
       )
     ) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
-            "Status must be approved or rejected.",
-
+            "Status must be approved, changes_requested, or rejected.",
         });
-
     }
-
-
+    if (
+      status === "changes_requested" &&
+      !reviewRemark
+    ) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "A remark is required when requesting changes.",
+      });
+    }
     /*
       EXISTING SECURITY:
-
       Admin can review only an Employee
       Field Visit from their department.
-
       Admin's own visit is NOT handled here.
     */
-
     const [visitRows] =
       await db.query(
         `
           SELECT
-
             fv.visit_id,
             fv.employee_id,
             fv.status,
-
             employee.full_name,
             employee.department_id
-
           FROM employee_field_visits fv
-
           INNER JOIN users employee
             ON employee.user_id =
                fv.employee_id
-
           INNER JOIN roles employee_role
             ON employee_role.role_id =
                employee.role_id
-
           WHERE
-
             fv.visit_id = ?
-
             AND
             (
               EXISTS
               (
                 SELECT 1
-
                 FROM user_departments
                   employee_ud
-
                 WHERE
                   employee_ud.user_id =
                     employee.user_id
-
                   AND
-
                   employee_ud.department_id
                   IN
                   (
                     SELECT
                       admin_ud.department_id
-
                     FROM user_departments
                       admin_ud
-
                     WHERE
                       admin_ud.user_id = ?
                   )
               )
-
               OR
-
               employee.department_id
               IN
               (
                 SELECT
                   admin_ud.department_id
-
                 FROM user_departments
                   admin_ud
-
                 WHERE
                   admin_ud.user_id = ?
               )
-
               OR
-
               EXISTS
               (
                 SELECT 1
-
                 FROM user_departments
                   employee_ud
-
                 WHERE
                   employee_ud.user_id =
                     employee.user_id
-
                   AND
                   employee_ud.department_id =
                     ?
               )
-
               OR
-
               employee.department_id =
                 ?
             )
-
             AND
               employee.user_id <> ?
-
             AND
-
             LOWER(
               COALESCE(
                 employee_role.role_name,
                 ''
               )
             ) = 'employee'
-
           LIMIT 1
         `,
         [
@@ -1911,28 +1517,17 @@ async (
           admin.user_id,
         ]
       );
-
-
     if (!visitRows.length) {
-
       return res
         .status(404)
         .json({
-
           success: false,
-
           message:
             "Only employee field visits from your department can be reviewed by Admin.",
-
         });
-
     }
-
-
     const currentVisit =
       visitRows[0];
-
-
     if (
       String(
         currentVisit.status ||
@@ -1940,169 +1535,120 @@ async (
       ).toLowerCase() !==
       "pending"
     ) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Only pending field visits can be reviewed.",
-
         });
-
     }
-
-
     await db.query(
       `
         UPDATE employee_field_visits
-
         SET
           status = ?,
           reviewed_by = ?,
           reviewed_at = NOW(),
           review_remark = ?,
           updated_at = NOW()
-
         WHERE visit_id = ?
       `,
       [
         status,
-
         admin.user_id,
-
         reviewRemark ||
           null,
-
         visitId,
       ]
     );
-
-
     const [updatedRows] =
       await db.query(
         `
           SELECT
-
             fv.visit_id,
             fv.employee_id,
             fv.visit_type,
-
             DATE_FORMAT(
               fv.visit_date,
               '%Y-%m-%d'
             ) AS visit_date,
-
             fv.duration_type,
             fv.half_day_session,
-
             fv.location,
             fv.comment,
-
             fv.conclusion,
             fv.remark,
-
             fv.status,
             fv.review_remark,
-
             DATE_FORMAT(
               fv.reviewed_at,
               '%Y-%m-%d %H:%i:%s'
             ) AS reviewed_at,
-
             employee.full_name,
             employee.email,
-
             reviewer.full_name
               AS reviewed_by_name
-
           FROM employee_field_visits fv
-
           INNER JOIN users employee
             ON employee.user_id =
                fv.employee_id
-
           LEFT JOIN users reviewer
             ON reviewer.user_id =
                fv.reviewed_by
-
           WHERE
             fv.visit_id = ?
-
           LIMIT 1
         `,
         [
           visitId,
         ]
       );
-
-
     const updatedVisits =
       await attachFieldVisitStops(
         updatedRows
       );
-
-
     return res.json({
-
       success: true,
-
       message:
         status ===
           "approved"
           ? "Field visit approved successfully."
-          : "Field visit rejected successfully.",
-
+          : status === "changes_requested"
+            ? "Field visit returned to the employee for changes."
+            : "Field visit rejected successfully.",
       visit:
         updatedVisits[0] ||
         null,
-
     });
-
-
   } catch (error) {
-
     console.error(
       "Review field visit error:",
       error
     );
-
-
     return res
       .status(500)
       .json({
-
         success: false,
-
         message:
           "Failed to review field visit.",
-
         error:
           error.message,
-
         sqlMessage:
           error.sqlMessage ||
           null,
-
       });
-
   }
-
 };
 /* =========================================================
    ADMIN - ADD OWN FIELD VISIT
 ========================================================= */
-
 const createAdminFieldVisit =
 async (
   req,
   res
 ) => {
-
   try {
-
     const {
       admin,
       error,
@@ -2110,41 +1656,28 @@ async (
       await getLoggedInAdmin(
         req
       );
-
-
     if (error) {
-
       return res
         .status(
           error.status
         )
         .json({
-
           success: false,
-
           message:
             error.message,
-
         });
-
     }
-
-
     const visitType =
       String(
         req.body?.visit_type ||
           "Sales Visit"
       ).trim() ||
       "Sales Visit";
-
-
     const visitDate =
       String(
         req.body?.visit_date ||
           ""
       ).trim();
-
-
     const durationType =
       String(
         req.body?.duration_type ||
@@ -2152,8 +1685,6 @@ async (
       )
         .trim()
         .toLowerCase();
-
-
     const halfDaySession =
       String(
         req.body
@@ -2162,11 +1693,8 @@ async (
       )
         .trim()
         .toLowerCase();
-
-
     /*
       NEW MULTI-LOCATION SUPPORT.
-
       Existing location/comment request
       automatically becomes Stop 1.
     */
@@ -2174,16 +1702,11 @@ async (
       normalizeFieldVisitStops(
         req.body
       );
-
-
     const firstStop =
       visitStops[0] ||
       null;
-
-
     /*
       KEEP ORIGINAL COLUMNS.
-
       This protects existing frontend,
       attendance and older APIs.
     */
@@ -2193,50 +1716,34 @@ async (
         req.body?.location ||
           ""
       ).trim();
-
-
     const comment =
       firstStop?.description ||
       String(
         req.body?.comment ||
           ""
       ).trim();
-
-
     const conclusion =
       String(
         req.body?.conclusion ||
           ""
       ).trim();
-
-
     const remark =
       String(
         req.body?.remark ||
           ""
       ).trim();
-
-
     /*
       VALIDATION
     */
-
     if (!visitDate) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Visit date is required.",
-
         });
-
     }
-
-
     if (
       ![
         "full_day",
@@ -2245,25 +1752,17 @@ async (
         durationType
       )
     ) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Please select Full Day or Half Day.",
-
         });
-
     }
-
-
     if (
       durationType ===
         "half_day" &&
-
       ![
         "first_half",
         "second_half",
@@ -2271,85 +1770,64 @@ async (
         halfDaySession
       )
     ) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Please select First Half or Second Half.",
-
         });
-
     }
-
-
     if (!location) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Location is required.",
-
         });
-
     }
-
-
     if (!comment) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Comment / reason is required.",
-
         });
-
     }
-
-
     const invalidStop =
       visitStops.find(
         (stop) =>
           !stop.location ||
           !stop.description
       );
-
-
     if (invalidStop) {
-
       return res
         .status(400)
         .json({
-
           success: false,
-
           message:
             "Each field visit location must have a location and description.",
-
         });
-
     }
-
-
+    const descriptionWordCount =
+      getFieldVisitDescriptionWordCount(visitStops);
+    if (descriptionWordCount < 100) {
+      return res.status(400).json({
+        success: false,
+        message:
+          `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+        word_count: descriptionWordCount,
+        minimum_words: 100,
+      });
+    }
     /*
       EXISTING RULE:
-
       Admin cannot approve own visit.
       Visit remains pending for
       Superadmin / Premal.
     */
-
     const [result] =
       await db.query(
         `
@@ -2366,7 +1844,6 @@ async (
             remark,
             status
           )
-
           VALUES
           (
             ?, ?, ?, ?, ?, ?, ?, ?, ?,
@@ -2375,31 +1852,21 @@ async (
         `,
         [
           admin.user_id,
-
           visitType,
-
           visitDate,
-
           durationType,
-
           durationType ===
             "half_day"
             ? halfDaySession
             : null,
-
           location,
-
           comment,
-
           conclusion ||
             null,
-
           remark ||
             null,
         ]
       );
-
-
     /*
       EXISTING TEAM MEMBERS
     */
@@ -2409,12 +1876,9 @@ async (
       )
         ? req.body.visitor_ids
         : [];
-
-
     if (
       teamMembers.length
     ) {
-
       const values =
         teamMembers.map(
           (id) => [
@@ -2422,8 +1886,6 @@ async (
             Number(id),
           ]
         );
-
-
       await db.query(
         `
           INSERT INTO field_visit_members
@@ -2431,17 +1893,13 @@ async (
             visit_id,
             employee_id
           )
-
           VALUES ?
         `,
         [
           values,
         ]
       );
-
     }
-
-
     /*
       NEW:
       SAVE ORDERED VISIT LOCATIONS
@@ -2449,30 +1907,21 @@ async (
     if (
       visitStops.length
     ) {
-
       const stopValues =
         visitStops.map(
           (
             stop,
             index
           ) => [
-
             result.insertId,
-
             index + 1,
-
             stop.location,
-
             stop.visit_time ||
               null,
-
             stop.description ||
               null,
-
           ]
         );
-
-
       await db.query(
         `
           INSERT INTO field_visit_stops
@@ -2483,27 +1932,20 @@ async (
             visit_time,
             description
           )
-
           VALUES ?
         `,
         [
           stopValues,
         ]
       );
-
     }
-
-
     /*
       EXISTING REVIEW TOKEN
     */
-
     const reviewToken =
       crypto
         .randomBytes(32)
         .toString("hex");
-
-
     await db.query(
       `
         INSERT INTO field_visit_review_tokens
@@ -2512,7 +1954,6 @@ async (
           token,
           expires_at
         )
-
         VALUES
         (
           ?,
@@ -2528,79 +1969,54 @@ async (
         reviewToken,
       ]
     );
-
-
     /*
       GET SAVED VISIT
     */
-
     const [visitRows] =
       await db.query(
         `
           SELECT
-
             fv.visit_id,
             fv.employee_id,
             fv.visit_type,
-
             DATE_FORMAT(
               fv.visit_date,
               '%Y-%m-%d'
             ) AS visit_date,
-
             fv.duration_type,
             fv.half_day_session,
-
             fv.location,
             fv.comment,
-
             fv.conclusion,
             fv.remark,
-
             fv.status,
             fv.created_at
-
           FROM employee_field_visits fv
-
           WHERE
             fv.visit_id = ?
-
           LIMIT 1
         `,
         [
           result.insertId,
         ]
       );
-
-
     const savedVisits =
       await attachFieldVisitStops(
         visitRows
       );
-
-
     const savedVisit =
       savedVisits[0] ||
       null;
-
-
     /*
       EXISTING EMAIL FLOW
     */
-
     let emailResult = {
-
       sent:
         false,
-
       skipped:
         true,
-
     };
-
-
     try {
-
       const durationLabel =
         durationType ===
           "half_day"
@@ -2609,100 +2025,74 @@ async (
             ? "Half Day - First Half"
             : "Half Day - Second Half"
           : "Full Day";
-
-
       const subject =
         `Admin Field Visit - ${
           admin.full_name ||
           "Admin"
         }`;
-
-
       /*
         Keep email display unchanged
         for now.
-
         Stop 1 remains Location / Reason.
       */
       const text = `
 An Admin Field Visit has been submitted for Superadmin approval.
-
 Name: ${admin.full_name || "-"}
 Email: ${admin.email || "-"}
 Department: ${admin.department_name || "-"}
 Role: Admin
-
 Visit Type: ${visitType}
 Date: ${visitDate}
 Duration: ${durationLabel}
 Location: ${location}
-
 Reason:
 ${comment}
-
 Status: Pending Superadmin Approval
-
 Review Link:
 https://myvol.in/superadmin/field-visits?visitId=${result.insertId}
-
 Regards,
 Valencia RMS
 `;
-
-
       const html = `
         <div style="font-family:Arial">
-
           <h2 style="color:#ff5733">
             Admin Field Visit
           </h2>
-
           <p>
             An Admin Field Visit has been submitted for Superadmin approval.
           </p>
-
           <p>
             <b>Name:</b>
             ${admin.full_name || "-"}
             <br/>
-
             <b>Department:</b>
             ${admin.department_name || "-"}
             <br/>
-
             <b>Visit Type:</b>
             ${visitType}
             <br/>
-
             <b>Date:</b>
             ${visitDate}
             <br/>
-
             <b>Duration:</b>
             ${durationLabel}
             <br/>
-
             <b>Location:</b>
             ${location}
             <br/>
-
             <b>Reason:</b>
             ${comment}
             <br/>
-
             <b>Status:</b>
             Pending Superadmin Approval
           </p>
-
           <table
             cellpadding="0"
             cellspacing="0"
             border="0"
             style="margin:20px 0;"
           >
-
             <tr>
-
               <td
                 style="
                   background:#ff5733;
@@ -2710,7 +2100,6 @@ Valencia RMS
                   text-align:center;
                 "
               >
-
                 <a
                   href="https://myvol.in/superadmin/field-visits?visitId=${result.insertId}"
                   style="
@@ -2724,22 +2113,15 @@ Valencia RMS
                 >
                   Review Field Visit
                 </a>
-
               </td>
-
             </tr>
-
           </table>
-
           <p>
             Regards,<br/>
             Valencia RMS
           </p>
-
         </div>
       `;
-
-
       /*
         EXISTING APPROVERS:
         - all Superadmins
@@ -2751,35 +2133,25 @@ Valencia RMS
         await db.query(
           `
             SELECT DISTINCT
-
               u.email
-
             FROM users u
-
             LEFT JOIN roles r
               ON r.role_id =
                  u.role_id
-
             WHERE
-
               LOWER(
                 COALESCE(
                   u.status,
                   'active'
                 )
               ) <> 'deleted'
-
               AND
-
               u.email
                 IS NOT NULL
-
               AND
-
               TRIM(
                 u.email
               ) <> ''
-
               AND
               (
                 LOWER(
@@ -2788,9 +2160,7 @@ Valencia RMS
                     ''
                   )
                 ) = 'superadmin'
-
                 OR
-
                 LOWER(
                   TRIM(
                     u.email
@@ -2800,8 +2170,6 @@ Valencia RMS
               )
           `
         );
-
-
       const toEmails = [
         ...new Set(
           reviewerRows
@@ -2817,8 +2185,6 @@ Valencia RMS
             .filter(Boolean)
         ),
       ];
-
-
       const ccEmails = [
         HR_FIELD_VISIT_EMAIL,
       ].filter(
@@ -2832,137 +2198,250 @@ Valencia RMS
               .toLowerCase()
           )
       );
-
-
       const mailResponse =
         await sendMail({
-
           to:
             toEmails,
-
           cc:
             ccEmails,
-
           subject,
-
           text,
-
           html,
-
           replyTo:
             admin.email ||
             undefined,
-
         });
-
-
       emailResult = {
-
         sent:
           !mailResponse
             ?.skipped,
-
         skipped:
           Boolean(
             mailResponse
               ?.skipped
           ),
-
         messageId:
           mailResponse
             ?.messageId ||
           null,
-
       };
-
-
     } catch (
       emailError
     ) {
-
       console.error(
         "Admin field visit email failed:",
         emailError
       );
-
-
       emailResult = {
-
         sent:
           false,
-
         skipped:
           false,
-
         error:
           emailError.message,
-
       };
-
     }
-
-
     return res
       .status(200)
       .json({
-
         success:
           true,
-
         message:
           "Field visit added successfully.",
-
         visit:
           savedVisit,
-
         email:
           emailResult,
-
       });
-
-
   } catch (error) {
-
     console.error(
       "Create Admin field visit error:",
       error
     );
-
-
     return res
       .status(500)
       .json({
-
         success:
           false,
-
         message:
           "Failed to add field visit.",
-
         error:
           error.message,
-
         sqlMessage:
           error.sqlMessage ||
           null,
-
       });
-
   }
-
+};
+const resubmitAdminFieldVisit = async (req, res) => {
+  let connection;
+  try {
+    const { admin, error } = await getLoggedInAdmin(req);
+    if (error) {
+      return res.status(error.status).json({
+        success: false,
+        message: error.message,
+      });
+    }
+    const adminId = Number(admin.user_id);
+    const visitId = Number(req.params.visitId);
+    if (!visitId) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid field visit.",
+      });
+    }
+    const visitDate = String(req.body?.visit_date || "").trim();
+    const conclusion = String(req.body?.conclusion || "").trim();
+    if (!visitDate) {
+      return res.status(400).json({
+        success: false,
+        message: "Visit date is required.",
+      });
+    }
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+    const [visitRows] = await connection.query(
+      `
+        SELECT visit_id, status, comment
+        FROM employee_field_visits
+        WHERE visit_id = ? AND employee_id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [visitId, adminId]
+    );
+    if (!visitRows.length) {
+      await connection.rollback();
+      return res.status(404).json({
+        success: false,
+        message: "Admin field visit not found.",
+      });
+    }
+    if (
+      String(visitRows[0].status || "")
+        .trim()
+        .toLowerCase() !== "changes_requested"
+    ) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message:
+          "Only a field visit returned for changes can be edited and resubmitted.",
+      });
+    }
+    const [existingStops] = await connection.query(
+      `
+        SELECT stop_id, description
+        FROM field_visit_stops
+        WHERE visit_id = ?
+        ORDER BY sequence_no, stop_id
+      `,
+      [visitId]
+    );
+    const submittedStops = Array.isArray(req.body?.visit_stops)
+      ? req.body.visit_stops
+      : [];
+    const descriptions = existingStops.length
+      ? existingStops.map((stop, index) => {
+          const submitted =
+            submittedStops.find(
+              (item) => Number(item?.stop_id) === Number(stop.stop_id)
+            ) || submittedStops[index];
+          return String(
+            submitted?.description ??
+              (index === 0 ? req.body?.comment || "" : "")
+          ).trim();
+        })
+      : [
+          String(
+            submittedStops[0]?.description || req.body?.comment || ""
+          ).trim(),
+        ];
+    if (descriptions.some((description) => !description)) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: "Description is required for every existing visit location.",
+      });
+    }
+    const descriptionWordCount = descriptions.reduce(
+      (total, description) => total + countFieldVisitWords(description),
+      0
+    );
+    if (descriptionWordCount < 100) {
+      await connection.rollback();
+      return res.status(400).json({
+        success: false,
+        message: `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+        word_count: descriptionWordCount,
+        minimum_words: 100,
+      });
+    }
+    await connection.query(
+      `
+        UPDATE employee_field_visits
+        SET
+          visit_date = ?,
+          comment = ?,
+          conclusion = ?,
+          status = 'pending',
+          updated_at = NOW()
+        WHERE visit_id = ? AND employee_id = ?
+      `,
+      [
+        visitDate,
+        descriptions[0],
+        conclusion || null,
+        visitId,
+        adminId,
+      ]
+    );
+    for (let index = 0; index < existingStops.length; index += 1) {
+      await connection.query(
+        `
+          UPDATE field_visit_stops
+          SET description = ?, updated_at = NOW()
+          WHERE stop_id = ? AND visit_id = ?
+        `,
+        [descriptions[index], existingStops[index].stop_id, visitId]
+      );
+    }
+    await connection.commit();
+    return res.json({
+      success: true,
+      message:
+        "Visit date, description and conclusion updated and resubmitted for approval.",
+      visit_id: visitId,
+      status: "pending",
+      word_count: descriptionWordCount,
+    });
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error("Resubmit Admin field visit error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update and resubmit Admin field visit.",
+      error: error.message,
+      sqlMessage: error.sqlMessage || null,
+    });
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
 };
 /* =========================================================
    ADMIN - GET OWN FIELD VISITS
 ========================================================= */
-
 const getAdminFieldVisits =
 async (
   req,
   res
 ) => {
-
   try {
-
     const {
       admin,
       error,
@@ -2970,91 +2449,62 @@ async (
       await getLoggedInAdmin(
         req
       );
-
-
     if (error) {
-
       return res
         .status(
           error.status
         )
         .json({
-
           success: false,
-
           message:
             error.message,
-
         });
-
     }
-
-
     const [visits] =
       await db.query(
         `
           SELECT
-
             fv.*,
-
             creator.full_name,
-
             (
               SELECT GROUP_CONCAT(
                 DISTINCT
                 member_user.full_name
-
                 ORDER BY
                   member_user.full_name
-
                 SEPARATOR ', '
               )
-
               FROM field_visit_members
                 member_link
-
               INNER JOIN users
                 member_user
-
                 ON
                   member_user.user_id =
                   member_link.employee_id
-
               WHERE
                 member_link.visit_id =
                 fv.visit_id
-
             ) AS team_members
-
           FROM employee_field_visits fv
-
           LEFT JOIN users creator
             ON creator.user_id =
                fv.employee_id
-
           WHERE
           (
             fv.employee_id = ?
-
             OR
-
             EXISTS
             (
               SELECT 1
-
               FROM field_visit_members
                 fvm2
-
               WHERE
                 fvm2.visit_id =
                   fv.visit_id
-
                 AND
-
                 fvm2.employee_id = ?
             )
           )
-
           ORDER BY
             fv.visit_date DESC,
             fv.visit_id DESC
@@ -3064,21 +2514,14 @@ async (
           admin.user_id,
         ]
       );
-
-
     const visitsWithStops =
       await attachFieldVisitStops(
         visits
       );
-
-
     visitsWithStops.forEach(
       (visit) => {
-
         visit.all_people = [
-
           visit.full_name,
-
           ...(
             visit.team_members
               ? visit.team_members.split(
@@ -3086,117 +2529,77 @@ async (
                 )
               : []
           ),
-
         ].filter(Boolean);
-
       }
     );
-
-
     return res.json({
-
       success: true,
-
       visits:
         visitsWithStops,
-
     });
-
-
   } catch (error) {
-
     console.error(
       "Get Admin field visits error:",
       error
     );
-
-
     return res
       .status(500)
       .json({
-
         success: false,
-
         message:
           "Failed to fetch Admin field visits.",
-
       });
-
   }
-
 };
 const getEmployeesForFieldVisit = async(req,res)=>{
-
 try{
-
 const [rows] = await db.query(
 `
 SELECT
 u.user_id,
 u.full_name,
 r.role_name
-
 FROM users u
-
 LEFT JOIN roles r
 ON r.role_id = u.role_id
-
 WHERE u.user_id != ?
-
 AND LOWER(r.role_name) IN(
 'employee',
 'admin',
 'administrator'
 )
-
 ORDER BY u.full_name ASC
 `,
 [
 req.user.user_id
 ]
 );
-
-
 return res.json({
 success:true,
 employees:rows
 });
-
-
 }
 catch(error){
-
 console.error(
 "ADMIN FIELD VISIT EMPLOYEE ERROR",
 error
 );
-
 return res.status(500).json({
 success:false,
 message:error.message
 });
-
 }
-
 };
 module.exports = {
-
  getDepartmentAttendance,
-
  getDepartmentFieldVisits,
-
  reviewFieldVisit,
-
  getAdminDepartmentAttendance:
  getDepartmentAttendance,
-
  getAdminAttendance:
  getDepartmentAttendance,
-
  createAdminFieldVisit,
-
+ resubmitAdminFieldVisit,
  getAdminFieldVisits,
-
 getEmployeesForFieldVisit,
-
 };

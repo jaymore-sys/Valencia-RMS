@@ -2449,6 +2449,345 @@ const addEmployeeProjectSubtask = async (
 
 /*
 ========================================================
+EDIT EMPLOYEE SUBTASK
+
+Rules:
+- Subtask creator can edit it.
+- Parent Main Task must still be assigned to employee.
+- Cannot change parent Main Task.
+- Cannot change assignee.
+- Cannot edit completed Subtask.
+- Cannot edit when Main Task / Project is locked.
+- Dates must remain inside Main Task dates.
+========================================================
+*/
+
+const updateEmployeeProjectSubtask = async (req, res) => {
+  const connection = await db.getConnection();
+
+  try {
+    const userId = getLoggedInUserId(req);
+
+    const projectId = Number(
+      req.params.projectId
+    );
+
+    const subtaskId = Number(
+      req.params.subtaskId
+    );
+
+    const title = String(
+      req.body.title ||
+      req.body.task_title ||
+      ""
+    ).trim();
+
+    const description = String(
+      req.body.description ||
+      req.body.task_description ||
+      ""
+    ).trim();
+
+    const startDate = formatDate(
+      req.body.start_date
+    );
+
+    const dueDate = formatDate(
+      req.body.due_date ||
+      req.body.end_date
+    );
+
+    if (!projectId || !subtaskId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Project ID and Subtask ID are required.",
+      });
+    }
+
+    if (!title) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask title is required.",
+      });
+    }
+
+    if (!startDate || !dueDate) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask start date and deadline are required.",
+      });
+    }
+
+    if (startDate > dueDate) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Subtask start date cannot be after deadline.",
+      });
+    }
+
+    await connection.beginTransaction();
+
+    /*
+    Employee must have access to parent Main Task.
+    */
+    const [rows] = await connection.query(
+      `
+      SELECT
+        st.task_id,
+        st.parent_task_id,
+        st.project_id,
+        st.created_by_user_id,
+        st.status,
+        st.is_checked,
+
+        mt.status AS main_task_status,
+
+        DATE_FORMAT(
+          mt.start_date,
+          '%Y-%m-%d'
+        ) AS main_task_start_date,
+
+        DATE_FORMAT(
+          mt.due_date,
+          '%Y-%m-%d'
+        ) AS main_task_due_date,
+
+        p.status AS project_status
+
+      FROM tasks st
+
+      INNER JOIN tasks mt
+        ON mt.task_id =
+           st.parent_task_id
+
+      INNER JOIN task_assignments ta
+        ON ta.task_id =
+           mt.task_id
+
+      INNER JOIN projects p
+        ON p.project_id =
+           mt.project_id
+
+      WHERE
+        st.task_id = ?
+
+        AND st.project_id = ?
+
+        AND ta.employee_id = ?
+
+        AND st.parent_task_id IS NOT NULL
+        AND st.parent_task_id <> 0
+
+      LIMIT 1
+      `,
+      [
+        subtaskId,
+        projectId,
+        userId,
+      ]
+    );
+
+    if (!rows.length) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message:
+          "Subtask not found or you are not assigned to its Main Task.",
+      });
+    }
+
+    const subtask = rows[0];
+
+    /*
+    Only the employee who created the Subtask
+    can edit its details.
+    */
+    if (
+      Number(
+        subtask.created_by_user_id
+      ) !== Number(userId)
+    ) {
+      await connection.rollback();
+
+      return res.status(403).json({
+        success: false,
+        message:
+          "You can edit only Subtasks created by you.",
+      });
+    }
+
+    /*
+    Completed Subtask cannot be edited.
+    */
+    if (
+      Number(
+        subtask.is_checked || 0
+      ) === 1 ||
+      normalizeStatus(
+        subtask.status
+      ) === "completed"
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "Completed Subtasks cannot be edited.",
+      });
+    }
+
+    /*
+    Main Task must still allow Subtask changes.
+    */
+    if (
+      isMainTaskLockedForSubtasks(
+        subtask.main_task_status
+      )
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          `Subtasks cannot be edited while the Main Task is ${getStatusLabel(
+            subtask.main_task_status
+          )}.`,
+      });
+    }
+
+    /*
+    Project must not be locked.
+    */
+    if (
+      isProjectLocked(
+        subtask.project_status
+      )
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          "This Project is locked. Subtasks cannot be edited.",
+      });
+    }
+
+    /*
+    Dates must remain inside Main Task dates.
+    */
+    if (
+      subtask.main_task_start_date &&
+      startDate <
+        subtask.main_task_start_date
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          `Subtask start date cannot be before Main Task start date (${subtask.main_task_start_date}).`,
+      });
+    }
+
+    if (
+      subtask.main_task_due_date &&
+      dueDate >
+        subtask.main_task_due_date
+    ) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message:
+          `Subtask deadline cannot exceed Main Task deadline (${subtask.main_task_due_date}).`,
+      });
+    }
+
+    /*
+    Only editable fields are changed.
+    Parent Main Task, assignee, creator,
+    status and review fields stay untouched.
+    */
+    await connection.query(
+      `
+      UPDATE tasks
+
+      SET
+        task_title = ?,
+        task_description = ?,
+        start_date = ?,
+        due_date = ?,
+        updated_at = NOW()
+
+      WHERE
+        task_id = ?
+      `,
+      [
+        title,
+        description,
+        startDate,
+        dueDate,
+        subtaskId,
+      ]
+    );
+
+    await connection.commit();
+
+    const subtasks =
+      await getSubtasksForMainTask(
+        db,
+        subtask.parent_task_id
+      );
+
+    return res.json({
+      success: true,
+
+      message:
+        "Subtask updated successfully.",
+
+      subtask_id:
+        subtaskId,
+
+      main_task_id:
+        subtask.parent_task_id,
+
+      subtasks,
+    });
+  }
+  catch (error) {
+    try {
+      await connection.rollback();
+    }
+    catch {}
+
+    console.error(
+      "Edit employee Subtask error:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Failed to edit Subtask.",
+      error:
+        error.message,
+      sqlMessage:
+        error.sqlMessage || null,
+    });
+  }
+  finally {
+    connection.release();
+  }
+};
+
+
+/*
+========================================================
 MARK SHARED SUBTASK COMPLETE
 
 Any employee assigned to the parent Main Task
@@ -2689,15 +3028,10 @@ const updateEmployeeProjectSubtaskStatus =
     }
   };
 
-/*
-========================================================
-EXPORTS
-========================================================
-*/
-
 module.exports = {
   getEmployeeProjects,
   getEmployeeProjectSubtasks,
   addEmployeeProjectSubtask,
+  updateEmployeeProjectSubtask,
   updateEmployeeProjectSubtaskStatus,
 };

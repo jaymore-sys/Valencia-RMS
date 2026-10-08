@@ -1118,10 +1118,14 @@ const EmployeeProfile = () => {
               <div className="vnl-banner-picker">
 
                 {[
-                  ["paper", "Editorial"],
-                  ["grid", "90s Grid"],
-                  ["soft", "Soft Shapes"],
-                ].map(([key, label]) => (
+  ["paper", "Editorial"],
+  ["grid", "90s Grid"],
+  ["soft", "Soft Shapes"],
+  ["bows", "Bows"],
+  ["spider", "Spider Web"],
+  ["popcorn", "Popcorn"],
+  ["checks", "Checks"],
+].map(([key, label]) => (
 
                   <button
                     key={key}

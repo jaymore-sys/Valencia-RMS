@@ -1329,6 +1329,306 @@
     ),
     #fff8f4;
 }
+/* =========================================================
+   EXTRA PROFILE BANNERS
+========================================================= */
+
+
+/* =========================
+   BOWS
+========================= */
+
+.vnl-profile-hero.banner-bows {
+  position: relative;
+
+  background:
+    radial-gradient(
+      circle at 18% 20%,
+      rgba(255, 192, 215, 0.25),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 78% 75%,
+      rgba(255, 168, 200, 0.18),
+      transparent 28%
+    ),
+    linear-gradient(
+      120deg,
+      #fff7fa 0%,
+      #ffeaf2 50%,
+      #fff9fb 100%
+    );
+}
+
+/* REMOVE DEFAULT GRID / DOT DECORATION */
+
+.vnl-profile-hero.banner-bows .vnl-profile-hero-decoration {
+  display: none;
+}
+
+/* TOP BOWS */
+
+.vnl-profile-hero.banner-bows::before {
+  content: "🎀      🎀      🎀";
+
+  position: absolute;
+  top: 30px;
+  right: 70px;
+
+  font-size: 36px;
+  line-height: 1;
+
+  opacity: 0.85;
+
+  transform: rotate(-5deg);
+
+  z-index: 1;
+
+  pointer-events: none;
+}
+
+/* BOTTOM BOWS */
+
+.vnl-profile-hero.banner-bows::after {
+  content: "🎀          🎀";
+
+  position: absolute;
+  right: 150px;
+  bottom: 30px;
+
+  font-size: 28px;
+
+  opacity: 0.58;
+
+  transform: rotate(6deg);
+
+  z-index: 1;
+
+  pointer-events: none;
+}
+
+/* KEEP PROFILE CONTENT ABOVE BOWS */
+
+.vnl-profile-hero.banner-bows .vnl-profile-hero-content,
+.vnl-profile-hero.banner-bows .vnl-profile-hero-actions {
+  position: relative;
+  z-index: 3;
+}
+
+
+/* =========================
+   SPIDER WEB
+========================= */
+
+.vnl-profile-hero.banner-spider {
+  background:
+    radial-gradient(
+      circle at 82% 50%,
+      rgba(255, 255, 255, 0.14),
+      transparent 25%
+    ),
+    linear-gradient(
+      120deg,
+      #d92c3a 0%,
+      #bb1f32 42%,
+      #233a75 100%
+    );
+}
+
+.vnl-profile-hero.banner-spider::before {
+  content: "";
+  position: absolute;
+
+  width: 320px;
+  height: 320px;
+
+  right: -45px;
+  top: -80px;
+
+  border-radius: 50%;
+
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      transparent 0 23px,
+      rgba(255, 255, 255, 0.22) 24px 25px
+    );
+
+  opacity: 0.8;
+
+  pointer-events: none;
+}
+
+.vnl-profile-hero.banner-spider::after {
+  content: "";
+  position: absolute;
+
+  width: 280px;
+  height: 280px;
+
+  right: -25px;
+  top: -50px;
+
+  background:
+    linear-gradient(
+      0deg,
+      transparent 49.4%,
+      rgba(255, 255, 255, 0.20) 50%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      30deg,
+      transparent 49.4%,
+      rgba(255, 255, 255, 0.20) 50%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      60deg,
+      transparent 49.4%,
+      rgba(255, 255, 255, 0.20) 50%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      90deg,
+      transparent 49.4%,
+      rgba(255, 255, 255, 0.20) 50%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      120deg,
+      transparent 49.4%,
+      rgba(255, 255, 255, 0.20) 50%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      150deg,
+      transparent 49.4%,
+      rgba(255, 255, 255, 0.20) 50%,
+      transparent 50.6%
+    );
+
+  border-radius: 50%;
+
+  opacity: 0.9;
+
+  pointer-events: none;
+}
+
+
+/* Make Spider banner text readable */
+
+.vnl-profile-hero.banner-spider
+.vnl-profile-eyebrow,
+
+.vnl-profile-hero.banner-spider
+.vnl-profile-intro h1,
+
+.vnl-profile-hero.banner-spider
+.vnl-profile-quote {
+  color: #ffffff;
+}
+
+.vnl-profile-hero.banner-spider
+.vnl-profile-tags span {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.vnl-profile-hero.banner-spider
+.vnl-profile-tags span.role {
+  background: rgba(255, 255, 255, 0.92);
+  color: #25386d;
+}
+
+
+/* =========================
+   POPCORN
+========================= */
+
+.vnl-profile-hero.banner-popcorn {
+  background:
+    radial-gradient(
+      circle at 12% 25%,
+      rgba(255, 213, 79, 0.20),
+      transparent 18%
+    ),
+    radial-gradient(
+      circle at 82% 72%,
+      rgba(239, 68, 68, 0.11),
+      transparent 22%
+    ),
+    linear-gradient(
+      120deg,
+      #fff9e9,
+      #fff6dc 50%,
+      #fffdf8
+    );
+}
+
+.vnl-profile-hero.banner-popcorn::before {
+  content: "🍿";
+  position: absolute;
+
+  right: 55px;
+  top: 24px;
+
+  font-size: 74px;
+
+  opacity: 0.24;
+  transform: rotate(9deg);
+
+  pointer-events: none;
+}
+
+.vnl-profile-hero.banner-popcorn::after {
+  content: "●  ●  ●  ●  ●";
+  position: absolute;
+
+  right: 40px;
+  bottom: 22px;
+
+  color: #e53e3e;
+
+  font-size: 14px;
+  letter-spacing: 11px;
+
+  opacity: 0.18;
+
+  pointer-events: none;
+}
+
+
+/* =========================
+   CHECKS
+========================= */
+
+.vnl-profile-hero.banner-checks {
+  background-color: #fffdf9;
+
+  background-image:
+    linear-gradient(
+      45deg,
+      rgba(17, 24, 39, 0.035) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(17, 24, 39, 0.035) 75%
+    ),
+    linear-gradient(
+      45deg,
+      rgba(255, 87, 51, 0.055) 25%,
+      transparent 25%,
+      transparent 75%,
+      rgba(255, 87, 51, 0.055) 75%
+    );
+
+  background-position:
+    0 0,
+    22px 22px;
+
+  background-size:
+    44px 44px;
+}
 
 .banner-choice strong {
   color: #334155;

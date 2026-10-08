@@ -1017,3 +1017,174 @@
     font-size: 18px;
   }
 }
+/* =========================================================
+   ADD ONLY: HR LEAVE MANAGEMENT
+   Paste this at the very bottom of the existing
+   frontend/src/layouts/hrAttendance.css file.
+========================================================= */
+
+.hr-button.leave-management {
+  border: 1px solid var(--hr-orange);
+  background: #fff7f4;
+  color: var(--hr-orange);
+}
+
+.hr-button.leave-management:hover {
+  background: #ffede8;
+}
+
+.hr-modal:has(.hr-leave-manager) {
+  width: calc(100% - 40px);
+  max-width: 980px;
+  max-height: 92vh;
+  overflow: hidden;
+}
+
+.hr-modal:has(.hr-leave-manager) .hr-modal-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+}
+
+.hr-leave-manager {
+  max-height: calc(92vh - 140px);
+  padding: 0 18px 22px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.hr-leave-employee-picker {
+  padding-right: 0;
+  padding-left: 0;
+}
+
+.hr-leave-employee-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 15px;
+  border: 1px solid var(--hr-border);
+  border-radius: 10px;
+  background: #f9fafb;
+}
+
+.hr-leave-employee-bar > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hr-leave-employee-bar span,
+.hr-leave-employee-bar small {
+  color: var(--hr-muted);
+  font-size: 11px;
+}
+
+.hr-leave-balance-section {
+  margin-top: 18px;
+}
+
+.hr-leave-action-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.hr-leave-action-tabs button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--hr-border);
+  border-radius: 9px;
+  background: #fff;
+  color: #475467;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hr-leave-action-tabs button.active {
+  border-color: var(--hr-orange);
+  background: #fff4f0;
+  color: var(--hr-orange);
+}
+
+.hr-managed-leave-form {
+  margin-top: 12px;
+  padding: 15px;
+  border: 1px solid var(--hr-border);
+  border-radius: 11px;
+  background: #fff;
+}
+
+.hr-leave-history-section {
+  margin-top: 22px;
+}
+
+.hr-leave-history-section h4 {
+  margin: 0 0 10px;
+  color: var(--hr-text);
+  font-size: 14px;
+}
+
+.hr-leave-history-list {
+  overflow: hidden;
+  border: 1px solid var(--hr-border);
+  border-radius: 10px;
+  background: #fff;
+}
+
+.hr-leave-history-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.2fr) 100px 115px minmax(200px, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #f2f4f7;
+  box-sizing: border-box;
+  font-size: 11px;
+}
+
+.hr-leave-history-row:last-child {
+  border-bottom: 0;
+}
+
+.hr-leave-history-row > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hr-leave-history-row small {
+  color: var(--hr-muted);
+  line-height: 1.35;
+}
+
+.hr-leave-history-row.adjustment > span:nth-child(2) {
+  color: #067647;
+  font-weight: 800;
+}
+
+@media (max-width: 700px) {
+  .hr-modal:has(.hr-leave-manager) {
+    width: calc(100% - 20px);
+  }
+
+  .hr-leave-manager {
+    padding: 0 12px 18px;
+  }
+
+  .hr-leave-action-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .hr-leave-history-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hr-leave-history-row > small {
+    grid-column: 1 / -1;
+  }
+}
