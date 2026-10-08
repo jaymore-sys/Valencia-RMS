@@ -11,12 +11,12 @@ const {
   getSuperadminUserById,
   getSuperadminProjectOptions,
   getSuperadminOverview,
+  getSuperadminFieldVisits,
+  reviewSuperadminFieldVisit,
 } = require("../controllers/superadmincontroller");
 
 const {
   getSuperadminAttendance,
-  getSuperadminFieldVisits,
-  reviewSuperadminFieldVisit,
 } = require("../controllers/superadminattendancecontroller");
 
 const {
@@ -75,6 +75,12 @@ router.patch(
   ...superadminOnly,
   reviewSuperadminLeave
 );
+
+console.log("FIELD VISIT ROUTE CHECK:", {
+  authMiddleware: typeof authMiddleware,
+  getSuperadminFieldVisits: typeof getSuperadminFieldVisits,
+  reviewSuperadminFieldVisit: typeof reviewSuperadminFieldVisit,
+});
 
 router.get(
   "/field-visits",
