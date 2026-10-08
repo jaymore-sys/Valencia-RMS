@@ -713,9 +713,15 @@ const getAdminCalendar = async (
         });
     }
 
+    const isAdministrator =
+      String(user.role_name).toLowerCase() === "administrator";
+
+    // administrator sees every department, admin only their own
+    const deptId = isAdministrator ? null : user.department_id;
+
     if (
-      String(user.role_name).toLowerCase() !==
-      "admin"
+      !isAdministrator &&
+      String(user.role_name).toLowerCase() !== "admin"
     ) {
       return res.status(403).json({
         success: false,
@@ -752,13 +758,13 @@ const getAdminCalendar = async (
     FROM projects p
 
     WHERE
-      p.department_id = ?
+      (? IS NULL OR p.department_id = ?)
 
     ORDER BY
       p.start_date ASC
     `,
     [
-      user.department_id
+      deptId, deptId
     ]
   );
 
@@ -802,10 +808,7 @@ const getAdminCalendar = async (
           t.assigned_to_user_id
 
         WHERE
-          COALESCE(
-            p.department_id,
-            assigned.department_id
-          ) = ?
+          (? IS NULL OR COALESCE(p.department_id, assigned.department_id) = ?)
 
         AND (
           t.parent_task_id IS NULL
@@ -820,7 +823,7 @@ const getAdminCalendar = async (
         ORDER BY
           t.start_date ASC
         `,
-        [user.department_id]
+        [deptId, deptId]
       );
 
     /*
@@ -882,7 +885,7 @@ GROUP_CONCAT(
       me.employee_id
 
     WHERE
-      m.department_id = ?
+      (? IS NULL OR m.department_id = ?)
 
     GROUP BY
       m.id
@@ -891,7 +894,7 @@ GROUP_CONCAT(
       m.meeting_date ASC,
       m.start_time ASC
     `,
-    [user.department_id]
+    [deptId, deptId]
   );
 
   const formattedMeetings =
@@ -953,7 +956,7 @@ GROUP_CONCAT(
           mt.employee_id
 
         WHERE
-          mt.department_id = ?
+          (? IS NULL OR mt.department_id = ?)
 
         /*
         Meeting-generated Mini Tasks
@@ -969,7 +972,7 @@ GROUP_CONCAT(
           mt.task_date ASC,
           mt.start_time ASC
         `,
-        [user.department_id]
+        [deptId, deptId]
       );
 
     return res.json({

@@ -9,12 +9,11 @@ import {
   Users,
 } from "lucide-react";
 
+import api from "../../api/axios";
 import "../../layouts/adminCalendar.css";
 import "./administratorCalendar.css";
 
-const API =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:5000/api";
+const API = api.defaults.baseURL;
 
 const getAuthHeaders = () => ({
   Authorization:
