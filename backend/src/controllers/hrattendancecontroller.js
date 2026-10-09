@@ -1038,12 +1038,17 @@ const buildHrAttendanceData = async (
 
       fv.visit_type,
 
-      DATE_FORMAT(
-        fv.visit_date,
-        '%Y-%m-%d'
-      ) AS visit_date,
+     DATE_FORMAT(
+  fv.visit_date,
+  '%Y-%m-%d'
+) AS visit_date,
 
-      fv.duration_type,
+DATE_FORMAT(
+  COALESCE(fv.end_date, fv.visit_date),
+  '%Y-%m-%d'
+) AS end_date,
+
+fv.duration_type,
       fv.half_day_session,
       fv.start_time,
       fv.end_time,
@@ -2287,11 +2292,14 @@ const buildHrAttendanceData = async (
         visit_type:
           visit.visit_type,
 
-        visit_date:
-          visit.visit_date,
+       visit_date:
+  visit.visit_date,
 
-        duration_type:
-          visit.duration_type,
+end_date:
+  visit.end_date,
+
+duration_type:
+  visit.duration_type,
 
         half_day_session:
           visit.half_day_session,

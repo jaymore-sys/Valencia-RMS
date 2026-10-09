@@ -2130,7 +2130,13 @@ await fetchEmployeeSummary({
                     <span>{visit.department_name || "-"}</span>
                     <span>{visit.role_name || "-"}</span>
                     <span>{visit.visit_type || "-"}</span>
-                    <span>{displayDate(visit.visit_date)}</span>
+                    <span>
+  {displayDate(visit.visit_date)}
+  {visit.end_date &&
+    String(visit.end_date).slice(0, 10) !==
+      String(visit.visit_date).slice(0, 10) &&
+    ` – ${displayDate(visit.end_date)}`}
+</span>
                     <span>{visitDuration(visit)}</span>
 
                     <span className="ellipsis" title={visit.location || "-"}>

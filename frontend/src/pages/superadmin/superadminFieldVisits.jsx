@@ -908,13 +908,13 @@ const SuperadminFieldVisits = () => {
 
 
                         <td>
-
-                          {
-                            visit.visit_date ||
-                            "-"
-                          }
-
-                        </td>
+  {visit.visit_date
+    ? visit.end_date &&
+      visit.end_date.slice(0, 10) !== visit.visit_date.slice(0, 10)
+      ? `${visit.visit_date.slice(0, 10)} – ${visit.end_date.slice(0, 10)}`
+      : visit.visit_date.slice(0, 10)
+    : "-"}
+</td>
 
 
 
