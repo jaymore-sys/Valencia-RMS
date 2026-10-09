@@ -633,6 +633,7 @@ const isPremal =
   const [visitForm, setVisitForm] = useState({
     visit_type: "Sales Visit",
     visit_date: "",
+    end_date: "",
     duration_type: "full_day",
     half_day_session: "",
     visit_stops: [createEmptyVisitStop()],
@@ -812,6 +813,10 @@ const isPremal =
       );
       return;
     }
+    if (visitForm.end_date && visitForm.end_date < visitForm.visit_date) {
+      setVisitError("End Date cannot be earlier than Visit Date.");
+      return;
+    }
     if (
       visitForm.duration_type === "half_day" &&
       ![
@@ -832,6 +837,7 @@ const isPremal =
         {
           visit_type: visitForm.visit_type,
           visit_date: visitForm.visit_date,
+          end_date: visitForm.end_date || null,
           duration_type:
             visitForm.duration_type,
           half_day_session:
@@ -1448,7 +1454,7 @@ const isPremal =
                             </td>
                             <td style={styles.td}>
                               <strong>
-                                {formatVisitDate(visit.visit_date)}
+                                {formatVisitDate(visit.visit_date)}{visit.end_date && formatVisitDate(visit.end_date) !== formatVisitDate(visit.visit_date) ? ` – ${formatVisitDate(visit.end_date)}` : ""}
                               </strong>
                             </td>
                             <td style={styles.visitDetailsTd}>
@@ -1632,7 +1638,7 @@ const isPremal =
                             </td>
                             <td style={styles.td}>
                               <strong>
-                                {formatVisitDate(visit.visit_date)}
+                                {formatVisitDate(visit.visit_date)}{visit.end_date && formatVisitDate(visit.end_date) !== formatVisitDate(visit.visit_date) ? ` – ${formatVisitDate(visit.end_date)}` : ""}
                               </strong>
                             </td>
                             <td style={styles.visitDetailsTd}>
@@ -1854,7 +1860,7 @@ const isPremal =
                         <tr key={visit.visit_id}>
                           <td style={styles.myVisitDateTd}>
                             <strong>
-                              {formatVisitDate(visit.visit_date)}
+                              {formatVisitDate(visit.visit_date)}{visit.end_date && formatVisitDate(visit.end_date) !== formatVisitDate(visit.visit_date) ? ` – ${formatVisitDate(visit.end_date)}` : ""}
                             </strong>
                           </td>
                           <td style={styles.myVisitDetailsTd}>
@@ -2248,6 +2254,21 @@ const isPremal =
                     setVisitForm((previous) => ({
                       ...previous,
                       visit_date: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label style={styles.visitFormGroup}>
+                <span>End Date (Optional)</span>
+                <input
+                  type="date"
+                  style={styles.visitFormInput}
+                  min={visitForm.visit_date || undefined}
+                  value={visitForm.end_date}
+                  onChange={(event) =>
+                    setVisitForm((previous) => ({
+                      ...previous,
+                      end_date: event.target.value,
                     }))
                   }
                 />

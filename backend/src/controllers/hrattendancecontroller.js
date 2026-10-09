@@ -5402,12 +5402,22 @@ const addHrEmployeeExtraLeave = async (req, res) => {
       adjustmentColumns.map((row) => String(row.Field))
     );
     const insertColumns = [
-      "employee_id",
-      "leave_type",
-      "adjustment_days",
-      "adjusted_by",
-    ];
-    const insertValues = [userId, leaveType, adjustmentDays, hrUserId];
+  "employee_id",
+  "leave_type",
+  "adjustment_type",
+  "adjustment_days",
+  "adjusted_by",
+  "created_by",
+];
+
+const insertValues = [
+  userId,
+  leaveType,
+  "add",
+  adjustmentDays,
+  hrUserId,
+  hrUserId,
+];
     const noteColumn = columns.has("reason")
       ? "reason"
       : columns.has("remark")

@@ -1,38 +1,52 @@
 const db = require("../config/db");
+
 /* =========================================================
    HELPERS
 ========================================================= */
+
 const formatDateOnly = (value) => {
   if (!value) return null;
+
   if (typeof value === "string") {
     return value.slice(0, 10);
   }
+
   const date = new Date(value);
+
   if (Number.isNaN(date.getTime())) {
     return null;
   }
+
   const year = date.getFullYear();
+
   const month = String(
     date.getMonth() + 1
   ).padStart(2, "0");
+
   const day = String(
     date.getDate()
   ).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 };
+
 const parseDateOnly = (value) => {
   return new Date(
     `${value}T00:00:00`
   );
 };
+
 const addOneDay = (date) => {
   const next =
     new Date(date);
+
   next.setDate(
     next.getDate() + 1
   );
+
   return next;
 };
+
 const buildWorkingDates = (
   startDate,
   endDate
@@ -43,11 +57,15 @@ const buildWorkingDates = (
   ) {
     return [];
   }
+
   const dates = [];
+
   let current =
     parseDateOnly(startDate);
+
   const last =
     parseDateOnly(endDate);
+
   while (
     current <= last
   ) {
@@ -55,11 +73,13 @@ const buildWorkingDates = (
       Sunday excluded exactly
       like Admin Attendance.
     */
+
     if (
       current.getDay() !== 0
     ) {
       const year =
         current.getFullYear();
+
       const month =
         String(
           current.getMonth() + 1
@@ -67,6 +87,7 @@ const buildWorkingDates = (
           2,
           "0"
         );
+
       const day =
         String(
           current.getDate()
@@ -74,15 +95,19 @@ const buildWorkingDates = (
           2,
           "0"
         );
+
       dates.push(
         `${year}-${month}-${day}`
       );
     }
+
     current =
       addOneDay(current);
   }
+
   return dates;
 };
+
 const normalizeStatus = (
   status
 ) => {
@@ -92,99 +117,121 @@ const normalizeStatus = (
     )
       .toLowerCase()
       .trim();
+
   if (
     value.includes("leave")
   ) {
     return "leave";
   }
+
   if (
     value.includes("late")
   ) {
     return "late";
   }
+
   if (
     value.includes("absent")
   ) {
     return "absent";
   }
+
   if (
     value.includes("half")
   ) {
     return "half_day";
   }
+
   if (
     value.includes("holiday")
   ) {
     return "holiday";
   }
+
   if (
     value.includes("present")
   ) {
     return "present";
   }
+
   return value || "present";
 };
+
 const getDisplayStatus = (
   status
 ) => {
   const value =
     normalizeStatus(status);
+
   if (
     value === "leave"
   ) {
     return "Leave";
   }
+
   if (
     value === "late"
   ) {
     return "Late";
   }
+
   if (
     value === "absent"
   ) {
     return "Absent";
   }
+
   if (
     value === "half_day"
   ) {
     return "Half Day";
   }
+
   if (
     value === "holiday"
   ) {
     return "Holiday";
   }
+
   return "Present";
 };
+
 const timeToMinutes = (
   timeValue
 ) => {
   if (!timeValue) {
     return null;
   }
+
   const parts =
     String(timeValue)
       .split(":");
+
   if (
     parts.length < 2
   ) {
     return null;
   }
+
   const hours =
     Number(parts[0]);
+
   const minutes =
     Number(parts[1]);
+
   if (
     Number.isNaN(hours) ||
     Number.isNaN(minutes)
   ) {
     return null;
   }
+
   return (
     hours * 60 +
     minutes
   );
 };
+
 const formatMinutes = (
   minutes
 ) => {
@@ -192,28 +239,35 @@ const formatMinutes = (
     Number(
       minutes || 0
     );
+
   if (
     value <= 0
   ) {
     return "-";
   }
+
   const hours =
     Math.floor(
       value / 60
     );
+
   const mins =
     value % 60;
+
   if (
     hours &&
     mins
   ) {
     return `${hours}h ${mins}m`;
   }
+
   if (hours) {
     return `${hours}h`;
   }
+
   return `${mins}m`;
 };
+
 const calculateWorkingHours = (
   record
 ) => {
@@ -227,36 +281,44 @@ const calculateWorkingHours = (
       record.total_minutes
     );
   }
+
   const checkIn =
     timeToMinutes(
       record.check_in_time
     );
+
   const checkOut =
     timeToMinutes(
       record.check_out_time
     );
+
   if (
     checkIn === null ||
     checkOut === null
   ) {
     return "-";
   }
+
   let difference =
     checkOut -
     checkIn;
+
   if (
     difference < 0
   ) {
     difference +=
       24 * 60;
   }
+
   return formatMinutes(
     difference
   );
 };
+
 /* =========================================================
    LOGGED-IN SUPERADMIN
 ========================================================= */
+
 const getLoggedInSuperadmin =
   async (req) => {
     const userId =
@@ -266,6 +328,7 @@ const getLoggedInSuperadmin =
           req.userId ||
           0
       );
+
     if (!userId) {
       return {
         error: {
@@ -275,6 +338,7 @@ const getLoggedInSuperadmin =
         },
       };
     }
+
     const [rows] =
       await db.query(
         `
@@ -287,21 +351,29 @@ const getLoggedInSuperadmin =
           u.designation,
           u.department_id,
           u.status,
+
           r.role_name,
+
           d.department_name
+
         FROM users u
+
         LEFT JOIN roles r
           ON r.role_id =
              u.role_id
+
         LEFT JOIN departments d
           ON d.department_id =
              u.department_id
+
         WHERE
           u.user_id = ?
+
         LIMIT 1
         `,
         [userId]
       );
+
     if (!rows.length) {
       return {
         error: {
@@ -311,8 +383,10 @@ const getLoggedInSuperadmin =
         },
       };
     }
+
     const user =
       rows[0];
+
     if (
       String(
         user.role_name ||
@@ -328,13 +402,16 @@ const getLoggedInSuperadmin =
         },
       };
     }
+
     return {
       user,
     };
   };
+
 /* =========================================================
    BUILD USER ATTENDANCE
 ========================================================= */
+
 const buildUserAttendanceSummary =
   ({
     user,
@@ -343,15 +420,18 @@ const buildUserAttendanceSummary =
   }) => {
     const recordMap =
       new Map();
+
     records.forEach(
       (record) => {
         const date =
           formatDateOnly(
             record.attendance_date
           );
+
         if (!date) {
           return;
         }
+
         if (
           !recordMap.has(
             date
@@ -364,12 +444,14 @@ const buildUserAttendanceSummary =
         }
       }
     );
+
     let present = 0;
     let absent = 0;
     let late = 0;
     let leave = 0;
     let halfDay = 0;
     let holiday = 0;
+
     const completedRecords =
       workingDates.map(
         (date) => {
@@ -377,39 +459,53 @@ const buildUserAttendanceSummary =
             recordMap.get(
               date
             );
+
           /*
             No row =
             Absent, same Admin logic.
           */
+
           if (!record) {
             absent += 1;
+
             return {
               attendance_id:
                 null,
+
               employee_id:
                 user.user_id,
+
               attendance_date:
                 date,
+
               status:
                 "Absent",
+
               check_in_time:
                 "-",
+
               check_out_time:
                 "-",
+
               total_minutes:
                 0,
+
               working_hours:
                 "-",
+
               remarks:
                 "No attendance record",
+
               is_missing_date:
                 true,
             };
           }
+
           const status =
             normalizeStatus(
               record.status
             );
+
           if (
             status === "leave"
           ) {
@@ -436,45 +532,57 @@ const buildUserAttendanceSummary =
           } else {
             present += 1;
           }
+
           return {
             attendance_id:
               record.attendance_id,
+
             employee_id:
               record.employee_id,
+
             attendance_date:
               date,
+
             status:
               getDisplayStatus(
                 record.status
               ),
+
             check_in_time:
               record.check_in_time ||
               "-",
+
             check_out_time:
               record.check_out_time ||
               "-",
+
             total_minutes:
               Number(
                 record.total_minutes ||
                   0
               ),
+
             working_hours:
               calculateWorkingHours(
                 record
               ),
+
             remarks:
               record.remarks ||
               "-",
+
             is_missing_date:
               false,
           };
         }
       );
+
     const actualRecords =
       records
         .map(
           (record) => ({
             ...record,
+
             attendance_date:
               formatDateOnly(
                 record.attendance_date
@@ -494,13 +602,16 @@ const buildUserAttendanceSummary =
             )
           )
         );
+
     const latestAttendance =
       actualRecords[0]
         ?.attendance_date ||
       "-";
+
     const attendanceScore =
       present +
       halfDay * 0.5;
+
     const attendancePercentage =
       workingDates.length > 0
         ? Math.round(
@@ -510,40 +621,60 @@ const buildUserAttendanceSummary =
             ) * 100
           )
         : 0;
+
     return {
       user_id:
         user.user_id,
+
       employee_code:
         user.employee_code,
+
       full_name:
         user.full_name,
+
       email:
         user.email,
+
       phone:
         user.phone,
+
       designation:
         user.designation,
+
       department_id:
         user.department_id,
+
       department_name:
         user.department_name,
+
       role_name:
         user.role_name,
+
       status:
         user.status,
+
       total:
         workingDates.length,
+
       present,
+
       absent,
+
       late,
+
       leave,
+
       half_day:
         halfDay,
+
       holiday,
+
       attendance_percentage:
         attendancePercentage,
+
       latest_attendance_date:
         latestAttendance,
+
       records:
         completedRecords.sort(
           (a, b) =>
@@ -557,9 +688,11 @@ const buildUserAttendanceSummary =
         ),
     };
   };
+
 /* =========================================================
    SUPERADMIN — ALL ORGANIZATION ATTENDANCE
 ========================================================= */
+
 const getSuperadminAttendance =
   async (req, res) => {
     try {
@@ -570,6 +703,7 @@ const getSuperadminAttendance =
         await getLoggedInSuperadmin(
           req
         );
+
       if (error) {
         return res
           .status(
@@ -581,11 +715,14 @@ const getSuperadminAttendance =
               error.message,
           });
       }
+
       /*
         NO department condition.
+
         Super Admin gets ALL
         non-deleted users.
       */
+
       const [users] =
         await db.query(
           `
@@ -598,15 +735,21 @@ const getSuperadminAttendance =
             u.designation,
             u.department_id,
             u.status,
+
             r.role_name,
+
             d.department_name
+
           FROM users u
+
           LEFT JOIN roles r
             ON r.role_id =
                u.role_id
+
           LEFT JOIN departments d
             ON d.department_id =
                u.department_id
+
           WHERE
             LOWER(
               COALESCE(
@@ -614,11 +757,13 @@ const getSuperadminAttendance =
                 'active'
               )
             ) <> 'deleted'
+
           ORDER BY
             d.department_name ASC,
             u.full_name ASC
           `
         );
+
       const userIds =
         users
           .map(
@@ -628,24 +773,32 @@ const getSuperadminAttendance =
               )
           )
           .filter(Boolean);
+
       if (
         !userIds.length
       ) {
         return res.json({
           success: true,
+
           superadmin,
+
           date_range: {
             start_date:
               null,
+
             end_date:
               null,
+
             working_days:
               0,
           },
+
           my_attendance:
             null,
+
           employee_summary:
             [],
+
           organization_totals:
             {
               people: 0,
@@ -657,14 +810,17 @@ const getSuperadminAttendance =
             },
         });
       }
+
       const placeholders =
         userIds
           .map(() => "?")
           .join(",");
+
       /*
         Attendance range across
         entire company.
       */
+
       const [rangeRows] =
         await db.query(
           `
@@ -672,33 +828,41 @@ const getSuperadminAttendance =
             MIN(
               attendance_date
             ) AS start_date,
+
             MAX(
               attendance_date
             ) AS end_date
+
           FROM attendance
+
           WHERE
             employee_id
             IN (${placeholders})
           `,
           userIds
         );
+
       const startDate =
         formatDateOnly(
           rangeRows[0]
             ?.start_date
         );
+
       const endDate =
         formatDateOnly(
           rangeRows[0]
             ?.end_date
         );
+
       const workingDates =
         buildWorkingDates(
           startDate,
           endDate
         );
+
       let attendanceRows =
         [];
+
       if (
         startDate &&
         endDate
@@ -715,12 +879,16 @@ const getSuperadminAttendance =
               total_minutes,
               status,
               remarks
+
             FROM attendance
+
             WHERE
               employee_id
               IN (${placeholders})
+
               AND attendance_date
               BETWEEN ? AND ?
+
             ORDER BY
               attendance_date DESC
             `,
@@ -730,9 +898,11 @@ const getSuperadminAttendance =
               endDate,
             ]
           );
+
         attendanceRows =
           rows;
       }
+
       const summaries =
         users.map(
           (user) => {
@@ -746,6 +916,7 @@ const getSuperadminAttendance =
                     user.user_id
                   )
               );
+
             return buildUserAttendanceSummary(
               {
                 user,
@@ -755,10 +926,12 @@ const getSuperadminAttendance =
             );
           }
         );
+
       /*
         Logged in Super Admin's
         own detailed attendance.
       */
+
       const myAttendance =
         summaries.find(
           (item) =>
@@ -773,13 +946,17 @@ const getSuperadminAttendance =
           {
             user:
               superadmin,
+
             records: [],
+
             workingDates,
           }
         );
+
       /*
         All other organization users.
       */
+
       const employeeSummary =
         summaries.filter(
           (item) =>
@@ -790,6 +967,7 @@ const getSuperadminAttendance =
               superadmin.user_id
             )
         );
+
       const organizationTotals =
         employeeSummary.reduce(
           (
@@ -798,31 +976,37 @@ const getSuperadminAttendance =
           ) => {
             totals.people +=
               1;
+
             totals.total +=
               Number(
                 item.total ||
                   0
               );
+
             totals.present +=
               Number(
                 item.present ||
                   0
               );
+
             totals.absent +=
               Number(
                 item.absent ||
                   0
               );
+
             totals.late +=
               Number(
                 item.late ||
                   0
               );
+
             totals.leave +=
               Number(
                 item.leave ||
                   0
               );
+
             return totals;
           },
           {
@@ -834,31 +1018,43 @@ const getSuperadminAttendance =
             leave: 0,
           }
         );
+
       return res.json({
         success: true,
+
         superadmin,
+
         office_hours: {
           start_time:
             "11:00:00",
+
           end_time:
             "19:30:00",
+
           late_after:
             "11:00:00",
         },
+
         date_range: {
           start_date:
             startDate,
+
           end_date:
             endDate,
+
           working_days:
             workingDates.length,
+
           note:
             "Absent count is calculated from missing attendance dates and excludes Sundays.",
         },
+
         my_attendance:
           myAttendance,
+
         employee_summary:
           employeeSummary,
+
         organization_totals:
           organizationTotals,
       });
@@ -867,14 +1063,18 @@ const getSuperadminAttendance =
         "Superadmin attendance error:",
         error
       );
+
       return res
         .status(500)
         .json({
           success: false,
+
           message:
             "Failed to fetch organization attendance.",
+
           error:
             error.message,
+
           sqlMessage:
             error.sqlMessage ||
             null,
@@ -882,310 +1082,6 @@ const getSuperadminAttendance =
     }
   };
 
-const getLoggedInUserId = (req) =>
-  Number(req.user?.user_id || req.user?.id || req.userId || 0);
-
-const getFieldVisitReviewer = async (req) => {
-  const userId = getLoggedInUserId(req);
-
-  if (!userId) {
-    return { error: { status: 401, message: "Unauthorized." } };
-  }
-
-  const [rows] = await db.query(
-    `
-      SELECT u.user_id, u.full_name, u.email, u.status, r.role_name
-      FROM users u
-      LEFT JOIN roles r ON r.role_id = u.role_id
-      WHERE u.user_id = ?
-      LIMIT 1
-    `,
-    [userId]
-  );
-
-  if (!rows.length) {
-    return {
-      error: { status: 404, message: "Reviewer account not found." },
-    };
-  }
-
-  const reviewer = rows[0];
-  const roleName = String(reviewer.role_name || "").trim().toLowerCase();
-  const email = String(reviewer.email || "").trim().toLowerCase();
-  const isSuperadmin = roleName === "superadmin";
-  const isPremal =
-    roleName === "admin" &&
-    email === "premal.mehta@valencianutrition.com";
-
-  if (!isSuperadmin && !isPremal) {
-    return {
-      error: {
-        status: 403,
-        message:
-          "Only Superadmin or Premal Mehta can review Admin field visits.",
-      },
-    };
-  }
-
-  return { reviewer };
-};
-
-const attachFieldVisitStops = async (visits) => {
-  if (!Array.isArray(visits) || !visits.length) return [];
-
-  const visitIds = visits.map((visit) => Number(visit.visit_id)).filter(Boolean);
-  if (!visitIds.length) return visits;
-
-  const [stops] = await db.query(
-    `
-      SELECT stop_id, visit_id, sequence_no, location, visit_time,
-             description, created_at, updated_at
-      FROM field_visit_stops
-      WHERE visit_id IN (?)
-      ORDER BY visit_id, sequence_no, stop_id
-    `,
-    [visitIds]
-  );
-
-  const stopMap = new Map();
-  for (const stop of stops) {
-    const visitId = Number(stop.visit_id);
-    if (!stopMap.has(visitId)) stopMap.set(visitId, []);
-    stopMap.get(visitId).push(stop);
-  }
-
-  return visits.map((visit) => {
-    const savedStops = stopMap.get(Number(visit.visit_id)) || [];
-    const legacyStops =
-      visit.location || visit.comment
-        ? [
-            {
-              stop_id: null,
-              visit_id: visit.visit_id,
-              sequence_no: 1,
-              location: visit.location || "",
-              visit_time: null,
-              description: visit.comment || "",
-              is_legacy: true,
-            },
-          ]
-        : [];
-
-    return {
-      ...visit,
-      visit_stops: savedStops.length ? savedStops : legacyStops,
-    };
-  });
-};
-
-const getSuperadminFieldVisits = async (req, res) => {
-  try {
-    const { error } = await getFieldVisitReviewer(req);
-    if (error) {
-      return res.status(error.status).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    const [visits] = await db.query(`
-      SELECT
-        fv.visit_id,
-        fv.employee_id,
-        u.full_name,
-        u.email,
-        u.employee_code,
-        d.department_name,
-        fv.visit_type,
-        DATE_FORMAT(fv.visit_date, '%Y-%m-%d') AS visit_date,
-        fv.duration_type,
-        fv.half_day_session,
-        fv.location,
-        fv.comment,
-        fv.conclusion,
-        fv.remark,
-        fv.status,
-        fv.review_remark,
-        fv.reviewed_by,
-        DATE_FORMAT(fv.reviewed_at, '%Y-%m-%d %H:%i:%s') AS reviewed_at,
-        reviewer.full_name AS reviewed_by_name,
-        fv.created_at,
-        fv.updated_at
-      FROM employee_field_visits fv
-      INNER JOIN users u ON u.user_id = fv.employee_id
-      INNER JOIN roles r ON r.role_id = u.role_id
-      LEFT JOIN departments d ON d.department_id = u.department_id
-      LEFT JOIN users reviewer ON reviewer.user_id = fv.reviewed_by
-      WHERE LOWER(COALESCE(r.role_name, '')) = 'admin'
-      ORDER BY fv.created_at DESC
-    `);
-
-    const visitsWithStops = await attachFieldVisitStops(visits);
-    const countStatus = (status) =>
-      visitsWithStops.filter(
-        (visit) =>
-          String(visit.status || "").trim().toLowerCase() === status
-      ).length;
-
-    return res.json({
-      success: true,
-      summary: {
-        total: visitsWithStops.length,
-        approved: countStatus("approved"),
-        pending: countStatus("pending"),
-        changes_requested: countStatus("changes_requested"),
-        rejected: countStatus("rejected"),
-        employees: new Set(
-          visitsWithStops.map((visit) => visit.employee_id)
-        ).size,
-      },
-      visits: visitsWithStops,
-    });
-  } catch (error) {
-    console.error("Superadmin field visits error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to fetch field visits.",
-      error: error.message,
-      sqlMessage: error.sqlMessage || null,
-    });
-  }
-};
-
-const reviewSuperadminFieldVisit = async (req, res) => {
-  try {
-    const { reviewer, error } = await getFieldVisitReviewer(req);
-    if (error) {
-      return res.status(error.status).json({
-        success: false,
-        message: error.message,
-      });
-    }
-
-    const visitId = Number(req.params.visitId);
-    if (!visitId) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid field visit.",
-      });
-    }
-
-    const status = String(req.body?.status || "").trim().toLowerCase();
-    const reviewRemark = String(
-      req.body?.review_remark || req.body?.remark || ""
-    ).trim();
-
-    if (!["approved", "changes_requested", "rejected"].includes(status)) {
-      return res.status(400).json({
-        success: false,
-        message: "Status must be approved, changes_requested, or rejected.",
-      });
-    }
-
-    if (status === "changes_requested" && !reviewRemark) {
-      return res.status(400).json({
-        success: false,
-        message: "A remark is required when requesting changes.",
-      });
-    }
-
-    const [visitRows] = await db.query(
-      `
-        SELECT fv.visit_id, fv.employee_id, fv.status,
-               u.full_name, u.email, r.role_name
-        FROM employee_field_visits fv
-        INNER JOIN users u ON u.user_id = fv.employee_id
-        INNER JOIN roles r ON r.role_id = u.role_id
-        WHERE fv.visit_id = ?
-          AND LOWER(COALESCE(r.role_name, '')) = 'admin'
-        LIMIT 1
-      `,
-      [visitId]
-    );
-
-    if (!visitRows.length) {
-      return res.status(404).json({
-        success: false,
-        message: "Admin field visit not found.",
-      });
-    }
-
-    if (
-      String(visitRows[0].status || "").trim().toLowerCase() !== "pending"
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: "Only pending Admin field visits can be reviewed.",
-      });
-    }
-
-    await db.query(
-      `
-        UPDATE employee_field_visits
-        SET status = ?, reviewed_by = ?, reviewed_at = NOW(),
-            review_remark = ?, updated_at = NOW()
-        WHERE visit_id = ?
-      `,
-      [status, reviewer.user_id, reviewRemark || null, visitId]
-    );
-
-    const [updatedRows] = await db.query(
-      `
-        SELECT
-          fv.visit_id,
-          fv.employee_id,
-          u.full_name,
-          u.email,
-          u.employee_code,
-          d.department_name,
-          fv.visit_type,
-          DATE_FORMAT(fv.visit_date, '%Y-%m-%d') AS visit_date,
-          fv.duration_type,
-          fv.half_day_session,
-          fv.location,
-          fv.comment,
-          fv.conclusion,
-          fv.remark,
-          fv.status,
-          fv.review_remark,
-          DATE_FORMAT(fv.reviewed_at, '%Y-%m-%d %H:%i:%s') AS reviewed_at,
-          field_reviewer.full_name AS reviewed_by_name
-        FROM employee_field_visits fv
-        INNER JOIN users u ON u.user_id = fv.employee_id
-        LEFT JOIN departments d ON d.department_id = u.department_id
-        LEFT JOIN users field_reviewer
-          ON field_reviewer.user_id = fv.reviewed_by
-        WHERE fv.visit_id = ?
-        LIMIT 1
-      `,
-      [visitId]
-    );
-
-    const [visit] = await attachFieldVisitStops(updatedRows);
-
-    return res.json({
-      success: true,
-      message:
-        status === "approved"
-          ? "Admin field visit approved successfully."
-          : status === "changes_requested"
-            ? "Field visit returned to the Admin for changes."
-            : "Admin field visit rejected successfully.",
-      visit: visit || null,
-    });
-  } catch (error) {
-    console.error("Superadmin review field visit error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Failed to review Admin field visit.",
-      error: error.message,
-      sqlMessage: error.sqlMessage || null,
-    });
-  }
-};
-
 module.exports = {
   getSuperadminAttendance,
-  getSuperadminFieldVisits,
-  reviewSuperadminFieldVisit,
 };

@@ -867,6 +867,7 @@ const EmployeeAttendance = ({
   const [visitForm, setVisitForm] = useState({
     visit_type: "Sales Visit",
     visit_date: "",
+    end_date: "",
     duration_type: "full_day",
     half_day_session: "",
     visit_stops: [createEmptyVisitStop()],
@@ -983,6 +984,10 @@ const EmployeeAttendance = ({
       );
       return;
     }
+    if (visitForm.end_date && visitForm.end_date < visitForm.visit_date) {
+      setVisitError("End Date cannot be earlier than Visit Date.");
+      return;
+    }
     if (
       visitForm.duration_type ===
       "half_day" &&
@@ -1006,6 +1011,7 @@ const EmployeeAttendance = ({
         {
           visit_type: visitForm.visit_type,
           visit_date: visitForm.visit_date,
+          end_date: visitForm.end_date || null,
           duration_type:
             visitForm.duration_type,
           half_day_session:
@@ -1214,6 +1220,7 @@ const EmployeeAttendance = ({
         !query ||
         [
           visit.visit_date,
+          visit.end_date,
           visit.visit_type,
           visit.team_members,
           Array.isArray(visit.all_people)
@@ -1542,7 +1549,7 @@ const EmployeeAttendance = ({
                       return (
                         <tr key={visit.visit_id}>
                           <td style={styles.td}>
-                            <strong>{formatVisitDate(visit.visit_date)}</strong>
+                            <strong>{formatVisitDate(visit.visit_date)}{visit.end_date && formatVisitDate(visit.end_date) !== formatVisitDate(visit.visit_date) ? ` – ${formatVisitDate(visit.end_date)}` : ""}</strong>
                           </td>
                           <td style={styles.td}>{visit.visit_type || "-"}</td>
                           <td style={styles.td}>
@@ -1877,6 +1884,21 @@ const EmployeeAttendance = ({
                           event.target.value,
                       })
                     )
+                  }
+                />
+              </label>
+              <label style={styles.formGroup}>
+                <span>End Date (Optional)</span>
+                <input
+                  type="date"
+                  style={styles.formInput}
+                  min={visitForm.visit_date || undefined}
+                  value={visitForm.end_date}
+                  onChange={(event) =>
+                    setVisitForm((previous) => ({
+                      ...previous,
+                      end_date: event.target.value,
+                    }))
                   }
                 />
               </label>
