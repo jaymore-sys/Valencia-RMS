@@ -4,17 +4,17 @@ const crypto = require("crypto");
 
 const {
 
-  sendMail,
+  sendMail,
 
 } = require("../utils/emailservice");
 
 const HR_FIELD_VISIT_EMAIL =
 
-  "rathika.haleangadi@valencianutrition.com";
+  "rathika.haleangadi@valencianutrition.com";
 
 const ATTENDANCE_SYSTEM_START_DATE =
 
-  "2026-04-01";
+  "2026-04-01";
 
 const OFFICE_START_MINUTES = 11 * 60; // 11:00 AM
 
@@ -22,559 +22,559 @@ const OFFICE_END_MINUTES = 19 * 60 + 30; // 7:30 PM
 
 const formatDateOnly = (value) => {
 
-  if (!value) return null;
+  if (!value) return null;
 
-  if (typeof value === "string") {
+  if (typeof value === "string") {
 
-    return value.slice(0, 10);
+    return value.slice(0, 10);
 
-  }
+  }
 
-  const date = new Date(value);
+  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (Number.isNaN(date.getTime())) {
 
-    return null;
+    return null;
 
-  }
+  }
 
-  const year = date.getFullYear();
+  const year = date.getFullYear();
 
-  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
 
-  const day = String(date.getDate()).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
 
-  return `${year}-${month}-${day}`;
+  return `${year}-${month}-${day}`;
 
 };
 
 const getEffectiveAttendanceStartDate = (
 
-  joiningDate,
+  joiningDate,
 
-  importedStartDate
+  importedStartDate
 
 ) => {
 
-  const formattedImportedStartDate =
+  const formattedImportedStartDate =
 
-    formatDateOnly(
+    formatDateOnly(
 
-      importedStartDate
+      importedStartDate
 
-    );
+    );
 
-  if (!formattedImportedStartDate) {
+  if (!formattedImportedStartDate) {
 
-    return null;
+    return null;
 
-  }
+  }
 
-  const formattedJoiningDate =
+  const formattedJoiningDate =
 
-    formatDateOnly(
+    formatDateOnly(
 
-      joiningDate
+      joiningDate
 
-    );
+    );
 
-  if (
+  if (
 
-    formattedJoiningDate &&
+    formattedJoiningDate &&
 
-    formattedJoiningDate >
+    formattedJoiningDate >
 
-      formattedImportedStartDate
+      formattedImportedStartDate
 
-  ) {
+  ) {
 
-    return formattedJoiningDate;
+    return formattedJoiningDate;
 
-  }
+  }
 
-  return formattedImportedStartDate;
+  return formattedImportedStartDate;
 
 };
 
 const parseDateOnly = (dateString) => {
 
-  return new Date(`${dateString}T00:00:00`);
+  return new Date(`${dateString}T00:00:00`);
 
 };
 
 const addOneDay = (date) => {
 
-  const next = new Date(date);
+  const next = new Date(date);
 
-  next.setDate(next.getDate() + 1);
+  next.setDate(next.getDate() + 1);
 
-  return next;
+  return next;
 
 };
 
 const buildWorkingDates = (startDate, endDate) => {
 
-  if (!startDate || !endDate) {
+  if (!startDate || !endDate) {
 
-    return [];
+    return [];
 
-  }
+  }
 
-  const dates = [];
+  const dates = [];
 
-  let current = parseDateOnly(startDate);
+  let current = parseDateOnly(startDate);
 
-  const last = parseDateOnly(endDate);
+  const last = parseDateOnly(endDate);
 
-  while (current <= last) {
+  while (current <= last) {
 
-    const day = current.getDay();
+    const day = current.getDay();
 
-    // Sunday = 0
+    // Sunday = 0
 
-    if (day !== 0) {
+    if (day !== 0) {
 
-      const year = current.getFullYear();
+      const year = current.getFullYear();
 
-      const month = String(
+      const month = String(
 
-        current.getMonth() + 1
+        current.getMonth() + 1
 
-      ).padStart(2, "0");
+      ).padStart(2, "0");
 
-      const date = String(
+      const date = String(
 
-        current.getDate()
+        current.getDate()
 
-      ).padStart(2, "0");
+      ).padStart(2, "0");
 
-      dates.push(
+      dates.push(
 
-        `${year}-${month}-${date}`
+        `${year}-${month}-${date}`
 
-      );
+      );
 
-    }
+    }
 
-    current = addOneDay(current);
+    current = addOneDay(current);
 
-  }
+  }
 
-  return dates;
+  return dates;
 
 };
 
 const normalizeStatus = (status) => {
 
-  const value = String(status || "")
+  const value = String(status || "")
 
-    .toLowerCase()
+    .toLowerCase()
 
-    .trim();
+    .trim();
 
-  if (value.includes("leave")) {
+  if (value.includes("leave")) {
 
-    return "leave";
+    return "leave";
 
-  }
+  }
 
-  if (value.includes("late")) {
+  if (value.includes("late")) {
 
-    return "late";
+    return "late";
 
-  }
+  }
 
-  if (value.includes("absent")) {
+  if (value.includes("absent")) {
 
-    return "absent";
+    return "absent";
 
-  }
+  }
 
-  if (value.includes("present")) {
+  if (value.includes("present")) {
 
-    return "present";
+    return "present";
 
-  }
+  }
 
-  return value || "present";
+  return value || "present";
 
 };
 
 const getDisplayStatus = (status) => {
 
-  const value = normalizeStatus(status);
+  const value = normalizeStatus(status);
 
-  if (value === "leave") {
+  if (value === "leave") {
 
-    return "Leave";
+    return "Leave";
 
-  }
+  }
 
-  if (value === "late") {
+  if (value === "late") {
 
-    return "Late";
+    return "Late";
 
-  }
+  }
 
-  if (value === "absent") {
+  if (value === "absent") {
 
-    return "Absent";
+    return "Absent";
 
-  }
+  }
 
-  return "Present";
+  return "Present";
 
 };
 
 const timeToMinutes = (timeValue) => {
 
-  if (!timeValue) {
+  if (!timeValue) {
 
-    return null;
+    return null;
 
-  }
+  }
 
-  const parts = String(timeValue).split(":");
+  const parts = String(timeValue).split(":");
 
-  if (parts.length < 2) {
+  if (parts.length < 2) {
 
-    return null;
+    return null;
 
-  }
+  }
 
-  const hours = Number(parts[0]);
+  const hours = Number(parts[0]);
 
-  const minutes = Number(parts[1]);
+  const minutes = Number(parts[1]);
 
-  if (
+  if (
 
-    Number.isNaN(hours) ||
+    Number.isNaN(hours) ||
 
-    Number.isNaN(minutes)
+    Number.isNaN(minutes)
 
-  ) {
+  ) {
 
-    return null;
+    return null;
 
-  }
+  }
 
-  return hours * 60 + minutes;
+  return hours * 60 + minutes;
 
 };
 
 const formatMinutes = (minutes) => {
 
-  const value = Number(minutes || 0);
+  const value = Number(minutes || 0);
 
-  if (!value || value <= 0) {
+  if (!value || value <= 0) {
 
-    return "-";
+    return "-";
 
-  }
+  }
 
-  const hours = Math.floor(
+  const hours = Math.floor(
 
-    value / 60
+    value / 60
 
-  );
+  );
 
-  const mins = value % 60;
+  const mins = value % 60;
 
-  if (hours && mins) {
+  if (hours && mins) {
 
-    return `${hours}h ${mins}m`;
+    return `${hours}h ${mins}m`;
 
-  }
+  }
 
-  if (hours) {
+  if (hours) {
 
-    return `${hours}h`;
+    return `${hours}h`;
 
-  }
+  }
 
-  return `${mins}m`;
+  return `${mins}m`;
 
 };
 
 const calculateWorkingHours = (
 
-  record
+  record
 
 ) => {
 
-  if (
+  if (
 
-    record.total_minutes &&
+    record.total_minutes &&
 
-    Number(record.total_minutes) > 0
+    Number(record.total_minutes) > 0
 
-  ) {
+  ) {
 
-    return formatMinutes(
+    return formatMinutes(
 
-      Number(record.total_minutes)
+      Number(record.total_minutes)
 
-    );
+    );
 
-  }
+  }
 
-  const checkIn = timeToMinutes(
+  const checkIn = timeToMinutes(
 
-    record.check_in_time
+    record.check_in_time
 
-  );
+  );
 
-  const checkOut = timeToMinutes(
+  const checkOut = timeToMinutes(
 
-    record.check_out_time
+    record.check_out_time
 
-  );
+  );
 
-  if (
+  if (
 
-    checkIn === null ||
+    checkIn === null ||
 
-    checkOut === null
+    checkOut === null
 
-  ) {
+  ) {
 
-    return "-";
+    return "-";
 
-  }
+  }
 
-  let diff = checkOut - checkIn;
+  let diff = checkOut - checkIn;
 
-  if (diff < 0) {
+  if (diff < 0) {
 
-    diff += 24 * 60;
+    diff += 24 * 60;
 
-  }
+  }
 
-  return formatMinutes(diff);
+  return formatMinutes(diff);
 
 };
 
 /*
 
-  IMPORTANT ATTENDANCE RULE
+  IMPORTANT ATTENDANCE RULE
 
-  Office starts at 11:00 AM.
+  Office starts at 11:00 AM.
 
-  Check in at 11:00:00 = Present
+  Check in at 11:00:00 = Present
 
-  Check in after 11:00:00 = Late
+  Check in after 11:00:00 = Late
 
-  Leave and Absent always take priority.
+  Leave and Absent always take priority.
 
 */
 
 const deriveAttendanceStatus = (
 
-  record
+  record
 
 ) => {
 
-  const storedStatus =
+  const storedStatus =
 
-    normalizeStatus(record.status);
+    normalizeStatus(record.status);
 
-  // Never override leave.
+  // Never override leave.
 
-  if (storedStatus === "leave") {
+  if (storedStatus === "leave") {
 
-    return "leave";
+    return "leave";
 
-  }
+  }
 
-  // Never override explicitly absent.
+  // Never override explicitly absent.
 
-  if (storedStatus === "absent") {
+  if (storedStatus === "absent") {
 
-    return "absent";
+    return "absent";
 
-  }
+  }
 
-  const checkInMinutes =
+  const checkInMinutes =
 
-    timeToMinutes(
+    timeToMinutes(
 
-      record.check_in_time
+      record.check_in_time
 
-    );
+    );
 
-  if (checkInMinutes !== null) {
+  if (checkInMinutes !== null) {
 
-    if (
+    if (
 
-      checkInMinutes >
+      checkInMinutes >
 
-      OFFICE_START_MINUTES
+      OFFICE_START_MINUTES
 
-    ) {
+    ) {
 
-      return "late";
+      return "late";
 
-    }
+    }
 
-    return "present";
+    return "present";
 
-  }
+  }
 
-  // No usable check-in time.
+  // No usable check-in time.
 
-  // Fall back to DB status.
+  // Fall back to DB status.
 
-  return storedStatus || "present";
+  return storedStatus || "present";
 
 };
 
 const getLateRemark = (
 
-  record,
+  record,
 
-  finalStatus
+  finalStatus
 
 ) => {
 
-  const originalRemark =
+  const originalRemark =
 
-    String(
+    String(
 
-      record.remarks || ""
+      record.remarks || ""
 
-    ).trim();
+    ).trim();
 
-  if (finalStatus !== "late") {
+  if (finalStatus !== "late") {
 
-    return originalRemark || "-";
+    return originalRemark || "-";
 
-  }
+  }
 
-  const checkInMinutes =
+  const checkInMinutes =
 
-    timeToMinutes(
+    timeToMinutes(
 
-      record.check_in_time
+      record.check_in_time
 
-    );
+    );
 
-  if (checkInMinutes === null) {
+  if (checkInMinutes === null) {
 
-    return (
+    return (
 
-      originalRemark ||
+      originalRemark ||
 
-      "Late"
+      "Late"
 
-    );
+    );
 
-  }
+  }
 
-  const minutesLate =
+  const minutesLate =
 
-    checkInMinutes -
+    checkInMinutes -
 
-    OFFICE_START_MINUTES;
+    OFFICE_START_MINUTES;
 
-  const automaticRemark =
+  const automaticRemark =
 
-    minutesLate > 0
+    minutesLate > 0
 
-      ? `Late by ${minutesLate} minute${
+      ? `Late by ${minutesLate} minute${
 
-          minutesLate === 1 ? "" : "s"
+          minutesLate === 1 ? "" : "s"
 
-        }`
+        }`
 
-      : "Late";
+      : "Late";
 
-  if (!originalRemark) {
+  if (!originalRemark) {
 
-    return automaticRemark;
+    return automaticRemark;
 
-  }
+  }
 
-  // Avoid repeating a late remark if the CSV/DB already contains it.
+  // Avoid repeating a late remark if the CSV/DB already contains it.
 
-  if (
+  if (
 
-    originalRemark
+    originalRemark
 
-      .toLowerCase()
+      .toLowerCase()
 
-      .includes("late")
+      .includes("late")
 
-  ) {
+  ) {
 
-    return originalRemark;
+    return originalRemark;
 
-  }
+  }
 
-  return `${originalRemark} · ${automaticRemark}`;
+  return `${originalRemark} · ${automaticRemark}`;
 
 };
 
 const getLoggedInAdmin = async (
 
-  req
+  req
 
 ) => {
 
-  const loggedInUserId =
+  const loggedInUserId =
 
-    req.user?.user_id ||
+    req.user?.user_id ||
 
-    req.user?.id ||
+    req.user?.id ||
 
-    req.user?.userId ||
+    req.user?.userId ||
 
-    req.user?.uid;
+    req.user?.uid;
 
-  if (!loggedInUserId) {
+  if (!loggedInUserId) {
 
-    return {
+    return {
 
-      error: {
+      error: {
 
-        status: 401,
+        status: 401,
 
-        message:
+        message:
 
-          "Unauthorized. User not found in token.",
+          "Unauthorized. User not found in token.",
 
-      },
+      },
 
-    };
+    };
 
-  }
+  }
 
-  const [rows] = await db.query(
+  const [rows] = await db.query(
 
-    `
+    `
 
-      SELECT
+      SELECT
 
-        u.user_id,
+        u.user_id,
 
-        u.employee_code,
+        u.employee_code,
 
-        u.full_name,
+        u.full_name,
 
-        u.email,
+        u.email,
 
-        u.phone,
+        u.phone,
 
-        u.designation,
+        u.designation,
 
-        u.department_id,
+        u.department_id,
 
 u.status,
 
 DATE_FORMAT(
 
-  ep.joining_date,
+  ep.joining_date,
 
-  '%Y-%m-%d'
+  '%Y-%m-%d'
 
 ) AS joining_date,
 
@@ -586,1729 +586,1729 @@ FROM users u
 
 LEFT JOIN employee_profiles ep
 
-  ON ep.user_id =
+  ON ep.user_id =
 
-     u.user_id
+     u.user_id
 
 LEFT JOIN roles r
 
-        ON r.role_id = u.role_id
+        ON r.role_id = u.role_id
 
-      LEFT JOIN departments d
+      LEFT JOIN departments d
 
-        ON d.department_id =
+        ON d.department_id =
 
-        u.department_id
+        u.department_id
 
-      WHERE u.user_id = ?
+      WHERE u.user_id = ?
 
-      LIMIT 1
+      LIMIT 1
 
-    `,
+    `,
 
-    [loggedInUserId]
+    [loggedInUserId]
 
-  );
+  );
 
-  if (!rows.length) {
+  if (!rows.length) {
 
-    return {
+    return {
 
-      error: {
+      error: {
 
-        status: 404,
+        status: 404,
 
-        message:
+        message:
 
-          "Logged-in admin not found.",
+          "Logged-in admin not found.",
 
-      },
+      },
 
-    };
+    };
 
-  }
+  }
 
-  const admin = rows[0];
+  const admin = rows[0];
 
-  const roleName = String(
+  const roleName = String(
 
-    admin.role_name || ""
+    admin.role_name || ""
 
-  )
+  )
 
-    .toLowerCase()
+    .toLowerCase()
 
-    .trim();
+    .trim();
 
-  if (roleName !== "admin") {
+  if (roleName !== "admin") {
 
-    return {
+    return {
 
-      error: {
+      error: {
 
-        status: 403,
+        status: 403,
 
-        message:
+        message:
 
-          "Only admin users can access this attendance page.",
+          "Only admin users can access this attendance page.",
 
-      },
+      },
 
-    };
+    };
 
-  }
+  }
 
-  if (!admin.department_id) {
+  if (!admin.department_id) {
 
-    return {
+    return {
 
-      error: {
+      error: {
 
-        status: 400,
+        status: 400,
 
-        message:
+        message:
 
-          "Admin department is not assigned.",
+          "Admin department is not assigned.",
 
-      },
+      },
 
-    };
+    };
 
-  }
+  }
 
-  return {
+  return {
 
-    admin,
+    admin,
 
-  };
+  };
 
 };
 
 const buildUserAttendanceSummary = ({
 
-  user,
+  user,
 
-  records,
+  records,
 
-  workingDates,
+  workingDates,
 
 }) => {
 
-  const recordMap = new Map();
+  const recordMap = new Map();
 
-  records.forEach((record) => {
+  records.forEach((record) => {
 
-    const date = formatDateOnly(
+    const date = formatDateOnly(
 
-      record.attendance_date
+      record.attendance_date
 
-    );
+    );
 
-    if (!date) {
+    if (!date) {
 
-      return;
+      return;
 
-    }
+    }
 
-    if (!recordMap.has(date)) {
+    if (!recordMap.has(date)) {
 
-      recordMap.set(
+      recordMap.set(
 
-        date,
+        date,
 
-        record
+        record
 
-      );
+      );
 
-    }
+    }
 
-  });
+  });
 
-  let present = 0;
+  let present = 0;
 
-  let absent = 0;
+  let absent = 0;
 
-  let late = 0;
+  let late = 0;
 
-  let leave = 0;
+  let leave = 0;
 
-  const completedRecords =
+  const completedRecords =
 
-    workingDates.map((date) => {
+    workingDates.map((date) => {
 
-      const record =
+      const record =
 
-        recordMap.get(date);
+        recordMap.get(date);
 
-      if (!record) {
+      if (!record) {
 
-        absent += 1;
+        absent += 1;
 
-        return {
+        return {
 
-          attendance_id: null,
+          attendance_id: null,
 
-          employee_id: user.user_id,
+          employee_id: user.user_id,
 
-          attendance_date: date,
+          attendance_date: date,
 
-          status: "Absent",
+          status: "Absent",
 
-          check_in_time: "-",
+          check_in_time: "-",
 
-          check_out_time: "-",
+          check_out_time: "-",
 
-          total_minutes: 0,
+          total_minutes: 0,
 
-          working_hours: "-",
+          working_hours: "-",
 
-          remarks:
+          remarks:
 
-            "No attendance record",
+            "No attendance record",
 
-          is_missing_date: true,
+          is_missing_date: true,
 
-        };
+        };
 
-      }
+      }
 
-      /*
+      /*
 
-        THIS IS THE IMPORTANT CHANGE.
+        THIS IS THE IMPORTANT CHANGE.
 
-        We calculate status based on
+        We calculate status based on
 
-        check-in time instead of blindly
+        check-in time instead of blindly
 
-        trusting attendance.status.
+        trusting attendance.status.
 
-      */
+      */
 
-      const finalStatus =
+      const finalStatus =
 
-        deriveAttendanceStatus(
+        deriveAttendanceStatus(
 
-          record
+          record
 
-        );
+        );
 
-      if (finalStatus === "leave") {
+      if (finalStatus === "leave") {
 
-        leave += 1;
+        leave += 1;
 
-      } else if (
+      } else if (
 
-        finalStatus === "absent"
+        finalStatus === "absent"
 
-      ) {
+      ) {
 
-        absent += 1;
+        absent += 1;
 
-      } else if (
+      } else if (
 
-        finalStatus === "late"
+        finalStatus === "late"
 
-      ) {
+      ) {
 
-        /*
+        /*
 
-          A late employee is still present,
+          A late employee is still present,
 
-          so both numbers increase.
+          so both numbers increase.
 
-          Example:
+          Example:
 
-          Present = 37
+          Present = 37
 
-          Late = 5
+          Late = 5
 
-          The five late days are included
+          The five late days are included
 
-          within the 37 present days.
+          within the 37 present days.
 
-        */
+        */
 
-        present += 1;
+        present += 1;
 
-        late += 1;
+        late += 1;
 
-      } else {
+      } else {
 
-        present += 1;
+        present += 1;
 
-      }
+      }
 
-      return {
+      return {
 
-        attendance_id:
+        attendance_id:
 
-          record.attendance_id,
+          record.attendance_id,
 
-        employee_id:
+        employee_id:
 
-          record.employee_id,
+          record.employee_id,
 
-        attendance_date:
+        attendance_date:
 
-          date,
+          date,
 
-        status:
+        status:
 
-          getDisplayStatus(
+          getDisplayStatus(
 
-            finalStatus
+            finalStatus
 
-          ),
+          ),
 
-        check_in_time:
+        check_in_time:
 
-          record.check_in_time ||
+          record.check_in_time ||
 
-          "-",
+          "-",
 
-        check_out_time:
+        check_out_time:
 
-          record.check_out_time ||
+          record.check_out_time ||
 
-          "-",
+          "-",
 
-        total_minutes:
+        total_minutes:
 
-          Number(
+          Number(
 
-            record.total_minutes ||
+            record.total_minutes ||
 
-              0
+              0
 
-          ),
+          ),
 
-        working_hours:
+        working_hours:
 
-          calculateWorkingHours(
+          calculateWorkingHours(
 
-            record
+            record
 
-          ),
+          ),
 
-        remarks:
+        remarks:
 
-          getLateRemark(
+          getLateRemark(
 
-            record,
+            record,
 
-            finalStatus
+            finalStatus
 
-          ),
+          ),
 
-        is_missing_date:
+        is_missing_date:
 
-          false,
+          false,
 
-        /*
+        /*
 
-          Additional information.
+          Additional information.
 
-          This will be useful later if
+          This will be useful later if
 
-          you want early-leaving logic.
+          you want early-leaving logic.
 
-        */
+        */
 
-        is_late:
+        is_late:
 
-          finalStatus === "late",
+          finalStatus === "late",
 
-        office_start_time:
+        office_start_time:
 
-          "11:00:00",
+          "11:00:00",
 
-        office_end_time:
+        office_end_time:
 
-          "19:30:00",
+          "19:30:00",
 
-      };
+      };
 
-    });
+    });
 
-  const sortedActualRecords =
+  const sortedActualRecords =
 
-    records
+    records
 
-      .map((record) => ({
+      .map((record) => ({
 
-        ...record,
+        ...record,
 
-        attendance_date:
+        attendance_date:
 
-          formatDateOnly(
+          formatDateOnly(
 
-            record.attendance_date
+            record.attendance_date
 
-          ),
+          ),
 
-      }))
+      }))
 
-      .filter(
+      .filter(
 
-        (record) =>
+        (record) =>
 
-          record.attendance_date
+          record.attendance_date
 
-      )
+      )
 
-      .sort((a, b) =>
+      .sort((a, b) =>
 
-        String(
+        String(
 
-          b.attendance_date
+          b.attendance_date
 
-        ).localeCompare(
+        ).localeCompare(
 
-          String(
+          String(
 
-            a.attendance_date
+            a.attendance_date
 
-          )
+          )
 
-        )
+        )
 
-      );
+      );
 
-  const latestAttendance =
+  const latestAttendance =
 
-    sortedActualRecords[0]
+    sortedActualRecords[0]
 
-      ?.attendance_date || "-";
+      ?.attendance_date || "-";
 
-  return {
+  return {
 
-    user_id:
+    user_id:
 
-      user.user_id,
+      user.user_id,
 
-    employee_code:
+    employee_code:
 
-      user.employee_code,
+      user.employee_code,
 
-    full_name:
+    full_name:
 
-      user.full_name,
+      user.full_name,
 
-    email:
+    email:
 
-      user.email,
+      user.email,
 
-    phone:
+    phone:
 
-      user.phone,
+      user.phone,
 
-    designation:
+    designation:
 
-      user.designation,
+      user.designation,
 
-    department_id:
+    department_id:
 
-      user.department_id,
+      user.department_id,
 
-    department_name:
+    department_name:
 
-      user.department_name,
+      user.department_name,
 
-    role_name:
+    role_name:
 
-      user.role_name,
+      user.role_name,
 
-    status:
+    status:
 
-      user.status,
+      user.status,
 
-    total:
+    total:
 
-      workingDates.length,
+      workingDates.length,
 
-    present,
+    present,
 
-    absent,
+    absent,
 
-    late,
+    late,
 
-    leave,
+    leave,
 
-    latest_attendance_date:
+    latest_attendance_date:
 
-      latestAttendance,
+      latestAttendance,
 
-    records:
+    records:
 
-      completedRecords.sort(
+      completedRecords.sort(
 
-        (a, b) =>
+        (a, b) =>
 
-          String(
+          String(
 
-            b.attendance_date
+            b.attendance_date
 
-          ).localeCompare(
+          ).localeCompare(
 
-            String(
+            String(
 
-              a.attendance_date
+              a.attendance_date
 
-            )
+            )
 
-          )
+          )
 
-      ),
+      ),
 
-  };
+  };
 
 };
 
 const getDepartmentAttendance = async (
 
-  req,
+  req,
 
-  res
+  res
 
 ) => {
 
-  try {
+  try {
 
-    const {
+    const {
 
-      admin,
+      admin,
 
-      error,
+      error,
 
-    } =
+    } =
 
-      await getLoggedInAdmin(
+      await getLoggedInAdmin(
 
-        req
+        req
 
-      );
+      );
 
-    if (error) {
+    if (error) {
 
-      return res
+      return res
 
-        .status(error.status)
+        .status(error.status)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            error.message,
+            error.message,
 
-        });
+        });
 
-    }
+    }
 
-    /*
+    /*
 
-      GET EVERY ACTIVE USER
+      GET EVERY ACTIVE USER
 
-      IN ADMIN'S DEPARTMENT
+      IN ADMIN'S DEPARTMENT
 
-    */
+    */
 
-    const [users] =
+    const [users] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-        SELECT
+        SELECT
 
-          u.user_id,
+          u.user_id,
 
-          u.employee_code,
+          u.employee_code,
 
-          u.full_name,
+          u.full_name,
 
-          u.email,
+          u.email,
 
-          u.phone,
+          u.phone,
 
-          u.designation,
+          u.designation,
 
-          u.department_id,
+          u.department_id,
 
-          u.status,
+          u.status,
 
-          DATE_FORMAT(
+          DATE_FORMAT(
 
-            ep.joining_date,
+            ep.joining_date,
 
-            '%Y-%m-%d'
+            '%Y-%m-%d'
 
-          ) AS joining_date,
+          ) AS joining_date,
 
-          r.role_name,
+          r.role_name,
 
-          d.department_name
+          d.department_name
 
-        FROM users u
+        FROM users u
 
-        LEFT JOIN employee_profiles ep
+        LEFT JOIN employee_profiles ep
 
-          ON ep.user_id =
+          ON ep.user_id =
 
-             u.user_id
+             u.user_id
 
-        LEFT JOIN roles r
+        LEFT JOIN roles r
 
-          ON r.role_id =
+          ON r.role_id =
 
-             u.role_id
+             u.role_id
 
-        LEFT JOIN departments d
+        LEFT JOIN departments d
 
-          ON d.department_id =
+          ON d.department_id =
 
-             u.department_id
+             u.department_id
 
-        WHERE
+        WHERE
 
-  (
+  (
 
-    EXISTS (
+    EXISTS (
 
-      SELECT 1
+      SELECT 1
 
-      FROM user_departments employee_ud
+      FROM user_departments employee_ud
 
-      WHERE employee_ud.user_id = u.user_id
+      WHERE employee_ud.user_id = u.user_id
 
-        AND employee_ud.department_id IN (
+        AND employee_ud.department_id IN (
 
-          SELECT admin_ud.department_id
+          SELECT admin_ud.department_id
 
-          FROM user_departments admin_ud
+          FROM user_departments admin_ud
 
-          WHERE admin_ud.user_id = ?
+          WHERE admin_ud.user_id = ?
 
-        )
+        )
 
-    )
+    )
 
-    OR u.department_id IN (
+    OR u.department_id IN (
 
-      SELECT admin_ud.department_id
+      SELECT admin_ud.department_id
 
-      FROM user_departments admin_ud
+      FROM user_departments admin_ud
 
-      WHERE admin_ud.user_id = ?
+      WHERE admin_ud.user_id = ?
 
-    )
+    )
 
-    OR EXISTS (
+    OR EXISTS (
 
-      SELECT 1
+      SELECT 1
 
-      FROM user_departments employee_ud
+      FROM user_departments employee_ud
 
-      WHERE employee_ud.user_id = u.user_id
+      WHERE employee_ud.user_id = u.user_id
 
-        AND employee_ud.department_id = ?
+        AND employee_ud.department_id = ?
 
-    )
+    )
 
-    OR u.department_id = ?
+    OR u.department_id = ?
 
-  )
+  )
 
-  AND LOWER(
+  AND LOWER(
 
-            COALESCE(
+            COALESCE(
 
-              u.status,
+              u.status,
 
-              'active'
+              'active'
 
-            )
+            )
 
-          ) NOT IN (
+          ) NOT IN (
 
-            'deleted'
+            'deleted'
 
-          )
+          )
 
-        ORDER BY
+        ORDER BY
 
-          u.full_name ASC
+          u.full_name ASC
 
-        `,
+        `,
 
-        [
+        [
 
-           admin.user_id,
+           admin.user_id,
 
-  admin.user_id,
+  admin.user_id,
 
-  admin.department_id,
+  admin.department_id,
 
-  admin.department_id,
+  admin.department_id,
 
-        ]
+        ]
 
-      );
+      );
 
-    const userIds =
+    const userIds =
 
-      users.map(
+      users.map(
 
-        (user) =>
+        (user) =>
 
-          user.user_id
+          user.user_id
 
-      );
+      );
 
-    if (!userIds.length) {
+    if (!userIds.length) {
 
-      return res
+      return res
 
-        .status(200)
+        .status(200)
 
-        .json({
+        .json({
 
-          success: true,
+          success: true,
 
-          admin,
+          admin,
 
-          date_range: {
+          date_range: {
 
-            start_date: null,
+            start_date: null,
 
-            end_date: null,
+            end_date: null,
 
-            working_days: 0,
+            working_days: 0,
 
-          },
+          },
 
-          my_attendance:
+          my_attendance:
 
-            null,
+            null,
 
-          employee_summary:
+          employee_summary:
 
-            [],
+            [],
 
-          department_totals: {
+          department_totals: {
 
-            people: 0,
+            people: 0,
 
-            total: 0,
+            total: 0,
 
-            present: 0,
+            present: 0,
 
-            absent: 0,
+            absent: 0,
 
-            late: 0,
+            late: 0,
 
-            leave: 0,
+            leave: 0,
 
-          },
+          },
 
-        });
+        });
 
-    }
+    }
 
-    /*
+    /*
 
-      GLOBAL IMPORTED
+      GLOBAL IMPORTED
 
-      ATTENDANCE RANGE
+      ATTENDANCE RANGE
 
-      Never use anything
+      Never use anything
 
-      before 01-Apr-2026.
+      before 01-Apr-2026.
 
-    */
+    */
 
-    const [rangeRows] =
+    const [rangeRows] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-        SELECT
+        SELECT
 
-          DATE_FORMAT(
+          DATE_FORMAT(
 
-            MIN(attendance_date),
+            MIN(attendance_date),
 
-            '%Y-%m-%d'
+            '%Y-%m-%d'
 
-          ) AS start_date,
+          ) AS start_date,
 
-          DATE_FORMAT(
+          DATE_FORMAT(
 
-            MAX(attendance_date),
+            MAX(attendance_date),
 
-            '%Y-%m-%d'
+            '%Y-%m-%d'
 
-          ) AS end_date
+          ) AS end_date
 
-        FROM attendance
+        FROM attendance
 
-        WHERE
+        WHERE
 
-          attendance_date >= ?
+          attendance_date >= ?
 
-          AND attendance_date <=
+          AND attendance_date <=
 
-              CURDATE()
+              CURDATE()
 
-        `,
+        `,
 
-        [
+        [
 
-          ATTENDANCE_SYSTEM_START_DATE,
+          ATTENDANCE_SYSTEM_START_DATE,
 
-        ]
+        ]
 
-      );
+      );
 
-    const startDate =
+    const startDate =
 
-      rangeRows[0]
+      rangeRows[0]
 
-        ?.start_date ||
+        ?.start_date ||
 
-      null;
+      null;
 
-    const endDate =
+    const endDate =
 
-      rangeRows[0]
+      rangeRows[0]
 
-        ?.end_date ||
+        ?.end_date ||
 
-      null;
+      null;
 
-    /*
+    /*
 
-      COMPANY WORKING DATES
+      COMPANY WORKING DATES
 
-      BETWEEN IMPORT RANGE.
+      BETWEEN IMPORT RANGE.
 
-      Sundays excluded.
+      Sundays excluded.
 
-    */
+    */
 
-    const workingDates =
+    const workingDates =
 
-      buildWorkingDates(
+      buildWorkingDates(
 
-        startDate,
+        startDate,
 
-        endDate
+        endDate
 
-      );
+      );
 
-    /*
+    /*
 
-      GET ACTUAL ATTENDANCE
+      GET ACTUAL ATTENDANCE
 
-      FOR DEPARTMENT USERS
+      FOR DEPARTMENT USERS
 
-    */
+    */
 
-    let attendanceRows =
+    let attendanceRows =
 
-      [];
+      [];
 
-    if (
+    if (
 
-      startDate &&
+      startDate &&
 
-      endDate
+      endDate
 
-    ) {
+    ) {
 
-      const [rows] =
+      const [rows] =
 
-        await db.query(
+        await db.query(
 
-          `
+          `
 
-          SELECT
+          SELECT
 
-            a.attendance_id,
+            a.attendance_id,
 
-            a.employee_id,
+            a.employee_id,
 
-            a.attendance_date,
+            a.attendance_date,
 
-            a.check_in_time,
+            a.check_in_time,
 
-            a.check_out_time,
+            a.check_out_time,
 
-            a.total_minutes,
+            a.total_minutes,
 
-            a.status,
+            a.status,
 
-            a.remarks
+            a.remarks
 
-          FROM attendance a
+          FROM attendance a
 
-          WHERE
+          WHERE
 
-            a.employee_id IN (
+            a.employee_id IN (
 
-              ${userIds
+              ${userIds
 
-                .map(() => "?")
+                .map(() => "?")
 
-                .join(",")}
+                .join(",")}
 
-            )
+            )
 
-            AND a.attendance_date
+            AND a.attendance_date
 
-              BETWEEN ? AND ?
+              BETWEEN ? AND ?
 
-          ORDER BY
+          ORDER BY
 
-            a.attendance_date DESC
+            a.attendance_date DESC
 
-          `,
+          `,
 
-          [
+          [
 
-            ...userIds,
+            ...userIds,
 
-            startDate,
+            startDate,
 
-            endDate,
+            endDate,
 
-          ]
+          ]
 
-        );
+        );
 
-      attendanceRows =
+      attendanceRows =
 
-        rows;
+        rows;
 
-    }
+    }
 
-    /*
+    /*
 
-      BUILD EACH USER'S
+      BUILD EACH USER'S
 
-      INDIVIDUAL ATTENDANCE
+      INDIVIDUAL ATTENDANCE
 
-    */
+    */
 
-    const summaries =
+    const summaries =
 
-      users.map(
+      users.map(
 
-        (user) => {
+        (user) => {
 
-          /*
+          /*
 
-            Older employee:
+            Older employee:
 
-            → imported start date
+            → imported start date
 
-            Joined later:
+            Joined later:
 
-            → joining date
+            → joining date
 
-          */
+          */
 
-          const userStartDate =
+          const userStartDate =
 
-            getEffectiveAttendanceStartDate(
+            getEffectiveAttendanceStartDate(
 
-              user.joining_date,
+              user.joining_date,
 
-              startDate
+              startDate
 
-            );
+            );
 
-          if (!userStartDate) {
+          if (!userStartDate) {
 
-            return (
+            return (
 
-              buildUserAttendanceSummary(
+              buildUserAttendanceSummary(
 
-                {
+                {
 
-                  user,
+                  user,
 
-                  records: [],
+                  records: [],
 
-                  workingDates: [],
+                  workingDates: [],
 
-                }
+                }
 
-              )
+              )
 
-            );
+            );
 
-          }
+          }
 
-          /*
+          /*
 
-            Only this user's
+            Only this user's
 
-            real records and only
+            real records and only
 
-            from their effective
+            from their effective
 
-            start date.
+            start date.
 
-          */
+          */
 
-          const records =
+          const records =
 
-            attendanceRows.filter(
+            attendanceRows.filter(
 
-              (record) => {
+              (record) => {
 
-                const recordDate =
+                const recordDate =
 
-                  formatDateOnly(
+                  formatDateOnly(
 
-                    record
+                    record
 
-                      .attendance_date
+                      .attendance_date
 
-                  );
+                  );
 
-                return (
+                return (
 
-                  Number(
+                  Number(
 
-                    record.employee_id
+                    record.employee_id
 
-                  ) ===
+                  ) ===
 
-                    Number(
+                    Number(
 
-                      user.user_id
+                      user.user_id
 
-                    ) &&
+                    ) &&
 
-                  recordDate &&
+                  recordDate &&
 
-                  recordDate >=
+                  recordDate >=
 
-                    userStartDate
+                    userStartDate
 
-                );
+                );
 
-              }
+              }
 
-            );
+            );
 
-          /*
+          /*
 
-            Dates before employee
+            Dates before employee
 
-            joined are completely
+            joined are completely
 
-            removed.
+            removed.
 
-          */
+          */
 
-          const userWorkingDates =
+          const userWorkingDates =
 
-            workingDates.filter(
+            workingDates.filter(
 
-              (date) =>
+              (date) =>
 
-                date >=
+                date >=
 
-                userStartDate
+                userStartDate
 
-            );
+            );
 
-          return (
+          return (
 
-            buildUserAttendanceSummary(
+            buildUserAttendanceSummary(
 
-              {
+              {
 
-                user,
+                user,
 
-                records,
+                records,
 
-                workingDates:
+                workingDates:
 
-                  userWorkingDates,
+                  userWorkingDates,
 
-              }
+              }
 
-            )
+            )
 
-          );
+          );
 
-        }
+        }
 
-      );
+      );
 
-    /*
+    /*
 
-      LOGGED-IN ADMIN
+      LOGGED-IN ADMIN
 
-      USES SAME START LOGIC
+      USES SAME START LOGIC
 
-    */
+    */
 
-    const adminStartDate =
+    const adminStartDate =
 
-      getEffectiveAttendanceStartDate(
+      getEffectiveAttendanceStartDate(
 
-        admin.joining_date,
+        admin.joining_date,
 
-        startDate
+        startDate
 
-      );
+      );
 
-    const adminWorkingDates =
+    const adminWorkingDates =
 
-      adminStartDate
+      adminStartDate
 
-        ? workingDates.filter(
+        ? workingDates.filter(
 
-            (date) =>
+            (date) =>
 
-              date >=
+              date >=
 
-              adminStartDate
+              adminStartDate
 
-          )
+          )
 
-        : [];
+        : [];
 
-    const myAttendance =
+    const myAttendance =
 
-      summaries.find(
+      summaries.find(
 
-        (item) =>
+        (item) =>
 
-          Number(
+          Number(
 
-            item.user_id
+            item.user_id
 
-          ) ===
+          ) ===
 
-          Number(
+          Number(
 
-            admin.user_id
+            admin.user_id
 
-          )
+          )
 
-      ) ||
+      ) ||
 
-      buildUserAttendanceSummary(
+      buildUserAttendanceSummary(
 
-        {
+        {
 
-          user: admin,
+          user: admin,
 
-          records: [],
+          records: [],
 
-          workingDates:
+          workingDates:
 
-            adminWorkingDates,
+            adminWorkingDates,
 
-        }
+        }
 
-      );
+      );
 
-    /*
+    /*
 
-      REMOVE ADMIN FROM
+      REMOVE ADMIN FROM
 
-      EMPLOYEE SUMMARY
+      EMPLOYEE SUMMARY
 
-    */
+    */
 
-    const employeeSummary =
+    const employeeSummary =
 
-      summaries.filter(
+      summaries.filter(
 
-        (item) =>
+        (item) =>
 
-          Number(
+          Number(
 
-            item.user_id
+            item.user_id
 
-          ) !==
+          ) !==
 
-          Number(
+          Number(
 
-            admin.user_id
+            admin.user_id
 
-          )
+          )
 
-      );
+      );
 
-    /*
+    /*
 
-      DEPARTMENT TOTALS
+      DEPARTMENT TOTALS
 
-    */
+    */
 
-    const departmentTotals =
+    const departmentTotals =
 
-      employeeSummary.reduce(
+      employeeSummary.reduce(
 
-        (
+        (
 
-          acc,
+          acc,
 
-          item
+          item
 
-        ) => {
+        ) => {
 
-          acc.people += 1;
+          acc.people += 1;
 
-          acc.total +=
+          acc.total +=
 
-            Number(
+            Number(
 
-              item.total ||
+              item.total ||
 
-                0
+                0
 
-            );
+            );
 
-          acc.present +=
+          acc.present +=
 
-            Number(
+            Number(
 
-              item.present ||
+              item.present ||
 
-                0
+                0
 
-            );
+            );
 
-          acc.absent +=
+          acc.absent +=
 
-            Number(
+            Number(
 
-              item.absent ||
+              item.absent ||
 
-                0
+                0
 
-            );
+            );
 
-          acc.late +=
+          acc.late +=
 
-            Number(
+            Number(
 
-              item.late ||
+              item.late ||
 
-                0
+                0
 
-            );
+            );
 
-          acc.leave +=
+          acc.leave +=
 
-            Number(
+            Number(
 
-              item.leave ||
+              item.leave ||
 
-                0
+                0
 
-            );
+            );
 
-          return acc;
+          return acc;
 
-        },
+        },
 
-        {
+        {
 
-          people: 0,
+          people: 0,
 
-          total: 0,
+          total: 0,
 
-          present: 0,
+          present: 0,
 
-          absent: 0,
+          absent: 0,
 
-          late: 0,
+          late: 0,
 
-          leave: 0,
+          leave: 0,
 
-        }
+        }
 
-      );
+      );
 
-    return res
+    return res
 
-      .status(200)
+      .status(200)
 
-      .json({
+      .json({
 
-        success: true,
+        success: true,
 
-        admin,
+        admin,
 
-        office_hours: {
+        office_hours: {
 
-          start_time:
+          start_time:
 
-            "11:00:00",
+            "11:00:00",
 
-          end_time:
+          end_time:
 
-            "19:30:00",
+            "19:30:00",
 
-          late_after:
+          late_after:
 
-            "11:00:00",
+            "11:00:00",
 
-        },
+        },
 
-        date_range: {
+        date_range: {
 
-          start_date:
+          start_date:
 
-            startDate,
+            startDate,
 
-          end_date:
+          end_date:
 
-            endDate,
+            endDate,
 
-          working_days:
+          working_days:
 
-            workingDates.length,
+            workingDates.length,
 
-          note:
+          note:
 
-            "Attendance is calculated from the imported attendance range or the employee joining date when the joining date is later. Sundays are excluded.",
+            "Attendance is calculated from the imported attendance range or the employee joining date when the joining date is later. Sundays are excluded.",
 
-        },
+        },
 
-        my_attendance:
+        my_attendance:
 
-          myAttendance,
+          myAttendance,
 
-        employee_summary:
+        employee_summary:
 
-          employeeSummary,
+          employeeSummary,
 
-        department_totals:
+        department_totals:
 
-          departmentTotals,
+          departmentTotals,
 
-      });
+      });
 
-  } catch (error) {
+  } catch (error) {
 
-    console.error(
+    console.error(
 
-      "Get admin department attendance error:",
+      "Get admin department attendance error:",
 
-      error
+      error
 
-    );
+    );
 
-    return res
+    return res
 
-      .status(500)
+      .status(500)
 
-      .json({
+      .json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          "Failed to fetch admin attendance.",
+          "Failed to fetch admin attendance.",
 
-        error:
+        error:
 
-          error.message,
+          error.message,
 
-        sqlMessage:
+        sqlMessage:
 
-          error.sqlMessage ||
+          error.sqlMessage ||
 
-          null,
+          null,
 
-      });
+      });
 
-  }
+  }
 
 };
 
 const normalizeFieldVisitStops = (body = {}) => {
 
-  const suppliedStops =
+  const suppliedStops =
 
-    Array.isArray(body.visit_stops)
+    Array.isArray(body.visit_stops)
 
-      ? body.visit_stops
+      ? body.visit_stops
 
-      : [];
+      : [];
 
-  const stops = suppliedStops
+  const stops = suppliedStops
 
-    .map((stop, index) => ({
+    .map((stop, index) => ({
 
-      sequence_no: index + 1,
+      sequence_no: index + 1,
 
-      location: String(
+      location: String(
 
-        stop?.location || ""
+        stop?.location || ""
 
-      ).trim(),
+      ).trim(),
 
-      visit_time:
+      visit_time:
 
-        String(
+        String(
 
-          stop?.visit_time || ""
+          stop?.visit_time || ""
 
-        ).trim() || null,
+        ).trim() || null,
 
-      description: String(
+      description: String(
 
-        stop?.description || ""
+        stop?.description || ""
 
-      ).trim(),
+      ).trim(),
 
-    }))
+    }))
 
-    .filter(
+    .filter(
 
-      (stop) =>
+      (stop) =>
 
-        stop.location ||
+        stop.location ||
 
-        stop.description
+        stop.description
 
-    );
+    );
 
-  if (stops.length) {
+  if (stops.length) {
 
-    return stops;
+    return stops;
 
-  }
+  }
 
-  /*
+  /*
 
-    BACKWARD COMPATIBILITY
+    BACKWARD COMPATIBILITY
 
-    Existing frontend still sends
+    Existing frontend still sends
 
-    location + comment.
+    location + comment.
 
-    Treat that as Stop 1.
+    Treat that as Stop 1.
 
-  */
+  */
 
-  const legacyLocation =
+  const legacyLocation =
 
-    String(
+    String(
 
-      body.location || ""
+      body.location || ""
 
-    ).trim();
+    ).trim();
 
-  const legacyComment =
+  const legacyComment =
 
-    String(
+    String(
 
-      body.comment || ""
+      body.comment || ""
 
-    ).trim();
+    ).trim();
 
-  if (
+  if (
 
-    legacyLocation ||
+    legacyLocation ||
 
-    legacyComment
+    legacyComment
 
-  ) {
+  ) {
 
-    return [
+    return [
 
-      {
+      {
 
-        sequence_no: 1,
+        sequence_no: 1,
 
-        location:
+        location:
 
-          legacyLocation,
+          legacyLocation,
 
-        visit_time:
+        visit_time:
 
-          null,
+          null,
 
-        description:
+        description:
 
-          legacyComment,
+          legacyComment,
 
-      },
+      },
 
-    ];
+    ];
 
-  }
+  }
 
-  return [];
+  return [];
 
 };
 
 const countFieldVisitWords = (value) =>
 
-  String(value || "")
+  String(value || "")
 
-    .trim()
+    .trim()
 
-    .split(/\s+/)
+    .split(/\s+/)
 
-    .filter(Boolean)
+    .filter(Boolean)
 
-    .length;
+    .length;
 
 const getFieldVisitDescriptionWordCount = (visitStops = []) =>
 
-  visitStops.reduce(
+  visitStops.reduce(
 
-    (total, stop) =>
+    (total, stop) =>
 
-      total + countFieldVisitWords(stop?.description),
+      total + countFieldVisitWords(stop?.description),
 
-    0
+    0
 
-  );
+  );
 
 const attachFieldVisitStops =
 
 async (visits) => {
 
-  if (
+  if (
 
-    !Array.isArray(visits) ||
+    !Array.isArray(visits) ||
 
-    !visits.length
+    !visits.length
 
-  ) {
+  ) {
 
-    return [];
+    return [];
 
-  }
+  }
 
-  const visitIds =
+  const visitIds =
 
-    visits
+    visits
 
-      .map(
+      .map(
 
-        (visit) =>
+        (visit) =>
 
-          Number(
+          Number(
 
-            visit.visit_id
+            visit.visit_id
 
-          )
+          )
 
-      )
+      )
 
-      .filter(Boolean);
+      .filter(Boolean);
 
-  if (!visitIds.length) {
+  if (!visitIds.length) {
 
-    return visits;
+    return visits;
 
-  }
+  }
 
-  const [stopRows] =
+  const [stopRows] =
 
-    await db.query(
+    await db.query(
 
-      `
+      `
 
-        SELECT
+        SELECT
 
-          stop_id,
+          stop_id,
 
-          visit_id,
+          visit_id,
 
-          sequence_no,
+          sequence_no,
 
-          location,
+          location,
 
-          visit_time,
+          visit_time,
 
-          description,
+          description,
 
-          created_at,
+          created_at,
 
-          updated_at
+          updated_at
 
-        FROM field_visit_stops
+        FROM field_visit_stops
 
-        WHERE visit_id IN (?)
+        WHERE visit_id IN (?)
 
-        ORDER BY
+        ORDER BY
 
-          visit_id ASC,
+          visit_id ASC,
 
-          sequence_no ASC,
+          sequence_no ASC,
 
-          stop_id ASC
+          stop_id ASC
 
-      `,
+      `,
 
-      [visitIds]
+      [visitIds]
 
-    );
+    );
 
-  const stopMap =
+  const stopMap =
 
-    new Map();
+    new Map();
 
-  stopRows.forEach(
+  stopRows.forEach(
 
-    (stop) => {
+    (stop) => {
 
-      const visitId =
+      const visitId =
 
-        Number(
+        Number(
 
-          stop.visit_id
+          stop.visit_id
 
-        );
+        );
 
-      if (
+      if (
 
-        !stopMap.has(
+        !stopMap.has(
 
-          visitId
+          visitId
 
-        )
+        )
 
-      ) {
+      ) {
 
-        stopMap.set(
+        stopMap.set(
 
-          visitId,
+          visitId,
 
-          []
+          []
 
-        );
+        );
 
-      }
+      }
 
-      stopMap
+      stopMap
 
-        .get(visitId)
+        .get(visitId)
 
-        .push(stop);
+        .push(stop);
 
-    }
+    }
 
-  );
+  );
 
-  return visits.map(
+  return visits.map(
 
-    (visit) => {
+    (visit) => {
 
-      const visitId =
+      const visitId =
 
-        Number(
+        Number(
 
-          visit.visit_id
+          visit.visit_id
 
-        );
+        );
 
-      const savedStops =
+      const savedStops =
 
-        stopMap.get(
+        stopMap.get(
 
-          visitId
+          visitId
 
-        ) || [];
+        ) || [];
 
-      /*
+      /*
 
-        OLD DATA SAFETY
+        OLD DATA SAFETY
 
-        Existing visits that pre-date
+        Existing visits that pre-date
 
-        field_visit_stops remain visible
+        field_visit_stops remain visible
 
-        using their original
+        using their original
 
-        location/comment.
+        location/comment.
 
-      */
+      */
 
-      const legacyStops =
+      const legacyStops =
 
-        visit.location ||
+        visit.location ||
 
-        visit.comment
+        visit.comment
 
-          ? [
+          ? [
 
-              {
+              {
 
-                stop_id:
+                stop_id:
 
-                  null,
+                  null,
 
-                visit_id:
+                visit_id:
 
-                  visit.visit_id,
+                  visit.visit_id,
 
-                sequence_no:
+                sequence_no:
 
-                  1,
+                  1,
 
-                location:
+                location:
 
-                  visit.location ||
+                  visit.location ||
 
-                  "",
+                  "",
 
-                visit_time:
+                visit_time:
 
-                  null,
+                  null,
 
-                description:
+                description:
 
-                  visit.comment ||
+                  visit.comment ||
 
-                  "",
+                  "",
 
-                is_legacy:
+                is_legacy:
 
-                  true,
+                  true,
 
-              },
+              },
 
-            ]
+            ]
 
-          : [];
+          : [];
 
-      return {
+      return {
 
-        ...visit,
+        ...visit,
 
-        visit_stops:
+        visit_stops:
 
-          savedStops.length
+          savedStops.length
 
-            ? savedStops
+            ? savedStops
 
-            : legacyStops,
+            : legacyStops,
 
-      };
+      };
 
-    }
+    }
 
-  );
+  );
 
 };
 
@@ -2316,379 +2316,379 @@ const getDepartmentFieldVisits =
 
 async (req, res) => {
 
-  try {
+  try {
 
-    const {
+    const {
 
-      admin,
+      admin,
 
-      error,
+      error,
 
-    } =
+    } =
 
-      await getLoggedInAdmin(
+      await getLoggedInAdmin(
 
-        req
+        req
 
-      );
+      );
 
-    if (error) {
+    if (error) {
 
-      return res
+      return res
 
-        .status(
+        .status(
 
-          error.status
+          error.status
 
-        )
+        )
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            error.message,
+            error.message,
 
-        });
+        });
 
-    }
+    }
 
-    const [visits] =
+    const [visits] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          SELECT
+          SELECT
 
-            fv.*,
+            fv.*,
 
-            creator.full_name
+            creator.full_name
 
-              AS full_name,
+              AS full_name,
 
-            creator.employee_code,
+            creator.employee_code,
 
-            (
+            (
 
-              SELECT GROUP_CONCAT(
+              SELECT GROUP_CONCAT(
 
-                DISTINCT
+                DISTINCT
 
-                member_user.full_name
+                member_user.full_name
 
-                ORDER BY
+                ORDER BY
 
-                  member_user.full_name
+                  member_user.full_name
 
-                SEPARATOR ', '
+                SEPARATOR ', '
 
-              )
+              )
 
-              FROM field_visit_members
+              FROM field_visit_members
 
-                member_link
+                member_link
 
-              INNER JOIN users
+              INNER JOIN users
 
-                member_user
+                member_user
 
-                ON
+                ON
 
-                  member_user.user_id =
+                  member_user.user_id =
 
-                  member_link.employee_id
+                  member_link.employee_id
 
-              WHERE
+              WHERE
 
-                member_link.visit_id =
+                member_link.visit_id =
 
-                fv.visit_id
+                fv.visit_id
 
-            ) AS team_members
+            ) AS team_members
 
-          FROM employee_field_visits fv
+          FROM employee_field_visits fv
 
-          LEFT JOIN users creator
+          LEFT JOIN users creator
 
-            ON creator.user_id =
+            ON creator.user_id =
 
-               fv.employee_id
+               fv.employee_id
 
-          LEFT JOIN roles creator_role
+          LEFT JOIN roles creator_role
 
-            ON creator_role.role_id =
+            ON creator_role.role_id =
 
-               creator.role_id
+               creator.role_id
 
-          WHERE
+          WHERE
 
-          (
+          (
 
-            EXISTS
+            EXISTS
 
-            (
+            (
 
-              SELECT 1
+              SELECT 1
 
-              FROM user_departments
+              FROM user_departments
 
-                creator_ud
+                creator_ud
 
-              WHERE
+              WHERE
 
-                creator_ud.user_id =
+                creator_ud.user_id =
 
-                  creator.user_id
+                  creator.user_id
 
-                AND
+                AND
 
-                creator_ud.department_id
+                creator_ud.department_id
 
-                IN
+                IN
 
-                (
+                (
 
-                  SELECT
+                  SELECT
 
-                    admin_ud.department_id
+                    admin_ud.department_id
 
-                  FROM user_departments
+                  FROM user_departments
 
-                    admin_ud
+                    admin_ud
 
-                  WHERE
+                  WHERE
 
-                    admin_ud.user_id = ?
+                    admin_ud.user_id = ?
 
-                )
+                )
 
-            )
+            )
 
-            OR
+            OR
 
-            creator.department_id
+            creator.department_id
 
-            IN
+            IN
 
-            (
+            (
 
-              SELECT
+              SELECT
 
-                admin_ud.department_id
+                admin_ud.department_id
 
-              FROM user_departments
+              FROM user_departments
 
-                admin_ud
+                admin_ud
 
-              WHERE
+              WHERE
 
-                admin_ud.user_id = ?
+                admin_ud.user_id = ?
 
-            )
+            )
 
-            OR
+            OR
 
-            EXISTS
+            EXISTS
 
-            (
+            (
 
-              SELECT 1
+              SELECT 1
 
-              FROM user_departments
+              FROM user_departments
 
-                creator_ud
+                creator_ud
 
-              WHERE
+              WHERE
 
-                creator_ud.user_id =
+                creator_ud.user_id =
 
-                  creator.user_id
+                  creator.user_id
 
-                AND
+                AND
 
-                creator_ud.department_id = ?
+                creator_ud.department_id = ?
 
-            )
+            )
 
-            OR
+            OR
 
-            creator.department_id = ?
+            creator.department_id = ?
 
-          )
+          )
 
-          AND
+          AND
 
-          LOWER(
+          LOWER(
 
-            COALESCE(
+            COALESCE(
 
-              creator_role.role_name,
+              creator_role.role_name,
 
-              ''
+              ''
 
-            )
+            )
 
-          ) = 'employee'
+          ) = 'employee'
 
-          ORDER BY
+          ORDER BY
 
-            fv.visit_date DESC,
+            fv.visit_date DESC,
 
-            fv.visit_id DESC
+            fv.visit_id DESC
 
-        `,
+        `,
 
-        [
+        [
 
-          admin.user_id,
+          admin.user_id,
 
-          admin.user_id,
+          admin.user_id,
 
-          admin.department_id,
+          admin.department_id,
 
-          admin.department_id,
+          admin.department_id,
 
-        ]
+        ]
 
-      );
+      );
 
-    const visitsWithStops =
+    const visitsWithStops =
 
-      await attachFieldVisitStops(
+      await attachFieldVisitStops(
 
-        visits
+        visits
 
-      );
+      );
 
-    visitsWithStops.forEach(
+    visitsWithStops.forEach(
 
-      (visit) => {
+      (visit) => {
 
-        visit.all_people = [
+        visit.all_people = [
 
-          visit.full_name,
+          visit.full_name,
 
-          ...(
+          ...(
 
-            visit.team_members
+            visit.team_members
 
-              ? visit.team_members.split(
+              ? visit.team_members.split(
 
-                  ", "
+                  ", "
 
-                )
+                )
 
-              : []
+              : []
 
-          ),
+          ),
 
-        ].filter(Boolean);
+        ].filter(Boolean);
 
-      }
+      }
 
-    );
+    );
 
-    const summary = {
+    const summary = {
 
-      total:
+      total:
 
-        visitsWithStops.length,
+        visitsWithStops.length,
 
-      approved:
+      approved:
 
-        visitsWithStops.filter(
+        visitsWithStops.filter(
 
-          (visit) =>
+          (visit) =>
 
-            visit.status ===
+            visit.status ===
 
-            "approved"
+            "approved"
 
-        ).length,
+        ).length,
 
-      pending:
+      pending:
 
-        visitsWithStops.filter(
+        visitsWithStops.filter(
 
-          (visit) =>
+          (visit) =>
 
-            visit.status ===
+            visit.status ===
 
-            "pending"
+            "pending"
 
-        ).length,
+        ).length,
 
-      changes_requested:
+      changes_requested:
 
-        visitsWithStops.filter(
+        visitsWithStops.filter(
 
-          (visit) =>
+          (visit) =>
 
-            visit.status ===
+            visit.status ===
 
-            "changes_requested"
+            "changes_requested"
 
-        ).length,
+        ).length,
 
-      rejected:
+      rejected:
 
-        visitsWithStops.filter(
+        visitsWithStops.filter(
 
-          (visit) =>
+          (visit) =>
 
-            visit.status ===
+            visit.status ===
 
-            "rejected"
+            "rejected"
 
-        ).length,
+        ).length,
 
-    };
+    };
 
-    return res.json({
+    return res.json({
 
-      success: true,
+      success: true,
 
-      summary,
+      summary,
 
-      visits:
+      visits:
 
-        visitsWithStops,
+        visitsWithStops,
 
-    });
+    });
 
-  } catch (error) {
+  } catch (error) {
 
-    console.error(
+    console.error(
 
-      "Department field visits error",
+      "Department field visits error",
 
-      error
+      error
 
-    );
+    );
 
-    return res
+    return res
 
-      .status(500)
+      .status(500)
 
-      .json({
+      .json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          "Failed to fetch field visits.",
+          "Failed to fetch field visits.",
 
-      });
+      });
 
-  }
+  }
 
 };
 
 /* =========================================================
 
-   ADMIN - REVIEW FIELD VISIT
+   ADMIN - REVIEW FIELD VISIT
 
 \========================================================= */
 
@@ -2696,595 +2696,595 @@ const reviewFieldVisit =
 
 async (
 
-  req,
+  req,
 
-  res
+  res
 
 ) => {
 
-  try {
+  try {
 
-    const {
+    const {
 
-      admin,
+      admin,
 
-      error,
+      error,
 
-    } =
+    } =
 
-      await getLoggedInAdmin(
+      await getLoggedInAdmin(
 
-        req
+        req
 
-      );
+      );
 
-    if (error) {
+    if (error) {
 
-      return res
+      return res
 
-        .status(
+        .status(
 
-          error.status
+          error.status
 
-        )
+        )
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            error.message,
+            error.message,
 
-        });
+        });
 
-    }
+    }
 
-    const visitId =
+    const visitId =
 
-      Number(
+      Number(
 
-        req.params.visitId
+        req.params.visitId
 
-      );
+      );
 
-    if (!visitId) {
+    if (!visitId) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Invalid field visit.",
+            "Invalid field visit.",
 
-        });
+        });
 
-    }
+    }
 
-    const status =
+    const status =
 
-      String(
+      String(
 
-        req.body?.status ||
+        req.body?.status ||
 
-          ""
+          ""
 
-      )
+      )
 
-        .toLowerCase()
+        .toLowerCase()
 
-        .trim();
+        .trim();
 
-    const reviewRemark =
+    const reviewRemark =
 
-      String(
+      String(
 
-        req.body
+        req.body
 
-          ?.review_remark ||
+          ?.review_remark ||
 
-          req.body?.remark ||
+          req.body?.remark ||
 
-          ""
+          ""
 
-      ).trim();
+      ).trim();
 
-    if (
+    if (
 
-      ![
+      ![
 
-        "approved",
+        "approved",
 
-        "changes_requested",
+        "changes_requested",
 
-        "rejected",
+        "rejected",
 
-      ].includes(
+      ].includes(
 
-        status
+        status
 
-      )
+      )
 
-    ) {
+    ) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Status must be approved, changes_requested, or rejected.",
+            "Status must be approved, changes_requested, or rejected.",
 
-        });
+        });
 
-    }
+    }
 
-    if (
+    if (
 
-      status === "changes_requested" &&
+      status === "changes_requested" &&
 
-      !reviewRemark
+      !reviewRemark
 
-    ) {
+    ) {
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          "A remark is required when requesting changes.",
+          "A remark is required when requesting changes.",
 
-      });
+      });
 
-    }
+    }
 
-    /*
+    /*
 
-      EXISTING SECURITY:
+      EXISTING SECURITY:
 
-      Admin can review only an Employee
+      Admin can review only an Employee
 
-      Field Visit from their department.
+      Field Visit from their department.
 
-      Admin's own visit is NOT handled here.
+      Admin's own visit is NOT handled here.
 
-    */
+    */
 
-    const [visitRows] =
+    const [visitRows] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          SELECT
+          SELECT
 
-            fv.visit_id,
+            fv.visit_id,
 
-            fv.employee_id,
+            fv.employee_id,
 
-            fv.status,
+            fv.status,
 
-            employee.full_name,
+            employee.full_name,
 
-            employee.department_id
+            employee.department_id
 
-          FROM employee_field_visits fv
+          FROM employee_field_visits fv
 
-          INNER JOIN users employee
+          INNER JOIN users employee
 
-            ON employee.user_id =
+            ON employee.user_id =
 
-               fv.employee_id
+               fv.employee_id
 
-          INNER JOIN roles employee_role
+          INNER JOIN roles employee_role
 
-            ON employee_role.role_id =
+            ON employee_role.role_id =
 
-               employee.role_id
+               employee.role_id
 
-          WHERE
+          WHERE
 
-            fv.visit_id = ?
+            fv.visit_id = ?
 
-            AND
+            AND
 
-            (
+            (
 
-              EXISTS
+              EXISTS
 
-              (
+              (
 
-                SELECT 1
+                SELECT 1
 
-                FROM user_departments
+                FROM user_departments
 
-                  employee_ud
+                  employee_ud
 
-                WHERE
+                WHERE
 
-                  employee_ud.user_id =
+                  employee_ud.user_id =
 
-                    employee.user_id
+                    employee.user_id
 
-                  AND
+                  AND
 
-                  employee_ud.department_id
+                  employee_ud.department_id
 
-                  IN
+                  IN
 
-                  (
+                  (
 
-                    SELECT
+                    SELECT
 
-                      admin_ud.department_id
+                      admin_ud.department_id
 
-                    FROM user_departments
+                    FROM user_departments
 
-                      admin_ud
+                      admin_ud
 
-                    WHERE
+                    WHERE
 
-                      admin_ud.user_id = ?
+                      admin_ud.user_id = ?
 
-                  )
+                  )
 
-              )
+              )
 
-              OR
+              OR
 
-              employee.department_id
+              employee.department_id
 
-              IN
+              IN
 
-              (
+              (
 
-                SELECT
+                SELECT
 
-                  admin_ud.department_id
+                  admin_ud.department_id
 
-                FROM user_departments
+                FROM user_departments
 
-                  admin_ud
+                  admin_ud
 
-                WHERE
+                WHERE
 
-                  admin_ud.user_id = ?
+                  admin_ud.user_id = ?
 
-              )
+              )
 
-              OR
+              OR
 
-              EXISTS
+              EXISTS
 
-              (
+              (
 
-                SELECT 1
+                SELECT 1
 
-                FROM user_departments
+                FROM user_departments
 
-                  employee_ud
+                  employee_ud
 
-                WHERE
+                WHERE
 
-                  employee_ud.user_id =
+                  employee_ud.user_id =
 
-                    employee.user_id
+                    employee.user_id
 
-                  AND
+                  AND
 
-                  employee_ud.department_id =
+                  employee_ud.department_id =
 
-                    ?
+                    ?
 
-              )
+              )
 
-              OR
+              OR
 
-              employee.department_id =
+              employee.department_id =
 
-                ?
+                ?
 
-            )
+            )
 
-            AND
+            AND
 
-              employee.user_id <> ?
+              employee.user_id <> ?
 
-            AND
+            AND
 
-            LOWER(
+            LOWER(
 
-              COALESCE(
+              COALESCE(
 
-                employee_role.role_name,
+                employee_role.role_name,
 
-                ''
+                ''
 
-              )
+              )
 
-            ) = 'employee'
+            ) = 'employee'
 
-          LIMIT 1
+          LIMIT 1
 
-        `,
+        `,
 
-        [
+        [
 
-          visitId,
+          visitId,
 
-          admin.user_id,
+          admin.user_id,
 
-          admin.user_id,
+          admin.user_id,
 
-          admin.department_id,
+          admin.department_id,
 
-          admin.department_id,
+          admin.department_id,
 
-          admin.user_id,
+          admin.user_id,
 
-        ]
+        ]
 
-      );
+      );
 
-    if (!visitRows.length) {
+    if (!visitRows.length) {
 
-      return res
+      return res
 
-        .status(404)
+        .status(404)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Only employee field visits from your department can be reviewed by Admin.",
+            "Only employee field visits from your department can be reviewed by Admin.",
 
-        });
+        });
 
-    }
+    }
 
-    const currentVisit =
+    const currentVisit =
 
-      visitRows[0];
+      visitRows[0];
 
-    if (
+    if (
 
-      String(
+      String(
 
-        currentVisit.status ||
+        currentVisit.status ||
 
-          ""
+          ""
 
-      ).toLowerCase() !==
+      ).toLowerCase() !==
 
-      "pending"
+      "pending"
 
-    ) {
+    ) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Only pending field visits can be reviewed.",
+            "Only pending field visits can be reviewed.",
 
-        });
+        });
 
-    }
+    }
 
-    await db.query(
+    await db.query(
 
-      `
+      `
 
-        UPDATE employee_field_visits
+        UPDATE employee_field_visits
 
-        SET
+        SET
 
-          status = ?,
+          status = ?,
 
-          reviewed_by = ?,
+          reviewed_by = ?,
 
-          reviewed_at = NOW(),
+          reviewed_at = NOW(),
 
-          review_remark = ?,
+          review_remark = ?,
 
-          updated_at = NOW()
+          updated_at = NOW()
 
-        WHERE visit_id = ?
+        WHERE visit_id = ?
 
-      `,
+      `,
 
-      [
+      [
 
-        status,
+        status,
 
-        admin.user_id,
+        admin.user_id,
 
-        reviewRemark ||
+        reviewRemark ||
 
-          null,
+          null,
 
-        visitId,
+        visitId,
 
-      ]
+      ]
 
-    );
+    );
 
-    const [updatedRows] =
+    const [updatedRows] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          SELECT
+          SELECT
 
-            fv.visit_id,
+            fv.visit_id,
 
-            fv.employee_id,
+            fv.employee_id,
 
-            fv.visit_type,
+            fv.visit_type,
 
-            DATE_FORMAT(
+            DATE_FORMAT(
 
-              fv.visit_date,
+              fv.visit_date,
 
-              '%Y-%m-%d'
+              '%Y-%m-%d'
 
-            ) AS visit_date,
+            ) AS visit_date,
 
-            fv.duration_type,
+            fv.duration_type,
 
-            fv.half_day_session,
+            fv.half_day_session,
 
-            fv.location,
+            fv.location,
 
-            fv.comment,
+            fv.comment,
 
-            fv.conclusion,
+            fv.conclusion,
 
-            fv.remark,
+            fv.remark,
 
-            fv.status,
+            fv.status,
 
-            fv.review_remark,
+            fv.review_remark,
 
-            DATE_FORMAT(
+            DATE_FORMAT(
 
-              fv.reviewed_at,
+              fv.reviewed_at,
 
-              '%Y-%m-%d %H:%i:%s'
+              '%Y-%m-%d %H:%i:%s'
 
-            ) AS reviewed_at,
+            ) AS reviewed_at,
 
-            employee.full_name,
+            employee.full_name,
 
-            employee.email,
+            employee.email,
 
-            reviewer.full_name
+            reviewer.full_name
 
-              AS reviewed_by_name
+              AS reviewed_by_name
 
-          FROM employee_field_visits fv
+          FROM employee_field_visits fv
 
-          INNER JOIN users employee
+          INNER JOIN users employee
 
-            ON employee.user_id =
+            ON employee.user_id =
 
-               fv.employee_id
+               fv.employee_id
 
-          LEFT JOIN users reviewer
+          LEFT JOIN users reviewer
 
-            ON reviewer.user_id =
+            ON reviewer.user_id =
 
-               fv.reviewed_by
+               fv.reviewed_by
 
-          WHERE
+          WHERE
 
-            fv.visit_id = ?
+            fv.visit_id = ?
 
-          LIMIT 1
+          LIMIT 1
 
-        `,
+        `,
 
-        [
+        [
 
-          visitId,
+          visitId,
 
-        ]
+        ]
 
-      );
+      );
 
-    const updatedVisits =
+    const updatedVisits =
 
-      await attachFieldVisitStops(
+      await attachFieldVisitStops(
 
-        updatedRows
+        updatedRows
 
-      );
+      );
 
-    return res.json({
+    return res.json({
 
-      success: true,
+      success: true,
 
-      message:
+      message:
 
-        status ===
+        status ===
 
-          "approved"
+          "approved"
 
-          ? "Field visit approved successfully."
+          ? "Field visit approved successfully."
 
-          : status === "changes_requested"
+          : status === "changes_requested"
 
-            ? "Field visit returned to the employee for changes."
+            ? "Field visit returned to the employee for changes."
 
-            : "Field visit rejected successfully.",
+            : "Field visit rejected successfully.",
 
-      visit:
+      visit:
 
-        updatedVisits[0] ||
+        updatedVisits[0] ||
 
-        null,
+        null,
 
-    });
+    });
 
-  } catch (error) {
+  } catch (error) {
 
-    console.error(
+    console.error(
 
-      "Review field visit error:",
+      "Review field visit error:",
 
-      error
+      error
 
-    );
+    );
 
-    return res
+    return res
 
-      .status(500)
+      .status(500)
 
-      .json({
+      .json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          "Failed to review field visit.",
+          "Failed to review field visit.",
 
-        error:
+        error:
 
-          error.message,
+          error.message,
 
-        sqlMessage:
+        sqlMessage:
 
-          error.sqlMessage ||
+          error.sqlMessage ||
 
-          null,
+          null,
 
-      });
+      });
 
-  }
+  }
 
 };
 
 /* =========================================================
 
-   ADMIN - ADD OWN FIELD VISIT
+   ADMIN - ADD OWN FIELD VISIT
 
 \========================================================= */
 
@@ -3292,794 +3292,794 @@ const createAdminFieldVisit =
 
 async (
 
-  req,
+  req,
 
-  res
+  res
 
 ) => {
 
-  try {
+  try {
 
-    const {
+    const {
 
-      admin,
+      admin,
 
-      error,
+      error,
 
-    } =
+    } =
 
-      await getLoggedInAdmin(
+      await getLoggedInAdmin(
 
-        req
+        req
 
-      );
+      );
 
-    if (error) {
+    if (error) {
 
-      return res
+      return res
 
-        .status(
+        .status(
 
-          error.status
+          error.status
 
-        )
+        )
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            error.message,
+            error.message,
 
-        });
+        });
 
-    }
+    }
 
-    const visitType =
+    const visitType =
 
-      String(
+      String(
 
-        req.body?.visit_type ||
+        req.body?.visit_type ||
 
-          "Sales Visit"
+          "Sales Visit"
 
-      ).trim() ||
+      ).trim() ||
 
-      "Sales Visit";
+      "Sales Visit";
 
-    const visitDate =
+    const visitDate =
 
-      String(
+      String(
 
-        req.body?.visit_date ||
+        req.body?.visit_date ||
 
-          ""
+          ""
 
-      ).trim();
+      ).trim();
     const endDate = String(req.body?.end_date || "").trim() || null;
     if (endDate && (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < visitDate)) {
       return res.status(400).json({ success: false, message: "End Date must be on or after Visit Date." });
     }
 
-    const durationType =
+    const durationType =
 
-      String(
+      String(
 
-        req.body?.duration_type ||
+        req.body?.duration_type ||
 
-          "full_day"
+          "full_day"
 
-      )
+      )
 
-        .trim()
+        .trim()
 
-        .toLowerCase();
+        .toLowerCase();
 
-    const halfDaySession =
+    const halfDaySession =
 
-      String(
+      String(
 
-        req.body
+        req.body
 
-          ?.half_day_session ||
+          ?.half_day_session ||
 
-          ""
+          ""
 
-      )
+      )
 
-        .trim()
+        .trim()
 
-        .toLowerCase();
+        .toLowerCase();
 
-    /*
+    /*
 
-      NEW MULTI-LOCATION SUPPORT.
+      NEW MULTI-LOCATION SUPPORT.
 
-      Existing location/comment request
+      Existing location/comment request
 
-      automatically becomes Stop 1.
+      automatically becomes Stop 1.
 
-    */
+    */
 
-    const visitStops =
+    const visitStops =
 
-      normalizeFieldVisitStops(
+      normalizeFieldVisitStops(
 
-        req.body
+        req.body
 
-      );
+      );
 
-    const firstStop =
+    const firstStop =
 
-      visitStops[0] ||
+      visitStops[0] ||
 
-      null;
+      null;
 
-    /*
+    /*
 
-      KEEP ORIGINAL COLUMNS.
+      KEEP ORIGINAL COLUMNS.
 
-      This protects existing frontend,
+      This protects existing frontend,
 
-      attendance and older APIs.
+      attendance and older APIs.
 
-    */
+    */
 
-    const location =
+    const location =
 
-      firstStop?.location ||
+      firstStop?.location ||
 
-      String(
+      String(
 
-        req.body?.location ||
+        req.body?.location ||
 
-          ""
+          ""
 
-      ).trim();
+      ).trim();
 
-    const comment =
+    const comment =
 
-      firstStop?.description ||
+      firstStop?.description ||
 
-      String(
+      String(
 
-        req.body?.comment ||
+        req.body?.comment ||
 
-          ""
+          ""
 
-      ).trim();
+      ).trim();
 
-    const conclusion =
+    const conclusion =
 
-      String(
+      String(
 
-        req.body?.conclusion ||
+        req.body?.conclusion ||
 
-          ""
+          ""
 
-      ).trim();
+      ).trim();
 
-    const remark =
+    const remark =
 
-      String(
+      String(
 
-        req.body?.remark ||
+        req.body?.remark ||
 
-          ""
+          ""
 
-      ).trim();
+      ).trim();
 
-    /*
+    /*
 
-      VALIDATION
+      VALIDATION
 
-    */
+    */
 
-    if (!visitDate) {
+    if (!visitDate) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Visit date is required.",
+            "Visit date is required.",
 
-        });
+        });
 
-    }
+    }
 
-    if (
+    if (
 
-      ![
+      ![
 
-        "full_day",
+        "full_day",
 
-        "half_day",
+        "half_day",
 
-      ].includes(
+      ].includes(
 
-        durationType
+        durationType
 
-      )
+      )
 
-    ) {
+    ) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Please select Full Day or Half Day.",
+            "Please select Full Day or Half Day.",
 
-        });
+        });
 
-    }
+    }
 
-    if (
+    if (
 
-      durationType ===
+      durationType ===
 
-        "half_day" &&
+        "half_day" &&
 
-      ![
+      ![
 
-        "first_half",
+        "first_half",
 
-        "second_half",
+        "second_half",
 
-      ].includes(
+      ].includes(
 
-        halfDaySession
+        halfDaySession
 
-      )
+      )
 
-    ) {
+    ) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Please select First Half or Second Half.",
+            "Please select First Half or Second Half.",
 
-        });
+        });
 
-    }
+    }
 
-    if (!location) {
+    if (!location) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Location is required.",
+            "Location is required.",
 
-        });
+        });
 
-    }
+    }
 
-    if (!comment) {
+    if (!comment) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Comment / reason is required.",
+            "Comment / reason is required.",
 
-        });
+        });
 
-    }
+    }
 
-    const invalidStop =
+    const invalidStop =
 
-      visitStops.find(
+      visitStops.find(
 
-        (stop) =>
+        (stop) =>
 
-          !stop.location ||
+          !stop.location ||
 
-          !stop.description
+          !stop.description
 
-      );
+      );
 
-    if (invalidStop) {
+    if (invalidStop) {
 
-      return res
+      return res
 
-        .status(400)
+        .status(400)
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            "Each field visit location must have a location and description.",
+            "Each field visit location must have a location and description.",
 
-        });
+        });
 
-    }
+    }
 
-    const descriptionWordCount =
+    const descriptionWordCount =
 
-      getFieldVisitDescriptionWordCount(visitStops);
+      getFieldVisitDescriptionWordCount(visitStops);
 
-    if (descriptionWordCount < 100) {
+    if (descriptionWordCount < 100) {
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+          `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
 
-        word_count: descriptionWordCount,
+        word_count: descriptionWordCount,
 
-        minimum_words: 100,
+        minimum_words: 100,
 
-      });
+      });
 
-    }
+    }
 
-    /*
+    /*
 
-      EXISTING RULE:
+      EXISTING RULE:
 
-      Admin cannot approve own visit.
+      Admin cannot approve own visit.
 
-      Visit remains pending for
+      Visit remains pending for
 
-      Superadmin / Premal.
+      Superadmin / Premal.
 
-    */
+    */
 
-    const [result] =
+    const [result] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          INSERT INTO employee_field_visits
+          INSERT INTO employee_field_visits
 
-          (
+          (
 
-            employee_id,
+            employee_id,
 
-            visit_type,
+            visit_type,
 
-            visit_date,
+            visit_date,
 
-            end_date,
+            end_date,
               duration_type,
 
-            half_day_session,
+            half_day_session,
 
-            location,
+            location,
 
-            comment,
+            comment,
 
-            conclusion,
+            conclusion,
 
-            remark,
+            remark,
 
-            status
+            status
 
-          )
+          )
 
-          VALUES
+          VALUES
 
-          (
+          (
 
-            ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?,
 
-            ?, 'pending'
+            ?, 'pending'
 
-          )
+          )
 
-        `,
+        `,
 
-        [
+        [
 
-          admin.user_id,
+          admin.user_id,
 
-          visitType,
+          visitType,
 
-          visitDate,
+          visitDate,
 
-          endDate,
+          endDate,
             durationType,
 
-          durationType ===
+          durationType ===
 
-            "half_day"
+            "half_day"
 
-            ? halfDaySession
+            ? halfDaySession
 
-            : null,
+            : null,
 
-          location,
+          location,
 
-          comment,
+          comment,
 
-          conclusion ||
+          conclusion ||
 
-            null,
+            null,
 
-          remark ||
+          remark ||
 
-            null,
+            null,
 
-        ]
+        ]
 
-      );
+      );
 
-    /*
+    /*
 
-      EXISTING TEAM MEMBERS
+      EXISTING TEAM MEMBERS
 
-    */
+    */
 
-    const teamMembers =
+    const teamMembers =
 
-      Array.isArray(
+      Array.isArray(
 
-        req.body?.visitor_ids
+        req.body?.visitor_ids
 
-      )
+      )
 
-        ? req.body.visitor_ids
+        ? req.body.visitor_ids
 
-        : [];
+        : [];
 
-    if (
+    if (
 
-      teamMembers.length
+      teamMembers.length
 
-    ) {
+    ) {
 
-      const values =
+      const values =
 
-        teamMembers.map(
+        teamMembers.map(
 
-          (id) => [
+          (id) => [
 
-            result.insertId,
+            result.insertId,
 
-            Number(id),
+            Number(id),
 
-          ]
+          ]
 
-        );
+        );
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          INSERT INTO field_visit_members
+          INSERT INTO field_visit_members
 
-          (
+          (
 
-            visit_id,
+            visit_id,
 
-            employee_id
+            employee_id
 
-          )
+          )
 
-          VALUES ?
+          VALUES ?
 
-        `,
+        `,
 
-        [
+        [
 
-          values,
+          values,
 
-        ]
+        ]
 
-      );
+      );
 
-    }
+    }
 
-    /*
+    /*
 
-      NEW:
+      NEW:
 
-      SAVE ORDERED VISIT LOCATIONS
+      SAVE ORDERED VISIT LOCATIONS
 
-    */
+    */
 
-    if (
+    if (
 
-      visitStops.length
+      visitStops.length
 
-    ) {
+    ) {
 
-      const stopValues =
+      const stopValues =
 
-        visitStops.map(
+        visitStops.map(
 
-          (
+          (
 
-            stop,
+            stop,
 
-            index
+            index
 
-          ) => [
+          ) => [
 
-            result.insertId,
+            result.insertId,
 
-            index + 1,
+            index + 1,
 
-            stop.location,
+            stop.location,
 
-            stop.visit_time ||
+            stop.visit_time ||
 
-              null,
+              null,
 
-            stop.description ||
+            stop.description ||
 
-              null,
+              null,
 
-          ]
+          ]
 
-        );
+        );
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          INSERT INTO field_visit_stops
+          INSERT INTO field_visit_stops
 
-          (
+          (
 
-            visit_id,
+            visit_id,
 
-            sequence_no,
+            sequence_no,
 
-            location,
+            location,
 
-            visit_time,
+            visit_time,
 
-            description
+            description
 
-          )
+          )
 
-          VALUES ?
+          VALUES ?
 
-        `,
+        `,
 
-        [
+        [
 
-          stopValues,
+          stopValues,
 
-        ]
+        ]
 
-      );
+      );
 
-    }
+    }
 
-    /*
+    /*
 
-      EXISTING REVIEW TOKEN
+      EXISTING REVIEW TOKEN
 
-    */
+    */
 
-    const reviewToken =
+    const reviewToken =
 
-      crypto
+      crypto
 
-        .randomBytes(32)
+        .randomBytes(32)
 
-        .toString("hex");
+        .toString("hex");
 
-    await db.query(
+    await db.query(
 
-      `
+      `
 
-        INSERT INTO field_visit_review_tokens
+        INSERT INTO field_visit_review_tokens
 
-        (
+        (
 
-          visit_id,
+          visit_id,
 
-          token,
+          token,
 
-          expires_at
+          expires_at
 
-        )
+        )
 
-        VALUES
+        VALUES
 
-        (
+        (
 
-          ?,
+          ?,
 
-          ?,
+          ?,
 
-          DATE_ADD(
+          DATE_ADD(
 
-            NOW(),
+            NOW(),
 
-            INTERVAL 30 DAY
+            INTERVAL 30 DAY
 
-          )
+          )
 
-        )
+        )
 
-      `,
+      `,
 
-      [
+      [
 
-        result.insertId,
+        result.insertId,
 
-        reviewToken,
+        reviewToken,
 
-      ]
+      ]
 
-    );
+    );
 
-    /*
+    /*
 
-      GET SAVED VISIT
+      GET SAVED VISIT
 
-    */
+    */
 
-    const [visitRows] =
+    const [visitRows] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          SELECT
+          SELECT
 
-            fv.visit_id,
+            fv.visit_id,
 
-            fv.employee_id,
+            fv.employee_id,
 
-            fv.visit_type,
+            fv.visit_type,
 
-            DATE_FORMAT(
+            DATE_FORMAT(
 
-              fv.visit_date,
+              fv.visit_date,
 
-              '%Y-%m-%d'
+              '%Y-%m-%d'
 
-            ) AS visit_date,
+            ) AS visit_date,
               DATE_FORMAT(fv.end_date, '%Y-%m-%d') AS end_date,
 
-            fv.duration_type,
+            fv.duration_type,
 
-            fv.half_day_session,
+            fv.half_day_session,
 
-            fv.location,
+            fv.location,
 
-            fv.comment,
+            fv.comment,
 
-            fv.conclusion,
+            fv.conclusion,
 
-            fv.remark,
+            fv.remark,
 
-            fv.status,
+            fv.status,
 
-            fv.created_at
+            fv.created_at
 
-          FROM employee_field_visits fv
+          FROM employee_field_visits fv
 
-          WHERE
+          WHERE
 
-            fv.visit_id = ?
+            fv.visit_id = ?
 
-          LIMIT 1
+          LIMIT 1
 
-        `,
+        `,
 
-        [
+        [
 
-          result.insertId,
+          result.insertId,
 
-        ]
+        ]
 
-      );
+      );
 
-    const savedVisits =
+    const savedVisits =
 
-      await attachFieldVisitStops(
+      await attachFieldVisitStops(
 
-        visitRows
+        visitRows
 
-      );
+      );
 
-    const savedVisit =
+    const savedVisit =
 
-      savedVisits[0] ||
+      savedVisits[0] ||
 
-      null;
+      null;
 
-    /*
+    /*
 
-      EXISTING EMAIL FLOW
+      EXISTING EMAIL FLOW
 
-    */
+    */
 
-    let emailResult = {
+    let emailResult = {
 
-      sent:
+      sent:
 
-        false,
+        false,
 
-      skipped:
+      skipped:
 
-        true,
+        true,
 
-    };
+    };
 
-    try {
+    try {
 
-      const durationLabel =
+      const durationLabel =
 
-        durationType ===
+        durationType ===
 
-          "half_day"
+          "half_day"
 
-          ? halfDaySession ===
+          ? halfDaySession ===
 
-              "first_half"
+              "first_half"
 
-            ? "Half Day - First Half"
+            ? "Half Day - First Half"
 
-            : "Half Day - Second Half"
+            : "Half Day - Second Half"
 
-          : "Full Day";
+          : "Full Day";
 
-      const subject =
+      const subject =
 
-        `Admin Field Visit - ${
+        `Admin Field Visit - ${
 
-          admin.full_name ||
+          admin.full_name ||
 
-          "Admin"
+          "Admin"
 
-        }`;
+        }`;
 
-      /*
+      /*
 
-        Keep email display unchanged
+        Keep email display unchanged
 
-        for now.
+        for now.
 
-        Stop 1 remains Location / Reason.
+        Stop 1 remains Location / Reason.
 
-      */
+      */
 
-      const text = `
+      const text = `
 
 An Admin Field Visit has been submitted for Superadmin approval.
 
@@ -4115,789 +4115,789 @@ Valencia RMS
 
 `;
 
-      const html = `
+      const html = `
 
-        \<div style="font-family:Arial">
+        \<div style="font-family:Arial">
 
-          \<h2 style="color:#ff5733">
+          \<h2 style="color:#ff5733">
 
-            Admin Field Visit
+            Admin Field Visit
 
-          \</h2>
+          \</h2>
 
-          \<p>
+          \<p>
 
-            An Admin Field Visit has been submitted for Superadmin approval.
+            An Admin Field Visit has been submitted for Superadmin approval.
 
-          \</p>
+          \</p>
 
-          \<p>
+          \<p>
 
-            \<b>Name:\</b>
+            \<b>Name:\</b>
 
-            ${admin.full_name || "-"}
+            ${admin.full_name || "-"}
 
-            \<br/>
+            \<br/>
 
-            \<b>Department:\</b>
+            \<b>Department:\</b>
 
-            ${admin.department_name || "-"}
+            ${admin.department_name || "-"}
 
-            \<br/>
+            \<br/>
 
-            \<b>Visit Type:\</b>
+            \<b>Visit Type:\</b>
 
-            ${visitType}
+            ${visitType}
 
-            \<br/>
+            \<br/>
 
-            \<b>Date:\</b>
+            \<b>Date:\</b>
 
-            ${visitDate}
+            ${visitDate}
 
-            \<br/>
+            \<br/>
 
-            \<b>Duration:\</b>
+            \<b>Duration:\</b>
 
-            ${durationLabel}
+            ${durationLabel}
 
-            \<br/>
+            \<br/>
 
-            \<b>Location:\</b>
+            \<b>Location:\</b>
 
-            ${location}
+            ${location}
 
-            \<br/>
+            \<br/>
 
-            \<b>Reason:\</b>
+            \<b>Reason:\</b>
 
-            ${comment}
+            ${comment}
 
-            \<br/>
+            \<br/>
 
-            \<b>Status:\</b>
+            \<b>Status:\</b>
 
-            Pending Superadmin Approval
+            Pending Superadmin Approval
 
-          \</p>
+          \</p>
 
-          \<table
+          \<table
 
-            cellpadding="0"
+            cellpadding="0"
 
-            cellspacing="0"
+            cellspacing="0"
 
-            border="0"
+            border="0"
 
-            style="margin:20px 0;"
+            style="margin:20px 0;"
 
-          >
+          >
 
-            \<tr>
+            \<tr>
 
-              \<td
+              \<td
 
-                style="
+                style="
 
-                  background:#ff5733;
+                  background:#ff5733;
 
-                  border-radius:8px;
+                  border-radius:8px;
 
-                  text-align:center;
+                  text-align:center;
 
-                "
+                "
 
-              >
+              >
 
-                \<a
+                \<a
 
-                  href="https://myvol.in/superadmin/field-visits?visitId=${result.insertId}"
+                  href="https://myvol.in/superadmin/field-visits?visitId=${result.insertId}"
 
-                  style="
+                  style="
 
-                    display:inline-block;
+                    display:inline-block;
 
-                    padding:12px 24px;
+                    padding:12px 24px;
 
-                    color:#ffffff;
+                    color:#ffffff;
 
-                    text-decoration:none;
+                    text-decoration:none;
 
-                    font-weight:bold;
+                    font-weight:bold;
 
-                    font-family:Arial,sans-serif;
+                    font-family:Arial,sans-serif;
 
-                  "
+                  "
 
-                >
+                >
 
-                  Review Field Visit
+                  Review Field Visit
 
-                \</a>
+                \</a>
 
-              \</td>
+              \</td>
 
-            \</tr>
+            \</tr>
 
-          \</table>
+          \</table>
 
-          \<p>
+          \<p>
 
-            Regards,\<br/>
+            Regards,\<br/>
 
-            Valencia RMS
+            Valencia RMS
 
-          \</p>
+          \</p>
 
-        \</div>
+        \</div>
 
-      `;
+      `;
 
-      /*
+      /*
 
-        EXISTING APPROVERS:
+        EXISTING APPROVERS:
 
-        - all Superadmins
+        - all Superadmins
 
-        - Premal Mehta
+        - Premal Mehta
 
-      */
+      */
 
-      const [
+      const [
 
-        reviewerRows,
+        reviewerRows,
 
-      ] =
+      ] =
 
-        await db.query(
+        await db.query(
 
-          `
+          `
 
-            SELECT DISTINCT
+            SELECT DISTINCT
 
-              u.email
+              u.email
 
-            FROM users u
+            FROM users u
 
-            LEFT JOIN roles r
+            LEFT JOIN roles r
 
-              ON r.role_id =
+              ON r.role_id =
 
-                 u.role_id
+                 u.role_id
 
-            WHERE
+            WHERE
 
-              LOWER(
+              LOWER(
 
-                COALESCE(
+                COALESCE(
 
-                  u.status,
+                  u.status,
 
-                  'active'
+                  'active'
 
-                )
+                )
 
-              ) <> 'deleted'
+              ) <> 'deleted'
 
-              AND
+              AND
 
-              u.email
+              u.email
 
-                IS NOT NULL
+                IS NOT NULL
 
-              AND
+              AND
 
-              TRIM(
+              TRIM(
 
-                u.email
+                u.email
 
-              ) <> ''
+              ) <> ''
 
-              AND
+              AND
 
-              (
+              (
 
-                LOWER(
+                LOWER(
 
-                  COALESCE(
+                  COALESCE(
 
-                    r.role_name,
+                    r.role_name,
 
-                    ''
+                    ''
 
-                  )
+                  )
 
-                ) = 'superadmin'
+                ) = 'superadmin'
 
-                OR
+                OR
 
-                LOWER(
+                LOWER(
 
-                  TRIM(
+                  TRIM(
 
-                    u.email
+                    u.email
 
-                  )
+                  )
 
-                ) =
+                ) =
 
-                'premal.mehta@valencianutrition.com'
+                'premal.mehta@valencianutrition.com'
 
-              )
+              )
 
-          `
+          `
 
-        );
+        );
 
-      const toEmails = [
+      const toEmails = [
 
-  ...new Set(
+  ...new Set(
 
-    reviewerRows
+    reviewerRows
 
-      .map((row) =>
+      .map((row) =>
 
-        String(row.email || "")
+        String(row.email || "")
 
-          .trim()
+          .trim()
 
-          .toLowerCase()
+          .toLowerCase()
 
-      )
+      )
 
-      .filter(
+      .filter(
 
-        (email) =>
+        (email) =>
 
-          email &&
+          email &&
 
-          email !== "manish@valencianutrition.com"
+          email !== "manish@valencianutrition.com"
 
-      )
+      )
 
-  ),
+  ),
 
 ];
 
-      const ccEmails = [
+      const ccEmails = [
 
-        HR_FIELD_VISIT_EMAIL,
+        HR_FIELD_VISIT_EMAIL,
 
-      ].filter(
+      ].filter(
 
-        (email) =>
+        (email) =>
 
-          email &&
+          email &&
 
-          !toEmails.includes(
+          !toEmails.includes(
 
-            String(
+            String(
 
-              email
+              email
 
-            )
+            )
 
-              .trim()
+              .trim()
 
-              .toLowerCase()
+              .toLowerCase()
 
-          )
+          )
 
-      );
+      );
 
-      const excludedFieldVisitEmail =
+      const excludedFieldVisitEmail =
 
-  "manish@valencianutrition.com";
+  "manish@valencianutrition.com";
 
 
 
 const mailResponse =
 
-  await sendMail({
+  await sendMail({
 
-    to: toEmails.filter(
+    to: toEmails.filter(
 
-      (email) =>
+      (email) =>
 
-        email.trim().toLowerCase() !==
+        email.trim().toLowerCase() !==
 
-        excludedFieldVisitEmail
+        excludedFieldVisitEmail
 
-    ),
+    ),
 
-    cc: ccEmails.filter(
+    cc: ccEmails.filter(
 
-      (email) =>
+      (email) =>
 
-        email.trim().toLowerCase() !==
+        email.trim().toLowerCase() !==
 
-        excludedFieldVisitEmail
+        excludedFieldVisitEmail
 
-    ),
+    ),
 
-    subject,
+    subject,
 
-    text,
+    text,
 
-    html,
+    html,
 
-    replyTo: admin.email || undefined,
+    replyTo: admin.email || undefined,
 
-  });
+  });
 
-      emailResult = {
+      emailResult = {
 
-        sent:
+        sent:
 
-          !mailResponse
+          !mailResponse
 
-            ?.skipped,
+            ?.skipped,
 
-        skipped:
+        skipped:
 
-          Boolean(
+          Boolean(
 
-            mailResponse
+            mailResponse
 
-              ?.skipped
+              ?.skipped
 
-          ),
+          ),
 
-        messageId:
+        messageId:
 
-          mailResponse
+          mailResponse
 
-            ?.messageId ||
+            ?.messageId ||
 
-          null,
+          null,
 
-      };
+      };
 
-    } catch (
+    } catch (
 
-      emailError
+      emailError
 
-    ) {
+    ) {
 
-      console.error(
+      console.error(
 
-        "Admin field visit email failed:",
+        "Admin field visit email failed:",
 
-        emailError
+        emailError
 
-      );
+      );
 
-      emailResult = {
+      emailResult = {
 
-        sent:
+        sent:
 
-          false,
+          false,
 
-        skipped:
+        skipped:
 
-          false,
+          false,
 
-        error:
+        error:
 
-          emailError.message,
+          emailError.message,
 
-      };
+      };
 
-    }
+    }
 
-    return res
+    return res
 
-      .status(200)
+      .status(200)
 
-      .json({
+      .json({
 
-        success:
+        success:
 
-          true,
+          true,
 
-        message:
+        message:
 
-          "Field visit added successfully.",
+          "Field visit added successfully.",
 
-        visit:
+        visit:
 
-          savedVisit,
+          savedVisit,
 
-        email:
+        email:
 
-          emailResult,
+          emailResult,
 
-      });
+      });
 
-  } catch (error) {
+  } catch (error) {
 
-    console.error(
+    console.error(
 
-      "Create Admin field visit error:",
+      "Create Admin field visit error:",
 
-      error
+      error
 
-    );
+    );
 
-    return res
+    return res
 
-      .status(500)
+      .status(500)
 
-      .json({
+      .json({
 
-        success:
+        success:
 
-          false,
+          false,
 
-        message:
+        message:
 
-          "Failed to add field visit.",
+          "Failed to add field visit.",
 
-        error:
+        error:
 
-          error.message,
+          error.message,
 
-        sqlMessage:
+        sqlMessage:
 
-          error.sqlMessage ||
+          error.sqlMessage ||
 
-          null,
+          null,
 
-      });
+      });
 
-  }
+  }
 
 };
 
 const resubmitAdminFieldVisit = async (req, res) => {
 
-  let connection;
+  let connection;
 
-  try {
+  try {
 
-    const { admin, error } = await getLoggedInAdmin(req);
+    const { admin, error } = await getLoggedInAdmin(req);
 
-    if (error) {
+    if (error) {
 
-      return res.status(error.status).json({
+      return res.status(error.status).json({
 
-        success: false,
+        success: false,
 
-        message: error.message,
+        message: error.message,
 
-      });
+      });
 
-    }
+    }
 
-    const adminId = Number(admin.user_id);
+    const adminId = Number(admin.user_id);
 
-    const visitId = Number(req.params.visitId);
+    const visitId = Number(req.params.visitId);
 
-    if (!visitId) {
+    if (!visitId) {
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message: "Invalid field visit.",
+        message: "Invalid field visit.",
 
-      });
+      });
 
-    }
+    }
 
-    const visitDate = String(req.body?.visit_date || "").trim();
+    const visitDate = String(req.body?.visit_date || "").trim();
     const endDate = String(req.body?.end_date || "").trim() || null;
     if (endDate && (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < visitDate)) {
       return res.status(400).json({ success: false, message: "End Date must be on or after Visit Date." });
     }
 
-    const conclusion = String(req.body?.conclusion || "").trim();
+    const conclusion = String(req.body?.conclusion || "").trim();
 
-    if (!visitDate) {
+    if (!visitDate) {
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message: "Visit date is required.",
+        message: "Visit date is required.",
 
-      });
+      });
 
-    }
+    }
 
-    connection = await db.getConnection();
+    connection = await db.getConnection();
 
-    await connection.beginTransaction();
+    await connection.beginTransaction();
 
-    const [visitRows] = await connection.query(
+    const [visitRows] = await connection.query(
 
-      `
+      `
 
-        SELECT visit_id, status, comment
+        SELECT visit_id, status, comment
 
-        FROM employee_field_visits
+        FROM employee_field_visits
 
-        WHERE visit_id = ? AND employee_id = ?
+        WHERE visit_id = ? AND employee_id = ?
 
-        LIMIT 1
+        LIMIT 1
 
-        FOR UPDATE
+        FOR UPDATE
 
-      `,
+      `,
 
-      [visitId, adminId]
+      [visitId, adminId]
 
-    );
+    );
 
-    if (!visitRows.length) {
+    if (!visitRows.length) {
 
-      await connection.rollback();
+      await connection.rollback();
 
-      return res.status(404).json({
+      return res.status(404).json({
 
-        success: false,
+        success: false,
 
-        message: "Admin field visit not found.",
+        message: "Admin field visit not found.",
 
-      });
+      });
 
-    }
+    }
 
-    if (
+    if (
 
-      String(visitRows[0].status || "")
+      String(visitRows[0].status || "")
 
-        .trim()
+        .trim()
 
-        .toLowerCase() !== "changes_requested"
+        .toLowerCase() !== "changes_requested"
 
-    ) {
+    ) {
 
-      await connection.rollback();
+      await connection.rollback();
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          "Only a field visit returned for changes can be edited and resubmitted.",
+          "Only a field visit returned for changes can be edited and resubmitted.",
 
-      });
+      });
 
-    }
+    }
 
-    const [existingStops] = await connection.query(
+    const [existingStops] = await connection.query(
 
-      `
+      `
 
-        SELECT stop_id, description
+        SELECT stop_id, description
 
-        FROM field_visit_stops
+        FROM field_visit_stops
 
-        WHERE visit_id = ?
+        WHERE visit_id = ?
 
-        ORDER BY sequence_no, stop_id
+        ORDER BY sequence_no, stop_id
 
-      `,
+      `,
 
-      [visitId]
+      [visitId]
 
-    );
+    );
 
-    const submittedStops = Array.isArray(req.body?.visit_stops)
+    const submittedStops = Array.isArray(req.body?.visit_stops)
 
-      ? req.body.visit_stops
+      ? req.body.visit_stops
 
-      : [];
+      : [];
 
-    const descriptions = existingStops.length
+    const descriptions = existingStops.length
 
-      ? existingStops.map((stop, index) => {
+      ? existingStops.map((stop, index) => {
 
-          const submitted =
+          const submitted =
 
-            submittedStops.find(
+            submittedStops.find(
 
-              (item) => Number(item?.stop_id) === Number(stop.stop_id)
+              (item) => Number(item?.stop_id) === Number(stop.stop_id)
 
-            ) || submittedStops[index];
+            ) || submittedStops[index];
 
-          return String(
+          return String(
 
-            submitted?.description ??
+            submitted?.description ??
 
-              (index === 0 ? req.body?.comment || "" : "")
+              (index === 0 ? req.body?.comment || "" : "")
 
-          ).trim();
+          ).trim();
 
-        })
+        })
 
-      : [
+      : [
 
-          String(
+          String(
 
-            submittedStops[0]?.description || req.body?.comment || ""
+            submittedStops[0]?.description || req.body?.comment || ""
 
-          ).trim(),
+          ).trim(),
 
-        ];
+        ];
 
-    if (descriptions.some((description) => !description)) {
+    if (descriptions.some((description) => !description)) {
 
-      await connection.rollback();
+      await connection.rollback();
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message: "Description is required for every existing visit location.",
+        message: "Description is required for every existing visit location.",
 
-      });
+      });
 
-    }
+    }
 
-    const descriptionWordCount = descriptions.reduce(
+    const descriptionWordCount = descriptions.reduce(
 
-      (total, description) => total + countFieldVisitWords(description),
+      (total, description) => total + countFieldVisitWords(description),
 
-      0
+      0
 
-    );
+    );
 
-    if (descriptionWordCount < 100) {
+    if (descriptionWordCount < 100) {
 
-      await connection.rollback();
+      await connection.rollback();
 
-      return res.status(400).json({
+      return res.status(400).json({
 
-        success: false,
+        success: false,
 
-        message: `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+        message: `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
 
-        word_count: descriptionWordCount,
+        word_count: descriptionWordCount,
 
-        minimum_words: 100,
+        minimum_words: 100,
 
-      });
+      });
 
-    }
+    }
 
-    await connection.query(
+    await connection.query(
 
-      `
+      `
 
-        UPDATE employee_field_visits
+        UPDATE employee_field_visits
 
-        SET
+        SET
 
-          visit_date = ?,
+          visit_date = ?,
           end_date = COALESCE(?, end_date),
 
-          comment = ?,
+          comment = ?,
 
-          conclusion = ?,
+          conclusion = ?,
 
-          status = 'pending',
+          status = 'pending',
 
-          updated_at = NOW()
+          updated_at = NOW()
 
-        WHERE visit_id = ? AND employee_id = ?
+        WHERE visit_id = ? AND employee_id = ?
 
-      `,
+      `,
 
-      [
+      [
 
-        visitDate,
+        visitDate,
 
-        endDate,
+        endDate,
         descriptions[0],
 
-        conclusion || null,
+        conclusion || null,
 
-        visitId,
+        visitId,
 
-        adminId,
+        adminId,
 
-      ]
+      ]
 
-    );
+    );
 
-    for (let index = 0; index < existingStops.length; index += 1) {
+    for (let index = 0; index < existingStops.length; index += 1) {
 
-      await connection.query(
+      await connection.query(
 
-        `
+        `
 
-          UPDATE field_visit_stops
+          UPDATE field_visit_stops
 
-          SET description = ?, updated_at = NOW()
+          SET description = ?, updated_at = NOW()
 
-          WHERE stop_id = ? AND visit_id = ?
+          WHERE stop_id = ? AND visit_id = ?
 
-        `,
+        `,
 
-        [descriptions[index], existingStops[index].stop_id, visitId]
+        [descriptions[index], existingStops[index].stop_id, visitId]
 
-      );
+      );
 
-    }
+    }
 
-    await connection.commit();
+    await connection.commit();
 
-    return res.json({
+    return res.json({
 
-      success: true,
+      success: true,
 
-      message:
+      message:
 
-        "Visit date, description and conclusion updated and resubmitted for approval.",
+        "Visit date, description and conclusion updated and resubmitted for approval.",
 
-      visit_id: visitId,
+      visit_id: visitId,
 
-      status: "pending",
+      status: "pending",
 
-      word_count: descriptionWordCount,
+      word_count: descriptionWordCount,
 
-    });
+    });
 
-  } catch (error) {
+  } catch (error) {
 
-    if (connection) {
+    if (connection) {
 
-      await connection.rollback();
+      await connection.rollback();
 
-    }
+    }
 
-    console.error("Resubmit Admin field visit error:", error);
+    console.error("Resubmit Admin field visit error:", error);
 
-    return res.status(500).json({
+    return res.status(500).json({
 
-      success: false,
+      success: false,
 
-      message: "Failed to update and resubmit Admin field visit.",
+      message: "Failed to update and resubmit Admin field visit.",
 
-      error: error.message,
+      error: error.message,
 
-      sqlMessage: error.sqlMessage || null,
+      sqlMessage: error.sqlMessage || null,
 
-    });
+    });
 
-  } finally {
+  } finally {
 
-    if (connection) {
+    if (connection) {
 
-      connection.release();
+      connection.release();
 
-    }
+    }
 
-  }
+  }
 
 };
 
 /* =========================================================
 
-   ADMIN - GET OWN FIELD VISITS
+   ADMIN - GET OWN FIELD VISITS
 
 \========================================================= */
 
@@ -4905,229 +4905,229 @@ const getAdminFieldVisits =
 
 async (
 
-  req,
+  req,
 
-  res
+  res
 
 ) => {
 
-  try {
+  try {
 
-    const {
+    const {
 
-      admin,
+      admin,
 
-      error,
+      error,
 
-    } =
+    } =
 
-      await getLoggedInAdmin(
+      await getLoggedInAdmin(
 
-        req
+        req
 
-      );
+      );
 
-    if (error) {
+    if (error) {
 
-      return res
+      return res
 
-        .status(
+        .status(
 
-          error.status
+          error.status
 
-        )
+        )
 
-        .json({
+        .json({
 
-          success: false,
+          success: false,
 
-          message:
+          message:
 
-            error.message,
+            error.message,
 
-        });
+        });
 
-    }
+    }
 
-    const [visits] =
+    const [visits] =
 
-      await db.query(
+      await db.query(
 
-        `
+        `
 
-          SELECT
+          SELECT
 
-            fv.*,
+            fv.*,
 
-            creator.full_name,
+            creator.full_name,
 
-            (
+            (
 
-              SELECT GROUP_CONCAT(
+              SELECT GROUP_CONCAT(
 
-                DISTINCT
+                DISTINCT
 
-                member_user.full_name
+                member_user.full_name
 
-                ORDER BY
+                ORDER BY
 
-                  member_user.full_name
+                  member_user.full_name
 
-                SEPARATOR ', '
+                SEPARATOR ', '
 
-              )
+              )
 
-              FROM field_visit_members
+              FROM field_visit_members
 
-                member_link
+                member_link
 
-              INNER JOIN users
+              INNER JOIN users
 
-                member_user
+                member_user
 
-                ON
+                ON
 
-                  member_user.user_id =
+                  member_user.user_id =
 
-                  member_link.employee_id
+                  member_link.employee_id
 
-              WHERE
+              WHERE
 
-                member_link.visit_id =
+                member_link.visit_id =
 
-                fv.visit_id
+                fv.visit_id
 
-            ) AS team_members
+            ) AS team_members
 
-          FROM employee_field_visits fv
+          FROM employee_field_visits fv
 
-          LEFT JOIN users creator
+          LEFT JOIN users creator
 
-            ON creator.user_id =
+            ON creator.user_id =
 
-               fv.employee_id
+               fv.employee_id
 
-          WHERE
+          WHERE
 
-          (
+          (
 
-            fv.employee_id = ?
+            fv.employee_id = ?
 
-            OR
+            OR
 
-            EXISTS
+            EXISTS
 
-            (
+            (
 
-              SELECT 1
+              SELECT 1
 
-              FROM field_visit_members
+              FROM field_visit_members
 
-                fvm2
+                fvm2
 
-              WHERE
+              WHERE
 
-                fvm2.visit_id =
+                fvm2.visit_id =
 
-                  fv.visit_id
+                  fv.visit_id
 
-                AND
+                AND
 
-                fvm2.employee_id = ?
+                fvm2.employee_id = ?
 
-            )
+            )
 
-          )
+          )
 
-          ORDER BY
+          ORDER BY
 
-            fv.visit_date DESC,
+            fv.visit_date DESC,
 
-            fv.visit_id DESC
+            fv.visit_id DESC
 
-        `,
+        `,
 
-        [
+        [
 
-          admin.user_id,
+          admin.user_id,
 
-          admin.user_id,
+          admin.user_id,
 
-        ]
+        ]
 
-      );
+      );
 
-    const visitsWithStops =
+    const visitsWithStops =
 
-      await attachFieldVisitStops(
+      await attachFieldVisitStops(
 
-        visits
+        visits
 
-      );
+      );
 
-    visitsWithStops.forEach(
+    visitsWithStops.forEach(
 
-      (visit) => {
+      (visit) => {
 
-        visit.all_people = [
+        visit.all_people = [
 
-          visit.full_name,
+          visit.full_name,
 
-          ...(
+          ...(
 
-            visit.team_members
+            visit.team_members
 
-              ? visit.team_members.split(
+              ? visit.team_members.split(
 
-                  ", "
+                  ", "
 
-                )
+                )
 
-              : []
+              : []
 
-          ),
+          ),
 
-        ].filter(Boolean);
+        ].filter(Boolean);
 
-      }
+      }
 
-    );
+    );
 
-    return res.json({
+    return res.json({
 
-      success: true,
+      success: true,
 
-      visits:
+      visits:
 
-        visitsWithStops,
+        visitsWithStops,
 
-    });
+    });
 
-  } catch (error) {
+  } catch (error) {
 
-    console.error(
+    console.error(
 
-      "Get Admin field visits error:",
+      "Get Admin field visits error:",
 
-      error
+      error
 
-    );
+    );
 
-    return res
+    return res
 
-      .status(500)
+      .status(500)
 
-      .json({
+      .json({
 
-        success: false,
+        success: false,
 
-        message:
+        message:
 
-          "Failed to fetch Admin field visits.",
+          "Failed to fetch Admin field visits.",
 
-      });
+      });
 
-  }
+  }
 
 };
 
@@ -5211,25 +5211,25 @@ message:error.message
 
 module.exports = {
 
- getDepartmentAttendance,
+ getDepartmentAttendance,
 
- getDepartmentFieldVisits,
+ getDepartmentFieldVisits,
 
- reviewFieldVisit,
+ reviewFieldVisit,
 
- getAdminDepartmentAttendance:
+ getAdminDepartmentAttendance:
 
- getDepartmentAttendance,
+ getDepartmentAttendance,
 
- getAdminAttendance:
+ getAdminAttendance:
 
- getDepartmentAttendance,
+ getDepartmentAttendance,
 
- createAdminFieldVisit,
+ createAdminFieldVisit,
 
- resubmitAdminFieldVisit,
+ resubmitAdminFieldVisit,
 
- getAdminFieldVisits,
+ getAdminFieldVisits,
 
 getEmployeesForFieldVisit,
 
