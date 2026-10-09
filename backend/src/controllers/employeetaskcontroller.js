@@ -2219,8 +2219,8 @@ const updateEmployeeSubtask = async (req, res) => {
         st.status,
         st.is_checked,
 
-        mt.start_date AS main_start_date,
-        mt.due_date AS main_due_date,
+       DATE_FORMAT(mt.start_date, '%Y-%m-%d') AS main_start_date,
+DATE_FORMAT(mt.due_date, '%Y-%m-%d') AS main_due_date,
         mt.status AS main_task_status,
 
         p.status AS project_status

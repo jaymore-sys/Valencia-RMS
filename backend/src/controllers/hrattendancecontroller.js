@@ -5509,7 +5509,7 @@ const reduceHrEmployeeLeave = async (req, res) => {
     let endDate = String(req.body.end_date || "").trim();
     const reason =
       String(req.body.reason || "").trim() ||
-      "Historical leave recorded by HR";
+      "Leave recorded by HR";
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
     if (!Number.isInteger(userId) || userId <= 0) {
@@ -5540,7 +5540,17 @@ const reduceHrEmployeeLeave = async (req, res) => {
       });
     }
 
-    if (durationType === "half_day") {
+    // HR Reduce Leave: Festival Leave is always a single full day.
+    // Ignore any stale end_date retained when the frontend switches leave types.
+    if (leaveType === "festival") {
+      if (durationType !== "full_day") {
+        return res.status(400).json({
+          success: false,
+          message: "Festival Leave must be a Full Day.",
+        });
+      }
+      endDate = startDate;
+    } else if (durationType === "half_day") {
       if (!["first_half", "second_half"].includes(halfDaySession)) {
         return res.status(400).json({
           success: false,
@@ -5555,15 +5565,8 @@ const reduceHrEmployeeLeave = async (req, res) => {
       });
     }
 
-    const today = getIndiaTodayForHrLeave();
-
-    if (startDate > today || endDate > today) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Historical leave can only be recorded for today or a past date.",
-      });
-    }
+    // Authorized HR may record eligible past, present, and future leave.
+    // Balance and overlap checks below still apply.
 
     if (startDate.slice(0, 4) !== endDate.slice(0, 4)) {
       return res.status(400).json({
@@ -5693,7 +5696,7 @@ const reduceHrEmployeeLeave = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Historical leave recorded successfully.",
+      message: "Leave recorded successfully.",
       leave_id: result.insertId,
       balances: updatedBalances,
     });
@@ -5708,7 +5711,7 @@ const reduceHrEmployeeLeave = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Failed to record historical leave.",
+      message: "Failed to record leave.",
       error: error.message,
       sqlMessage: error.sqlMessage || null,
     });
