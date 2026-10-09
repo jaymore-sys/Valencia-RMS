@@ -742,8 +742,10 @@ POST /api/employee-leaves/apply
 */
 
 const applyEmployeeLeave =
-  async (req, res) => {
+  async (req, res, options = {}) => {
     try {
+      // Internal server-side authorization only; never read this from req.body.
+      const hrManagedApplication = options?.hrAuthorized === true;
       const employeeId =
   req.user.user_id;
 
@@ -917,6 +919,7 @@ if (isUnpaidSick) {
       }
 
       if (
+        !hrManagedApplication &&
         startDate <
         POLICY_START_DATE
       ) {
@@ -951,7 +954,8 @@ if (
   ) &&
   durationType ===
     "half_day" &&
-  startDate !== today
+  startDate !== today &&
+  !hrManagedApplication
 ) {
   return res
     .status(400)
@@ -1016,6 +1020,7 @@ if (
           getIndiaToday();
 
         if (
+          !hrManagedApplication &&
           startDate <
           today
         ) {
@@ -1347,7 +1352,8 @@ Half Day → Today onwards
 */
 
 if (
-  leaveType === "mandatory"
+  leaveType === "mandatory" &&
+  !hrManagedApplication
 ) {
   const today =
     getIndiaToday();
@@ -1434,6 +1440,8 @@ if (
 
           WHERE
             employee_id = ?
+
+            ${hrManagedApplication ? "AND LOWER(TRIM(status)) IN ('pending', 'approved')" : ""}
 
            AND COALESCE(
   revert_status,

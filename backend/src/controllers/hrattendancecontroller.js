@@ -992,6 +992,11 @@ const buildHrAttendanceData = async (
         '%Y-%m-%d'
       ) AS visit_date,
 
+      DATE_FORMAT(
+        COALESCE(fv.end_date, fv.visit_date),
+        '%Y-%m-%d'
+      ) AS end_date,
+
       fv.visit_type,
       fv.duration_type,
       fv.half_day_session,
@@ -1017,11 +1022,12 @@ const buildHrAttendanceData = async (
       ON reviewer.user_id = fv.reviewed_by
 
     WHERE LOWER(fv.status) = 'approved'
-      AND fv.visit_date BETWEEN ? AND ?
+      AND fv.visit_date <= ?
+      AND COALESCE(fv.end_date, fv.visit_date) >= ?
     `,
     [
-      fromDate,
       toDate,
+      fromDate,
     ]
   );
 
@@ -1038,17 +1044,17 @@ const buildHrAttendanceData = async (
 
       fv.visit_type,
 
-     DATE_FORMAT(
-  fv.visit_date,
-  '%Y-%m-%d'
-) AS visit_date,
+      DATE_FORMAT(
+        fv.visit_date,
+        '%Y-%m-%d'
+      ) AS visit_date,
 
-DATE_FORMAT(
-  COALESCE(fv.end_date, fv.visit_date),
-  '%Y-%m-%d'
-) AS end_date,
+      DATE_FORMAT(
+        COALESCE(fv.end_date, fv.visit_date),
+        '%Y-%m-%d'
+      ) AS end_date,
 
-fv.duration_type,
+      fv.duration_type,
       fv.half_day_session,
       fv.start_time,
       fv.end_time,
@@ -1187,20 +1193,11 @@ fv.duration_type,
       }
     });
 
-  const pendingFieldVisitRows =
-    hrFieldVisitRows.filter(
-      (visit) =>
-        String(
-          visit.status || ""
-        )
-          .trim()
-          .toLowerCase() ===
-          "pending" &&
-        visit.visit_date >=
-          fromDate &&
-        visit.visit_date <=
-          toDate
-    );
+  const pendingFieldVisitRows = hrFieldVisitRows.filter((visit) =>
+    String(visit.status || "").trim().toLowerCase() === "pending" &&
+    visit.visit_date <= toDate &&
+    (visit.end_date || visit.visit_date) >= fromDate
+  );
 
   const visitIds = [
     ...new Set(
@@ -1319,12 +1316,16 @@ fv.duration_type,
         );
       });
 
-    employeeIds.forEach((employeeId) => {
-      visitMap.set(
-        `${employeeId}|${visit.visit_date}`,
-        visit
-      );
-    });
+    for (
+      let day = visit.visit_date;
+      day <= (visit.end_date || visit.visit_date);
+      day = addOneDay(day)
+    ) {
+      if (day < fromDate || day > toDate) continue;
+      employeeIds.forEach((employeeId) => {
+        visitMap.set(`${employeeId}|${day}`, visit);
+      });
+    }
   });
 
   const pendingVisitMap = new Map();
@@ -1346,12 +1347,16 @@ fv.duration_type,
         );
       });
 
-    employeeIds.forEach((employeeId) => {
-      pendingVisitMap.set(
-        `${employeeId}|${visit.visit_date}`,
-        visit
-      );
-    });
+    for (
+      let day = visit.visit_date;
+      day <= (visit.end_date || visit.visit_date);
+      day = addOneDay(day)
+    ) {
+      if (day < fromDate || day > toDate) continue;
+      employeeIds.forEach((employeeId) => {
+        pendingVisitMap.set(`${employeeId}|${day}`, visit);
+      });
+    }
   });
 
   const records = [];
@@ -1814,7 +1819,7 @@ fv.duration_type,
 
       // Sundays remain weekly offs. Valid biometric work is an extra day,
       // never a normal present/late/half-day or a salary deduction.
-      if (sunday && !conflictReason && !leave && !fieldVisit) {
+      if (sunday && !conflictReason && !leave) {
         isLateMark = false;
         lateMarkReason = null;
         if (checkIn && checkOut && totalMinutes > 0) {
@@ -2292,14 +2297,14 @@ fv.duration_type,
         visit_type:
           visit.visit_type,
 
-       visit_date:
-  visit.visit_date,
+        visit_date:
+          visit.visit_date,
 
-end_date:
-  visit.end_date,
+        end_date:
+          visit.end_date,
 
-duration_type:
-  visit.duration_type,
+        duration_type:
+          visit.duration_type,
 
         half_day_session:
           visit.half_day_session,
@@ -5757,7 +5762,7 @@ const applyHrEmployeeLeave = async (req, res) => {
     };
 
     try {
-      return await applyEmployeeLeave(req, res);
+      return await applyEmployeeLeave(req, res, { hrAuthorized: true });
     } finally {
       req.user = originalUser;
     }
