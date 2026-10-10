@@ -275,7 +275,7 @@ const SuperadminLayout = () => {
             </span>
 
           </NavLink>
-
+{/*
           <NavLink
   to="/superadmin/vendors"
   title="Vendor Management"
@@ -287,7 +287,7 @@ const SuperadminLayout = () => {
   </span>
 </NavLink>
 
-
+*/}
 
 
 

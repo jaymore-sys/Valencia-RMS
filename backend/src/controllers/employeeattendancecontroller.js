@@ -3176,7 +3176,7 @@ async (
 
       getFieldVisitDescriptionWordCount(visitStops);
 
-    if (descriptionWordCount < 100) {
+    if (descriptionWordCount < 50) {
 
       return res.status(400).json({
 
@@ -3184,11 +3184,11 @@ async (
 
         message:
 
-          `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
+          `Field visit description must contain at least 50 words. Current count: ${descriptionWordCount}.`,
 
         word_count: descriptionWordCount,
 
-        minimum_words: 100,
+        minimum_words: 50,
 
       });
 
@@ -4821,328 +4821,125 @@ Valencia RMS
 
 };
 
+// Use the existing date formatter; both original dates are immutable on resubmission.
+const formatDateOnly = formatDate;
+
 const resubmitEmployeeFieldVisit = async (req, res) => {
-
   let connection;
-
   try {
-
-    const employeeId = Number(req.user?.user_id);
-
+    const employeeId = Number(req.user?.user_id || req.user?.id || 0);
+    if (!employeeId) return res.status(401).json({ success: false, message: "Unauthorized." });
     const visitId = Number(req.params.visitId);
-
-    if (!employeeId) {
-
-      return res.status(401).json({
-
-        success: false,
-
-        message: "Unauthorized.",
-
-      });
-
+    if (!Number.isInteger(visitId) || visitId <= 0) {
+      return res.status(400).json({ success: false, message: "Invalid field visit." });
     }
-
-    if (!visitId) {
-
-      return res.status(400).json({
-
-        success: false,
-
-        message: "Invalid field visit.",
-
-      });
-
-    }
-
-    const visitDate = String(req.body?.visit_date || "").trim();
-    const endDate = String(req.body?.end_date || "").trim() || null;
-    if (endDate && (!/^\d{4}-\d{2}-\d{2}$/.test(endDate) || endDate < visitDate)) {
-      return res.status(400).json({ success: false, message: "End Date must be on or after Visit Date." });
-    }
-
-    const conclusion = String(req.body?.conclusion || "").trim();
-
-    if (!visitDate) {
-
-      return res.status(400).json({
-
-        success: false,
-
-        message: "Visit date is required.",
-
-      });
-
-    }
-
     connection = await db.getConnection();
-
     await connection.beginTransaction();
-
-    const [visitRows] = await connection.query(
-
-      `
-
-        SELECT visit_id, status, comment
-
-        FROM employee_field_visits
-
-        WHERE visit_id = ? AND employee_id = ?
-
-        LIMIT 1
-
-        FOR UPDATE
-
-      `,
-
+    const [rows] = await connection.query(
+      `SELECT visit_id, employee_id, status, visit_type,
+              DATE_FORMAT(visit_date, '%Y-%m-%d') AS visit_date,
+              DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
+              duration_type, half_day_session, location, comment, conclusion, remark
+         FROM employee_field_visits
+        WHERE visit_id = ? AND employee_id = ? LIMIT 1 FOR UPDATE`,
       [visitId, employeeId]
-
     );
-
-    if (!visitRows.length) {
-
+    if (!rows.length) {
       await connection.rollback();
-
-      return res.status(404).json({
-
-        success: false,
-
-        message: "Field visit not found.",
-
-      });
-
+      return res.status(404).json({ success: false, message: "Your field visit was not found." });
     }
-
-    if (
-
-      String(visitRows[0].status || "")
-
-        .trim()
-
-        .toLowerCase() !== "changes_requested"
-
-    ) {
-
+    const original = rows[0];
+    if (String(original.status || "").toLowerCase() !== "changes_requested") {
       await connection.rollback();
-
-      return res.status(400).json({
-
-        success: false,
-
-        message:
-
-          "Only a field visit returned for changes can be edited and resubmitted.",
-
-      });
-
+      return res.status(409).json({ success: false, message: "Only visits returned for review can be resubmitted." });
     }
-
+    // Explicitly disallow changed dates; neither date is ever part of the UPDATE.
+    const start = formatDateOnly(original.visit_date);
+    const end = formatDateOnly(original.end_date);
+    const submittedStart = req.body?.visit_date;
+    const submittedEnd = req.body?.end_date;
+    if ((submittedStart !== undefined && formatDateOnly(submittedStart) !== start) ||
+        (submittedEnd !== undefined && formatDateOnly(submittedEnd) !== end)) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: "Visit dates are locked during review and cannot be changed." });
+    }
+    const visitType = String(req.body?.visit_type ?? original.visit_type ?? "").trim();
+    const durationType = String(req.body?.duration_type ?? original.duration_type ?? "").toLowerCase().trim();
+    const halfDaySession = durationType === "half_day"
+      ? String(req.body?.half_day_session ?? original.half_day_session ?? "").toLowerCase().trim()
+      : null;
+    const conclusion = String(req.body?.conclusion ?? original.conclusion ?? "").trim();
+    const remark = String(req.body?.remark ?? original.remark ?? "").trim();
+    if (!visitType || !["full_day", "half_day"].includes(durationType) ||
+      (durationType === "half_day" && !["first_half", "second_half"].includes(halfDaySession))) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: "Invalid visit type or duration." });
+    }
     const [existingStops] = await connection.query(
-
-      `
-
-        SELECT stop_id, description
-
-        FROM field_visit_stops
-
-        WHERE visit_id = ?
-
-        ORDER BY sequence_no, stop_id
-
-      `,
-
-      [visitId]
-
+      `SELECT stop_id, location, visit_time, description FROM field_visit_stops
+        WHERE visit_id = ? ORDER BY sequence_no, stop_id`, [visitId]
     );
-
-    const submittedStops = Array.isArray(req.body?.visit_stops)
-
-      ? req.body.visit_stops
-
-      : [];
-
-    const descriptions = existingStops.length
-
-      ? existingStops.map((stop, index) => {
-
-          const submitted =
-
-            submittedStops.find(
-
-              (item) => Number(item?.stop_id) === Number(stop.stop_id)
-
-            ) || submittedStops[index];
-
-          return String(
-
-            submitted?.description ??
-
-              (index === 0 ? req.body?.comment || "" : "")
-
-          ).trim();
-
-        })
-
-      : [
-
-          String(
-
-            submittedStops[0]?.description || req.body?.comment || ""
-
-          ).trim(),
-
-        ];
-
-    if (descriptions.some((description) => !description)) {
-
-      await connection.rollback();
-
-      return res.status(400).json({
-
-        success: false,
-
-        message: "Description is required for every existing visit location.",
-
-      });
-
+    let stops;
+    if (req.body?.visit_stops !== undefined) {
+      if (!Array.isArray(req.body.visit_stops)) {
+        await connection.rollback();
+        return res.status(400).json({ success: false, message: "Visit stops must be an array." });
+      }
+      stops = req.body.visit_stops.map((stop) => ({
+        location: String(stop?.location || "").trim(),
+        visit_time: String(stop?.visit_time || "").trim() || null,
+        description: String(stop?.description || "").trim(),
+      }));
+    } else {
+      stops = existingStops.length
+        ? existingStops.map((stop) => ({ ...stop }))
+        : [{ location: original.location || "", visit_time: null, description: original.comment || "" }];
     }
-
-    const descriptionWordCount = descriptions.reduce(
-
-      (total, description) => total + countFieldVisitWords(description),
-
-      0
-
-    );
-
-    if (descriptionWordCount < 100) {
-
+    if (!stops.length || stops.some((stop) => !stop.location || !stop.description)) {
       await connection.rollback();
-
-      return res.status(400).json({
-
-        success: false,
-
-        message: `Field visit description must contain at least 100 words. Current count: ${descriptionWordCount}.`,
-
-        word_count: descriptionWordCount,
-
-        minimum_words: 100,
-
-      });
-
+      return res.status(400).json({ success: false, message: "Each location needs a location and description." });
     }
-
+    const wordCount = getFieldVisitDescriptionWordCount(stops);
+    if (wordCount < 50) {
+      await connection.rollback();
+      return res.status(400).json({ success: false, message: `Descriptions must total at least 50 words. Current: ${wordCount}.`, word_count: wordCount, minimum_words: 50 });
+    }
+    const first = stops[0];
     await connection.query(
-
-      `
-
-        UPDATE employee_field_visits
-
-        SET
-
-          visit_date = ?,
-          end_date = COALESCE(?, end_date),
-
-          comment = ?,
-
-          conclusion = ?,
-
-          status = 'pending',
-
-          updated_at = NOW()
-
-        WHERE visit_id = ? AND employee_id = ?
-
-      `,
-
-      [
-
-        visitDate,
-
-        endDate,
-        descriptions[0],
-
-        conclusion || null,
-
-        visitId,
-
-        employeeId,
-
-      ]
-
+      `UPDATE employee_field_visits SET visit_type = ?, duration_type = ?, half_day_session = ?,
+        location = ?, comment = ?, conclusion = ?, remark = ?, status = 'pending',
+        reviewed_by = NULL, reviewed_at = NULL, updated_at = NOW()
+        WHERE visit_id = ? AND employee_id = ? AND status = 'changes_requested'`,
+      [visitType, durationType, halfDaySession, first.location, first.description,
+        conclusion || null, remark || null, visitId, employeeId]
     );
-
-    for (let index = 0; index < existingStops.length; index += 1) {
-
-      await connection.query(
-
-        `
-
-          UPDATE field_visit_stops
-
-          SET description = ?, updated_at = NOW()
-
-          WHERE stop_id = ? AND visit_id = ?
-
-        `,
-
-        [descriptions[index], existingStops[index].stop_id, visitId]
-
+    await connection.query(`DELETE FROM field_visit_stops WHERE visit_id = ?`, [visitId]);
+    await connection.query(
+      `INSERT INTO field_visit_stops (visit_id, sequence_no, location, visit_time, description) VALUES ?`,
+      [stops.map((stop, index) => [visitId, index + 1, stop.location, stop.visit_time, stop.description])]
+    );
+    // Team membership may also be corrected, but only when supplied explicitly.
+    if (req.body?.visitor_ids !== undefined) {
+      if (!Array.isArray(req.body.visitor_ids) || req.body.visitor_ids.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
+        await connection.rollback();
+        return res.status(400).json({ success: false, message: "Invalid team members." });
+      }
+      const unique = [...new Set(req.body.visitor_ids.map(Number))];
+      await connection.query(`DELETE FROM field_visit_members WHERE visit_id = ?`, [visitId]);
+      if (unique.length) await connection.query(
+        `INSERT INTO field_visit_members (visit_id, employee_id) VALUES ?`,
+        [unique.map((id) => [visitId, id])]
       );
-
     }
-
     await connection.commit();
-
-    return res.json({
-
-      success: true,
-
-      message:
-
-        "Visit date, description and conclusion updated and resubmitted for approval.",
-
-      visit_id: visitId,
-
-      status: "pending",
-
-      word_count: descriptionWordCount,
-
-    });
-
+    return res.json({ success: true, message: "Field visit corrected and resubmitted for approval. Original dates preserved.", visit_id: visitId, status: "pending", word_count: wordCount });
   } catch (error) {
-
-    if (connection) {
-
-      await connection.rollback();
-
-    }
-
+    if (connection) await connection.rollback();
     console.error("Resubmit employee field visit error:", error);
-
-    return res.status(500).json({
-
-      success: false,
-
-      message: "Failed to update and resubmit field visit.",
-
-      error: error.message,
-
-      sqlMessage: error.sqlMessage || null,
-
-    });
-
+    return res.status(500).json({ success: false, message: "Failed to resubmit employee field visit.", error: error.message, sqlMessage: error.sqlMessage || null });
   } finally {
-
-    if (connection) {
-
-      connection.release();
-
-    }
-
+    if (connection) connection.release();
   }
-
 };
 
 const getEmployeesForFieldVisit = async(req,res)=>{

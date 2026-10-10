@@ -1841,7 +1841,10 @@ if (selectedTask) {
 
   return (
     <div
-      style={styles.subtaskItem}
+      style={{
+        ...styles.subtaskItem,
+        ...(isEditing ? { alignItems: "start", background: "#f8fafc" } : {}),
+      }}
       key={subtask.task_id}
     >
       <input
@@ -1860,135 +1863,118 @@ if (selectedTask) {
 
       <div style={styles.subtaskContent}>
         {isEditing ? (
-          <>
-            <input
-              style={styles.input}
-              value={editSubtaskForm.title}
-              onChange={(event) =>
-                setEditSubtaskForm(
-                  (previous) => ({
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", minWidth: 0 }}>
+            <label style={styles.formGroup}>
+              <span>Subtask Title</span>
+              <input
+                style={{ ...styles.input, width: "100%", minWidth: 0, boxSizing: "border-box" }}
+                value={editSubtaskForm.title}
+                onChange={(event) =>
+                  setEditSubtaskForm((previous) => ({
                     ...previous,
                     title: event.target.value,
-                  })
-                )
-              }
-              placeholder="Subtask title"
-            />
+                  }))
+                }
+                placeholder="Subtask title"
+              />
+            </label>
 
-            <textarea
-              style={{
-                ...styles.textarea,
-                marginTop: "8px",
-              }}
-              value={
-                editSubtaskForm.description
-              }
-              onChange={(event) =>
-                setEditSubtaskForm(
-                  (previous) => ({
+            <label style={styles.formGroup}>
+              <span>Description</span>
+              <textarea
+                style={{ ...styles.textarea, width: "100%", minWidth: 0, boxSizing: "border-box" }}
+                value={editSubtaskForm.description}
+                onChange={(event) =>
+                  setEditSubtaskForm((previous) => ({
                     ...previous,
-                    description:
-                      event.target.value,
-                  })
-                )
-              }
-              placeholder="Description"
-            />
+                    description: event.target.value,
+                  }))
+                }
+                placeholder="Description"
+              />
+            </label>
 
             <div
               style={{
-                ...styles.formGrid,
-                marginTop: "8px",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
+                gap: "12px",
+                width: "100%",
+                minWidth: 0,
               }}
             >
-              <input
-                type="date"
-                style={styles.input}
-                min={
-                  selectedTask.start_date ||
-                  undefined
-                }
-                max={
-                  selectedTask.due_date ||
-                  undefined
-                }
-                value={
-                  editSubtaskForm.start_date
-                }
-                onChange={(event) =>
-                  setEditSubtaskForm(
-                    (previous) => ({
+              <label style={{ ...styles.formGroup, minWidth: 0 }}>
+                <span>Start Date</span>
+                <input
+                  type="date"
+                  style={{ ...styles.input, width: "100%", minWidth: 0, boxSizing: "border-box" }}
+                  min={selectedTask.start_date || undefined}
+                  max={selectedTask.due_date || undefined}
+                  value={editSubtaskForm.start_date}
+                  onChange={(event) =>
+                    setEditSubtaskForm((previous) => ({
                       ...previous,
-                      start_date:
-                        event.target.value,
+                      start_date: event.target.value,
                       end_date:
-                        previous.end_date &&
-                        previous.end_date <
-                          event.target.value
+                        previous.end_date && previous.end_date < event.target.value
                           ? ""
                           : previous.end_date,
-                    })
-                  )
-                }
-              />
+                    }))
+                  }
+                />
+              </label>
 
-              <input
-                type="date"
-                style={styles.input}
-                min={
-                  editSubtaskForm.start_date ||
-                  selectedTask.start_date ||
-                  undefined
-                }
-                max={
-                  selectedTask.due_date ||
-                  undefined
-                }
-                value={
-                  editSubtaskForm.end_date
-                }
-                onChange={(event) =>
-                  setEditSubtaskForm(
-                    (previous) => ({
+              <label style={{ ...styles.formGroup, minWidth: 0 }}>
+                <span>End Date / Deadline</span>
+                <input
+                  type="date"
+                  style={{ ...styles.input, width: "100%", minWidth: 0, boxSizing: "border-box" }}
+                  min={editSubtaskForm.start_date || selectedTask.start_date || undefined}
+                  max={selectedTask.due_date || undefined}
+                  value={editSubtaskForm.end_date}
+                  onChange={(event) =>
+                    setEditSubtaskForm((previous) => ({
                       ...previous,
-                      end_date:
-                        event.target.value,
-                    })
-                  )
-                }
-              />
+                      end_date: event.target.value,
+                    }))
+                  }
+                />
+              </label>
             </div>
 
             <div
               style={{
                 display: "flex",
-                gap: "8px",
-                marginTop: "9px",
+                justifyContent: "flex-end",
+                flexWrap: "wrap",
+                gap: "9px",
+                marginTop: "2px",
               }}
             >
               <button
                 type="button"
-                style={styles.primaryActionBtn}
-                disabled={savingSubtaskEdit}
-                onClick={() =>
-                  saveSubtaskEdit(subtask)
-                }
-              >
-                {savingSubtaskEdit
-                  ? "Saving..."
-                  : "Save"}
-              </button>
-
-              <button
-                type="button"
-                style={styles.iconActionBtn}
+                style={{ ...styles.iconActionBtn, height: "40px", minWidth: "100px" }}
                 disabled={savingSubtaskEdit}
                 onClick={cancelEditSubtask}
               >
                 Cancel
               </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.primaryActionBtn,
+                  width: "auto",
+                  minWidth: "120px",
+                  height: "40px",
+                  padding: "0 22px",
+                }}
+                disabled={savingSubtaskEdit}
+                onClick={() => saveSubtaskEdit(subtask)}
+              >
+                {savingSubtaskEdit ? "Saving..." : "Save Changes"}
+              </button>
             </div>
-          </>
+          </div>
         ) : (
           <>
             <h4 style={styles.subtaskTitle}>

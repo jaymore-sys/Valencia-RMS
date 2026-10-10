@@ -582,6 +582,37 @@ const SummaryBox = ({ label, value, compact = false }) => {
     </div>
   );
 };
+// Attendance records already contain eligible working dates calculated by the backend.
+// Filter those dates instead of rebuilding working days on the client.
+const monthOfAttendanceDate = (value) => {
+  const date = String(value || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date.slice(0, 7) : "";
+};
+
+const monthlyAttendance = (person, selectedMonth) => {
+  if (!person) return null;
+  const records = (Array.isArray(person.records) ? person.records : []).filter(
+    (record) => (selectedMonth === "all" || monthOfAttendanceDate(record.attendance_date) === selectedMonth)
+  );
+  const totals = { present: 0, absent: 0, late: 0, leave: 0, half_day: 0, holiday: 0 };
+  records.forEach((record) => {
+    const status = String(record.status || "").trim().toLowerCase().replace(/\s+/g, "_");
+    if (status === "late") { totals.present += 1; totals.late += 1; }
+    else if (status === "present") totals.present += 1;
+    else if (status === "absent") totals.absent += 1;
+    else if (status === "leave") totals.leave += 1;
+    else if (status === "half_day") totals.half_day += 1;
+    else if (status === "holiday") totals.holiday += 1;
+  });
+  return {
+    ...person,
+    ...totals,
+    total: records.length,
+    records,
+    latest_attendance_date: records.find((r) => !r.is_missing_date)?.attendance_date || "-",
+  };
+};
+
 const AdminAttendance = ({
   mode = "attendance",
 }) => {
@@ -609,6 +640,7 @@ const isPremal =
   const [myAttendance, setMyAttendance] = useState(null);
   const [employeeSummary, setEmployeeSummary] = useState([]);
   const [dateRange, setDateRange] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -626,6 +658,9 @@ const isPremal =
   const [rejectRemark, setRejectRemark] = useState("");
   const [reviewSaving, setReviewSaving] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
+  const [editVisitTarget, setEditVisitTarget] = useState(null);
+  const [editVisitSaving, setEditVisitSaving] = useState(false);
+  const [editVisitors, setEditVisitors] = useState([]);
   const [savingVisit, setSavingVisit] = useState(false);
   const [employees, setEmployees] = useState([]);
   const [selectedVisitors, setSelectedVisitors] = useState([]);
@@ -786,6 +821,67 @@ const isPremal =
       fetchMyVisits(),
     ]);
   };
+  const openReviewCorrection = async (visit) => {
+    setVisitError("");
+    setVisitMessage("");
+    setEditVisitTarget({
+      ...visit,
+      visit_type: visit.visit_type || "Sales Visit",
+      duration_type: visit.duration_type || "full_day",
+      half_day_session: visit.half_day_session || "",
+      visit_stops: getVisitStops(visit).map((stop) => ({
+        location: stop.location || "",
+        visit_time: String(stop.visit_time || "").slice(0, 5),
+        description: stop.description || "",
+      })),
+      conclusion: visit.conclusion || "",
+      remark: visit.remark || "",
+    });
+    // The existing API does not return member IDs, so leave membership unchanged
+    // unless a future API adds an explicitly populated member-ID list.
+    setEditVisitors([]);
+  };
+
+  const submitReviewCorrection = async () => {
+    if (!editVisitTarget || editVisitSaving) return;
+    const v = editVisitTarget;
+    const stops = v.visit_stops || [];
+    if (!stops.length || stops.some((stop) => !String(stop.location || "").trim() || !String(stop.description || "").trim())) {
+      setVisitError("Every visit stop requires its location and description.");
+      return;
+    }
+    const words = stops.reduce((n, stop) => n + String(stop.description || "").trim().split(/\s+/).filter(Boolean).length, 0);
+    if (words < 50) {
+      setVisitError(`Descriptions must total at least 50 words. Current: ${words}.`);
+      return;
+    }
+    if (v.duration_type === "half_day" && !["first_half", "second_half"].includes(v.half_day_session)) {
+      setVisitError("Select a valid half-day session.");
+      return;
+    }
+    try {
+      setEditVisitSaving(true);
+      setVisitError("");
+     const response = await api.put(`/admin-attendance/field-visits/${v.visit_id}/resubmit`, {
+  // Dates are locked and must remain unchanged.
+  // Backend preserves the original dates.
+  visit_type: v.visit_type,
+        duration_type: v.duration_type,
+        half_day_session: v.duration_type === "half_day" ? v.half_day_session : null,
+        visit_stops: stops,
+        conclusion: v.conclusion,
+        remark: v.remark,
+      });
+      setEditVisitTarget(null);
+      setVisitMessage(response.data?.message || "Field visit resubmitted for approval.");
+      await fetchMyVisits();
+    } catch (err) {
+      setVisitError(err?.response?.data?.message || "Unable to resubmit this visit.");
+    } finally {
+      setEditVisitSaving(false);
+    }
+  };
+
   const submitAdminVisit = async () => {
     setVisitError("");
     setVisitMessage("");
@@ -861,6 +957,7 @@ const isPremal =
       setVisitForm({
         visit_type: "Sales Visit",
         visit_date: "",
+        end_date: "",
         duration_type: "full_day",
         half_day_session: "",
         visit_stops: [createEmptyVisitStop()],
@@ -915,7 +1012,7 @@ const isPremal =
       setVisitMessage(
         status === "approved"
           ? "Field visit approved successfully."
-          : "Field visit rejected."
+          : status === "changes_requested" ? "Review remark sent for corrections." : "Field visit rejected."
       );
       if (
   fieldVisitMode ===
@@ -937,8 +1034,8 @@ const isPremal =
     }
   };
   const reviewVisit = async (visit, status) => {
-    if (status === "rejected") {
-      setRejectVisitTarget(visit);
+    if (status === "rejected" || status === "changes_requested") {
+      setRejectVisitTarget({ ...visit, requestedAction: status });
       setRejectRemark("");
       setVisitError("");
       return;
@@ -952,7 +1049,7 @@ const isPremal =
   const confirmRejectVisit = async () => {
     if (!rejectRemark.trim()) {
       setVisitError(
-        "Rejection remark is required."
+        "Review remark is required."
       );
       return;
     }
@@ -960,7 +1057,7 @@ const isPremal =
     const success =
       await submitVisitReview(
         rejectVisitTarget,
-        "rejected",
+        rejectVisitTarget.requestedAction || "rejected",
         rejectRemark
       );
     if (success) {
@@ -982,20 +1079,53 @@ const isPremal =
   fieldVisitsOnly,
   myAttendance?.user_id,
 ]);
+  const availableMonths = useMemo(() => {
+    const start = monthOfAttendanceDate(dateRange?.start_date);
+    const end = monthOfAttendanceDate(dateRange?.end_date);
+    if (!start || !end || start > end) return [];
+    const months = [];
+    let [year, month] = start.split("-").map(Number);
+    while (`${year}-${String(month).padStart(2, "0")}` <= end) {
+      months.push(`${year}-${String(month).padStart(2, "0")}`);
+      month += 1;
+      if (month === 13) { month = 1; year += 1; }
+    }
+    return months.reverse();
+  }, [dateRange]);
+
+  // Select the most recent available month after the initial fetch.
+  useEffect(() => {
+    if (selectedMonth !== "all" && availableMonths.length && !availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[0]);
+    }
+  }, [availableMonths, selectedMonth]);
+
+  const monthlyMyAttendance = useMemo(
+    () => monthlyAttendance(myAttendance, selectedMonth),
+    [myAttendance, selectedMonth]
+  );
+  const monthlyEmployees = useMemo(
+    () => employeeSummary.map((person) => monthlyAttendance(person, selectedMonth)),
+    [employeeSummary, selectedMonth]
+  );
+  const selectedMonthLabel = selectedMonth === "all" ? "All Records" : selectedMonth
+    ? new Date(`${selectedMonth}-01T12:00:00`).toLocaleDateString("en-IN", { month: "long", year: "numeric" })
+    : "Selected month";
+
   const filteredEmployees = useMemo(() => {
     const term = searchTerm.toLowerCase().trim();
-    if (!term) return employeeSummary;
-    return employeeSummary.filter((employee) => {
+    if (!term) return monthlyEmployees;
+    return monthlyEmployees.filter((employee) => {
       return (
         String(employee.full_name || "").toLowerCase().includes(term) ||
         String(employee.email || "").toLowerCase().includes(term) ||
         String(employee.department_name || "").toLowerCase().includes(term)
       );
     });
-  }, [employeeSummary, searchTerm]);
+  }, [monthlyEmployees, searchTerm]);
   const myRecords = useMemo(() => {
-    return Array.isArray(myAttendance?.records) ? myAttendance.records : [];
-  }, [myAttendance]);
+    return Array.isArray(monthlyMyAttendance?.records) ? monthlyMyAttendance.records : [];
+  }, [monthlyMyAttendance]);
   const currentVisits =
   fieldVisitMode === "team"
     ? teamVisits
@@ -1168,35 +1298,41 @@ const isPremal =
         >
           Employee Summary
         </button>
+        <label htmlFor="admin-attendance-month" style={{display:"inline-flex",alignItems:"center",gap:8,fontWeight:800,color:"#334155",marginLeft:8}}>Month
+          <select id="admin-attendance-month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} disabled={loading||!availableMonths.length} style={{height:44,padding:"0 12px",borderRadius:11,border:"1px solid #cbd5e1",background:"#fff",fontWeight:700,minWidth:160}}>
+            <option value="all">All Records</option>
+            {availableMonths.map(m=><option key={m} value={m}>{new Date(`${m}-01T12:00:00`).toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</option>)}
+          </select>
+        </label>
        </section>
 )}
       {activeTab === "myAttendance" && (
         <section style={styles.contentBlock}>
           <div style={styles.myAttendanceHeader}>
-            <div style={styles.myAvatar}>{getInitials(myAttendance?.full_name)}</div>
+            <div style={styles.myAvatar}>{getInitials(monthlyMyAttendance?.full_name)}</div>
             <div style={styles.myDetails}>
               <p style={styles.smallLabel}>My Attendance</p>
-              <h2 style={styles.myName}>{myAttendance?.full_name || "-"}</h2>
-              <p style={styles.myEmail}>{myAttendance?.email || "-"}</p>
+              <h2 style={styles.myName}>{monthlyMyAttendance?.full_name || "-"}</h2>
+              <p style={styles.myEmail}>{monthlyMyAttendance?.email || "-"}</p>
               <span style={styles.myDepartment}>
                 <strong style={styles.myDepartmentText}>
-                  {myAttendance?.department_name || "-"}
+                  {monthlyMyAttendance?.department_name || "-"}
                 </strong>
               </span>
             </div>
           </div>
           <div style={styles.myStatsGrid}>
-            <SummaryBox label="Working Days" value={myAttendance?.total || 0} />
-            <SummaryBox label="Present" value={myAttendance?.present || 0} />
-            <SummaryBox label="Absent" value={myAttendance?.absent || 0} />
-            <SummaryBox label="Late" value={myAttendance?.late || 0} />
-            <SummaryBox label="Leave" value={myAttendance?.leave || 0} />
+            <SummaryBox label="Working Days" value={monthlyMyAttendance?.total || 0} />
+            <SummaryBox label="Present" value={monthlyMyAttendance?.present || 0} />
+            <SummaryBox label="Absent" value={monthlyMyAttendance?.absent || 0} />
+            <SummaryBox label="Late" value={monthlyMyAttendance?.late || 0} />
+            <SummaryBox label="Leave" value={monthlyMyAttendance?.leave || 0} />
           </div>
           <div style={styles.sectionTitleRow}>
             <div>
-              <h2 style={styles.sectionTitle}>My Attendance Records</h2>
+              <h2 style={styles.sectionTitle}>My Attendance Records — {selectedMonthLabel}</h2>
               <p style={styles.sectionSubtitle}>
-                Absent is calculated from missing dates only. Sundays are not counted.
+                {selectedMonthLabel} · Absent is calculated from missing dates only. Sundays are not counted.
               </p>
             </div>
           </div>
@@ -1248,7 +1384,7 @@ const isPremal =
                 {employeeSummary[0]?.department_name || "Department"} Users
               </h2>
               <p style={styles.sectionSubtitle}>
-                Employee attendance management
+                Employee attendance management · {selectedMonthLabel}
               </p>
             </div>
             <button
@@ -1534,6 +1670,9 @@ const isPremal =
                                 >
                                   Reject
                                 </button>
+                                <button type="button" disabled={reviewSaving}
+                                  style={{background:"transparent",border:"none",padding:"3px 1px",fontSize:12,textDecoration:"underline",fontWeight:800,color:"#a16207",cursor:"pointer"}}
+                                  onClick={() => reviewVisit(visit, "changes_requested")}>Review</button>
                               </div>
                             </td>
                           </tr>
@@ -1594,6 +1733,7 @@ const isPremal =
                   <option value="pending">Pending</option>
                   <option value="approved">Approved</option>
                   <option value="rejected">Rejected</option>
+                  <option value="changes_requested">Changes Requested</option>
                 </select>
               </div>
               <div style={styles.visitTableBox}>
@@ -1921,9 +2061,25 @@ const isPremal =
                             }
                           </td>
                           <td style={styles.td}>
-                            <span style={styles.recordedBadge}>
-                              Recorded
+                            <span style={{ ...styles.visitStatusBadge, ...(
+                              String(visit.status || "").toLowerCase() === "approved" ? styles.visitApproved :
+                              String(visit.status || "").toLowerCase() === "rejected" ? styles.visitRejected : styles.visitPending
+                            ) }}>
+                              {String(visit.status || "pending").replace(/_/g, " ")}
                             </span>
+                            {visit.review_remark && (
+                              <div style={{ ...styles.reviewRemark, maxWidth: 280, whiteSpace: "normal" }}>
+                                <strong>Reviewer's remark:</strong>
+                                <FormattedVisitText value={visit.review_remark} />
+                              </div>
+                            )}
+                            {Number(visit.employee_id) === Number(myAttendance?.user_id) &&
+                              String(visit.status || "").toLowerCase() === "changes_requested" && (
+                                <button type="button" style={{ ...styles.outlineVisitButton, marginTop: 10 }}
+                                  onClick={() => openReviewCorrection(visit)}>
+                                  Edit &amp; Resubmit
+                                </button>
+                              )}
                           </td>
                         </tr>
                       ))}
@@ -1934,6 +2090,87 @@ const isPremal =
             </>
           )}
         </section>
+      )}
+      {editVisitTarget && (
+        <div style={styles.visitModalOverlay}>
+          <div style={styles.visitModal} role="dialog" aria-modal="true" aria-label="Correct field visit">
+            <div style={styles.visitModalHeader}>
+              <div><h2 style={styles.visitModalTitle}>Correct &amp; Resubmit Field Visit</h2>
+                <p style={styles.sectionSubtitle}>Review the feedback and update your visit. Dates cannot be changed.</p>
+              </div>
+              <button type="button" style={styles.visitCloseButton} disabled={editVisitSaving}
+                onClick={() => { setEditVisitTarget(null); setVisitError(""); }}>×</button>
+            </div>
+            {editVisitTarget.review_remark && <div style={{ ...styles.reviewRemark, marginBottom: 18, padding: 14 }}>
+              <strong>Reviewer's remark:</strong><FormattedVisitText value={editVisitTarget.review_remark} />
+            </div>}
+            {visitError && <div style={styles.errorBox}>{visitError}</div>}
+            <div style={styles.visitFormGrid}>
+              <label style={styles.visitFormGroup}><span>Visit Date (Locked)</span>
+                <input style={styles.visitFormInput} type="date" disabled value={formatVisitDate(editVisitTarget.visit_date)} />
+              </label>
+              <label style={styles.visitFormGroup}><span>End Date (Locked)</span>
+                <input style={styles.visitFormInput} type="date" disabled
+                  value={editVisitTarget.end_date ? formatVisitDate(editVisitTarget.end_date) : ""} />
+              </label>
+              <label style={styles.visitFormGroup}><span>Visit Type</span>
+                <select style={styles.visitFormInput} value={editVisitTarget.visit_type}
+                  onChange={(e) => setEditVisitTarget((v) => ({ ...v, visit_type: e.target.value }))}>
+                  {["Sales Visit", "Exhibition Visit", "Manufacturer Visit", "Document Visit", "Procurement Visit"].map((t) => <option key={t}>{t}</option>)}
+                </select>
+              </label>
+              <label style={styles.visitFormGroup}><span>Duration</span>
+                <select style={styles.visitFormInput} value={editVisitTarget.duration_type}
+                  onChange={(e) => setEditVisitTarget((v) => ({ ...v, duration_type: e.target.value }))}>
+                  <option value="full_day">Full Day</option><option value="half_day">Half Day</option>
+                </select>
+              </label>
+              {editVisitTarget.duration_type === "half_day" && <label style={styles.visitFormGroup}><span>Half Day Session</span>
+                <select style={styles.visitFormInput} value={editVisitTarget.half_day_session}
+                  onChange={(e) => setEditVisitTarget((v) => ({ ...v, half_day_session: e.target.value }))}>
+                  <option value="">Select Half</option><option value="first_half">First Half</option><option value="second_half">Second Half</option>
+                </select>
+              </label>}
+            </div>
+            <section style={styles.visitStopsSection}>
+              <div style={styles.visitStopsHeader}><strong>Visit Stops / Locations</strong>
+                <button type="button" style={styles.addVisitStopButton}
+                  onClick={() => setEditVisitTarget((v) => ({ ...v, visit_stops: [...v.visit_stops, createEmptyVisitStop()] }))}>+ Add Location</button>
+              </div>
+              {editVisitTarget.visit_stops.map((stop, index) => (
+                <div key={index} style={styles.visitStopCard}>
+                  <div style={styles.visitStopCardHeader}><strong>Location {index + 1}</strong>
+                    {editVisitTarget.visit_stops.length > 1 && <button type="button" style={styles.removeVisitStopButton}
+                      onClick={() => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.filter((_, i) => i !== index) }))}>Remove</button>}
+                  </div>
+                  <div style={styles.visitStopGrid}>
+                    <label style={styles.visitFormGroup}><span>Location *</span><input style={styles.visitFormInput} value={stop.location}
+                      onChange={(e) => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.map((x, i) => i === index ? { ...x, location: e.target.value } : x) }))}/></label>
+                    <label style={styles.visitFormGroup}><span>Time</span><input style={styles.visitFormInput} type="time" value={stop.visit_time || ""}
+                      onChange={(e) => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.map((x, i) => i === index ? { ...x, visit_time: e.target.value } : x) }))}/></label>
+                  </div>
+                  <label style={styles.visitFormGroup}><span>Description *</span>
+                    <RichVisitEditor value={stop.description} style={styles.visitTextarea}
+                      placeholder="Update the description following the reviewer's feedback."
+                      onChange={(value) => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.map((x, i) => i === index ? { ...x, description: value } : x) }))}/>
+                  </label>
+                </div>
+              ))}
+            </section>
+            <label style={styles.visitFormGroup}><span>Conclusion</span><RichVisitEditor style={styles.visitTextarea}
+              placeholder="Conclusion" value={editVisitTarget.conclusion}
+              onChange={(value) => setEditVisitTarget((v) => ({ ...v, conclusion: value }))}/></label>
+            <label style={styles.visitFormGroup}><span>Remark / Follow-up</span><RichVisitEditor style={styles.visitTextarea}
+              placeholder="Remark" value={editVisitTarget.remark}
+              onChange={(value) => setEditVisitTarget((v) => ({ ...v, remark: value }))}/></label>
+            <div style={styles.visitModalFooter}>
+              <button type="button" style={styles.visitCancelButton} disabled={editVisitSaving}
+                onClick={() => { setEditVisitTarget(null); setVisitError(""); }}>Cancel</button>
+              <button type="button" style={styles.visitSubmitButton} disabled={editVisitSaving}
+                onClick={submitReviewCorrection}>{editVisitSaving ? "Resubmitting..." : "Resubmit for Approval"}</button>
+            </div>
+          </div>
+        </div>
       )}
       {rejectVisitTarget && (
         <div
@@ -1953,10 +2190,10 @@ const isPremal =
             <div style={styles.rejectModalHeader}>
               <div>
                 <h2 style={styles.rejectModalTitle}>
-                  Reject Field Visit
+                  {rejectVisitTarget.requestedAction === "changes_requested" ? "Review Field Visit" : "Reject Field Visit"}
                 </h2>
                 <p style={styles.rejectModalSubtitle}>
-                  Please provide a reason for rejecting{" "}
+                  {rejectVisitTarget.requestedAction === "changes_requested" ? "Enter corrections requested for" : "Please provide a reason for rejecting"}{" "}
                   <strong>
                     {rejectVisitTarget.full_name ||
                       "this employee"}
@@ -1997,12 +2234,12 @@ const isPremal =
             </div>
             <label style={styles.rejectRemarkGroup}>
               <span>
-                Rejection Reason *
+                {rejectVisitTarget.requestedAction === "changes_requested" ? "Review Remark *" : "Rejection Reason *"}
               </span>
               <textarea
                 autoFocus
                 style={styles.rejectRemarkInput}
-                placeholder="Enter the reason for rejection..."
+                placeholder={rejectVisitTarget.requestedAction === "changes_requested" ? "Explain which details should be corrected..." : "Enter the reason for rejection..."}
                 value={rejectRemark}
                 onChange={(event) => {
                   setRejectRemark(
@@ -2044,8 +2281,8 @@ const isPremal =
                 onClick={confirmRejectVisit}
               >
                 {reviewSaving
-                  ? "Rejecting..."
-                  : "Reject Visit"}
+                  ? "Sending..."
+                  : rejectVisitTarget.requestedAction === "changes_requested" ? "Send for Review" : "Reject Visit"}
               </button>
             </div>
           </div>
@@ -2430,6 +2667,7 @@ const isPremal =
                   </div>
                   <label style={styles.visitFormGroup}>
                     <span>Description / Purpose *</span>
+                    <small style={{color:"#b91c1c"}}>Description: {String(stop.description || "").trim().split(/\s+/).filter(Boolean).length} words — minimum 50 words in total</small>
                     <RichVisitEditor
                       style={styles.visitTextarea}
                       placeholder="What was discussed, checked or completed at this stop?"

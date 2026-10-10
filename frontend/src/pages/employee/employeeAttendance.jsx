@@ -836,6 +836,7 @@ const EmployeeAttendance = ({
   const [visitorSearch, setVisitorSearch] = useState("");
   const [attendance, setAttendance] = useState([]);
   const [activeRange, setActiveRange] = useState("week");
+  const [attendanceMonth,setAttendanceMonth] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchText, setSearchText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -857,6 +858,7 @@ const EmployeeAttendance = ({
   const [visitStatus, setVisitStatus] = useState("all");
   const [showVisitModal, setShowVisitModal] =
     useState(false);
+  const [editVisitTarget, setEditVisitTarget] = useState(null);
   const [savingVisit, setSavingVisit] =
     useState(false);
   const [visitError, setVisitError] = useState("");
@@ -959,6 +961,24 @@ const EmployeeAttendance = ({
       );
     }
   };
+  const openEmployeeCorrection = (visit) => {
+    setEditVisitTarget(visit);
+    setVisitForm({
+      visit_type: visit.visit_type || "Sales Visit",
+      visit_date: formatVisitDate(visit.visit_date),
+      end_date: visit.end_date ? formatVisitDate(visit.end_date) : "",
+      duration_type: visit.duration_type || "full_day",
+      half_day_session: visit.half_day_session || "",
+      visit_stops: getVisitStops(visit).map(stop => ({
+        location: stop.location || "", visit_time: String(stop.visit_time || "").slice(0,5), description: stop.description || "",
+      })),
+      conclusion: visit.conclusion || "", remark: visit.remark || "",
+    });
+    setVisitError("");
+    setShowVisitModal(true);
+  };
+  const fieldVisitWordCount = (stops) => (Array.isArray(stops) ? stops : []).reduce((total, stop) =>
+    total + String(stop.description || "").replace(/\*\*|==/g, "").trim().split(/\s+/).filter(Boolean).length, 0);
   const submitFieldVisit = async () => {
     setVisitError("");
     setVisitSuccess("");
@@ -1003,11 +1023,16 @@ const EmployeeAttendance = ({
       );
       return;
     }
+    const wordCount = fieldVisitWordCount(visitStops);
+    if (wordCount < 50) {
+      setVisitError(`Description needs at least 50 words (currently ${wordCount}).`);
+      return;
+    }
     try {
       setSavingVisit(true);
       const firstStop = visitStops[0];
-      await api.post(
-        "/employee-attendance/field-visits",
+      await (editVisitTarget ? api.put : api.post)(
+        editVisitTarget ? `/employee-attendance/field-visits/${editVisitTarget.visit_id}/resubmit` : "/employee-attendance/field-visits",
         {
           visit_type: visitForm.visit_type,
           visit_date: visitForm.visit_date,
@@ -1030,7 +1055,8 @@ const EmployeeAttendance = ({
           remark: String(
             visitForm.remark || ""
           ).trim(),
-          visitor_ids: selectedVisitors,
+          // Preserve original team members when correcting an existing visit.
+          ...(editVisitTarget ? {} : { visitor_ids: selectedVisitors }),
         }
       );
       setVisitForm({
@@ -1043,8 +1069,9 @@ const EmployeeAttendance = ({
         remark: "",
       });
       setShowVisitModal(false);
+      setEditVisitTarget(null);
       setVisitSuccess(
-        "Field visit submitted for approval."
+        editVisitTarget ? "Corrected field visit resubmitted for approval." : "Field visit submitted for approval."
       );
       await fetchFieldVisits();
     } catch (err) {
@@ -1060,6 +1087,8 @@ const EmployeeAttendance = ({
     fetchAttendance();
     fetchFieldVisits();
   }, []);
+  const attendanceMonths = useMemo(()=>[...new Set(attendance.map(r=>getDateOnly(r.attendance_date||r.date).slice(0,7)).filter(m=>/^\d{4}-\d{2}$/.test(m)))].sort().reverse(),[attendance]);
+  useEffect(()=>{if(attendanceMonths.length&&!attendanceMonths.includes(attendanceMonth))setAttendanceMonth(attendanceMonths[0]);},[attendanceMonths,attendanceMonth]);
   const filteredAttendance = useMemo(() => {
     const query = searchText.trim().toLowerCase();
     const weekRange = getCurrentWeekRange();
@@ -1067,7 +1096,7 @@ const EmployeeAttendance = ({
       const rowDate = getDateOnly(row.attendance_date || row.date);
       const matchesRange =
         activeRange === "all" ||
-        (activeRange === "month" && isCurrentMonth(rowDate)) ||
+        (activeRange === "month" && rowDate.startsWith(attendanceMonth)) ||
         (activeRange === "week" &&
           rowDate >= weekRange.start &&
           rowDate <= weekRange.end);
@@ -1128,7 +1157,7 @@ const EmployeeAttendance = ({
       const matchesSearch = !query || searchableText.includes(query);
       return matchesRange && matchesStatus && matchesSearch;
     });
-  }, [attendance, activeRange, statusFilter, searchText]);
+  }, [attendance, activeRange, attendanceMonth, statusFilter, searchText]);
   const visibleSummary =
   useMemo(() => {
     const totalRecords =
@@ -1254,6 +1283,7 @@ const EmployeeAttendance = ({
             onClick={() => {
               setVisitError("");
               fetchEmployees();
+              setEditVisitTarget(null);
               setShowVisitModal(true);
             }}
           >
@@ -1336,6 +1366,10 @@ const EmployeeAttendance = ({
             >
               All Records
             </button>
+            <select aria-label="Attendance month" value={attendanceMonth} disabled={!attendanceMonths.length} onChange={e=>{setAttendanceMonth(e.target.value);setActiveRange("month");}} style={{height:48,minWidth:174,borderRadius:12,border:"1px solid #cbd5e1",background:"white",padding:"0 12px",fontWeight:700}}>
+              {!attendanceMonths.length&&<option value="">No months</option>}
+              {attendanceMonths.map(m=><option key={m} value={m}>{new Date(`${m}-01T12:00:00`).toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</option>)}
+            </select>
           </div>
           <div style={styles.statsGrid}>
             <div style={styles.statCard}>
@@ -1522,6 +1556,7 @@ const EmployeeAttendance = ({
               <option value="rejected">
                 Rejected
               </option>
+              <option value="changes_requested">Changes Requested</option>
             </select>
           </div>
           <section style={styles.tableCard}>
@@ -1540,6 +1575,7 @@ const EmployeeAttendance = ({
                       <th style={styles.th}>Conclusion / Remark</th>
                       <th style={styles.th}>Status</th>
                       <th style={styles.th}>Admin Remark</th>
+                      <th style={styles.th}>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1626,6 +1662,14 @@ const EmployeeAttendance = ({
                           <td style={styles.td}>
                             <FormattedVisitText value={visit.review_remark} />
                           </td>
+                          <td style={styles.td}>
+                            {status === "changes_requested" && (
+                              <button type="button" onClick={() => openEmployeeCorrection(visit)}
+                                style={{border:"none",background:"#fff1ed",color:"#e34c2a",fontWeight:800,padding:"8px 10px",borderRadius:8,cursor:"pointer",whiteSpace:"nowrap"}}>
+                                Edit & Resubmit
+                              </button>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -1652,7 +1696,7 @@ const EmployeeAttendance = ({
             <div style={styles.modalHeader}>
               <div>
                 <h2 style={styles.modalTitle}>
-                  Add Field Visit
+                  {editVisitTarget ? "Correct Field Visit" : "Add Field Visit"}
                 </h2>
                 <p style={styles.modalSubtitle}>
                   Add your outside sales or
@@ -1669,6 +1713,11 @@ const EmployeeAttendance = ({
                 <X size={20} />
               </button>
             </div>
+            {editVisitTarget?.review_remark && (
+              <div style={{padding:12,background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:10,marginBottom:12}}>
+                <strong>Review requested:</strong> <FormattedVisitText value={editVisitTarget.review_remark} />
+              </div>
+            )}
             {visitError && (
               <div style={styles.errorBox}>
                 {visitError}
@@ -1875,6 +1924,7 @@ const EmployeeAttendance = ({
                 <input
                   type="date"
                   style={styles.formInput}
+                  disabled={Boolean(editVisitTarget)}
                   value={visitForm.visit_date}
                   onChange={(event) =>
                     setVisitForm(
@@ -1893,6 +1943,7 @@ const EmployeeAttendance = ({
                   type="date"
                   style={styles.formInput}
                   min={visitForm.visit_date || undefined}
+                  disabled={Boolean(editVisitTarget)}
                   value={visitForm.end_date}
                   onChange={(event) =>
                     setVisitForm((previous) => ({
@@ -2063,6 +2114,7 @@ const EmployeeAttendance = ({
                   </div>
                   <label style={styles.formGroup}>
                     <span>Description / Purpose *</span>
+                    <div style={{fontSize:12,color:"#b91c1c",marginBottom:4}}>Description: {fieldVisitWordCount([stop])} words (minimum 50 across all stops)</div>
                     <RichVisitEditor
                       style={styles.formTextarea}
                       placeholder="What was discussed, checked or completed at this stop?"
@@ -2132,7 +2184,7 @@ const EmployeeAttendance = ({
               >
                 {savingVisit
                   ? "Submitting..."
-                  : "Submit Visit"}
+                  : editVisitTarget ? "Resubmit Visit" : "Submit Visit"}
               </button>
             </div>
           </div>
