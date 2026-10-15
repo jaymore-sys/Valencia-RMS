@@ -352,6 +352,14 @@ const getLeaveLabel = (leaveType) => {
 
 };
 
+// Fixed holidays remain holidays even when no biometric attendance is recorded.
+const FIXED_COMPANY_HOLIDAYS_2026 = new Map([
+  ["2026-01-26", "Republic Day"],
+  ["2026-05-01", "Maharashtra Day"],
+  ["2026-08-15", "Independence Day"],
+  ["2026-10-02", "Mahatma Gandhi Jayanti"],
+]);
+
 const buildAttendanceWithGeneratedAbsents = (
 
   attendanceRows,
@@ -499,6 +507,9 @@ const buildAttendanceWithGeneratedAbsents = (
 
     if (!isSunday(currentDate)) {
 
+      const fixedHolidayName =
+        FIXED_COMPANY_HOLIDAYS_2026.get(currentDate);
+
       const existingRow =
 
         attendanceByDate.get(
@@ -587,7 +598,11 @@ const buildAttendanceWithGeneratedAbsents = (
 
       */
 
-      if (leave) {
+      if (fixedHolidayName) {
+        status = "fixed_holiday";
+        remarks = `${fixedHolidayName} - Fixed Company Holiday`;
+        source = "holiday";
+      } else if (leave) {
 
         const leaveLabel =
 
@@ -1239,7 +1254,9 @@ const buildAttendanceWithGeneratedAbsents = (
 
           !leave &&
 
-          !fieldVisit,
+          !fieldVisit &&
+
+          !fixedHolidayName,
 
       });
 
