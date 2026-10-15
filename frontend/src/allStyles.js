@@ -24,3 +24,4 @@ import "./pages/superadmin/superadminProjects.css";
 import "./pages/superadmin/superadminFieldVisits.css";
 import "./pages/superadmin/superadminCalendar.css";
 import "./pages/shared/RMSChat.css";
+import "./layouts/administratorMobile.css";

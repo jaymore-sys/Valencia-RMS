@@ -57,6 +57,50 @@ const AdministratorLayout = () => {
     setMobileNavOpen(false);
   }, [location.pathname]);
 
+  // Copy each column header onto its cells (data-label) so tables can render as
+  // labelled cards on phones (see administratorMobile.css). Attributes only.
+  useEffect(() => {
+    const main = document.querySelector(".admin-main");
+    if (!main) return undefined;
+
+    let frame = 0;
+
+    const label = () => {
+      frame = 0;
+
+      main.querySelectorAll("table").forEach((table) => {
+        const heads = [...table.querySelectorAll("thead th")].map((th) =>
+          th.textContent.trim()
+        );
+
+        if (!heads.length) return;
+
+        table.querySelectorAll("tbody tr").forEach((row) => {
+          [...row.children].forEach((cell, index) => {
+            if (cell.colSpan > 1 || !heads[index]) return;
+            if (cell.dataset.label !== heads[index]) {
+              cell.dataset.label = heads[index];
+            }
+          });
+        });
+      });
+    };
+
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(label);
+    };
+
+    label();
+
+    const observer = new MutationObserver(schedule);
+    observer.observe(main, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
   // The icon-only collapsed state is a desktop feature.
   const collapsed = sidebarCollapsed && !isNarrow;
 

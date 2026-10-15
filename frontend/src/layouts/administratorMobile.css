@@ -1,0 +1,230 @@
+/* =========================================================
+   ADMINISTRATOR PAGES - PHONE LAYOUTS (<= 700px)
+   Many administrator pages are styled inline (fixed column heights,
+   percentage widths, wide tables). These overrides are scoped to
+   .administrator-shell so no other role is affected.
+   Loaded last (allStyles.js) so it wins the cascade.
+========================================================= */
+
+@media (max-width: 700px) {
+
+  /* ---------- PROJECTS: kanban board stacks vertically ---------- */
+  .administrator-shell section:has(> .administrator-project-stage-column) {
+    flex-direction: column !important;
+    overflow: visible !important;
+    gap: 14px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .administrator-shell .administrator-project-stage-column {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 14px !important;
+  }
+
+  .administrator-shell .administrator-project-stage-column > div:first-child {
+    min-height: 0 !important;
+    padding: 12px 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .administrator-shell .administrator-project-stage-body {
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+
+  /* ---------- TASKS: kanban board stacks vertically ---------- */
+  .administrator-shell .employee-kanban-scroll {
+    flex-direction: column !important;
+    overflow: visible !important;
+    gap: 14px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .administrator-shell .employee-kanban-scroll > div {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 14px !important;
+  }
+
+  .administrator-shell .employee-kanban-scroll > div > div:first-child {
+    min-height: 0 !important;
+    padding: 12px 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .administrator-shell .employee-kanban-scroll > div > div:last-child {
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+
+  /* ---------- CALENDAR: month fits the screen, tap a day for details ---------- */
+  .administrator-shell .admin-cal-main {
+    overflow: visible !important;
+  }
+
+  .administrator-shell .admin-cal-week,
+  .administrator-shell .admin-cal-grid {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .administrator-shell .admin-cal-week {
+    height: 38px !important;
+    min-height: 38px !important;
+    flex-basis: 38px !important;
+    font-size: 11px !important;
+  }
+
+  .administrator-shell .admin-cal-grid {
+    grid-template-rows: repeat(6, 62px) !important;
+  }
+
+  .administrator-shell .admin-cal-day {
+    padding: 4px !important;
+  }
+
+  .administrator-shell .admin-cal-day-number {
+    font-size: 12px !important;
+  }
+
+  /* events become thin coloured markers (full details open on tap) */
+  .administrator-shell .admin-cal-event-layer {
+    top: 26px !important;
+    grid-template-rows: repeat(3, 6px) !important;
+    grid-auto-rows: 6px !important;
+    row-gap: 2px !important;
+  }
+
+  .administrator-shell .admin-cal-event-bar {
+    height: 6px !important;
+    min-height: 6px !important;
+    margin: 0 1px !important;
+    padding: 0 !important;
+    border-radius: 3px !important;
+    font-size: 0 !important;
+  }
+
+  .administrator-shell .admin-cal-event-bar > * {
+    display: none !important;
+  }
+
+  /* day details panel goes below the month instead of beside it */
+  .administrator-shell .admin-cal-body-details {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .administrator-shell .admin-cal-details {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-left: none !important;
+    border-top: 1px solid var(--cal-border, #e4e7ec) !important;
+  }
+
+  /* ---------- Inline multi-column grids (leave balances, summary cards, forms) ---------- */
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(3"],
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(4"],
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(5"],
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(6"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  /* nested stat grids inside those cards stay a compact 2 x 2 */
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(4"] [style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(2"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* ---------- TABLES become labelled cards (labels come from data-label) ---------- */
+  .administrator-shell .admin-main table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 0 !important;
+  }
+
+  .administrator-shell .admin-main table thead {
+    display: none !important;
+  }
+
+  .administrator-shell .admin-main table tbody {
+    display: block !important;
+  }
+
+  .administrator-shell .admin-main table tr {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 0 12px !important;
+    padding: 12px 14px !important;
+    background: #ffffff !important;
+    border: 1px solid #e4e7ec !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .administrator-shell .admin-main table td {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding: 7px 0 !important;
+    border: 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .administrator-shell .admin-main table td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    max-width: 42%;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  /* first cell = the card title (name / date): no label, left aligned */
+  .administrator-shell .admin-main table td:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px solid #eef0f4 !important;
+  }
+
+  .administrator-shell .admin-main table td:first-child[data-label]::before {
+    display: none !important;
+  }
+
+  /* action buttons wrap instead of overflowing */
+  .administrator-shell .admin-main table td:last-child {
+    flex-wrap: wrap !important;
+  }
+
+  /* "no records" row spans the card */
+  .administrator-shell .admin-main table td[colspan] {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+}
