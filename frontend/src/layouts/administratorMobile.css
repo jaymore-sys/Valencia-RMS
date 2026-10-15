@@ -115,6 +115,14 @@
     display: none !important;
   }
 
+  .administrator-shell .admin-cal-legend {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    flex-wrap: wrap !important;
+    gap: 8px 14px !important;
+  }
+
   /* day details panel goes below the month instead of beside it */
   .administrator-shell .admin-cal-body-details {
     grid-template-columns: minmax(0, 1fr) !important;
@@ -125,6 +133,33 @@
     min-width: 0 !important;
     border-left: none !important;
     border-top: 1px solid var(--cal-border, #e4e7ec) !important;
+  }
+
+  /* ---------- Schedule Meeting dialog: employee picker fits the dialog ---------- */
+  .administrator-shell .administrator-meeting-select-row {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  .administrator-shell .administrator-meeting-employee-list {
+    overflow-x: hidden !important;
+  }
+
+  .administrator-shell .administrator-meeting-employee {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .administrator-shell .administrator-meeting-employee > div {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  .administrator-shell .administrator-meeting-employee strong,
+  .administrator-shell .administrator-meeting-employee span {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
   }
 
   /* ---------- Inline multi-column grids (leave balances, summary cards, forms) ---------- */
@@ -144,9 +179,13 @@
 }
 
 @media (max-width: 480px) {
-  .administrator-shell .admin-main [style*="grid-template-columns: repeat(2"] {
+  .administrator-shell [style*="grid-template-columns: repeat(2"],
+  .administrator-shell [style*="grid-template-columns: 1fr 1fr"] {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+@media (max-width: 700px) {
 
   /* ---------- TABLES become labelled cards (labels come from data-label) ---------- */
   .administrator-shell .admin-main table {
@@ -226,5 +265,24 @@
   .administrator-shell .admin-main table td[colspan] {
     justify-content: center !important;
     text-align: center !important;
+  }
+
+  /* ---------- Dialogs stay inside the screen ---------- */
+  .administrator-shell [style*="width: min(680px, 95vw)"] {
+    padding: 18px !important;
+    box-sizing: border-box !important;
+  }
+
+  .administrator-shell .administrator-project-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
+  .administrator-shell .administrator-project-modal * {
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
