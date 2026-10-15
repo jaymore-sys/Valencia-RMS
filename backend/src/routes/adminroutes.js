@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authmiddleware");
+const { requireRole } = require("../middleware/rolemiddleware");
 
 const {
   getAdminDepartmentUsers,
@@ -10,40 +11,36 @@ const {
   getAdminDivisionReport,
 } = require("../controllers/admincontroller");
 
-router.get(
-  "/division-report",
-  authMiddleware,
-  getAdminDivisionReport
-);
+
+// Every /api/admin route is department-admin only (previously any logged-in user).
+router.use(authMiddleware, requireRole("admin"));
+
+router.get("/division-report", getAdminDivisionReport);
 
 const {
   createAdminProject,
   getAdminProjects,
   exportAdminProjectsCsv,
 } = require("../controllers/adminprojectcontroller");
-router.get("/users", authMiddleware, getAdminDepartmentUsers);
+router.get("/users", getAdminDepartmentUsers);
 router.get(
   "/users/:userId/time-summary",
-  authMiddleware,
   getAdminUserTimeSummary
 );
 
-router.get("/assignable-users", authMiddleware, getAdminAssignableUsers);
+router.get("/assignable-users", getAdminAssignableUsers);
 router.get(
   "/projects",
-  authMiddleware,
   getAdminProjects
 );
 
 router.post(
   "/projects",
-  authMiddleware,
   createAdminProject
 );
 
 router.get(
   "/projects/export",
-  authMiddleware,
   exportAdminProjectsCsv
 );
 module.exports = router;

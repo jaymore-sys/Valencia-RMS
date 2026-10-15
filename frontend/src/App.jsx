@@ -1,78 +1,79 @@
-﻿import {
+﻿import { lazy, Suspense } from "react";
+import {
   Navigate,
   Route,
   Routes,
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
-import LeaveReview from "./pages/LeaveReview";
+const LeaveReview = lazy(() => import("./pages/LeaveReview"));
 
 
 /* ================= ADMINISTRATOR ================= */
 
-import AdministratorLayout from "./layouts/Administratorlayout";
+const AdministratorLayout = lazy(() => import("./layouts/Administratorlayout"));
 
-import AdministratorOverview from "./pages/administrator/administratorOverview";
-import AdministratorProjects from "./pages/administrator/administratorProjects";
-import AdministratorTasks from "./pages/administrator/administratorTasks";
-import AdministratorCalendar from "./pages/administrator/administratorCalendar";
-import AdministratorReports from "./pages/administrator/administratorReports";
-import AdministratorProfile from "./pages/administrator/administratorProfile";
-import AdministratorUsers from "./pages/administrator/administratorUsers";
-import AdministratorAttendance from "./pages/administrator/administratorAttendance";
-import AdministratorLeaveApplications from "./pages/administrator/administratorLeaveApplications";
+const AdministratorOverview = lazy(() => import("./pages/administrator/administratorOverview"));
+const AdministratorProjects = lazy(() => import("./pages/administrator/administratorProjects"));
+const AdministratorTasks = lazy(() => import("./pages/administrator/administratorTasks"));
+const AdministratorCalendar = lazy(() => import("./pages/administrator/administratorCalendar"));
+const AdministratorReports = lazy(() => import("./pages/administrator/administratorReports"));
+const AdministratorProfile = lazy(() => import("./pages/administrator/administratorProfile"));
+const AdministratorUsers = lazy(() => import("./pages/administrator/administratorUsers"));
+const AdministratorAttendance = lazy(() => import("./pages/administrator/administratorAttendance"));
+const AdministratorLeaveApplications = lazy(() => import("./pages/administrator/administratorLeaveApplications"));
 
 
 /* ================= EMPLOYEE ================= */
 
-import EmployeeLayout from "./layouts/Employeelayout";
+const EmployeeLayout = lazy(() => import("./layouts/Employeelayout"));
 
-import EmployeeOverview from "./pages/employee/employeeOverview";
-import EmployeeProjects from "./pages/employee/employeeProjects";
-import EmployeeTasks from "./pages/employee/employeeTasks";
-import EmployeeCalendar from "./pages/employee/employeeCalendar";
-import EmployeeProfile from "./pages/employee/employeeProfile";
-import EmployeeAttendance from "./pages/employee/employeeAttendance";
-import EmployeeLeaveApplications from "./pages/employee/employeeLeaveApplications";
-import EmployeeFieldVisits from "./pages/employee/employeeFieldVisits";
-import HrAttendance from "./pages/employee/hrAttendance";
+const EmployeeOverview = lazy(() => import("./pages/employee/employeeOverview"));
+const EmployeeProjects = lazy(() => import("./pages/employee/employeeProjects"));
+const EmployeeTasks = lazy(() => import("./pages/employee/employeeTasks"));
+const EmployeeCalendar = lazy(() => import("./pages/employee/employeeCalendar"));
+const EmployeeProfile = lazy(() => import("./pages/employee/employeeProfile"));
+const EmployeeAttendance = lazy(() => import("./pages/employee/employeeAttendance"));
+const EmployeeLeaveApplications = lazy(() => import("./pages/employee/employeeLeaveApplications"));
+const EmployeeFieldVisits = lazy(() => import("./pages/employee/employeeFieldVisits"));
+const HrAttendance = lazy(() => import("./pages/employee/hrAttendance"));
 
 
 /* ================= ADMIN ================= */
 
-import AdminLayout from "./layouts/Adminlayout";
+const AdminLayout = lazy(() => import("./layouts/Adminlayout"));
 
-import AdminOverview from "./pages/admin/adminOverview";
-import AdminProjects from "./pages/admin/adminProjects";
-import AdminTasks from "./pages/admin/adminTasks";
-import AdminCalendar from "./pages/admin/adminCalendar";
-import AdminReports from "./pages/admin/adminReports";
-import AdminProfile from "./pages/admin/adminProfile";
-import AdminUsers from "./pages/admin/adminUsers";
-import AdminAttendance from "./pages/admin/adminAttendance";
-import AdminLeaveApplications from "./pages/admin/adminLeaveApplications";
-import AdminFieldVisits from "./pages/admin/adminFieldVisits";
+const AdminOverview = lazy(() => import("./pages/admin/adminOverview"));
+const AdminProjects = lazy(() => import("./pages/admin/adminProjects"));
+const AdminTasks = lazy(() => import("./pages/admin/adminTasks"));
+const AdminCalendar = lazy(() => import("./pages/admin/adminCalendar"));
+const AdminReports = lazy(() => import("./pages/admin/adminReports"));
+const AdminProfile = lazy(() => import("./pages/admin/adminProfile"));
+const AdminUsers = lazy(() => import("./pages/admin/adminUsers"));
+const AdminAttendance = lazy(() => import("./pages/admin/adminAttendance"));
+const AdminLeaveApplications = lazy(() => import("./pages/admin/adminLeaveApplications"));
+const AdminFieldVisits = lazy(() => import("./pages/admin/adminFieldVisits"));
 
 
 /* ================= SUPERADMIN ================= */
 
-import SuperadminLayout from "./layouts/Superadminlayout";
+const SuperadminLayout = lazy(() => import("./layouts/Superadminlayout"));
 
-import SuperadminOverview from "./pages/superadmin/superadminOverview";
-import SuperadminUsers from "./pages/superadmin/superadminUsers";
-import SuperadminTasks from "./pages/superadmin/superadminTasks";
-import SuperadminProjects from "./pages/superadmin/superadminProjects";
-import SuperadminFieldVisits from "./pages/superadmin/superadminFieldVisits";
-import SuperadminCalendar from "./pages/superadmin/superadminCalendar";
-import SuperadminAttendance from "./pages/superadmin/superadminAttendance";
-import SuperadminLeaveApplications from "./pages/superadmin/superadminLeaveApplications";
-import SuperadminProfile from "./pages/superadmin/superadminProfile";
+const SuperadminOverview = lazy(() => import("./pages/superadmin/superadminOverview"));
+const SuperadminUsers = lazy(() => import("./pages/superadmin/superadminUsers"));
+const SuperadminTasks = lazy(() => import("./pages/superadmin/superadminTasks"));
+const SuperadminProjects = lazy(() => import("./pages/superadmin/superadminProjects"));
+const SuperadminFieldVisits = lazy(() => import("./pages/superadmin/superadminFieldVisits"));
+const SuperadminCalendar = lazy(() => import("./pages/superadmin/superadminCalendar"));
+const SuperadminAttendance = lazy(() => import("./pages/superadmin/superadminAttendance"));
+const SuperadminLeaveApplications = lazy(() => import("./pages/superadmin/superadminLeaveApplications"));
+const SuperadminProfile = lazy(() => import("./pages/superadmin/superadminProfile"));
 
 
 /* ================= SHARED ================= */
 
-import VendorManagement from "./pages/shared/VendorManagement";
-import RMSChat from "./pages/shared/RMSChat";
+const VendorManagement = lazy(() => import("./pages/shared/VendorManagement"));
+const RMSChat = lazy(() => import("./pages/shared/RMSChat"));
 
 
 /* ========================================================
@@ -390,6 +391,7 @@ const LeaveApprovalsRedirect = () => {
 
 const App = () => {
   return (
+    <Suspense fallback={<div style={{ padding: 24 }}>Loading…</div>}>
     <Routes>
 
 
@@ -955,6 +957,7 @@ const App = () => {
 
 
     </Routes>
+    </Suspense>
   );
 };
 
