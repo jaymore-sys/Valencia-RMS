@@ -1,4 +1,6 @@
 import { useState, lazy, Suspense } from "react";
+import MobileNavControls from "../components/MobileNavControls";
+import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -27,6 +29,10 @@ const EmployeeLayout = () => {
   const navigate = useNavigate();
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const { isNarrow, mobileNavOpen, setMobileNavOpen } = useMobileShell();
+  const collapsed = sidebarCollapsed && !isNarrow;
+  useTableLabels(".employee-main");
 
   const user = JSON.parse(
     sessionStorage.getItem("user") || "{}"
@@ -59,11 +65,16 @@ const isHR = HR_EMAILS.includes(
 
   return (
     <div
-      className={`employee-dashboard-shell ${
-        sidebarCollapsed ? "sidebar-collapsed" : ""
-      }`}
+      className={`employee-dashboard-shell rms-mobile ${
+        collapsed ? "sidebar-collapsed" : ""
+      } ${mobileNavOpen ? "mobile-nav-open" : ""}`}
     >
       {/* ================= SIDEBAR ================= */}
+      <MobileNavControls
+        onOpen={() => setMobileNavOpen(true)}
+        onClose={() => setMobileNavOpen(false)}
+      />
+
       <aside className="employee-sidebar">
         <button
           type="button"

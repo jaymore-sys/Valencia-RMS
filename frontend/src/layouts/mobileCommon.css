@@ -1,0 +1,882 @@
+/* =========================================================
+   MOBILE LAYOUTS - EMPLOYEE, ADMIN, SUPERADMIN
+   (administrator has its own: administratorMobile.css)
+   Sidebar becomes a slide-out drawer <= 900px; pages get phone layouts <= 700px.
+   All selectors are scoped to .rms-mobile (added to those three layout shells)
+   so desktop and the administrator dashboard are unaffected.
+   Loaded last (allStyles.js) so it wins the cascade.
+========================================================= */
+
+.rms-mobile .rms-menu-btn,
+.rms-mobile .rms-nav-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .rms-mobile .rms-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 900;
+    width: 44px;
+    height: 44px;
+    border: 1px solid #e3e7ef;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #ff5a2c;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+    cursor: pointer;
+  }
+
+  .rms-mobile.mobile-nav-open .rms-menu-btn {
+    display: none !important;
+  }
+
+  .rms-mobile.mobile-nav-open .rms-nav-backdrop {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: rgba(15, 23, 42, 0.45);
+  }
+
+  /* ---------- EMPLOYEE shell ---------- */
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    min-height: 100dvh !important;
+  }
+
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: min(300px, 86vw) !important;
+    min-width: 0 !important;
+    max-width: min(300px, 86vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    transform: translateX(-105%) !important;
+    transition: transform 0.25s ease !important;
+    z-index: 1100 !important;
+  }
+
+  .employee-dashboard-shell.rms-mobile.mobile-nav-open:not(.sidebar-collapsed) .employee-sidebar {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.28) !important;
+  }
+
+  .employee-dashboard-shell.rms-mobile .employee-sidebar-toggle {
+    display: none !important;
+  }
+
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar-bottom {
+    flex: 0 0 auto !important;
+    position: static !important;
+  }
+
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    margin-left: 0 !important;
+    padding: 68px 16px 24px !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+
+  /* ---------- ADMIN shell ---------- */
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    min-height: 100dvh !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: min(300px, 86vw) !important;
+    min-width: 0 !important;
+    max-width: min(300px, 86vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    transform: translateX(-105%) !important;
+    transition: transform 0.25s ease !important;
+    z-index: 1100 !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.mobile-nav-open:not(.sidebar-collapsed) .admin-sidebar {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.28) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile .admin-sidebar-toggle {
+    display: none !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-bottom {
+    flex: 0 0 auto !important;
+    position: static !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    margin-left: 0 !important;
+    padding: 68px 16px 24px !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+
+  /* ---------- SUPERADMIN shell ---------- */
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    min-height: 100dvh !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: min(300px, 86vw) !important;
+    min-width: 0 !important;
+    max-width: min(300px, 86vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    transform: translateX(-105%) !important;
+    transition: transform 0.25s ease !important;
+    z-index: 1100 !important;
+  }
+
+  .sa-shell.rms-mobile.mobile-nav-open:not(.sa-sidebar-collapsed) .sa-sidebar {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.28) !important;
+  }
+
+  .sa-shell.rms-mobile .sa-sidebar-toggle {
+    display: none !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-sidebar-bottom {
+    flex: 0 0 auto !important;
+    position: static !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    margin-left: 0 !important;
+    padding: 68px 16px 24px !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+  }
+}
+
+/* =========================================================
+   PAGE LAYOUTS - PHONES (<= 700px), shared by employee / admin / superadmin
+========================================================= */
+
+@media (max-width: 700px) {
+
+  /* ---------- Kanban boards stack vertically ---------- */
+  .rms-mobile .employee-kanban-scroll {
+    flex-direction: column !important;
+    overflow: visible !important;
+    gap: 14px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .rms-mobile .employee-kanban-scroll > div {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 14px !important;
+  }
+
+  .rms-mobile .employee-kanban-scroll > div > div:first-child {
+    min-height: 0 !important;
+    padding: 12px 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .rms-mobile .employee-kanban-scroll > div > div:last-child {
+    max-height: 70vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-right: 4px !important;
+  }
+
+  /* ---------- Calendar month fits the screen ---------- */
+  .rms-mobile .admin-cal-main {
+    overflow: visible !important;
+  }
+
+  .rms-mobile .admin-cal-week,
+  .rms-mobile .admin-cal-grid,
+  .rms-mobile .admin-cal-legend {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rms-mobile .admin-cal-legend {
+    flex-wrap: wrap !important;
+    gap: 8px 14px !important;
+  }
+
+  .rms-mobile .admin-cal-week {
+    height: 38px !important;
+    min-height: 38px !important;
+    flex-basis: 38px !important;
+    font-size: 11px !important;
+  }
+
+  .rms-mobile .admin-cal-grid {
+    grid-template-rows: repeat(6, 62px) !important;
+  }
+
+  .rms-mobile .admin-cal-day {
+    padding: 4px !important;
+  }
+
+  .rms-mobile .admin-cal-day-number {
+    font-size: 12px !important;
+  }
+
+  .rms-mobile .admin-cal-event-layer {
+    top: 26px !important;
+    grid-template-rows: repeat(3, 6px) !important;
+    grid-auto-rows: 6px !important;
+    row-gap: 2px !important;
+  }
+
+  .rms-mobile .admin-cal-event-bar {
+    height: 6px !important;
+    min-height: 6px !important;
+    margin: 0 1px !important;
+    padding: 0 !important;
+    border-radius: 3px !important;
+    font-size: 0 !important;
+  }
+
+  .rms-mobile .admin-cal-event-bar > * {
+    display: none !important;
+  }
+
+  .rms-mobile .admin-cal-body-details {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rms-mobile .admin-cal-details {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-left: none !important;
+    border-top: 1px solid var(--cal-border, #e4e7ec) !important;
+  }
+
+  .rms-mobile .admin-cal-title-row,
+  .rms-mobile .admin-cal-filter-row {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .rms-mobile .admin-cal-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* ---------- Inline multi-column grids -> single column ---------- */
+  .rms-mobile main [style*="grid-template-columns: repeat(3"],
+  .rms-mobile main [style*="grid-template-columns: repeat(4"],
+  .rms-mobile main [style*="grid-template-columns: repeat(5"],
+  .rms-mobile main [style*="grid-template-columns: repeat(6"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .rms-mobile main [style*="grid-template-columns: repeat(4"] [style*="grid-template-columns: repeat(4"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  /* ---------- Inline-styled toolbars wrap ---------- */
+  .rms-mobile main [style*="flex-wrap: nowrap"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .rms-mobile main [style*="display: flex"][style*="justify-content: space-between"] {
+    flex-wrap: wrap !important;
+  }
+
+  .rms-mobile main [style*="justify-content: space-between"] > div[style*="display: flex"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  /* ---------- Tables become labelled cards (data-label set by useTableLabels) ---------- */
+  .rms-mobile main table {
+    display: block !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    border: 0 !important;
+  }
+
+  .rms-mobile main table thead {
+    display: none !important;
+  }
+
+  .rms-mobile main table tbody {
+    display: block !important;
+  }
+
+  .rms-mobile main table tr {
+    display: block !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 0 12px !important;
+    padding: 12px 14px !important;
+    background: #ffffff !important;
+    border: 1px solid #e4e7ec !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .rms-mobile main table td {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+    padding: 7px 0 !important;
+    border: 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .rms-mobile main table td[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    max-width: 42%;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  .rms-mobile main table td:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px solid #eef0f4 !important;
+  }
+
+  .rms-mobile main table td:first-child[data-label]::before {
+    display: none !important;
+  }
+
+  .rms-mobile main table td:last-child {
+    flex-wrap: wrap !important;
+  }
+
+  .rms-mobile main table td[colspan] {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  /* ---------- Dialogs stay inside the screen ---------- */
+  .rms-mobile [style*="width: min(680px, 95vw)"] {
+    padding: 18px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .rms-mobile [style*="grid-template-columns: repeat(2"],
+  .rms-mobile [style*="grid-template-columns: 1fr 1fr"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 700px) {
+  /* ---------- Unclassed inline kanban boards (employee projects, admin/superadmin boards) ---------- */
+  .rms-mobile main section[style*="overflow: auto hidden"] {
+    flex-direction: column !important;
+    overflow: visible !important;
+    gap: 14px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .rms-mobile main section[style*="overflow: auto hidden"] > div {
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    padding: 14px !important;
+  }
+
+  .rms-mobile main section[style*="overflow: auto hidden"] > div > div:first-child {
+    min-height: 0 !important;
+    padding: 12px 14px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .rms-mobile main section[style*="overflow: auto hidden"] > div > div:last-child {
+    max-height: 70vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-right: 4px !important;
+  }
+
+  /* decorative shapes that poke out of the profile hero */
+  .rms-mobile .vnl-retro-shape {
+    display: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  /* ---------- Other inline grids (e.g. "1.25fr 0.75fr", "1fr 420px") -> single column ---------- */
+  .rms-mobile main [style*="grid-template-columns:"]:not([style*="repeat("]):not([style*="1fr 1fr;"]),
+  .rms-mobile main [style*="grid-template-columns: 1fr 1fr 1fr"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* ---------- Wide grid boards (admin projects / tasks: 6 columns, width: max-content) ---------- */
+  .rms-mobile main [style*="width: max-content"][style*="display: grid"] {
+    width: 100% !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .rms-mobile main [style*="width: max-content"][style*="display: grid"] > div {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .rms-mobile main [style*="width: max-content"][style*="display: grid"] > div > div:last-child {
+    max-height: 70vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+
+  /* search boxes with a fixed 420px width */
+  .rms-mobile main [style*="width: 420px"],
+  .rms-mobile main .admin-project-search-shell {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* inline-flex segmented tab bars wrap inside the screen */
+  .rms-mobile main section[style*="inline-flex"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 700px) {
+  /* ---------- SUPERADMIN: projects / tasks boards stack ---------- */
+  .rms-mobile .sa-projects-board,
+  .rms-mobile .sa-tasks-board {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-flow: row !important;
+    grid-auto-columns: minmax(0, 1fr) !important;
+    overflow: visible !important;
+    gap: 14px !important;
+  }
+
+  .rms-mobile .sa-projects-column,
+  .rms-mobile .sa-tasks-column {
+    width: 100% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+  }
+
+  .rms-mobile .sa-projects-column-list,
+  .rms-mobile .sa-tasks-column-list {
+    max-height: 70vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    height: auto !important;
+  }
+
+  .rms-mobile .sa-tasks-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rms-mobile .sa-tasks-toolbar > *,
+  .rms-mobile .sa-tasks-search {
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rms-mobile .sa-tasks-toolbar select {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* ---------- SUPERADMIN: calendar month fits the screen ---------- */
+  .rms-mobile .superadmin-cal-main {
+    overflow: visible !important;
+  }
+
+  .rms-mobile .superadmin-cal-week,
+  .rms-mobile .superadmin-cal-grid,
+  .rms-mobile .superadmin-cal-legend {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .rms-mobile .superadmin-cal-legend {
+    flex-wrap: wrap !important;
+    gap: 8px 14px !important;
+  }
+
+  .rms-mobile .superadmin-cal-week {
+    height: 38px !important;
+    min-height: 38px !important;
+    font-size: 11px !important;
+  }
+
+  .rms-mobile .superadmin-cal-grid {
+    grid-template-rows: repeat(6, 62px) !important;
+  }
+
+  .rms-mobile .superadmin-cal-day {
+    padding: 4px !important;
+  }
+
+  .rms-mobile .superadmin-cal-day-number {
+    font-size: 12px !important;
+  }
+
+  .rms-mobile .superadmin-cal-event-layer {
+    top: 26px !important;
+    grid-template-rows: repeat(3, 6px) !important;
+    grid-auto-rows: 6px !important;
+    row-gap: 2px !important;
+  }
+
+  .rms-mobile .superadmin-cal-event-bar {
+    height: 6px !important;
+    min-height: 6px !important;
+    margin: 0 1px !important;
+    padding: 0 !important;
+    border-radius: 3px !important;
+    font-size: 0 !important;
+  }
+
+  .rms-mobile .superadmin-cal-event-bar > * {
+    display: none !important;
+  }
+
+  .rms-mobile .superadmin-cal-title-row,
+  .rms-mobile .superadmin-cal-filter-row {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .rms-mobile .superadmin-cal-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rms-mobile [class*="-cal-body-details"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .rms-mobile [class*="superadmin-cal-details"] {
+    width: 100% !important;
+    min-width: 0 !important;
+    border-left: none !important;
+  }
+}
+
+@media (max-width: 700px) {
+  /* ---------- Schedule Meeting dialog: employee picker fits (employee + admin) ---------- */
+  .rms-mobile .admin-cal-employee-heading {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    max-width: 100% !important;
+  }
+
+  .rms-mobile .admin-cal-employee-block,
+  .rms-mobile .admin-cal-employee-block * {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .rms-mobile .admin-cal-employee-block label {
+    width: 100% !important;
+  }
+
+  .rms-mobile .admin-cal-employee-block strong,
+  .rms-mobile .admin-cal-employee-block span {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+}
+
+@media (max-width: 700px) {
+  /* ---------- Superadmin Schedule Meeting dialog: employee picker heading is a grid ---------- */
+  .rms-mobile .superadmin-cal-employee-heading {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .rms-mobile .superadmin-cal-employee-block,
+  .rms-mobile .superadmin-cal-employee-block * {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .rms-mobile .superadmin-cal-employee-search {
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  /* inline-styled toolbars wrap on tablets / small laptops (main area is ~740px at 1024) */
+  .rms-mobile main [style*="flex-wrap: nowrap"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .rms-mobile main [style*="display: flex"][style*="justify-content: space-between"] {
+    flex-wrap: wrap !important;
+  }
+
+  .rms-mobile main [style*="justify-content: space-between"] > div[style*="display: flex"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+}
+
+/* =========================================================
+   SIDEBAR - FIT ANY SCREEN HEIGHT (employee + admin; superadmin already fits)
+   Menu takes the available height and scrolls with a visible thin scrollbar;
+   user card + Logout stay pinned. Sizes scale with window height.
+========================================================= */
+
+/* ---------- EMPLOYEE ---------- */
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar {
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-top: clamp(10px, 2.4vh, 22px) !important;
+  padding-bottom: clamp(8px, 1.6vh, 18px) !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  gap: clamp(2px, 0.4vh, 6px) !important;
+  padding-bottom: 4px !important;
+  overscroll-behavior: contain !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd2de transparent !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav::-webkit-scrollbar-thumb {
+  background: #cbd2de !important;
+  border-radius: 6px !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav a {
+  flex: none !important;
+  box-sizing: border-box !important;
+  height: clamp(34px, 5.4vh, 50px) !important;
+  min-height: 0 !important;
+  max-height: clamp(34px, 5.4vh, 50px) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: clamp(13px, 1.9vh, 15px) !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar-bottom {
+  flex: 0 0 auto !important;
+  margin-top: 0 !important;
+  padding-top: clamp(6px, 1.2vh, 12px) !important;
+  padding-bottom: clamp(4px, 1vh, 8px) !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-user-card {
+  min-height: 0 !important;
+  padding-top: clamp(4px, 0.8vh, 8px) !important;
+  padding-bottom: clamp(4px, 0.8vh, 8px) !important;
+  margin-bottom: clamp(4px, 0.8vh, 8px) !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-user-avatar {
+  width: clamp(30px, 5vh, 42px) !important;
+  height: clamp(30px, 5vh, 42px) !important;
+  min-width: 0 !important;
+  flex: none !important;
+}
+
+.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-logout-btn {
+  height: clamp(36px, 5.6vh, 48px) !important;
+  min-height: 0 !important;
+  margin-bottom: 4px !important;
+}
+
+@media (max-height: 560px) {
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-user-card {
+    display: none !important;
+  }
+}
+
+/* ---------- ADMIN ---------- */
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar {
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  padding-top: clamp(10px, 2.4vh, 22px) !important;
+  padding-bottom: clamp(8px, 1.6vh, 18px) !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand {
+  flex: 0 0 auto !important;
+  height: clamp(52px, 9vh, 78px) !important;
+  min-height: 0 !important;
+  margin-bottom: clamp(4px, 1.4vh, 16px) !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  gap: clamp(2px, 0.4vh, 6px) !important;
+  padding-bottom: 4px !important;
+  overscroll-behavior: contain !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd2de transparent !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar-thumb {
+  background: #cbd2de !important;
+  border-radius: 6px !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav a {
+  flex: none !important;
+  box-sizing: border-box !important;
+  height: clamp(34px, 5.4vh, 50px) !important;
+  min-height: 0 !important;
+  max-height: clamp(34px, 5.4vh, 50px) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: clamp(13px, 1.9vh, 15px) !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-bottom {
+  flex: 0 0 auto !important;
+  margin-top: 0 !important;
+  padding-top: clamp(6px, 1.2vh, 12px) !important;
+  padding-bottom: clamp(4px, 1vh, 8px) !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-card {
+  min-height: 0 !important;
+  padding-top: clamp(4px, 0.8vh, 8px) !important;
+  padding-bottom: clamp(4px, 0.8vh, 8px) !important;
+  margin-bottom: clamp(4px, 0.8vh, 8px) !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-avatar {
+  width: clamp(30px, 5vh, 42px) !important;
+  height: clamp(30px, 5vh, 42px) !important;
+  min-width: 0 !important;
+  flex: none !important;
+}
+
+.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-logout-btn {
+  height: clamp(36px, 5.6vh, 48px) !important;
+  min-height: 0 !important;
+  margin-bottom: 4px !important;
+}
+
+@media (max-height: 560px) {
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-card {
+    display: none !important;
+  }
+}

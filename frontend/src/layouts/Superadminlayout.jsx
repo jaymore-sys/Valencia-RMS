@@ -1,4 +1,6 @@
 import { useState, lazy, Suspense } from "react";
+import MobileNavControls from "../components/MobileNavControls";
+import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
 
 import {
   NavLink,
@@ -74,6 +76,10 @@ const SuperadminLayout = () => {
     setSidebarCollapsed
   ] = useState(false);
 
+  const { isNarrow, mobileNavOpen, setMobileNavOpen } = useMobileShell();
+  const collapsed = sidebarCollapsed && !isNarrow;
+  useTableLabels(".sa-main");
+
 
 
 
@@ -139,13 +145,7 @@ const SuperadminLayout = () => {
     <div
 
       className={
-        `sa-shell ${
-          sidebarCollapsed
-          ?
-          "sa-sidebar-collapsed"
-          :
-          ""
-        }`
+        `sa-shell rms-mobile ${collapsed ? "sa-sidebar-collapsed" : ""} ${mobileNavOpen ? "mobile-nav-open" : ""}`
       }
 
     >
@@ -153,6 +153,11 @@ const SuperadminLayout = () => {
 
 
       {/* SIDEBAR */}
+
+      <MobileNavControls
+        onOpen={() => setMobileNavOpen(true)}
+        onClose={() => setMobileNavOpen(false)}
+      />
 
       <aside className="sa-sidebar">
 

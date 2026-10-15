@@ -1,4 +1,6 @@
 import { useState, lazy, Suspense } from "react";
+import MobileNavControls from "../components/MobileNavControls";
+import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
 import {
   NavLink,
   Outlet,
@@ -49,6 +51,10 @@ const AdminLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] =
     useState(false);
 
+  const { isNarrow, mobileNavOpen, setMobileNavOpen } = useMobileShell();
+  const collapsed = sidebarCollapsed && !isNarrow;
+  useTableLabels(".admin-main");
+
   const user = getStoredUser();
 
   const logout = () => {
@@ -71,9 +77,14 @@ const AdminLayout = () => {
 
   return (
     <div
-      className={`admin-dashboard-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""
-        }`}
+      className={`admin-dashboard-shell admin-role-shell rms-mobile ${collapsed ? "sidebar-collapsed" : ""
+        } ${mobileNavOpen ? "mobile-nav-open" : ""}`}
     >
+      <MobileNavControls
+        onOpen={() => setMobileNavOpen(true)}
+        onClose={() => setMobileNavOpen(false)}
+      />
+
       <aside className="admin-sidebar">
         <button
           type="button"

@@ -32,8 +32,10 @@
   }
 
   .administrator-shell .administrator-project-stage-body {
-    overflow: visible !important;
-    padding-right: 0 !important;
+    max-height: 70vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-right: 4px !important;
   }
 
   /* ---------- TASKS: kanban board stacks vertically ---------- */
@@ -60,8 +62,10 @@
   }
 
   .administrator-shell .employee-kanban-scroll > div > div:last-child {
-    overflow: visible !important;
-    padding-right: 0 !important;
+    max-height: 70vh !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    padding-right: 4px !important;
   }
 
   /* ---------- CALENDAR: month fits the screen, tap a day for details ---------- */
