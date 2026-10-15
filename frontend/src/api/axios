@@ -1,7 +1,15 @@
+
 import axios from "axios";
 
+const LOCAL_API_URL = "http://127.0.0.1:5000/api";
+
+const PRODUCTION_API_URL =
+  "https://blanchedalmond-turkey-793003.hostingersite.com/api";
+
 const api = axios.create({
-  baseURL: "https://blanchedalmond-turkey-793003.hostingersite.com/api",
+  baseURL: import.meta.env.DEV
+    ? LOCAL_API_URL
+    : PRODUCTION_API_URL,
 });
 
 /*
@@ -27,8 +35,7 @@ api.interceptors.request.use(
     */
 
     if (config.data instanceof FormData) {
-      // IMPORTANT:
-      // Browser/Axios must generate multipart boundary itself.
+      // Axios/browser sets multipart boundary automatically.
       delete config.headers["Content-Type"];
     } else {
       config.headers["Content-Type"] = "application/json";
@@ -60,10 +67,7 @@ api.interceptors.response.use(
       error.response?.data
     );
 
-    /*
-    ONLY logout on actual 401
-    */
-
+    // Logout only on actual HTTP 401.
     if (error.response?.status === 401) {
       sessionStorage.removeItem("token");
       sessionStorage.removeItem("user");

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -12,11 +12,16 @@ import {
   MapPin,
  User,
 UsersRound,
-Building2
+Building2,
+MessageCircle,
 } from "lucide-react";
 
 import "./Employeelayout.css";
 import VNLLogo from "../assets/VNL_logo.webp";
+
+import { CHAT_UI_ENABLED } from "../config/chatRelease";
+
+const ChatNotifications = lazy(() => import("../components/ChatNotifications"));
 
 const EmployeeLayout = () => {
   const navigate = useNavigate();
@@ -99,6 +104,19 @@ const isHR = HR_EMAILS.includes(
             <span>Overview</span>
           </NavLink>
 
+{CHAT_UI_ENABLED && (
+          <NavLink
+            to="/employee/chat"
+            className={({ isActive }) =>
+              isActive ? "active" : ""
+            }
+            title="Chat"
+          >
+            <MessageCircle size={20} />
+            <span>Chat</span>
+          </NavLink>
+          )}
+
           <NavLink
             to="/employee/projects"
             className={({ isActive }) =>
@@ -121,7 +139,7 @@ const isHR = HR_EMAILS.includes(
             <span>Tasks</span>
           </NavLink>
 
-         
+          
 
           <NavLink
   to="/employee/calendar"
@@ -239,8 +257,13 @@ const isHR = HR_EMAILS.includes(
 
       {/* ================= MAIN CONTENT ================= */}
       <main className="employee-main">
-        <Outlet />
-      </main>
+  <Outlet />
+  {CHAT_UI_ENABLED && (
+    <Suspense fallback={null}>
+      <ChatNotifications role="employee" />
+    </Suspense>
+  )}
+</main>
 
       {/* ================= LOGOUT CONFIRMATION ================= */}
       

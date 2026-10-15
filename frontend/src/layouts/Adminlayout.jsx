@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import {
   NavLink,
   Outlet,
@@ -15,6 +15,7 @@ import {
   ClipboardList,
   FileBarChart,
   FolderKanban,
+  MessageCircle,
   LogOut,
   User,
   Users,
@@ -24,6 +25,10 @@ import {
 
 import valenciaLogo from "../assets/VNL_logo.webp";
 import "./Adminlayout.css";
+
+import { CHAT_UI_ENABLED } from "../config/chatRelease";
+
+const ChatNotifications = lazy(() => import("../components/ChatNotifications"));
 
 const getStoredUser = () => {
   try {
@@ -108,6 +113,17 @@ const AdminLayout = () => {
             <BarChart3 size={20} />
             <span>Overview</span>
           </NavLink>
+
+          {CHAT_UI_ENABLED && (
+          <NavLink
+            to="/admin/chat"
+            className={({ isActive }) => isActive ? "active" : ""}
+            title="Chat"
+          >
+            <MessageCircle size={20} />
+            <span>Chat</span>
+          </NavLink>
+          )}
 
           <NavLink
             to="/admin/projects"
@@ -266,8 +282,17 @@ const AdminLayout = () => {
             : "admin-main"
         }
       >
+       
         <Outlet />
       </main>
+
+      {CHAT_UI_ENABLED && (
+        <Suspense fallback={null}>
+          <ChatNotifications role="admin" />
+        </Suspense>
+      )}
+
+     
     </div>
   );
 };

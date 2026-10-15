@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 
 import {
   NavLink,
@@ -14,6 +14,7 @@ import {
   ChevronRight,
   ClipboardList,
   FolderKanban,
+  MessageCircle,
   LogOut,
   Users,
   MapPin,
@@ -27,6 +28,10 @@ import vnlLogo from "../assets/VNL_logo.webp";
 import "./Superadminlayout.css";
 
 
+
+import { CHAT_UI_ENABLED } from "../config/chatRelease";
+
+const ChatNotifications = lazy(() => import("../components/ChatNotifications"));
 
 /* =========================================================
    GET LOGGED-IN SUPERADMIN
@@ -228,6 +233,13 @@ const SuperadminLayout = () => {
 
 
 
+
+          {CHAT_UI_ENABLED && (
+          <NavLink to="/superadmin/chat" title="Chat">
+            <MessageCircle/>
+            <span>Chat</span>
+          </NavLink>
+          )}
 
           <NavLink
             to="/superadmin/projects"
@@ -469,6 +481,11 @@ const SuperadminLayout = () => {
       <main className="sa-main">
 
         <Outlet/>
+        {CHAT_UI_ENABLED && (
+          <Suspense fallback={null}>
+            <ChatNotifications role="superadmin" />
+          </Suspense>
+        )}
 
       </main>
 

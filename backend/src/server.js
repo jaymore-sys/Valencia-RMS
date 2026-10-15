@@ -5,8 +5,10 @@ require("dotenv").config();
 const db = require("./config/db");
 
 const authRoutes = require("./routes/authroutes");
-const notificationRoutes =
-  require("./routes/notificationroutes");
+const notificationRoutes = require("./routes/notificationroutes");
+
+
+
 const administratorRoutes = require("./routes/administratorroutes");
 const adminRoutes = require("./routes/adminroutes");
 const administratorLeaveRoutes = require(
@@ -44,6 +46,8 @@ const calendarRoutes = require("./routes/calendarroutes");
 const leaveReviewRoutes = require("./routes/leavereviewroutes");
 const fieldVisitReviewRoutes = require("./routes/fieldvisitreviewroutes");
 
+const chatRoutes = require("./routes/chatroutes");
+
 const {
   startDeadlineEmailJob
 } = require("./jobs/deadlineemailjob");
@@ -66,16 +70,16 @@ CORS
 
 
 const allowedOrigins = [
-
   "https://myvol.in",
-
   "https://www.myvol.in",
 
   "http://localhost:5173",
+  "http://localhost:5174",
 
-  "http://localhost:5174"
-
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
 ];
+
 
 
 
@@ -419,6 +423,12 @@ app.use(
   notificationRoutes
 );
 
+// Valencia RMS Text Chat
+// Remains disabled until CHAT_ENABLED=true
+app.use(
+  "/api/chat",
+  chatRoutes
+);
 
 
 

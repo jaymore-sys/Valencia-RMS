@@ -1,4 +1,4 @@
-import {
+﻿import {
   Navigate,
   Route,
   Routes,
@@ -72,7 +72,7 @@ import SuperadminProfile from "./pages/superadmin/superadminProfile";
 /* ================= SHARED ================= */
 
 import VendorManagement from "./pages/shared/VendorManagement";
-
+import RMSChat from "./pages/shared/RMSChat";
 
 
 /* ========================================================
@@ -450,6 +450,8 @@ const App = () => {
             <AdministratorOverview />
           }
         />
+<Route path="chat" element={<RMSChat />} />
+
 
 
         <Route
@@ -562,6 +564,11 @@ const App = () => {
           element={
             <EmployeeOverview />
           }
+        />
+
+        <Route
+          path="chat"
+          element={<RMSChat />}
         />
 
 
@@ -678,6 +685,8 @@ const App = () => {
             <AdminOverview />
           }
         />
+<Route path="chat" element={<RMSChat />} />
+
 
 
         <Route
@@ -803,6 +812,8 @@ const App = () => {
             <SuperadminOverview />
           }
         />
+<Route path="chat" element={<RMSChat />} />
+
 
 
         {/* PROJECTS */}
@@ -949,3 +960,4 @@ const App = () => {
 
 
 export default App;
+

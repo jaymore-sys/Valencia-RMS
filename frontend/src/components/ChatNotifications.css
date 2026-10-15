@@ -1,0 +1,183 @@
+
+.vc-floating-tools {
+  position: fixed;
+  right: 26px;
+  bottom: 26px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  z-index: 900;
+  animation: vc-enter .45s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.vc-chat-shortcut {
+  position: relative;
+  width: 55px;
+  height: 55px;
+  border: none;
+  border-radius: 19px;
+  background: linear-gradient(135deg,#ff7545,#f04432);
+  color: white;
+  box-shadow: 0 8px 26px rgba(240,68,50,.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform .25s ease, box-shadow .25s ease;
+}
+
+.vc-chat-shortcut:hover {
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 12px 30px rgba(240,68,50,.32);
+}
+
+.vc-unread-badge {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 22px;
+  height: 22px;
+  padding: 3px 5px;
+  border: 2px solid white;
+  border-radius: 99px;
+  background: #da243e;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 14px;
+  animation: vc-pop .35s ease both;
+}
+
+.vc-notification-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 39px;
+  height: 39px;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #f45132;
+  cursor: pointer;
+  box-shadow: 0 5px 18px rgba(15,23,42,.08);
+  transition: transform .2s ease;
+}
+
+.vc-notification-toggle:hover {
+  transform: translateY(-2px);
+}
+
+.vc-chat-toast {
+  position: fixed;
+  right: 24px;
+  top: 86px;
+  z-index: 1100;
+  width: min(365px,calc(100vw - 36px));
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(255,255,255,.98);
+  border: 1px solid #f1e5e0;
+  border-left: 4px solid #ff5936;
+  border-radius: 16px;
+  box-shadow: 0 16px 50px rgba(31,41,55,.16);
+  animation: vc-slide .38s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.vc-toast-icon {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: #fff0e9;
+  color: #ed583a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vc-toast-content {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.vc-toast-content strong {
+  font-size: 13px;
+  font-weight: 750;
+  color: #1f2937;
+}
+
+.vc-toast-content span {
+  width: 100%;
+  font-size: 12px;
+  color: #64748b;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vc-toast-content small {
+  margin-top: 4px;
+  color: #f45132;
+  font-weight: 650;
+  font-size: 11px;
+}
+
+.vc-toast-close {
+  background: none;
+  border: 0;
+  color: #94a3b8;
+  cursor: pointer;
+}
+
+@keyframes vc-enter {
+  from { opacity: 0; transform: translateY(22px) scale(.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes vc-slide {
+  from { opacity: 0; transform: translateX(38px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes vc-pop {
+  0% { transform: scale(.55); }
+  65% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+@media (max-width: 600px) {
+  .vc-floating-tools {
+    right: 15px;
+    bottom: 18px;
+  }
+
+  .vc-chat-toast {
+    right: 12px;
+    top: 65px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vc-chat-shortcut,
+  .vc-notification-toggle {
+    transition: none;
+  }
+
+  .vc-floating-tools,
+  .vc-chat-toast,
+  .vc-unread-badge {
+    animation: none;
+  }
+}

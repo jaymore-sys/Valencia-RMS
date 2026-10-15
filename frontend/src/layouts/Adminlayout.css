@@ -427,7 +427,7 @@ body {
    BUTTONS
 ========================= */
 
-.admin-main button,
+.admin-main button:not(.rms-chat button),
 .admin-refresh-btn,
 .admin-create-project-btn {
   border: 0;
@@ -445,13 +445,14 @@ body {
   transition: 0.2s ease;
 }
 
-.admin-main button:hover,
+.admin-main button:not(.rms-chat button):hover,
 .admin-refresh-btn:hover,
 .admin-create-project-btn:hover {
   background: #ec4424;
 }
 
-.admin-main button:disabled,
+.admin-main button:not(.rms-chat button):disabled,
+.admin-refresh-btn:disabled,
 .admin-create-project-btn:disabled {
   background: #ff9b84;
   cursor: not-allowed;
@@ -3519,3 +3520,4 @@ div:has(> svg + input[placeholder="Search mini task, employee, date, designation
   padding-left: 44px !important;
   padding-right: 44px !important;
 }
+

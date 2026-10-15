@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   BarChart3,
@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FileText,
   FolderKanban,
+  MessageCircle,
   LogOut,
   User, 
   Users,
@@ -17,6 +18,10 @@ import {
 
 import valenciaLogo from "../assets/VNL_logo.webp";
 import "./Administratorlayout.css";
+
+import { CHAT_UI_ENABLED } from "../config/chatRelease";
+
+const ChatNotifications = lazy(() => import("../components/ChatNotifications"));
 
 const getStoredUser = () => {
   try {
@@ -120,6 +125,17 @@ const AdministratorLayout = () => {
 
 
 
+
+          {CHAT_UI_ENABLED && (
+          <NavLink
+            to="/administrator/chat"
+            className={({ isActive }) => isActive ? "active" : ""}
+            title="Chat"
+          >
+            <MessageCircle size={20} />
+            <span>Chat</span>
+          </NavLink>
+          )}
 
           <NavLink
             to="/administrator/projects"
@@ -353,10 +369,14 @@ const AdministratorLayout = () => {
 
 
       <main className="admin-main">
+  <Outlet />
+</main>
 
-        <Outlet />
-
-      </main>
+{CHAT_UI_ENABLED && (
+  <Suspense fallback={null}>
+    <ChatNotifications role="administrator" />
+  </Suspense>
+)}
 
 
     </div>
