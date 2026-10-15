@@ -917,3 +917,230 @@
 .admin-dashboard-shell.sidebar-collapsed .admin-sidebar {
   overflow: hidden !important;
 }
+
+/* =========================================================
+   ADMINISTRATOR SIDEBAR - FIT ANY SCREEN HEIGHT
+   Scoped with .administrator-shell (the admin layout shares the
+   .admin-* class names and must not change).
+   Brand + menu take the available height and scroll with a visible
+   thin scrollbar; user card + Logout stay pinned and always visible.
+   Sizes scale with window height so all 10 items fit on laptops.
+========================================================= */
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-sidebar {
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-brand {
+  flex: 0 0 auto !important;
+  height: clamp(52px, 9vh, 78px) !important;
+  min-height: 0 !important;
+  margin-bottom: clamp(4px, 1.4vh, 16px) !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-nav {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  gap: clamp(2px, 0.4vh, 6px) !important;
+  padding-bottom: 4px !important;
+  overscroll-behavior: contain !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: #cbd2de transparent !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar {
+  display: block !important;
+  width: 6px !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar-thumb {
+  background: #cbd2de !important;
+  border-radius: 6px !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-nav a {
+  flex: none !important;
+  box-sizing: border-box !important;
+  height: clamp(34px, 5.4vh, 50px) !important;
+  min-height: 0 !important;
+  max-height: clamp(34px, 5.4vh, 50px) !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  font-size: clamp(13px, 1.9vh, 15px) !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-sidebar-bottom {
+  flex: 0 0 auto !important;
+  margin-top: 0 !important;
+  padding-top: clamp(6px, 1.2vh, 12px) !important;
+  padding-bottom: clamp(4px, 1vh, 8px) !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-user-card {
+  min-height: 0 !important;
+  padding-top: clamp(4px, 0.8vh, 8px) !important;
+  padding-bottom: clamp(4px, 0.8vh, 8px) !important;
+  margin-bottom: clamp(4px, 0.8vh, 8px) !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-user-avatar {
+  width: clamp(30px, 5vh, 42px) !important;
+  height: clamp(30px, 5vh, 42px) !important;
+  min-width: 0 !important;
+  flex: none !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-sidebar {
+  padding-top: clamp(10px, 2.4vh, 22px) !important;
+  padding-bottom: clamp(8px, 1.6vh, 18px) !important;
+}
+
+.admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-logout-btn {
+  height: clamp(36px, 5.6vh, 48px) !important;
+  min-height: 0 !important;
+  margin-bottom: 4px !important;
+}
+
+/* Very short windows: hide the avatar block, keep name + Logout reachable */
+@media (max-height: 560px) {
+  .admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-user-card {
+    display: none !important;
+  }
+}
+
+
+/* =========================================================
+   ADMINISTRATOR - TABLET / PHONE (<= 900px)
+   Sidebar becomes a slide-out drawer opened by the menu button,
+   so page content is no longer pushed below a full-screen sidebar.
+========================================================= */
+
+.administrator-menu-btn,
+.administrator-nav-backdrop {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) {
+    display: block !important;
+    grid-template-columns: 1fr !important;
+    min-height: 100dvh !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: min(300px, 86vw) !important;
+    min-width: 0 !important;
+    max-width: min(300px, 86vw) !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    transform: translateX(-105%) !important;
+    transition: transform 0.25s ease !important;
+    z-index: 1100 !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell.mobile-nav-open:not(.sidebar-collapsed) .admin-sidebar {
+    transform: translateX(0) !important;
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.28) !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell .admin-sidebar-toggle {
+    display: none !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-brand {
+    padding-right: 0 !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell .administrator-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 900;
+    width: 44px;
+    height: 44px;
+    border: 1px solid #e3e7ef;
+    border-radius: 14px;
+    background: #ffffff;
+    color: #ff5a2c;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+    cursor: pointer;
+  }
+
+  .admin-dashboard-shell.administrator-shell.mobile-nav-open .administrator-menu-btn {
+    display: none !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell.mobile-nav-open .administrator-nav-backdrop {
+    display: block !important;
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    background: rgba(15, 23, 42, 0.45);
+  }
+
+  .admin-dashboard-shell.administrator-shell:not(.sidebar-collapsed) .admin-main {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    margin-left: 0 !important;
+    padding: 68px 16px 24px !important;
+    overflow-y: auto !important;
+    /* Safety net: anything still too wide scrolls sideways instead of being cut off. */
+    overflow-x: auto !important;
+  }
+
+}
+
+/* =========================================================
+   ADMINISTRATOR - TOOLBARS ON NARROW MAIN AREAS (<= 1100px)
+   Several pages build toolbars with inline "flex-wrap: nowrap" rows
+   (filters, tabs, action buttons) or class rows that overflow in the
+   ~740px main area (1024px screens) and on phones. Let them wrap.
+========================================================= */
+@media (max-width: 1100px) {
+
+  /* Several administrator pages build toolbars with inline "flex-wrap: nowrap" rows
+     (filters, tabs, action buttons). Let them wrap on narrow screens. */
+  .admin-dashboard-shell.administrator-shell .admin-main [style*="flex-wrap: nowrap"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell .admin-main [style*="display: flex"][style*="justify-content: space-between"] {
+    flex-wrap: wrap !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell .admin-main [style*="justify-content: space-between"] > div[style*="display: flex"] {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  /* Calendar header, filters and schedule button */
+  .admin-dashboard-shell.administrator-shell .admin-cal-title-row,
+  .admin-dashboard-shell.administrator-shell .admin-cal-filter-row {
+    flex-wrap: wrap !important;
+    max-width: 100% !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell .admin-cal-toolbar {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .admin-dashboard-shell.administrator-shell .administrator-schedule-meeting-btn {
+    max-width: 100% !important;
+  }
+}

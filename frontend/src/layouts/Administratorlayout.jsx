@@ -1,5 +1,5 @@
-import { useState, lazy, Suspense } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useState, useEffect, lazy, Suspense } from "react";
+import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3,
   CalendarCheck,
@@ -14,6 +14,7 @@ import {
   User, 
   Users,
   Building2,
+  Menu,
 } from "lucide-react";
 
 import valenciaLogo from "../assets/VNL_logo.webp";
@@ -35,7 +36,29 @@ const getStoredUser = () => {
 
 const AdministratorLayout = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Narrow screens (<= 900px): sidebar becomes a slide-out drawer.
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(
+    () => window.matchMedia("(max-width: 900px)").matches
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 900px)");
+    const onChange = (event) => setIsNarrow(event.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  // Close the drawer after navigating.
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [location.pathname]);
+
+  // The icon-only collapsed state is a desktop feature.
+  const collapsed = sidebarCollapsed && !isNarrow;
 
   const user = getStoredUser();
 
@@ -61,10 +84,25 @@ const AdministratorLayout = () => {
 
   return (
     <div
-      className={`admin-dashboard-shell ${
-        sidebarCollapsed ? "sidebar-collapsed" : ""
-      }`}
+      className={`admin-dashboard-shell administrator-shell ${
+        collapsed ? "sidebar-collapsed" : ""
+      } ${mobileNavOpen ? "mobile-nav-open" : ""}`}
     >
+
+      <button
+        type="button"
+        className="administrator-menu-btn"
+        aria-label="Open menu"
+        onClick={() => setMobileNavOpen(true)}
+      >
+        <Menu size={22} />
+      </button>
+
+      <div
+        className="administrator-nav-backdrop"
+        onClick={() => setMobileNavOpen(false)}
+        aria-hidden="true"
+      />
 
       <aside className="admin-sidebar">
 
