@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
+import "./allStyles.js";
 const LeaveReview = lazy(() => import("./pages/LeaveReview"));
 
 
