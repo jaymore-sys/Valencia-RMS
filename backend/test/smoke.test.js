@@ -131,3 +131,12 @@ test("production error responses never leak SQL/internal text", () => {
   res.json({ success: false, message: "x", error: "SELECT secret", sqlMessage: "bad" });
   assert.deepStrictEqual(sent, { success: false, message: "x", requestId: "r1" });
 });
+
+test("/api/admin router is gated to the admin role (regression)", () => {
+  const router = require("../src/routes/adminroutes");
+  // Router-level layers (not routes) must include requireRole's closure.
+  const gated = router.stack.some(
+    (l) => !l.route && String(l.handle).includes("allowedRoles")
+  );
+  assert.ok(gated, "adminroutes must call router.use(authMiddleware, requireRole('admin'))");
+});

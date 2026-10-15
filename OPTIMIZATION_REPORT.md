@@ -91,3 +91,31 @@ No database migration is required for this release.
 - Check Node logs for startup line `Server running` and no `FATAL`.
 
 **Rollback**: redeploy the saved previous backend files + previous `dist`, restart the Node app. No schema change, so no DB rollback needed.
+
+## G. Dashboard review (all five roles) — local review stack
+Method: throwaway MySQL database `valencia_review` (schema copied from the dev DB, **no real personal data**, synthetic users
+for employee, HR, admin, administrator, superadmin), local backend with email disabled, local frontend, logged in through the
+real login form and by API. Every page of every role was opened; failed API calls, error banners and JS exceptions were recorded.
+
+| Role | Pages opened | Rendered / no crash | Own-role 403s | Failures seen |
+|---|---|---|---|---|
+| Employee | 10 | all | none | schema-drift only (below) |
+| HR (employee + HR email) | 10 | all (HR page reachable, non-HR correctly redirected) | none | `revert_status` column missing |
+| Admin | 11 | all | none | missing `divisions`/`admin_divisions`/interdepartment/field-visit tables, `escalated_for_approval` column |
+| Administrator | 10 | all (calendar + `/calendar/upcoming` now OK) | none | missing `divisions`/`admin_divisions`, `revert_status` |
+| Superadmin | 10 | all | none | missing field-visit table, `escalated_for_approval` |
+
+**Defect found and fixed during the review (High):** every `/api/admin/*` route (`projects` GET/POST/export, `assignable-users`,
+`users`, `division-report`) only required a login. Any employee could list all employees' names/emails and call project creation.
+The router is now `requireRole("admin")` (frontend only uses `/admin/users` and `/admin/division-report`, both from admin pages).
+Cross-role matrix (56 probes) afterwards: no employee/admin/administrator route is reachable from a lower role, except
+`/api/administrator-projects/projects` (intentionally shared; employees use it and the controller scopes by user) and HR reaching the
+admin leave views (intentional, per route comments). Regression test added.
+
+**NOT verifiable locally (schema drift):** the dev database is missing 21 tables the code uses (`divisions`, `admin_divisions`,
+`employee_field_visits`, `field_visit_*`, `interdepartment_project_*`, `leave_review_tokens`, `employee_leave_adjustments`,
+`mini_task_edit_history`, `user_mail_recipient_overrides`, `chat_*`) and some columns (`revert_status`, `escalated_for_approval`).
+There are **no migration files in git**, so production schema cannot be derived from the repo. Pages that depend on them
+(Projects, Users, Reports, Field Visits, Leave, Mini Tasks, HR Attendance, Chat) rendered their error states without crashing, but their
+real data paths are unverified. A schema-only export (no rows) of the production database is needed to verify them.
+Chat is disabled by its release flag (503) in the review stack.
