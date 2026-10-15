@@ -301,3 +301,21 @@
     justify-content: center !important;
   }
 }
+
+@media (max-width: 700px) {
+  /* Leave balance cards: fixed 385px height clipped the "Apply Leave" button on phones */
+  .administrator-shell .admin-main [style*="grid-template-columns: repeat(4"] > div {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Calendar toolbar: let it grow with its stacked rows */
+  .administrator-shell .admin-cal-toolbar {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}

@@ -880,3 +880,98 @@
     display: none !important;
   }
 }
+
+@media (max-width: 700px) {
+  /* ---------- Calendar toolbar: fixed 64px height made the stacked "Schedule Meeting" button
+     spill out underneath the calendar (button was covered and untappable) ---------- */
+  .rms-mobile main .admin-cal-card .admin-cal-toolbar,
+  .rms-mobile .superadmin-cal-toolbar {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .rms-mobile .admin-cal-toolbar > *,
+  .rms-mobile .superadmin-cal-toolbar > * {
+    max-width: 100% !important;
+  }
+
+  /* ---------- Leave balance cards: fixed 385px height clipped the "Apply Leave" button ---------- */
+  .rms-mobile main [style*="grid-template-columns: repeat(4"] > div {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+@media (max-width: 700px) {
+  /* ---------- HR screens ---------- */
+  .rms-mobile .hr-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .rms-mobile .hr-card {
+    overflow-x: visible !important;
+  }
+
+  .rms-mobile .hr-table-head {
+    display: none !important;
+  }
+
+  .rms-mobile .hr-horizontal-scroll {
+    overflow-x: visible !important;
+  }
+
+  .rms-mobile .hr-table-row {
+    display: block !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 0 12px !important;
+    padding: 12px 14px !important;
+    background: #ffffff !important;
+    border: 1px solid #e4e7ec !important;
+    border-radius: 14px !important;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  .rms-mobile .hr-table-row > * {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    min-width: 0 !important;
+    padding: 7px 0 !important;
+    text-align: right !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+
+  .rms-mobile .hr-table-row > *[data-label]::before {
+    content: attr(data-label);
+    flex: none;
+    max-width: 42%;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  .rms-mobile .hr-table-row > *:first-child {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 2px !important;
+    justify-content: flex-start !important;
+    text-align: left !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 4px !important;
+    border-bottom: 1px solid #eef0f4 !important;
+  }
+
+  .rms-mobile .hr-table-row > *:first-child[data-label]::before {
+    display: none !important;
+  }
+}

@@ -38,6 +38,21 @@ export function useTableLabels(mainSelector) {
     const label = () => {
       frame = 0;
 
+      // Grid-style tables (HR screens): a ".hr-table-head" row followed by ".hr-table-row" rows.
+      main.querySelectorAll(".hr-table-head").forEach((head) => {
+        const heads = [...head.children].map((c) => c.textContent.trim());
+        let row = head.nextElementSibling;
+
+        while (row && row.classList.contains("hr-table-row")) {
+          [...row.children].forEach((cell, index) => {
+            if (heads[index] && cell.dataset.label !== heads[index]) {
+              cell.dataset.label = heads[index];
+            }
+          });
+          row = row.nextElementSibling;
+        }
+      });
+
       main.querySelectorAll("table").forEach((table) => {
         const heads = [...table.querySelectorAll("thead th")].map((th) =>
           th.textContent.trim()
