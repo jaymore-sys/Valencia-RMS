@@ -285,4 +285,15 @@
     max-width: 100%;
     box-sizing: border-box;
   }
+
+  /* ---------- PROFILE: card header action goes below the title ---------- */
+  .administrator-shell .administrator-profile-panel-top {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+  }
+
+  .administrator-shell .administrator-profile-panel-top > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
 }

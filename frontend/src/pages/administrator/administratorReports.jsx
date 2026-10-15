@@ -50,7 +50,29 @@ const formatStatus = (value) =>
     .replaceAll("_", " ")
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
+// Phones: narrower chart label column (labels are truncated; tooltips show full text).
+const useNarrowScreen = () => {
+  const [narrow, setNarrow] = useState(
+    () => window.matchMedia("(max-width: 700px)").matches
+  );
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 700px)");
+    const onChange = (event) => setNarrow(event.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+
+  return narrow;
+};
+
 const AdministratorReports = () => {
+  const narrow = useNarrowScreen();
+  const yAxisWidth = (wide) => (narrow ? 84 : wide);
+  const shortLabel = (value) =>
+    narrow && String(value).length > 13
+      ? `${String(value).slice(0, 12)}…`
+      : value;
   const [reports, setReports] = useState(null);
   const [filters, setFilters] = useState(INITIAL_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState(INITIAL_FILTERS);
@@ -514,7 +536,7 @@ const AdministratorReports = () => {
                 <BarChart
                   data={projectProgressData}
                   layout="vertical"
-                  margin={{ top: 10, right: 30, left: 30, bottom: 10 }}
+                  margin={{ top: 10, right: 30, left: narrow ? 0 : 30, bottom: 10 }}
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -528,8 +550,9 @@ const AdministratorReports = () => {
                   <YAxis
                     type="category"
                     dataKey="name"
-                    width={170}
-                    tick={{ fontSize: 12 }}
+                    width={yAxisWidth(170)}
+                    tick={{ fontSize: narrow ? 11 : 12 }}
+                    tickFormatter={shortLabel}
                   />
                   <Tooltip
                     formatter={(value) => [`${value}%`, "Progress"]}
@@ -562,7 +585,7 @@ const AdministratorReports = () => {
                   <BarChart
                     data={departmentData}
                     layout="vertical"
-                    margin={{ top: 10, right: 25, left: 20, bottom: 10 }}
+                    margin={{ top: 10, right: 25, left: narrow ? 0 : 20, bottom: 10 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -572,8 +595,9 @@ const AdministratorReports = () => {
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={120}
-                      tick={{ fontSize: 12 }}
+                      width={yAxisWidth(120)}
+                      tick={{ fontSize: narrow ? 11 : 12 }}
+                      tickFormatter={shortLabel}
                     />
                     <Tooltip />
                     <Bar
@@ -604,7 +628,7 @@ const AdministratorReports = () => {
                   <BarChart
                     data={departmentData}
                     layout="vertical"
-                    margin={{ top: 10, right: 25, left: 20, bottom: 10 }}
+                    margin={{ top: 10, right: 25, left: narrow ? 0 : 20, bottom: 10 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -618,8 +642,9 @@ const AdministratorReports = () => {
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={120}
-                      tick={{ fontSize: 12 }}
+                      width={yAxisWidth(120)}
+                      tick={{ fontSize: narrow ? 11 : 12 }}
+                      tickFormatter={shortLabel}
                     />
                     <Tooltip
                       formatter={(value) => [
@@ -656,7 +681,7 @@ const AdministratorReports = () => {
                   <BarChart
                     data={employeeData}
                     layout="vertical"
-                    margin={{ top: 10, right: 25, left: 20, bottom: 10 }}
+                    margin={{ top: 10, right: 25, left: narrow ? 0 : 20, bottom: 10 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -666,8 +691,9 @@ const AdministratorReports = () => {
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={125}
-                      tick={{ fontSize: 12 }}
+                      width={yAxisWidth(125)}
+                      tick={{ fontSize: narrow ? 11 : 12 }}
+                      tickFormatter={shortLabel}
                     />
                     <Tooltip />
                     <Bar
@@ -698,7 +724,7 @@ const AdministratorReports = () => {
                   <BarChart
                     data={employeeData}
                     layout="vertical"
-                    margin={{ top: 10, right: 25, left: 20, bottom: 10 }}
+                    margin={{ top: 10, right: 25, left: narrow ? 0 : 20, bottom: 10 }}
                   >
                     <CartesianGrid
                       strokeDasharray="3 3"
@@ -712,8 +738,9 @@ const AdministratorReports = () => {
                     <YAxis
                       type="category"
                       dataKey="name"
-                      width={125}
-                      tick={{ fontSize: 12 }}
+                      width={yAxisWidth(125)}
+                      tick={{ fontSize: narrow ? 11 : 12 }}
+                      tickFormatter={shortLabel}
                     />
                     <Tooltip
                       formatter={(value) => [
