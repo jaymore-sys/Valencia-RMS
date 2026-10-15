@@ -58,6 +58,15 @@ const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
+  fileFilter: (req, file, cb) => {
+    const name = String(file.originalname || "").toLowerCase();
+
+    if (!/.(xlsx|xls|csv)$/.test(name)) {
+      return cb(new Error("Only XLSX, XLS and CSV files are allowed."));
+    }
+
+    cb(null, true);
+  },
 });
 
 /* =========================================================

@@ -159,8 +159,7 @@ const login = async (req, res) => {
             user.role_name,
         },
 
-        process.env.JWT_SECRET ||
-          "valencia_rms_secret_key",
+        process.env.JWT_SECRET,
 
         {
           expiresIn:

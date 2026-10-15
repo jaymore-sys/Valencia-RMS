@@ -58,7 +58,27 @@ const {
 
 
 
+if (!process.env.JWT_SECRET) {
+  console.error("FATAL: JWT_SECRET is not set. Refusing to start.");
+  process.exit(1);
+}
+
+const {
+  securityHeaders,
+  requestLogger,
+  hideInternalErrors,
+  rateLimit,
+  errorHandler,
+} = require("./middleware/hardening");
+
 const app = express();
+
+app.disable("x-powered-by");
+// Hostinger terminates TLS in a proxy; needed for the real client IP.
+app.set("trust proxy", 1);
+app.use(requestLogger);
+app.use(securityHeaders);
+app.use(hideInternalErrors);
 
 
 
@@ -86,12 +106,6 @@ const allowedOrigins = [
 const corsOptions = {
 
   origin:function(origin,callback){
-
-
-    console.log(
-      "REQUEST ORIGIN:",
-      origin
-    );
 
 
     if(!origin){
@@ -146,7 +160,27 @@ app.use(
 );
 
 app.use(
-  express.json()
+  express.json({ limit: "1mb" })
+);
+
+// Login brute-force protection. Keyed on IP + email so a shared proxy IP
+// cannot lock out the whole company; a looser per-IP cap stops password spraying.
+const loginMessage = "Too many login attempts. Please try again in 15 minutes.";
+
+app.use(
+  "/api/auth/login",
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: loginMessage,
+    key: (req) =>
+      `${req.ip}|${String(req.body?.email || "").toLowerCase().trim()}`,
+  }),
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: loginMessage,
+  })
 );
 
 app.use(
@@ -195,51 +229,15 @@ app.get("/api/health",(req,res)=>{
 
 
 
-app.get(
-"/api/db-test",
-async(req,res)=>{
-
-
-try{
-
-
-const [rows]=await db.query(
-
-"SELECT DATABASE() AS database_name"
-
-);
-
-
-
-res.json({
-
-success:true,
-
-database:
-rows[0].database_name
-
+app.get("/api/db-test", async (req, res) => {
+  try {
+    await db.query("SELECT 1");
+    res.json({ success: true });
+  } catch (error) {
+    console.error("DB health check failed:", error.message);
+    res.status(503).json({ success: false });
+  }
 });
-
-
-}
-
-catch(error){
-
-
-res.status(500).json({
-
-success:false,
-
-message:error.message
-
-});
-
-
-}
-
-
-});
-
 
 
 
@@ -474,12 +472,12 @@ SERVER
 */
 
 
+app.use(errorHandler);
+
 const PORT =
 process.env.PORT || 5000;
 
-
-
-app.listen(
+const server = app.listen(
 
 PORT,
 
@@ -500,3 +498,31 @@ startMiniTaskTimerJob();
 }
 
 );
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled promise rejection:", reason);
+});
+
+process.on("uncaughtException", (error) => {
+  console.error("Uncaught exception:", error);
+  process.exit(1);
+});
+
+const shutdown = (signal) => {
+  console.log(`${signal} received, shutting down.`);
+
+  server.close(async () => {
+    try {
+      await db.end();
+    } catch (error) {
+      console.error("DB pool close failed:", error.message);
+    }
+    process.exit(0);
+  });
+
+  // Force exit if connections hang.
+  setTimeout(() => process.exit(1), 10000).unref();
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
