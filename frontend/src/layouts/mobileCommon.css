@@ -819,9 +819,15 @@
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand {
     flex: 0 0 auto !important;
-    height: clamp(46px, calc(72px - (975px - 100vh) * 0.07), 72px) !important;
+    /* logo (51px at full size) shrinks with the menu and keeps a gap above the first item */
+    height: calc(clamp(38px, calc(51px - (975px - 100vh) * 0.04), 51px) + clamp(0px, calc(21px - (975px - 100vh) * 0.25), 21px)) !important;
     min-height: 0 !important;
-    margin-bottom: clamp(4px, calc(18px - (975px - 100vh) * 0.07), 18px) !important;
+    margin-bottom: clamp(14px, calc(18px - (975px - 100vh) * 0.03), 18px) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand img {
+    height: clamp(38px, calc(51px - (975px - 100vh) * 0.04), 51px) !important;
+    width: auto !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav {
@@ -848,9 +854,9 @@
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav a {
     flex: none !important;
     box-sizing: border-box !important;
-    height: clamp(34px, calc(54px - (975px - 100vh) * 0.036), 54px) !important;
+    height: clamp(32px, calc(54px - (975px - 100vh) * 0.044), 54px) !important;
     min-height: 0 !important;
-    max-height: clamp(34px, calc(54px - (975px - 100vh) * 0.036), 54px) !important;
+    max-height: clamp(32px, calc(54px - (975px - 100vh) * 0.044), 54px) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
     font-size: clamp(14px, calc(17px - (975px - 100vh) * 0.011), 17px) !important;
