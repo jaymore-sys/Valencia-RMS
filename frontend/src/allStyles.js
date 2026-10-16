@@ -26,3 +26,4 @@ import "./pages/superadmin/superadminCalendar.css";
 import "./pages/shared/RMSChat.css";
 import "./layouts/administratorMobile.css";
 import "./layouts/mobileCommon.css";
+import "./layouts/adminMobile.css";

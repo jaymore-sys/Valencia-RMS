@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import * as XLSX from "xlsx";
+import ReadMoreText from "../../components/ReadMoreText";
 
 
 const asArray = (value) => {
@@ -3156,7 +3157,9 @@ const submitInterdepartmentReview = async (action) => {
                             <div style={styles.mainTaskTop}>
                               <div style={styles.mainTaskTextBlock}>
                                 <h4>{task.task_title}</h4>
-                                <p>{task.task_description}</p>
+                                <p>
+                                  <ReadMoreText text={task.task_description} />
+                                </p>
 
                                 <div style={styles.mainTaskDateLine}>
                                   <span>

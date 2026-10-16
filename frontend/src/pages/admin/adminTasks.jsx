@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import api from "../../api/axios";
 import AdminDepartmentMiniTasks from "../../components/MiniTasks/AdminDepartmentMiniTasks";
+import ReadMoreText from "../../components/ReadMoreText";
 
 const formatDate = (dateValue) => {
   if (!dateValue) return "-";
@@ -1204,8 +1205,12 @@ const taskModeSwitch = (
                 </span>
 
                 <p>
-                  {selectedTask.project_description ||
-                    "-"}
+                  <ReadMoreText
+                    text={
+                      selectedTask.project_description ||
+                      "-"
+                    }
+                  />
                 </p>
               </div>
 
@@ -1219,8 +1224,12 @@ const taskModeSwitch = (
                 </span>
 
                 <p>
-                  {selectedTask.task_description ||
-                    "-"}
+                  <ReadMoreText
+                    text={
+                      selectedTask.task_description ||
+                      "-"
+                    }
+                  />
                 </p>
               </div>
             </section>

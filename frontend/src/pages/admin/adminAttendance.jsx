@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Bold, Highlighter, List } from "lucide-react";
 import api from "../../api/axios";
+import { ReadMoreButton, firstWords, useIsPhone } from "../../components/ReadMoreText";
 const getInitials = (name) => {
   const cleanName = String(name || "User").trim();
   const initials = cleanName
@@ -220,11 +221,17 @@ const renderVisitInline = (value, keyPrefix = "visit") => {
 };
 
 const FormattedVisitText = ({ value }) => {
-  const text = String(value || "").trim();
+  const [open, setOpen] = useState(false);
+  const phone = useIsPhone();
+  const fullText = String(value || "").trim();
 
-  if (!text) {
+  if (!fullText) {
     return <span>-</span>;
   }
+
+  // phones: long text collapses after 20 words (see ReadMoreText)
+  const short = phone ? firstWords(fullText, 20) : null;
+  const text = short && !open ? short : fullText;
 
   const lines = text.split(/\r?\n/);
   const content = [];
@@ -269,6 +276,9 @@ const FormattedVisitText = ({ value }) => {
   return (
     <div style={{ whiteSpace: "normal", overflowWrap: "anywhere", lineHeight: 1.5 }}>
       {content}
+      {short && (
+        <ReadMoreButton open={open} onToggle={() => setOpen((previous) => !previous)} />
+      )}
     </div>
   );
 };

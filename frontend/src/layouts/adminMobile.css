@@ -1,0 +1,412 @@
+/* =========================================================
+   ADMIN DASHBOARD - PHONE PAGE FIXES (<= 700px)
+   Scoped to .admin-role-shell (admin only; administrator/employee/superadmin untouched).
+   Most admin pages are styled inline, so these use attribute selectors.
+========================================================= */
+
+/* "Read more" toggle (ReadMoreText): plain text link, beats the generic phone button rules */
+.rms-mobile main .rms-read-more,
+.rms-mobile .rms-read-more {
+  display: inline !important;
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  color: #ff5a2c !important;
+  font: inherit !important;
+  font-weight: 800 !important;
+  text-decoration: underline !important;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  /* ---------- Overview: "waiting for review" cards stack (title above, button below) ---------- */
+  .admin-role-shell .admin-main [style*="background: rgb(255, 247, 244)"] > [style*="justify-content: space-between"],
+  .admin-role-shell .admin-main [style*="background: rgb(248, 250, 252)"][style*="justify-content: space-between"][style*="gap: 16px"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="background: rgb(255, 247, 244)"][style*="padding: 20px 24px"] {
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="background: rgb(255, 247, 244)"] > [style*="justify-content: space-between"] h3 {
+    font-size: 19px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="background: rgb(255, 247, 244)"] > [style*="justify-content: space-between"] > button,
+  .admin-role-shell .admin-main [style*="background: rgb(248, 250, 252)"][style*="justify-content: space-between"][style*="gap: 16px"] > button {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  /* ---------- Action button rows (Refresh / Assign / Export ...): wrap two per row instead of scrolling off-screen ---------- */
+  .admin-role-shell .admin-main [style*="justify-content: flex-end"][style*="gap: 14px"]:has(> button) {
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="justify-content: flex-end"][style*="gap: 14px"] > button {
+    flex: 1 1 calc(50% - 5px) !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  /* ---------- Project counters (7 boxes): two per row, last one full width ---------- */
+  .admin-role-shell .admin-main [style*="grid-template-columns: repeat(7, minmax(0px, 1fr))"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="grid-template-columns: repeat(7, minmax(0px, 1fr))"] > :last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* ---------- Pop-up dialogs (project / task / user details ...): use the whole phone width ---------- */
+  .admin-role-shell [style*="position: fixed"][style*="inset: 0px"][style*="rgba(15, 23, 42"] {
+    padding: 10px !important;
+  }
+
+  .admin-role-shell [style*="position: fixed"][style*="inset: 0px"][style*="rgba(15, 23, 42"] > [style*="position: relative"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+    padding: 16px !important;
+    border-radius: 20px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="position: absolute"][style*="top: 20px"][style*="right: 20px"] {
+    top: 10px !important;
+    right: 10px !important;
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="position: absolute"][style*="top: 20px"][style*="right: 20px"] > button {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    border-radius: 12px !important;
+  }
+
+  /* dialog header: title above, action button below */
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="justify-content: space-between"][style*="padding: 0px 88px 24px 0px"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding: 0 46px 14px 0 !important;
+    margin-bottom: 14px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="padding: 0px 88px 24px 0px"] h2 {
+    font-size: 22px !important;
+    line-height: 1.2 !important;
+    padding-right: 0 !important;
+    margin-bottom: 6px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="padding: 0px 88px 24px 0px"] p {
+    margin-bottom: 0 !important;
+    font-size: 14px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="padding: 0px 88px 24px 0px"] > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* detail tiles (department / division / created by / status / dates) */
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(4, minmax(0px, 1fr))"] {
+    gap: 10px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(4, minmax(0px, 1fr))"] > div {
+    padding: 12px 14px !important;
+    min-height: 0 !important;
+    border-radius: 14px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(4, minmax(0px, 1fr))"] strong {
+    font-size: 15px !important;
+  }
+
+  /* tall tiles (created by, project dates) span the row so text is not squeezed */
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(4, minmax(0px, 1fr))"] > div:has(p),
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(4, minmax(0px, 1fr))"] > div:has(strong[style*="flex-wrap"]) {
+    grid-column: 1 / -1 !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] section[style*="padding: 22px"] {
+    padding: 14px !important;
+    margin-bottom: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] section[style*="padding: 22px"] > h3 {
+    font-size: 20px !important;
+    margin-bottom: 12px !important;
+  }
+
+  /* ---------- Assignee lists: compact rows (small avatar beside name + email), scroll when long ---------- */
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] :has(> [style*="grid-template-columns: 50px 1fr"]) {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 8px !important;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+
+  .admin-role-shell main [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: 50px 1fr"][style*="grid-template-columns: 50px 1fr"][style*="grid-template-columns: 50px 1fr"] {
+    grid-template-columns: 38px minmax(0, 1fr) !important;
+    gap: 10px !important;
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: 50px 1fr"] > :first-child {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 10px !important;
+    font-size: 14px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: 50px 1fr"] h4 {
+    margin: 0 0 2px !important;
+    font-size: 15px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: 50px 1fr"] p {
+    overflow-wrap: anywhere;
+  }
+
+  /* description boxes in task / project dialogs */
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(2, minmax(0px, 1fr))"][style*="margin-bottom: 20px"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  /* ---------- Users page ---------- */
+  .admin-role-shell .admin-users-header-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .admin-role-shell .admin-users-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .admin-role-shell .admin-users-toolbar input {
+    flex: none !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-role-shell .admin-users-header-row .admin-refresh-btn {
+    width: 100% !important;
+    min-height: 46px !important;
+  }
+
+  /* user details dialog */
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] h2[style*="font-size: 28px"],
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] h2[style*="font-size: 30px"] {
+    font-size: 21px !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="align-items: center"][style*="gap: 18px"][style*="padding-right: 60px"] {
+    gap: 12px !important;
+    padding-right: 44px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="width: 78px"][style*="height: 78px"] {
+    flex: none !important;
+    width: 52px !important;
+    height: 52px !important;
+    min-width: 52px !important;
+    border-radius: 16px !important;
+    font-size: 20px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(2, minmax(0px, 1fr))"][style*="gap: 14px"]:not([style*="margin-bottom: 20px"]) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(2, minmax(0px, 1fr))"][style*="gap: 14px"]:not([style*="margin-bottom: 20px"]) > div {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    min-width: 0;
+  }
+
+  .admin-role-shell [style*="inset: 0px"][style*="rgba(15, 23, 42"] [style*="grid-template-columns: repeat(2, minmax(0px, 1fr))"][style*="gap: 14px"]:not([style*="margin-bottom: 20px"]) strong {
+    font-size: 15px !important;
+    overflow-wrap: anywhere;
+  }
+
+  /* ---------- Section titles inside report / list cards stand out ---------- */
+  .admin-role-shell .admin-main h2[style*="font-size: 16px"][style*="font-weight: 800"] {
+    font-size: 21px !important;
+    font-weight: 900 !important;
+    letter-spacing: -0.01em;
+  }
+
+  /* ---------- Attendance / Field visits page (shared component) ---------- */
+  .admin-role-shell .admin-main > div[style*="padding: 18px 20px 32px"] {
+    padding: 12px 12px 28px !important;
+  }
+
+  /* tab pills + month picker */
+  .admin-role-shell .admin-main section[style*="display: inline-flex"][style*="gap: 4px"][style*="padding: 5px"] {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin-bottom: 14px !important;
+    border-radius: 18px !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="display: inline-flex"][style*="gap: 4px"][style*="padding: 5px"] > button {
+    flex: 1 1 calc(50% - 4px) !important;
+    min-width: 0 !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="display: inline-flex"][style*="gap: 4px"][style*="padding: 5px"] > label {
+    flex: 1 1 100% !important;
+    margin: 4px 0 0 !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="display: inline-flex"][style*="gap: 4px"][style*="padding: 5px"] > label select {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+  }
+
+  /* big white content card */
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] {
+    padding: 16px 14px !important;
+    border-radius: 22px !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="justify-content: space-between"][style*="margin-bottom"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="justify-content: space-between"][style*="margin-bottom"] > button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* header actions that sit in their own wrapper (field visits): full width, buttons share the row */
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="justify-content: space-between"][style*="margin-bottom"] > div:has(> button) {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="justify-content: space-between"][style*="margin-bottom"] > div > button {
+    flex: 1 1 calc(50% - 5px) !important;
+    justify-content: center !important;
+  }
+
+  /* segmented tabs (Team Visits / My Visits / Admin Approvals): share the width instead of overflowing */
+  .admin-role-shell .admin-main [style*="display: inline-flex"][style*="gap: 4px"][style*="padding: 4px"][style*="border-radius: 14px"] {
+    display: flex !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .admin-role-shell .admin-main [style*="display: inline-flex"][style*="gap: 4px"][style*="padding: 4px"][style*="border-radius: 14px"] > button {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    padding: 10px 4px !important;
+    font-size: 13px !important;
+  }
+
+  /* search + total pill */
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="gap: 18px"][style*="margin-bottom: 24px"] {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="gap: 18px"][style*="margin-bottom: 24px"] > input {
+    flex: 1 1 100% !important;
+    height: 48px !important;
+    min-width: 0 !important;
+    padding: 0 16px !important;
+    font-size: 15px !important;
+  }
+
+  /* employee cards: one per row */
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="grid-template-columns: repeat(2, minmax(0px, 1fr))"][style*="gap: 22px"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .admin-role-shell .admin-main section[style*="padding: 32px 38px"] > [style*="gap: 22px"] > div {
+    padding: 16px !important;
+    border-radius: 18px !important;
+  }
+
+  /* employee card header: smaller avatar, name and email wrap instead of being cut off */
+  .admin-role-shell .admin-main [style*="grid-template-columns: 64px minmax(0px, 1fr)"] {
+    grid-template-columns: 52px minmax(0, 1fr) !important;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="grid-template-columns: 64px minmax(0px, 1fr)"] > :first-child {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: 14px !important;
+    font-size: 18px !important;
+  }
+
+  .admin-role-shell .admin-main [style*="grid-template-columns: 64px minmax(0px, 1fr)"] h3,
+  .admin-role-shell .admin-main [style*="grid-template-columns: 64px minmax(0px, 1fr)"] p {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-role-shell .admin-main [style*="grid-template-columns: 64px minmax(0px, 1fr)"] h3 {
+    font-size: 19px !important;
+  }
+
+  /* ---------- Table cards: field titles and the card heading stand out ---------- */
+  .admin-role-shell .admin-main table td[data-label]:not(:first-child)::before {
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .admin-role-shell .admin-main table td:first-child > :first-child {
+    color: #0f172a !important;
+    font-size: 17px !important;
+    font-weight: 900 !important;
+  }
+}

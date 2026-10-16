@@ -44,6 +44,22 @@ const getStoredUser = () => {
   }
 };
 
+// Shown in the phone top bar (hidden on desktop, see mobileCommon.css).
+const PAGE_TITLES = {
+  overview: "Overview",
+  chat: "Chat",
+  projects: "Projects",
+  tasks: "Tasks",
+  calendar: "Calendar",
+  reports: "Reports",
+  profile: "Profile",
+  users: "Users",
+  attendance: "Attendance",
+  "field-visits": "Field Visits",
+  "leave-applications": "Leave Applications",
+  vendors: "Vendor Management",
+};
+
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -84,6 +100,10 @@ const AdminLayout = () => {
         onOpen={() => setMobileNavOpen(true)}
         onClose={() => setMobileNavOpen(false)}
       />
+
+      <div className="rms-page-title">
+        {PAGE_TITLES[location.pathname.split("/")[2]] || ""}
+      </div>
 
       <aside className="admin-sidebar">
         <button
