@@ -99,7 +99,13 @@ export default function SuperadminFieldVisits() {
 
   const mayReview = v => roleOf(v) === "admin" || canReviewEmployee || currentRole === "superadmin";
 
-  const tabVisits = useMemo(()=>visits.filter(v=>tab === "admin" ? roleOf(v) === "admin" : roleOf(v) === "employee"),[visits,tab]);
+  // newest visit date first (then newest submitted)
+  const tabVisits = useMemo(()=>{
+    const time=x=>{const n=Date.parse(x);return Number.isNaN(n)?0:n;};
+    return visits
+      .filter(v=>tab === "admin" ? roleOf(v) === "admin" : roleOf(v) === "employee")
+      .sort((a,b)=>time(b.visit_date)-time(a.visit_date)||time(b.created_at)-time(a.created_at)||Number(b.visit_id)-Number(a.visit_id));
+  },[visits,tab]);
 
   const summary = useMemo(()=>({total:tabVisits.length,employees:new Set(tabVisits.map(v=>v.employee_id)).size,approved:tabVisits.filter(v=>statusOf(v)==="approved").length,pending:tabVisits.filter(v=>statusOf(v)==="pending").length}),[tabVisits]);
 
