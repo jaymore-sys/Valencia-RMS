@@ -140,3 +140,23 @@ test("/api/admin router is gated to the admin role (regression)", () => {
   );
   assert.ok(gated, "adminroutes must call router.use(authMiddleware, requireRole('admin'))");
 });
+
+test("superadmin project routes used by the Projects page are mounted (regression)", () => {
+  const router = require("../src/routes/superadminroutes");
+  const have = new Set(
+    router.stack
+      .filter((layer) => layer.route)
+      .flatMap((layer) =>
+        Object.keys(layer.route.methods).map((m) => `${m} ${layer.route.path}`)
+      )
+  );
+  for (const route of [
+    "get /projects/:projectId/context",
+    "post /projects/assign",
+    "put /projects/:projectId/assignees",
+    "post /projects/:projectId/tasks",
+    "delete /projects/:projectId",
+  ]) {
+    assert.ok(have.has(route), `missing ${route}`);
+  }
+});

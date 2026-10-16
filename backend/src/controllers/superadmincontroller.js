@@ -3885,6 +3885,1239 @@ return res.json({
     }
   }
 };
+/* =========================================================
+   PROJECT CONTEXT / ASSIGN / ASSIGNEES / MAIN TASKS / DELETE
+   (restored; the routes were mounted but these handlers had been removed)
+========================================================= */
+const getSuperadminProjectContext =
+  async (req, res) => {
+    try {
+      const projectId =
+        Number(
+          req.params.projectId
+        );
+
+      const loggedInUserId =
+        getLoggedInUserId(req);
+
+      if (!projectId) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid project ID.",
+          });
+      }
+
+      const projects =
+        await getAllProjects();
+
+      const project =
+        projects.find(
+          (item) =>
+            Number(
+              item.project_id
+            ) === projectId
+        );
+
+      if (!project) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Project not found.",
+          });
+      }
+
+      const allUsers =
+        await getAllUsersBase();
+
+      const assignedIds =
+        normalizeIdArray(
+          project.assigned_user_ids
+        );
+
+      const assignees =
+        allUsers.filter(
+          (user) =>
+            assignedIds.includes(
+              Number(
+                user.user_id
+              )
+            )
+        );
+
+      const allTasks =
+        await getAllMainTasks();
+
+      const tasks =
+        allTasks.filter(
+          (task) =>
+            Number(
+              task.project_id
+            ) === projectId
+        );
+
+      return res.json({
+        success: true,
+
+        project,
+
+        assignees,
+
+        tasks,
+
+        can_delete:
+          Number(
+            project.created_by_user_id
+          ) ===
+          Number(
+            loggedInUserId
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "Superadmin project context error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            "Failed to load complete project details.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    }
+  };
+
+/* =========================================================
+   CREATE + ASSIGN PROJECT
+========================================================= */
+
+const createSuperadminProject =
+  async (req, res) => {
+    const connection =
+      await db.getConnection();
+
+    try {
+      const superadminUserId =
+        getLoggedInUserId(req);
+
+      const projectTitle =
+        String(
+          req.body.project_title ||
+            req.body.title ||
+            ""
+        ).trim();
+
+      const projectDescription =
+        String(
+          req.body.project_description ||
+            req.body.description ||
+            ""
+        ).trim();
+
+      const departmentId =
+        Number(
+          req.body.department_id ||
+            0
+        );
+
+      const division =
+        String(
+          req.body.division ||
+            ""
+        ).trim();
+
+      const priority =
+        String(
+          req.body.priority ||
+            "medium"
+        ).toLowerCase();
+
+      const startDate =
+        formatDateOnly(
+          req.body.start_date ||
+            req.body.startDate
+        );
+
+      const dueDate =
+        formatDateOnly(
+          req.body.due_date ||
+            req.body.end_date ||
+            req.body.endDate
+        );
+
+      const assigneeIds =
+        normalizeIdArray(
+          req.body.assignee_ids ||
+            req.body.assignees ||
+            req.body.project_assignees
+        );
+
+      if (!superadminUserId) {
+        return res
+          .status(401)
+          .json({
+            success: false,
+
+            message:
+              "Unable to identify logged-in Superadmin.",
+          });
+      }
+
+      if (!projectTitle) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Project title is required.",
+          });
+      }
+
+      if (!departmentId) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Department is required.",
+          });
+      }
+
+      if (
+        !PROJECT_DIVISIONS.includes(
+          division
+        )
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Please select a valid division.",
+          });
+      }
+
+      if (
+        !startDate ||
+        !dueDate
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Project start date and due date are required.",
+          });
+      }
+
+      if (
+        startDate > dueDate
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Project due date cannot be before the start date.",
+          });
+      }
+
+      if (
+        !assigneeIds.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Select at least one project assignee.",
+          });
+      }
+
+      const [departmentRows] =
+        await connection.query(
+          `
+          SELECT
+            department_id
+
+          FROM departments
+
+          WHERE
+            department_id = ?
+
+          LIMIT 1
+          `,
+          [departmentId]
+        );
+
+      if (
+        !departmentRows.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Selected department does not exist.",
+          });
+      }
+
+      await validateAssignableUsers(
+        connection,
+        assigneeIds
+      );
+
+      await connection.beginTransaction();
+
+      const [result] =
+        await connection.query(
+          `
+          INSERT INTO projects (
+            created_by_user_id,
+            department_id,
+            division,
+            project_title,
+            project_description,
+            priority,
+            status,
+            start_date,
+            due_date,
+            overall_progress,
+            created_at,
+            updated_at
+          )
+
+          VALUES (
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            ?,
+            'not_started',
+            ?,
+            ?,
+            0,
+            NOW(),
+            NOW()
+          )
+          `,
+          [
+            superadminUserId,
+
+            departmentId,
+
+            division,
+
+            projectTitle,
+
+            projectDescription ||
+              null,
+
+            [
+              "low",
+              "medium",
+              "high",
+              "urgent",
+            ].includes(priority)
+              ? priority
+              : "medium",
+
+            startDate,
+
+            dueDate,
+          ]
+        );
+
+      const projectId =
+        Number(
+          result.insertId
+        );
+
+      await syncProjectAssignments(
+        connection,
+        projectId,
+        assigneeIds,
+        superadminUserId
+      );
+
+      await connection.commit();
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+
+          message:
+            "Project assigned successfully.",
+
+          project_id:
+            projectId,
+
+          assignee_ids:
+            assigneeIds,
+        });
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch {}
+
+      console.error(
+        "Create Superadmin project error:",
+        error
+      );
+
+      return res
+        .status(
+          error.statusCode ||
+            500
+        )
+        .json({
+          success: false,
+
+          message:
+            error.statusCode &&
+            error.message
+              ? error.message
+              : "Failed to create project.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    } finally {
+      connection.release();
+    }
+  };
+
+/* =========================================================
+   UPDATE PROJECT ASSIGNEES
+========================================================= */
+
+const updateSuperadminProjectAssignees =
+  async (req, res) => {
+    const connection =
+      await db.getConnection();
+
+    try {
+      const superadminUserId =
+        getLoggedInUserId(req);
+
+      const projectId =
+        Number(
+          req.params.projectId ||
+            0
+        );
+
+      const assigneeIds =
+        normalizeIdArray(
+          req.body.assignee_ids ||
+            req.body.assignees
+        );
+
+      if (!projectId) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Invalid project ID.",
+          });
+      }
+
+      if (
+        !assigneeIds.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Project must have at least one assignee.",
+          });
+      }
+
+      const [projectRows] =
+        await connection.query(
+          `
+          SELECT
+            project_id
+
+          FROM projects
+
+          WHERE
+            project_id = ?
+
+          LIMIT 1
+          `,
+          [projectId]
+        );
+
+      if (
+        !projectRows.length
+      ) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Project not found.",
+          });
+      }
+
+      await validateAssignableUsers(
+        connection,
+        assigneeIds
+      );
+
+      await connection.beginTransaction();
+
+      await syncProjectAssignments(
+        connection,
+        projectId,
+        assigneeIds,
+        superadminUserId
+      );
+
+      await connection.query(
+        `
+        UPDATE projects
+
+        SET
+          updated_at = NOW()
+
+        WHERE
+          project_id = ?
+        `,
+        [projectId]
+      );
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+
+        message:
+          "Project assignees updated successfully.",
+
+        project_id:
+          projectId,
+
+        assignee_ids:
+          assigneeIds,
+      });
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch {}
+
+      console.error(
+        "Update Superadmin project assignees error:",
+        error
+      );
+
+      return res
+        .status(
+          error.statusCode ||
+            500
+        )
+        .json({
+          success: false,
+
+          message:
+            error.statusCode &&
+            error.message
+              ? error.message
+              : "Failed to update project assignees.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    } finally {
+      connection.release();
+    }
+  };
+
+/* =========================================================
+   CREATE MAIN TASK
+========================================================= */
+
+const createSuperadminMainTask =
+  async (req, res) => {
+    const connection =
+      await db.getConnection();
+
+    try {
+      const superadminUserId =
+        getLoggedInUserId(req);
+
+      const projectId =
+        Number(
+          req.params.projectId ||
+            req.body.project_id ||
+            0
+        );
+
+      const taskTitle =
+        String(
+          req.body.task_title ||
+            req.body.title ||
+            ""
+        ).trim();
+
+      const taskDescription =
+        String(
+          req.body.task_description ||
+            req.body.description ||
+            ""
+        ).trim();
+
+      const priority =
+        String(
+          req.body.priority ||
+            "medium"
+        ).toLowerCase();
+
+      const assigneeIds =
+        normalizeIdArray(
+          req.body.assignee_ids ||
+            req.body.assignees ||
+            req.body.assigned_to_user_ids
+        );
+
+      const requestedStartDate =
+        formatDateOnly(
+          req.body.start_date ||
+            req.body.startDate
+        );
+
+      const requestedDueDate =
+        formatDateOnly(
+          req.body.due_date ||
+            req.body.end_date ||
+            req.body.endDate ||
+            req.body.deadline
+        );
+
+      if (!superadminUserId) {
+        return res
+          .status(401)
+          .json({
+            success: false,
+
+            message:
+              "Unable to identify logged-in Superadmin.",
+          });
+      }
+
+      if (!projectId) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Project ID is required.",
+          });
+      }
+
+      if (!taskTitle) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Main Task title is required.",
+          });
+      }
+
+      if (
+        !assigneeIds.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Select at least one Main Task assignee.",
+          });
+      }
+
+      const [projectRows] =
+        await connection.query(
+          `
+          SELECT
+            project_id,
+            project_title,
+
+            DATE_FORMAT(
+              start_date,
+              '%Y-%m-%d'
+            ) AS start_date,
+
+            DATE_FORMAT(
+              due_date,
+              '%Y-%m-%d'
+            ) AS due_date
+
+          FROM projects
+
+          WHERE
+            project_id = ?
+
+          LIMIT 1
+          `,
+          [projectId]
+        );
+
+      if (
+        !projectRows.length
+      ) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Project not found.",
+          });
+      }
+
+      const project =
+        projectRows[0];
+
+      const taskStartDate =
+        requestedStartDate ||
+        project.start_date;
+
+      const taskDueDate =
+        requestedDueDate ||
+        project.due_date;
+
+      if (
+        !taskStartDate ||
+        !taskDueDate
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Main Task start date and due date are required.",
+          });
+      }
+
+      if (
+        taskStartDate >
+        taskDueDate
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Main Task due date cannot be before its start date.",
+          });
+      }
+
+      if (
+        project.start_date &&
+        taskStartDate <
+          project.start_date
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              `Main Task start date cannot be before Project start date (${project.start_date}).`,
+          });
+      }
+
+      if (
+        project.due_date &&
+        taskDueDate >
+          project.due_date
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              `Main Task deadline cannot exceed Project deadline (${project.due_date}).`,
+          });
+      }
+
+      /*
+      Main Task assignees must
+      already belong to Project.
+      */
+
+      const [assignedRows] =
+        await connection.query(
+          `
+          SELECT
+            employee_id
+
+          FROM project_assignments
+
+          WHERE
+            project_id = ?
+
+            AND employee_id
+              IN (?)
+
+            AND COALESCE(
+              assignment_status,
+              'assigned'
+            ) <> 'removed'
+          `,
+          [
+            projectId,
+            assigneeIds,
+          ]
+        );
+
+      const allowedIds =
+        new Set(
+          assignedRows.map(
+            (row) =>
+              Number(
+                row.employee_id
+              )
+          )
+        );
+
+      const invalidIds =
+        assigneeIds.filter(
+          (id) =>
+            !allowedIds.has(
+              Number(id)
+            )
+        );
+
+      if (
+        invalidIds.length
+      ) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Main Task can only be assigned to users already assigned to this project.",
+          });
+      }
+
+      await connection.beginTransaction();
+
+      const primaryEmployeeId =
+        assigneeIds[0];
+
+      const [taskResult] =
+        await connection.query(
+          `
+          INSERT INTO tasks (
+            project_id,
+            parent_task_id,
+            created_by_user_id,
+            assigned_to_user_id,
+            task_title,
+            task_description,
+            task_type,
+            status,
+            priority,
+            progress,
+            is_checked,
+            start_date,
+            due_date,
+            review_status,
+            created_at,
+            updated_at
+          )
+
+          VALUES (
+            ?,
+            NULL,
+            ?,
+            ?,
+            ?,
+            ?,
+            'main',
+            'not_started',
+            ?,
+            0,
+            0,
+            ?,
+            ?,
+            'none',
+            NOW(),
+            NOW()
+          )
+          `,
+          [
+            projectId,
+
+            superadminUserId,
+
+            primaryEmployeeId,
+
+            taskTitle,
+
+            taskDescription,
+
+            [
+              "low",
+              "medium",
+              "high",
+              "urgent",
+            ].includes(
+              priority
+            )
+              ? priority
+              : "medium",
+
+            taskStartDate,
+
+            taskDueDate,
+          ]
+        );
+
+      const taskId =
+        Number(
+          taskResult.insertId
+        );
+
+      await syncMainTaskAssignments(
+        connection,
+        taskId,
+        assigneeIds,
+        superadminUserId
+      );
+
+      await connection.commit();
+
+      return res
+        .status(201)
+        .json({
+          success: true,
+
+          message:
+            "Main Task assigned successfully.",
+
+          task_id:
+            taskId,
+
+          task_ids: [
+            taskId,
+          ],
+
+          assignee_ids:
+            assigneeIds,
+
+          start_date:
+            taskStartDate,
+
+          due_date:
+            taskDueDate,
+        });
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch {}
+
+      console.error(
+        "Create Superadmin Main Task error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            "Failed to assign Main Task.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    } finally {
+      connection.release();
+    }
+  };
+
+/* =========================================================
+   DELETE PROJECT
+
+   SUPERADMIN CAN DELETE ONLY
+   PROJECTS CREATED BY THAT SUPERADMIN.
+========================================================= */
+
+const deleteOwnSuperadminProject =
+  async (req, res) => {
+    const connection =
+      await db.getConnection();
+
+    try {
+      const superadminUserId =
+        getLoggedInUserId(req);
+
+      const projectId =
+        Number(
+          req.params.projectId ||
+            req.params.id ||
+            0
+        );
+
+      if (!projectId) {
+        return res
+          .status(400)
+          .json({
+            success: false,
+
+            message:
+              "Project ID is required.",
+          });
+      }
+
+      const [projectRows] =
+        await connection.query(
+          `
+          SELECT
+            project_id,
+            created_by_user_id,
+            project_title
+
+          FROM projects
+
+          WHERE
+            project_id = ?
+
+          LIMIT 1
+          `,
+          [projectId]
+        );
+
+      if (
+        !projectRows.length
+      ) {
+        return res
+          .status(404)
+          .json({
+            success: false,
+
+            message:
+              "Project not found.",
+          });
+      }
+
+      const project =
+        projectRows[0];
+
+      if (
+        Number(
+          project.created_by_user_id
+        ) !==
+        Number(
+          superadminUserId
+        )
+      ) {
+        return res
+          .status(403)
+          .json({
+            success: false,
+
+            message:
+              "You can only delete projects created by you. Projects created by other users cannot be deleted.",
+          });
+      }
+
+      await connection.beginTransaction();
+
+      /*
+      Remove task assignment rows first.
+      */
+
+      await connection.query(
+        `
+        DELETE ta
+
+        FROM task_assignments ta
+
+        INNER JOIN tasks t
+          ON t.task_id =
+             ta.task_id
+
+        WHERE
+          t.project_id = ?
+        `,
+        [projectId]
+      );
+
+      /*
+      Remove subtasks.
+      */
+
+      await connection.query(
+        `
+        DELETE FROM tasks
+
+        WHERE
+          project_id = ?
+
+          AND parent_task_id
+            IS NOT NULL
+
+          AND parent_task_id
+            <> 0
+        `,
+        [projectId]
+      );
+
+      /*
+      Remove Main Tasks.
+      */
+
+      await connection.query(
+        `
+        DELETE FROM tasks
+
+        WHERE project_id = ?
+        `,
+        [projectId]
+      );
+
+      /*
+      Remove project assignments.
+      */
+
+      await connection.query(
+        `
+        DELETE FROM project_assignments
+
+        WHERE project_id = ?
+        `,
+        [projectId]
+      );
+
+      /*
+      Delete project only if owned
+      by current Superadmin.
+      */
+
+      const [deleteResult] =
+        await connection.query(
+          `
+          DELETE FROM projects
+
+          WHERE
+            project_id = ?
+
+            AND created_by_user_id = ?
+          `,
+          [
+            projectId,
+            superadminUserId,
+          ]
+        );
+
+      if (
+        !deleteResult.affectedRows
+      ) {
+        throw new Error(
+          "Project deletion did not affect any project row."
+        );
+      }
+
+      await connection.commit();
+
+      return res.json({
+        success: true,
+
+        message:
+          "Project deleted successfully.",
+
+        project_id:
+          projectId,
+      });
+    } catch (error) {
+      try {
+        await connection.rollback();
+      } catch {}
+
+      console.error(
+        "Delete Superadmin project error:",
+        error
+      );
+
+      return res
+        .status(500)
+        .json({
+          success: false,
+
+          message:
+            "Failed to delete project.",
+
+          error:
+            error.message,
+
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    } finally {
+      connection.release();
+    }
+  };
+
+/* =========================================================
+   EXPORTS
+========================================================= */
+
 module.exports = {
 
   getSuperadminFieldVisits,
@@ -3899,6 +5132,11 @@ module.exports = {
   getSuperadminUsers,
 
   getSuperadminProjectOptions,
+  getSuperadminProjectContext,
+  createSuperadminProject,
+  updateSuperadminProjectAssignees,
+  createSuperadminMainTask,
+  deleteOwnSuperadminProject,
 
    getSuperadminOverview,
   getSuperadminLeaves,

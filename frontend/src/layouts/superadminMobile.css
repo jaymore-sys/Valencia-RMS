@@ -27,6 +27,43 @@
     padding-right: 10px !important;
   }
 
+  /* ---------- Pop-ups: centred with an even margin, never wider than the screen ---------- */
+  .sa-shell .sa-ov-modal-backdrop,
+  .sa-shell .sa-project-assignee-manager-backdrop,
+  .sa-shell .sa-project-assignment-backdrop,
+  .sa-shell .sa-project-modal-backdrop,
+  .sa-shell .sa-task-modal-backdrop,
+  .sa-shell .sa-users-modal-backdrop {
+    padding: 12px !important;
+    display: grid !important;
+    place-items: center !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    box-sizing: border-box !important;
+  }
+
+  .sa-shell .sa-task-modal,
+  .sa-shell .sa-users-modal,
+  .sa-shell .sa-project-modal,
+  .sa-shell .sa-ov-modal,
+  .sa-shell .sa-project-assignment-modal,
+  .sa-shell .sa-project-assignee-manager-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 24px) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+    padding: 16px !important;
+    border-radius: 22px !important;
+  }
+
+  /* sticky headers sit flush with the smaller dialog padding */
+  .sa-shell .sa-task-modal-header,
+  .sa-shell .sa-users-modal-header,
+  .sa-shell .sa-project-modal-header {
+    top: -16px !important;
+    margin: -16px -16px 14px !important;
+  }
+
   /* ---------- Detail dialogs (task / project / user): compact header, two tiles per row ---------- */
   .sa-shell .sa-task-modal-close,
   .sa-shell .sa-users-close-btn,

@@ -12,6 +12,11 @@ const {
   getSuperadminUserById,
   getSuperadminProjectOptions,
   getSuperadminOverview,
+  getSuperadminProjectContext,
+  createSuperadminProject,
+  updateSuperadminProjectAssignees,
+  createSuperadminMainTask,
+  deleteOwnSuperadminProject,
 } = require("../controllers/superadmincontroller");
 
 const {
@@ -40,6 +45,24 @@ router.get(
   ...superadminOnly,
   getSuperadminProjectOptions
 );
+
+router.post("/projects/assign", ...superadminOnly, createSuperadminProject);
+router.get(
+  "/projects/:projectId/context",
+  ...superadminOnly,
+  getSuperadminProjectContext
+);
+router.put(
+  "/projects/:projectId/assignees",
+  ...superadminOnly,
+  updateSuperadminProjectAssignees
+);
+router.post(
+  "/projects/:projectId/tasks",
+  ...superadminOnly,
+  createSuperadminMainTask
+);
+router.delete("/projects/:projectId", ...superadminOnly, deleteOwnSuperadminProject);
 
 router.get("/tasks", ...superadminOnly, getSuperadminTasks);
 
