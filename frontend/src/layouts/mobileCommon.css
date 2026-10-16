@@ -697,6 +697,11 @@
 
 @media (max-width: 1100px) {
   /* inline-styled toolbars wrap on tablets / small laptops (main area is ~740px at 1024) */
+  /* admin overview stat cards: 4 x min 170px + gaps (~734px) overflowed the ~656px content area at 1024px */
+  .rms-mobile main [style*="grid-template-columns: repeat(4, minmax(170px"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
   .rms-mobile main [style*="flex-wrap: nowrap"] {
     flex-wrap: wrap !important;
     max-width: 100% !important;
@@ -713,81 +718,77 @@
 }
 
 /* =========================================================
-   SIDEBAR - FIT ANY SCREEN HEIGHT (employee + admin; superadmin already fits)
-   Menu takes the available height and scrolls with a visible thin scrollbar;
-   user card + Logout stay pinned. Sizes scale with window height.
+   SIDEBAR - SHRINK TO FIT SHORT SCREENS (employee + admin)
+   On tall screens nothing is overridden, so the original desktop sidebar is
+   untouched. Only when the window is shorter than the original design needs
+   (admin ~960px, employee ~780px) are sizes scaled down smoothly from the original
+   values; the menu then scrolls with a visible scrollbar and Logout stays pinned.
 ========================================================= */
 
-/* ---------- EMPLOYEE ---------- */
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar {
-  height: 100vh !important;
-  height: 100dvh !important;
-  max-height: 100dvh !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  padding-top: clamp(10px, 2.4vh, 22px) !important;
-  padding-bottom: clamp(8px, 1.6vh, 18px) !important;
-}
+/* ---------- EMPLOYEE (original sizes at >= 780px tall) ---------- */
+@media (max-height: 780px) {
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar {
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding-top: clamp(10px, 2.82vh, 22px) !important;
+    padding-bottom: clamp(8px, 2.31vh, 18px) !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav {
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  gap: clamp(2px, 0.4vh, 6px) !important;
-  padding-bottom: 4px !important;
-  overscroll-behavior: contain !important;
-  scrollbar-width: thin !important;
-  scrollbar-color: #cbd2de transparent !important;
-}
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #cbd2de transparent !important;
+    gap: clamp(2px, 0.51vh, 4px) !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav::-webkit-scrollbar {
-  display: block !important;
-  width: 6px !important;
-}
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav::-webkit-scrollbar-thumb {
-  background: #cbd2de !important;
-  border-radius: 6px !important;
-}
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav::-webkit-scrollbar-thumb {
+    background: #cbd2de !important;
+    border-radius: 6px !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav a {
-  flex: none !important;
-  box-sizing: border-box !important;
-  height: clamp(34px, 5.4vh, 50px) !important;
-  min-height: 0 !important;
-  max-height: clamp(34px, 5.4vh, 50px) !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  font-size: clamp(13px, 1.9vh, 15px) !important;
-}
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-nav a {
+    flex: none !important;
+    box-sizing: border-box !important;
+    height: clamp(34px, 6.41vh, 50px) !important;
+    min-height: 0 !important;
+    max-height: clamp(34px, 6.41vh, 50px) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: clamp(13px, 2.18vh, 17px) !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar-bottom {
-  flex: 0 0 auto !important;
-  margin-top: 0 !important;
-  padding-top: clamp(6px, 1.2vh, 12px) !important;
-  padding-bottom: clamp(4px, 1vh, 8px) !important;
-}
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar-bottom {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+    padding-top: clamp(6px, 1.54vh, 12px) !important;
+    padding-bottom: clamp(0px, 0vh, 0px) !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-user-card {
-  min-height: 0 !important;
-  padding-top: clamp(4px, 0.8vh, 8px) !important;
-  padding-bottom: clamp(4px, 0.8vh, 8px) !important;
-  margin-bottom: clamp(4px, 0.8vh, 8px) !important;
-}
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-user-card {
+    min-height: 0 !important;
+    padding-top: clamp(4px, 1.54vh, 12px) !important;
+    padding-bottom: clamp(4px, 1.54vh, 12px) !important;
+    margin-bottom: clamp(4px, 1.28vh, 10px) !important;
+  }
 
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-user-avatar {
-  width: clamp(30px, 5vh, 42px) !important;
-  height: clamp(30px, 5vh, 42px) !important;
-  min-width: 0 !important;
-  flex: none !important;
-}
-
-.employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-logout-btn {
-  height: clamp(36px, 5.6vh, 48px) !important;
-  min-height: 0 !important;
-  margin-bottom: 4px !important;
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-logout-btn {
+    height: clamp(34px, 5.9vh, 46px) !important;
+    min-height: 0 !important;
+    margin-bottom: clamp(0px, 0vh, 0px) !important;
+  }
 }
 
 @media (max-height: 560px) {
@@ -796,83 +797,84 @@
   }
 }
 
-/* ---------- ADMIN ---------- */
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar {
-  height: 100vh !important;
-  height: 100dvh !important;
-  max-height: 100dvh !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-  padding-top: clamp(10px, 2.4vh, 22px) !important;
-  padding-bottom: clamp(8px, 1.6vh, 18px) !important;
-}
+/* ---------- ADMIN (original sizes at >= 960px tall) ---------- */
+@media (max-height: 960px) {
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar {
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    padding-top: clamp(10px, 2.29vh, 22px) !important;
+    padding-bottom: clamp(8px, 1.875vh, 18px) !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand {
-  flex: 0 0 auto !important;
-  height: clamp(52px, 9vh, 78px) !important;
-  min-height: 0 !important;
-  margin-bottom: clamp(4px, 1.4vh, 16px) !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand {
+    flex: 0 0 auto !important;
+    height: clamp(52px, 7.5vh, 72px) !important;
+    min-height: 0 !important;
+    margin-bottom: clamp(4px, 1.875vh, 18px) !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav {
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
-  overflow-x: hidden !important;
-  overflow-y: auto !important;
-  gap: clamp(2px, 0.4vh, 6px) !important;
-  padding-bottom: 4px !important;
-  overscroll-behavior: contain !important;
-  scrollbar-width: thin !important;
-  scrollbar-color: #cbd2de transparent !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #cbd2de transparent !important;
+    gap: clamp(2px, 1.25vh, 12px) !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar {
-  display: block !important;
-  width: 6px !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar {
+    display: block !important;
+    width: 6px !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar-thumb {
-  background: #cbd2de !important;
-  border-radius: 6px !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar-thumb {
+    background: #cbd2de !important;
+    border-radius: 6px !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav a {
-  flex: none !important;
-  box-sizing: border-box !important;
-  height: clamp(34px, 5.4vh, 50px) !important;
-  min-height: 0 !important;
-  max-height: clamp(34px, 5.4vh, 50px) !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  font-size: clamp(13px, 1.9vh, 15px) !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav a {
+    flex: none !important;
+    box-sizing: border-box !important;
+    height: clamp(34px, 5.625vh, 54px) !important;
+    min-height: 0 !important;
+    max-height: clamp(34px, 5.625vh, 54px) !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    font-size: clamp(13px, 1.77vh, 17px) !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-bottom {
-  flex: 0 0 auto !important;
-  margin-top: 0 !important;
-  padding-top: clamp(6px, 1.2vh, 12px) !important;
-  padding-bottom: clamp(4px, 1vh, 8px) !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-bottom {
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+    padding-top: clamp(6px, 1.25vh, 12px) !important;
+    padding-bottom: clamp(0px, 0.83vh, 8px) !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-card {
-  min-height: 0 !important;
-  padding-top: clamp(4px, 0.8vh, 8px) !important;
-  padding-bottom: clamp(4px, 0.8vh, 8px) !important;
-  margin-bottom: clamp(4px, 0.8vh, 8px) !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-card {
+    min-height: 0 !important;
+    padding-top: clamp(4px, 1.25vh, 12px) !important;
+    padding-bottom: clamp(4px, 1.25vh, 12px) !important;
+    margin-bottom: clamp(4px, 1.04vh, 10px) !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-avatar {
-  width: clamp(30px, 5vh, 42px) !important;
-  height: clamp(30px, 5vh, 42px) !important;
-  min-width: 0 !important;
-  flex: none !important;
-}
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-avatar {
+    width: clamp(30px, 5.2vh, 50px) !important;
+    height: clamp(30px, 5.2vh, 50px) !important;
+    min-width: 0 !important;
+    flex: none !important;
+  }
 
-.admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-logout-btn {
-  height: clamp(36px, 5.6vh, 48px) !important;
-  min-height: 0 !important;
-  margin-bottom: 4px !important;
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-logout-btn {
+    height: clamp(34px, 5vh, 48px) !important;
+    min-height: 0 !important;
+    margin-bottom: clamp(0px, 1.04vh, 10px) !important;
+  }
 }
 
 @media (max-height: 560px) {
