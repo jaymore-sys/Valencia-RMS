@@ -797,7 +797,7 @@
   }
 }
 
-/* ---------- ADMIN (original sizes at >= 975px tall) ---------- */
+/* ---------- ADMIN (original sizes at >= 975px tall; production menu has 10 items) ---------- */
 @media (max-height: 975px) {
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar {
     height: 100vh !important;
@@ -806,15 +806,15 @@
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden !important;
-    padding-top: clamp(10px, 2.29vh, 22px) !important;
-    padding-bottom: clamp(8px, 1.875vh, 18px) !important;
+    padding-top: clamp(10px, calc(22px - (975px - 100vh) * 0.05), 22px) !important;
+    padding-bottom: clamp(8px, calc(18px - (975px - 100vh) * 0.04), 18px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand {
     flex: 0 0 auto !important;
-    height: clamp(52px, 7.5vh, 72px) !important;
+    height: clamp(46px, calc(72px - (975px - 100vh) * 0.07), 72px) !important;
     min-height: 0 !important;
-    margin-bottom: clamp(4px, 1.875vh, 18px) !important;
+    margin-bottom: clamp(4px, calc(18px - (975px - 100vh) * 0.07), 18px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav {
@@ -841,39 +841,47 @@
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav a {
     flex: none !important;
     box-sizing: border-box !important;
-    height: clamp(34px, 5.625vh, 54px) !important;
+    height: clamp(38px, calc(54px - (975px - 100vh) * 0.032), 54px) !important;
     min-height: 0 !important;
-    max-height: clamp(34px, 5.625vh, 54px) !important;
+    max-height: clamp(38px, calc(54px - (975px - 100vh) * 0.032), 54px) !important;
     padding-top: 0 !important;
     padding-bottom: 0 !important;
-    font-size: clamp(13px, 1.77vh, 17px) !important;
+    font-size: clamp(14px, calc(17px - (975px - 100vh) * 0.011), 17px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-bottom {
     flex: 0 0 auto !important;
     margin-top: 0 !important;
-    padding-top: clamp(4px, calc(12px - (975px - 100vh) * 0.03), 12px) !important;
-    padding-bottom: clamp(0px, 0.83vh, 8px) !important;
+    padding-top: clamp(4px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
+    padding-bottom: clamp(4px, calc(8px - (975px - 100vh) * 0.02), 8px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-card {
+    height: auto !important;
     min-height: 0 !important;
-    padding-top: clamp(2px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
-    padding-bottom: clamp(2px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
+    padding-top: clamp(3px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
+    padding-bottom: clamp(3px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
     margin-bottom: clamp(2px, calc(10px - (975px - 100vh) * 0.03), 10px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-avatar {
-    width: clamp(30px, 5.2vh, 50px) !important;
-    height: clamp(30px, 5.2vh, 50px) !important;
+    width: clamp(30px, calc(50px - (975px - 100vh) * 0.09), 50px) !important;
+    height: clamp(30px, calc(50px - (975px - 100vh) * 0.09), 50px) !important;
     min-width: 0 !important;
     flex: none !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-logout-btn {
-    height: clamp(34px, 5vh, 48px) !important;
+    height: clamp(36px, calc(48px - (975px - 100vh) * 0.04), 48px) !important;
     min-height: 0 !important;
-    margin-bottom: clamp(0px, 1.04vh, 10px) !important;
+    margin-bottom: clamp(2px, calc(10px - (975px - 100vh) * 0.04), 10px) !important;
+  }
+}
+
+/* short windows: the email line goes, keeping the user card to name + role */
+@media (max-height: 900px) {
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-info p {
+    display: none !important;
   }
 }
 
@@ -1012,5 +1020,63 @@
   .rms-mobile main table td:not(:last-child):has(> :nth-child(2)) > * {
     width: 100% !important;
     max-width: 100% !important;
+  }
+}
+
+
+/* =========================================================
+   SUPERADMIN SIDEBAR - SHRINK TO FIT SHORT SCREENS
+   Original sizes at >= 890px tall (untouched). Below that, every size scales down
+   smoothly so all menu items and Logout stay visible; text never goes under 14px.
+   The user card gets compact (email line hidden) on very short windows.
+========================================================= */
+@media (max-height: 890px) {
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-sidebar {
+    padding-top: clamp(10px, calc(28px - (890px - 100vh) * 0.06), 28px) !important;
+    padding-bottom: clamp(8px, calc(24px - (890px - 100vh) * 0.05), 24px) !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-logo-wrap {
+    height: clamp(44px, calc(62px - (890px - 100vh) * 0.05), 62px) !important;
+    min-height: 0 !important;
+    margin-bottom: clamp(4px, calc(22px - (890px - 100vh) * 0.08), 22px) !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-nav {
+    gap: clamp(2px, calc(10px - (890px - 100vh) * 0.04), 10px) !important;
+    padding-bottom: clamp(2px, calc(18px - (890px - 100vh) * 0.08), 18px) !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-nav a {
+    height: clamp(36px, calc(54px - (890px - 100vh) * 0.0375), 54px) !important;
+    min-height: 0 !important;
+    max-height: clamp(36px, calc(54px - (890px - 100vh) * 0.0375), 54px) !important;
+    font-size: clamp(14px, calc(16px - (890px - 100vh) * 0.012), 16px) !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-sidebar-bottom {
+    padding-top: clamp(6px, calc(16px - (890px - 100vh) * 0.06), 16px) !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-user-card {
+    padding: clamp(6px, calc(12px - (890px - 100vh) * 0.03), 12px) !important;
+    margin-bottom: clamp(4px, calc(12px - (890px - 100vh) * 0.04), 12px) !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-user-avatar {
+    width: clamp(30px, calc(46px - (890px - 100vh) * 0.08), 46px) !important;
+    height: clamp(30px, calc(46px - (890px - 100vh) * 0.08), 46px) !important;
+    min-width: 0 !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-logout-btn {
+    height: clamp(38px, calc(52px - (890px - 100vh) * 0.06), 52px) !important;
+    min-height: 0 !important;
+  }
+}
+
+@media (max-height: 800px) {
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-user-info p {
+    display: none !important;
   }
 }
