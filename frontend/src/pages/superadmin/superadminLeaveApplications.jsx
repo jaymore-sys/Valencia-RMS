@@ -13,6 +13,10 @@ import {
 } from "lucide-react";
 
 import api from "../../api/axios";
+import { useIsPhone } from "../../components/ReadMoreText";
+
+// phones show the list in pages of this size ("Show more" adds another page)
+const PHONE_PAGE_SIZE = 20;
 
 const SuperadminLeaveApplications = () => {
   const [applications, setApplications] =
@@ -237,6 +241,14 @@ const getStatusLabel = (leave) => {
     fetchLeaves();
   }, []);
 
+  const phone = useIsPhone();
+  const [visibleCount, setVisibleCount] =
+    useState(PHONE_PAGE_SIZE);
+
+  useEffect(() => {
+    setVisibleCount(PHONE_PAGE_SIZE);
+  }, [filter]);
+
   const filteredApplications =
     useMemo(() => {
       if (filter === "all") {
@@ -255,6 +267,10 @@ const getStatusLabel = (leave) => {
       applications,
       filter,
     ]);
+
+  const shownApplications = phone
+    ? filteredApplications.slice(0, visibleCount)
+    : filteredApplications;
 
   /*
   ================================================
@@ -829,7 +845,7 @@ return (
               </thead>
 
               <tbody>
-                {filteredApplications.map(
+                {shownApplications.map(
                   (leave) => (
                     <tr
                       key={
@@ -1004,6 +1020,27 @@ return (
             </table>
           </div>
         )}
+
+        {phone &&
+          filteredApplications.length >
+            visibleCount && (
+            <button
+              type="button"
+              className="rms-show-more"
+              onClick={() =>
+                setVisibleCount(
+                  (count) =>
+                    count +
+                    PHONE_PAGE_SIZE
+                )
+              }
+            >
+              Show more (
+              {filteredApplications.length -
+                visibleCount}{" "}
+              remaining)
+            </button>
+          )}
       </section>
 
       {selectedLeave && (

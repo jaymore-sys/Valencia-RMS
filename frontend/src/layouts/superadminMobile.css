@@ -305,4 +305,19 @@
     white-space: normal !important;
     overflow-wrap: anywhere;
   }
+
+  /* "Show more" button under long phone lists */
+  .sa-shell .rms-show-more {
+    display: block !important;
+    width: 100% !important;
+    margin: 14px 0 4px !important;
+    padding: 14px 16px !important;
+    border: 1.5px solid #ff5733 !important;
+    border-radius: 14px !important;
+    background: #fff7f4 !important;
+    color: #ff5733 !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    cursor: pointer;
+  }
 }
