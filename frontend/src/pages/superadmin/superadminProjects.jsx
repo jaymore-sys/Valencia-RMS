@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 
 import api from "../../api/axios";
+import ReadMoreText from "../../components/ReadMoreText";
 import "./superadminProjects.css";
 
 /* =========================================================
@@ -2242,9 +2243,13 @@ const ProjectDetailsModal = ({
           </h3>
 
           <p>
-            {project.project_description ||
-              project.description ||
-              "No description added."}
+            <ReadMoreText
+              text={
+                project.project_description ||
+                project.description ||
+                "No description added."
+              }
+            />
           </p>
         </section>
 
@@ -2601,8 +2606,12 @@ const ProjectTaskCard = ({
           </h4>
 
           <p>
-            {task.task_description ||
-              "No description."}
+            <ReadMoreText
+              text={
+                task.task_description ||
+                "No description."
+              }
+            />
           </p>
         </div>
 

@@ -231,6 +231,48 @@
     position: static !important;
   }
 
+  /* Superadminlayout.css turns the sidebar into an icon-only rail <= 760px; the drawer shows the
+     full menu (icons + names, logo, user details, Logout text) at every phone width. */
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-sidebar {
+    padding: 28px 20px 24px !important;
+    align-items: stretch !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-logo-wrap {
+    display: flex !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-nav {
+    margin-top: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-nav a {
+    width: 100% !important;
+    padding: 0 16px !important;
+    justify-content: flex-start !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-nav a span,
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-logout-btn span {
+    display: inline !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-user-info {
+    display: block !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-user-card {
+    width: 100% !important;
+    height: auto !important;
+    padding: 12px !important;
+  }
+
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-logout-btn {
+    width: 100% !important;
+    padding: 0 16px !important;
+  }
+
   .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-main {
     width: 100% !important;
     max-width: 100% !important;

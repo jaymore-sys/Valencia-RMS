@@ -1,0 +1,100 @@
+/* =========================================================
+   SUPERADMIN DASHBOARD - PHONE PAGE FIXES (<= 700px)
+   Scoped to .sa-shell; desktop and the other dashboards are unaffected.
+========================================================= */
+
+@media (max-width: 700px) {
+  /* ---------- Header action buttons / tab pills wrap instead of running off-screen ---------- */
+  .sa-shell .sa-projects-header-actions {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+
+  .sa-shell .sa-projects-header-actions > * {
+    flex: 1 1 calc(50% - 6px) !important;
+    min-width: 0 !important;
+    justify-content: center !important;
+  }
+
+  .sa-shell .sa-main section[style*="display: flex"][style*="gap: 12px"][style*="margin-bottom: 22px"] {
+    flex-wrap: wrap !important;
+  }
+
+  .sa-shell .sa-main section[style*="display: flex"][style*="gap: 12px"][style*="margin-bottom: 22px"] > button {
+    flex: 1 1 calc(50% - 6px) !important;
+    min-width: 0 !important;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+  }
+
+  /* ---------- Detail dialogs (task / project / user): compact header, two tiles per row ---------- */
+  .sa-shell .sa-task-modal-close,
+  .sa-shell .sa-users-close-btn,
+  .sa-shell .sa-project-modal-close {
+    flex: none !important;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+    font-size: 0 !important;
+    gap: 0 !important;
+  }
+
+  .sa-shell .sa-task-modal-header,
+  .sa-shell .sa-users-modal-header,
+  .sa-shell .sa-project-modal-header {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+    gap: 12px !important;
+    padding: 16px !important;
+  }
+
+  .sa-shell .sa-task-modal-header h2,
+  .sa-shell .sa-users-modal-header h2,
+  .sa-shell .sa-project-modal-header h2 {
+    font-size: 21px !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .sa-shell .sa-task-modal-grid,
+  .sa-shell .sa-users-stats-grid,
+  .sa-shell .sa-users-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .sa-shell .sa-task-modal-grid > :last-child:nth-child(odd),
+  .sa-shell .sa-users-stats-grid > :last-child:nth-child(odd),
+  .sa-shell .sa-users-info-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+  }
+
+  .sa-shell .sa-task-detail-box,
+  .sa-shell .sa-users-stat-card,
+  .sa-shell .sa-users-info-box {
+    min-width: 0 !important;
+    padding: 12px 14px !important;
+    overflow-wrap: anywhere;
+  }
+
+  .sa-shell .sa-users-stat-card strong {
+    font-size: 19px !important;
+  }
+
+  /* ---------- Table cards: field titles and the card heading stand out ---------- */
+  .sa-shell .sa-main table td[data-label]:not(:first-child)::before {
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 900;
+  }
+
+  .sa-shell .sa-main table td:first-child > :first-child {
+    color: #0f172a !important;
+    font-size: 17px !important;
+    font-weight: 900 !important;
+  }
+}

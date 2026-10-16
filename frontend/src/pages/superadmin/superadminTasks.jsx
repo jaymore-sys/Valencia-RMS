@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 
 import api from "../../api/axios";
+import ReadMoreText from "../../components/ReadMoreText";
 
 import "./superadminTasks.css";
 
@@ -1259,8 +1260,12 @@ const TaskDetailsModal = ({
           </h3>
 
           <p>
-            {task.task_description ||
-              "No description added."}
+            <ReadMoreText
+              text={
+                task.task_description ||
+                "No description added."
+              }
+            />
           </p>
         </section>
 

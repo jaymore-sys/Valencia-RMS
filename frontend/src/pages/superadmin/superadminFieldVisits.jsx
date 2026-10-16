@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Search, RefreshCw, MapPin, Users, CheckCircle, Clock, XCircle } from "lucide-react";
 
 import api from "../../api/axios";
+import ReadMoreText from "../../components/ReadMoreText";
 
 import "./superadminFieldVisits.css";
 
@@ -256,7 +257,7 @@ export default function SuperadminFieldVisits() {
 
               <div style={detailLabel}>Description / Purpose</div>
 
-              <div style={{fontSize:13.5,color:"#415068",lineHeight:1.8,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{stop.description||"-"}</div>
+              <div style={{fontSize:13.5,color:"#415068",lineHeight:1.8,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}><ReadMoreText text={stop.description||"-"} /></div>
 
             </div>)}
 
