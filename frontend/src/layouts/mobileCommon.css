@@ -1024,6 +1024,80 @@
 }
 
 
+/* ---------- ADMIN, icon-only (collapsed) sidebar: same idea, original sizes at >= 910px tall ---------- */
+@media (max-height: 910px) {
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed {
+    --cs-toggle-top: clamp(8px, calc(44px - (910px - 100vh) * 0.167), 44px);
+    --cs-toggle-size: clamp(34px, calc(58px - (910px - 100vh) * 0.1), 58px);
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-sidebar {
+    padding-top: calc(var(--cs-toggle-top) + var(--cs-toggle-size) + 10px) !important;
+    padding-bottom: clamp(8px, calc(20px - (910px - 100vh) * 0.03), 20px) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-sidebar-toggle {
+    top: var(--cs-toggle-top) !important;
+    width: var(--cs-toggle-size) !important;
+    height: var(--cs-toggle-size) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-nav {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    height: auto !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scrollbar-width: none !important;
+    gap: clamp(3px, calc(11px - (910px - 100vh) * 0.028), 11px) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-nav::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-nav a {
+    height: clamp(34px, calc(52px - (910px - 100vh) * 0.055), 52px) !important;
+    min-height: 0 !important;
+    flex: none !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-sidebar-bottom {
+    position: static !important;
+    top: auto !important;
+    bottom: auto !important;
+    height: auto !important;
+    flex: 0 0 auto !important;
+    margin-top: 0 !important;
+    gap: clamp(4px, calc(12px - (910px - 100vh) * 0.03), 12px) !important;
+    padding-top: clamp(4px, calc(12px - (910px - 100vh) * 0.03), 12px) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-user-card {
+    width: clamp(40px, calc(62px - (910px - 100vh) * 0.1), 62px) !important;
+    height: clamp(40px, calc(62px - (910px - 100vh) * 0.1), 62px) !important;
+    min-height: 0 !important;
+    margin-bottom: clamp(2px, calc(10px - (910px - 100vh) * 0.03), 10px) !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-user-avatar {
+    width: clamp(34px, calc(54px - (910px - 100vh) * 0.1), 54px) !important;
+    height: clamp(34px, calc(54px - (910px - 100vh) * 0.1), 54px) !important;
+    min-width: 0 !important;
+  }
+
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-logout-btn {
+    height: clamp(38px, calc(58px - (910px - 100vh) * 0.09), 58px) !important;
+    min-height: 0 !important;
+  }
+}
+
+@media (max-height: 560px) {
+  .admin-dashboard-shell.admin-role-shell.rms-mobile.sidebar-collapsed .admin-user-card {
+    display: none !important;
+  }
+}
+
 /* =========================================================
    SUPERADMIN SIDEBAR - SHRINK TO FIT SHORT SCREENS
    Original sizes at >= 890px tall (untouched). Below that, every size scales down
