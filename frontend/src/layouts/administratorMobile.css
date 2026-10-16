@@ -341,3 +341,18 @@
     grid-column: 1 / -1 !important;
   }
 }
+
+@media (max-width: 700px) {
+  /* Table-card cells holding several blocks (e.g. field-visit details) stack vertically
+     instead of being squeezed side by side into a few pixels each. */
+  .administrator-shell .admin-main table td:not(:last-child):has(> :nth-child(2)) {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    text-align: left !important;
+  }
+
+  .administrator-shell .admin-main table td:not(:last-child):has(> :nth-child(2)) > * {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
