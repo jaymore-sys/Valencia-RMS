@@ -810,6 +810,13 @@
     padding-bottom: clamp(8px, calc(18px - (975px - 100vh) * 0.04), 18px) !important;
   }
 
+  /* the collapse button shrinks and rises with the menu so it never sits over the first item */
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-toggle {
+    top: clamp(8px, calc(36px - (975px - 100vh) * 0.12), 36px) !important;
+    width: clamp(32px, calc(50px - (975px - 100vh) * 0.1), 50px) !important;
+    height: clamp(32px, calc(50px - (975px - 100vh) * 0.1), 50px) !important;
+  }
+
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-brand {
     flex: 0 0 auto !important;
     height: clamp(46px, calc(72px - (975px - 100vh) * 0.07), 72px) !important;
