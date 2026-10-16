@@ -721,7 +721,7 @@
    SIDEBAR - SHRINK TO FIT SHORT SCREENS (employee + admin)
    On tall screens nothing is overridden, so the original desktop sidebar is
    untouched. Only when the window is shorter than the original design needs
-   (admin ~960px, employee ~780px) are sizes scaled down smoothly from the original
+   (admin ~975px, employee ~780px) are sizes scaled down smoothly from the original
    values; the menu then scrolls with a visible scrollbar and Logout stays pinned.
 ========================================================= */
 
@@ -797,8 +797,8 @@
   }
 }
 
-/* ---------- ADMIN (original sizes at >= 960px tall) ---------- */
-@media (max-height: 960px) {
+/* ---------- ADMIN (original sizes at >= 975px tall) ---------- */
+@media (max-height: 975px) {
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar {
     height: 100vh !important;
     height: 100dvh !important;
@@ -825,7 +825,7 @@
     overscroll-behavior: contain !important;
     scrollbar-width: thin !important;
     scrollbar-color: #cbd2de transparent !important;
-    gap: clamp(2px, 1.25vh, 12px) !important;
+    gap: clamp(2px, calc(12px - (975px - 100vh) * 0.05), 12px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-nav::-webkit-scrollbar {
@@ -852,15 +852,15 @@
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar-bottom {
     flex: 0 0 auto !important;
     margin-top: 0 !important;
-    padding-top: clamp(6px, 1.25vh, 12px) !important;
+    padding-top: clamp(4px, calc(12px - (975px - 100vh) * 0.03), 12px) !important;
     padding-bottom: clamp(0px, 0.83vh, 8px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-card {
     min-height: 0 !important;
-    padding-top: clamp(4px, 1.25vh, 12px) !important;
-    padding-bottom: clamp(4px, 1.25vh, 12px) !important;
-    margin-bottom: clamp(4px, 1.04vh, 10px) !important;
+    padding-top: clamp(2px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
+    padding-bottom: clamp(2px, calc(12px - (975px - 100vh) * 0.04), 12px) !important;
+    margin-bottom: clamp(2px, calc(10px - (975px - 100vh) * 0.03), 10px) !important;
   }
 
   .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-user-avatar {
