@@ -531,6 +531,17 @@ const filteredUsers = useMemo(() => {
                 />
               </div>
 
+              <p className="sa-users-updated-note">
+                Attendance is imported in batches. Data is updated up to{" "}
+                <strong>
+                  {selectedDetails.attendance_summary?.imported_until || "-"}
+                </strong>
+                {selectedDetails.attendance_summary?.user_last_date
+                  ? ` · this person's last record: ${selectedDetails.attendance_summary.user_last_date}`
+                  : " · no attendance imported for this person yet"}
+                .
+              </p>
+
               <div className="sa-users-info-grid">
                 <InfoBox label="Working Days" value={summaryNumber("working_days")} />
                 <InfoBox label="Present" value={summaryNumber("present")} />

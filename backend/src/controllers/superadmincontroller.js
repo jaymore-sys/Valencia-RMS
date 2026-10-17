@@ -2887,6 +2887,7 @@ const getSuperadminUserById = async (req, res) => {
       [leaves],
       [fieldVisits],
       [miniTasks],
+      [[lastDates]],
       hrRow,
     ] = await Promise.all([
       db.query(
@@ -2958,6 +2959,18 @@ const getSuperadminUserById = async (req, res) => {
         `,
         [userId]
       ),
+      db.query(
+        `
+        SELECT
+          DATE_FORMAT(MAX(attendance_date), '%Y-%m-%d') AS imported_until,
+          DATE_FORMAT(
+            MAX(CASE WHEN employee_id = ? THEN attendance_date END),
+            '%Y-%m-%d'
+          ) AS user_last_date
+        FROM attendance
+        `,
+        [userId]
+      ),
       getHrSummaryForUser(user, fromDate, toDate),
     ]);
 
@@ -2984,6 +2997,9 @@ const getSuperadminUserById = async (req, res) => {
       },
 
       attendance_summary: {
+        // attendance is imported in batches: tell the viewer how far the data goes
+        imported_until: lastDates?.imported_until || null,
+        user_last_date: lastDates?.user_last_date || null,
         month: monthText,
         from_date: fromDate,
         to_date: toDate,
@@ -3008,43 +3024,87 @@ const getSuperadminUserById = async (req, res) => {
   }
 };
 
-const getSuperadminProjectOptions = async(req,res)=>{
+const getSuperadminProjectOptions =
+  async (req, res) => {
+    try {
+      const [departments] =
+        await db.query(
+          `
+          SELECT
+            department_id,
+            department_name
 
-try{
+          FROM departments
 
+          ORDER BY
+            department_name ASC
+          `
+        );
 
-res.json({
+      const allUsers =
+        await getAllUsersBase();
 
-success:true,
+      const users =
+        allUsers.filter(
+          (user) => {
+            const role =
+              String(
+                user.role_name ||
+                  ""
+              ).toLowerCase();
 
-departments:[],
+            const status =
+              String(
+                user.status ||
+                  ""
+              ).toLowerCase();
 
-employees:[]
+            return (
+              status ===
+                "active" &&
 
-});
+              [
+                "employee",
+                "admin",
+                "administrator",
+              ].includes(role)
+            );
+          }
+        );
 
+      return res.json({
+        success: true,
 
-}
-catch(error){
+        departments,
 
-console.log(
-"PROJECT OPTIONS ERROR:",
-error
-);
+        divisions:
+          PROJECT_DIVISIONS,
 
+        users,
+      });
+    } catch (error) {
+      console.error(
+        "Superadmin project options error:",
+        error
+      );
 
-res.status(500).json({
+      return res
+        .status(500)
+        .json({
+          success: false,
 
-success:false,
+          message:
+            "Failed to load project departments and employees.",
 
-message:error.message
+          error:
+            error.message,
 
-});
-
-
-}
-
-};
+          sqlMessage:
+            error.sqlMessage ||
+            null,
+        });
+    }
+  };
 
 
 const getSuperadminLeaves = async (

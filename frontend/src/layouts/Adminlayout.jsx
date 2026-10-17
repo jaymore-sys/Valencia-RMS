@@ -1,6 +1,10 @@
 import { useState, lazy, Suspense } from "react";
 import MobileNavControls from "../components/MobileNavControls";
-import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
+import {
+  useMobileShell,
+  useTableLabels,
+  useHideDuplicateTitle,
+} from "../hooks/useMobileShell";
 import {
   NavLink,
   Outlet,
@@ -70,6 +74,8 @@ const AdminLayout = () => {
   const { isNarrow, mobileNavOpen, setMobileNavOpen } = useMobileShell();
   const collapsed = sidebarCollapsed && !isNarrow;
   useTableLabels(".admin-main");
+  const pageTitle = PAGE_TITLES[location.pathname.split("/")[2]] || "";
+  useHideDuplicateTitle(".admin-main", pageTitle);
 
   const user = getStoredUser();
 
@@ -102,7 +108,7 @@ const AdminLayout = () => {
       />
 
       <div className="rms-page-title">
-        {PAGE_TITLES[location.pathname.split("/")[2]] || ""}
+        {pageTitle}
       </div>
 
       <aside className="admin-sidebar">

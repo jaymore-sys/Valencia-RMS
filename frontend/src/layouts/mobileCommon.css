@@ -1251,3 +1251,74 @@
     z-index: 1200 !important;
   }
 }
+
+/* ---------- SUPERADMIN, icon-only (collapsed) sidebar: fits short windows (original sizes at >= 780px tall) ---------- */
+@media (max-height: 780px) {
+  .sa-shell.sa-sidebar-collapsed .sa-sidebar {
+    padding-top: clamp(58px, calc(96px - (780px - 100vh) * 0.12), 96px) !important;
+    padding-bottom: clamp(8px, calc(20px - (780px - 100vh) * 0.03), 20px) !important;
+  }
+
+  .sa-shell.sa-sidebar-collapsed .sa-sidebar-toggle {
+    top: clamp(8px, calc(28px - (780px - 100vh) * 0.1), 28px) !important;
+    width: clamp(34px, calc(46px - (780px - 100vh) * 0.06), 46px) !important;
+    height: clamp(34px, calc(46px - (780px - 100vh) * 0.06), 46px) !important;
+  }
+
+  .sa-shell.sa-sidebar-collapsed .sa-nav {
+    margin-top: 0 !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    gap: clamp(4px, calc(12px - (780px - 100vh) * 0.05), 12px) !important;
+    padding-bottom: clamp(6px, calc(18px - (780px - 100vh) * 0.04), 18px) !important;
+  }
+
+  .sa-shell.sa-sidebar-collapsed .sa-nav a {
+    height: clamp(30px, calc(48px - (780px - 100vh) * 0.11), 48px) !important;
+    min-height: 0 !important;
+    flex: none !important;
+  }
+
+  .sa-shell.sa-sidebar-collapsed .sa-sidebar-bottom {
+    flex: 0 0 auto !important;
+    padding-top: clamp(8px, calc(16px - (780px - 100vh) * 0.03), 16px) !important;
+  }
+
+  .sa-shell.sa-sidebar-collapsed .sa-user-card,
+  .sa-shell.sa-sidebar-collapsed .sa-logout-btn {
+    width: clamp(34px, calc(48px - (780px - 100vh) * 0.04), 48px) !important;
+    height: clamp(34px, calc(48px - (780px - 100vh) * 0.04), 48px) !important;
+    min-height: 0 !important;
+  }
+
+  .sa-shell.sa-sidebar-collapsed .sa-user-card {
+    margin-bottom: clamp(4px, calc(12px - (780px - 100vh) * 0.03), 12px) !important;
+  }
+}
+
+@media (max-height: 560px) {
+  .sa-shell.sa-sidebar-collapsed .sa-user-card {
+    display: none !important;
+  }
+}
+
+/* page's own <h1> repeats the top-bar title -> hidden on phones (see useHideDuplicateTitle) */
+@media (max-width: 900px) {
+  .rms-mobile [data-dup-title] {
+    display: none !important;
+  }
+}
+
+/* Phone drawer: size it from top:0 / bottom:0 (not 100dvh) so Logout always stays on screen,
+   even when the browser's visible area is shorter than 100dvh. */
+@media (max-width: 900px) {
+  .employee-dashboard-shell.rms-mobile:not(.sidebar-collapsed) .employee-sidebar,
+  .admin-dashboard-shell.admin-role-shell.rms-mobile:not(.sidebar-collapsed) .admin-sidebar,
+  .sa-shell.rms-mobile:not(.sa-sidebar-collapsed) .sa-sidebar {
+    top: 0 !important;
+    bottom: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

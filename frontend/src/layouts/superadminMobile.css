@@ -473,4 +473,358 @@
     font-style: normal;
     font-weight: 800;
   }
+
+  /* ---------- Inline-styled pop-ups (leave details, ...): centred with a margin, never wider than the screen ---------- */
+  .sa-shell [style*="position: fixed"][style*="inset: 0px"][style*="rgba(15, 23, 42"],
+  [style*="position: fixed"][style*="inset: 0px"][style*="rgba(15, 23, 42"][style*="z-index: 20000"] {
+    padding: 12px !important;
+    box-sizing: border-box !important;
+  }
+
+  .sa-shell [style*="position: fixed"][style*="inset: 0px"][style*="rgba(15, 23, 42"] > [style*="position: relative"],
+  [style*="position: fixed"][style*="inset: 0px"][style*="rgba(15, 23, 42"][style*="z-index: 20000"] > [style*="position: relative"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: calc(100dvh - 24px) !important;
+    padding: 16px !important;
+    border-radius: 20px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ---------- Employee Summary (HR view inside Attendance): compact phone layout ---------- */
+  .hr-summary-only {
+    padding: 0 !important;
+  }
+
+  /* the page already has a title and Refresh above: keep only a small Refresh */
+  .hr-summary-only .hr-header {
+    display: flex !important;
+    justify-content: flex-end !important;
+    margin: 0 0 10px !important;
+    padding: 0 !important;
+  }
+
+  .hr-summary-only .hr-header > div:first-child {
+    display: none !important;
+  }
+
+  /* month first: [<] [month] [>], then the quick ranges; the 7-day strip is not needed here */
+  .hr-summary-only .hr-date-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+
+  .hr-summary-only .hr-date-strip {
+    display: none !important;
+  }
+
+  .hr-summary-only .hr-date-bar > :nth-child(1) { order: 1; }
+  .hr-summary-only .hr-date-bar > :nth-child(7) { order: 2; flex: 1 1 auto !important; min-width: 0 !important; }
+  .hr-summary-only .hr-date-bar > :nth-child(3) { order: 3; }
+  .hr-summary-only .hr-date-bar > :nth-child(4),
+  .hr-summary-only .hr-date-bar > :nth-child(5),
+  .hr-summary-only .hr-date-bar > :nth-child(6) {
+    order: 4;
+    flex: 1 1 30% !important;
+    min-width: 0 !important;
+  }
+
+  .hr-summary-only .hr-filters {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .hr-summary-only .hr-filters > .hr-search,
+  .hr-summary-only .hr-filters > .rms-phone-select {
+    grid-column: 1 / -1 !important;
+  }
+
+  .hr-summary-only .hr-filters .hr-filter-apply,
+  .hr-summary-only .hr-filters .hr-filter-clear {
+    width: 100% !important;
+    min-height: 46px !important;
+  }
+
+  .hr-summary-only .hr-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .hr-summary-only .hr-metrics > :last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+  }
+
+  /* employee cards: roomy rows, pastel View button */
+  .hr-summary-only .hr-table-row {
+    padding: 14px 16px !important;
+  }
+
+  .hr-summary-only .hr-table-row > * {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .hr-summary-only .hr-view-button::before {
+    display: none !important;
+  }
+
+  .hr-summary-only .hr-view-button {
+    width: 100% !important;
+    max-width: none !important;
+    margin-top: 6px !important;
+    min-width: 120px !important;
+    min-height: 42px !important;
+    padding: 0 18px !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    border: 0 !important;
+    border-radius: 12px !important;
+    background: #e3efff !important;
+    color: #2c64a8 !important;
+    font-weight: 800 !important;
+  }
+}
+
+/* ---------- Calendar: soft pastel palette (project blue, task peach, meeting rose, mini mint) ---------- */
+.superadmin-cal-event-bar-project { background: #e6f0fd !important; color: #4a78b0 !important; }
+.superadmin-cal-event-bar-task { background: #fdeee0 !important; color: #b9763a !important; }
+.superadmin-cal-event-bar-meeting { background: #fde6e3 !important; color: #b9615a !important; }
+.superadmin-cal-event-bar-mini { background: #e2f5ea !important; color: #4a8d68 !important; }
+
+.superadmin-cal-event-bar-project .superadmin-cal-event-bar-dot,
+.superadmin-cal-legend-dot.project,
+.superadmin-cal-project-dot,
+.superadmin-cal-day-dot.dot-project { background: #9ec1ec !important; }
+
+.superadmin-cal-event-bar-task .superadmin-cal-event-bar-dot,
+.superadmin-cal-legend-dot.task,
+.superadmin-cal-task-dot,
+.superadmin-cal-day-dot.dot-task { background: #f4c08f !important; }
+
+.superadmin-cal-event-bar-meeting .superadmin-cal-event-bar-dot,
+.superadmin-cal-legend-dot.meeting,
+.superadmin-cal-meeting-dot,
+.superadmin-cal-day-dot.dot-meeting { background: #f2a9a2 !important; }
+
+.superadmin-cal-event-bar-mini .superadmin-cal-event-bar-dot,
+.superadmin-cal-legend-dot.mini,
+.superadmin-cal-mini-dot,
+.superadmin-cal-day-dot.dot-mini { background: #9fd8b8 !important; }
+
+.superadmin-cal-project-text { color: #4a78b0 !important; }
+.superadmin-cal-task-text { color: #b9763a !important; }
+.superadmin-cal-meeting-text { color: #b9615a !important; }
+.superadmin-cal-mini-text { color: #4a8d68 !important; }
+
+/* =========================================================
+   SUPERADMIN OVERVIEW - compact, tidy phone layout
+   (instead of giant full-width tiles)
+========================================================= */
+@media (max-width: 700px) {
+  .sa-shell .sa-ov-page {
+    gap: 14px !important;
+  }
+
+  .sa-shell .sa-ov-title-row {
+    gap: 8px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .sa-shell .sa-ov-subtitle {
+    margin: 0 !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+
+  .sa-shell .sa-ov-card {
+    padding: 16px !important;
+    border-radius: 20px !important;
+  }
+
+  .sa-shell .sa-ov-section-title {
+    font-size: 19px !important;
+    gap: 8px !important;
+  }
+
+  .sa-shell .sa-ov-section-sub {
+    margin: 4px 0 12px !important;
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* headline numbers: 2 per row, small tiles */
+  .sa-shell .sa-ov-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+  }
+
+  .sa-shell .sa-ov-stat-grid > :last-child:nth-child(odd) {
+    grid-column: 1 / -1 !important;
+  }
+
+  .sa-shell .sa-overview-inline-stat-card {
+    min-height: 0 !important;
+    height: auto !important;
+    padding: 12px 14px !important;
+    gap: 6px !important;
+    border-radius: 16px !important;
+  }
+
+  .sa-shell .sa-ov-overview-stat-value {
+    height: auto !important;
+    font-size: 28px !important;
+    line-height: 1.05 !important;
+  }
+
+  .sa-shell .sa-ov-overview-stat-footer {
+    gap: 8px !important;
+  }
+
+  .sa-shell .sa-overview-inline-stat-icon {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    border-radius: 8px !important;
+  }
+
+  .sa-shell .sa-overview-inline-stat-icon svg {
+    width: 15px !important;
+    height: 15px !important;
+  }
+
+  .sa-shell .sa-ov-overview-stat-label {
+    font-size: 12px !important;
+  }
+
+  /* needs-attention counters: 3 per row */
+  .sa-shell .sa-ov-attn-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin: 6px 0 4px !important;
+  }
+
+  .sa-shell .sa-ov-attn-tile {
+    padding: 10px !important;
+    gap: 4px !important;
+    border-radius: 14px !important;
+  }
+
+  .sa-shell .sa-ov-attn-tile strong {
+    font-size: 22px !important;
+  }
+
+  .sa-shell .sa-ov-attn-tile span {
+    font-size: 11px !important;
+    line-height: 1.25 !important;
+  }
+
+  .sa-shell .sa-ov-attn-tiles > :last-child:nth-child(odd) {
+    grid-column: auto !important;
+  }
+
+  .sa-shell .sa-ov-attn-row {
+    padding: 10px 12px !important;
+    margin-bottom: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  .sa-shell .sa-ov-attn-row strong {
+    font-size: 14px !important;
+  }
+
+  .sa-shell .sa-ov-attn-group h3 {
+    font-size: 14px !important;
+  }
+
+  /* user cards in the two user lists: short, side-by-side details */
+  .sa-shell .sa-ov-user-scroll-list {
+    max-height: 420px !important;
+    gap: 10px !important;
+  }
+
+  .sa-shell .sa-ov-user-mini-card {
+    padding: 12px !important;
+    border-radius: 16px !important;
+  }
+
+  .sa-shell .sa-ov-user-mini-top {
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .sa-shell .sa-ov-user-name {
+    font-size: 15px !important;
+  }
+
+  .sa-shell .sa-ov-user-mini-card .sa-ov-small-text {
+    font-size: 12px !important;
+    line-height: 1.3 !important;
+    overflow-wrap: anywhere;
+  }
+
+  .sa-shell .sa-ov-user-mini-card .sa-ov-badge {
+    padding: 4px 9px !important;
+    font-size: 11px !important;
+  }
+
+  .sa-shell .sa-ov-user-meta-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 6px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .sa-shell .sa-ov-user-meta-item {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1px !important;
+    padding: 6px 8px !important;
+    border-radius: 10px !important;
+    background: #f8fafc !important;
+  }
+
+  .sa-shell .sa-ov-user-meta-label {
+    font-size: 11px !important;
+  }
+
+  .sa-shell .sa-ov-user-meta-value {
+    max-width: 100% !important;
+    font-size: 13px !important;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* ---------- Field visits: properly sized search + picker on phones ---------- */
+@media (max-width: 700px) {
+  .sa-shell .sa-field-filter-box {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    padding: 12px !important;
+  }
+
+  .sa-shell .sa-field-search {
+    width: 100% !important;
+    min-height: 50px !important;
+    box-sizing: border-box !important;
+    padding: 0 14px !important;
+    border-radius: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+  }
+
+  .sa-shell .sa-field-search input {
+    flex: 1 !important;
+    min-width: 0 !important;
+    height: 48px !important;
+    font-size: 15px !important;
+    border: 0 !important;
+    outline: 0 !important;
+    background: transparent !important;
+  }
 }

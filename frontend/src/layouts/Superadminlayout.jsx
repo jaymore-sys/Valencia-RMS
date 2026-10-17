@@ -1,6 +1,10 @@
 import { useState, lazy, Suspense } from "react";
 import MobileNavControls from "../components/MobileNavControls";
-import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
+import {
+  useMobileShell,
+  useTableLabels,
+  useHideDuplicateTitle,
+} from "../hooks/useMobileShell";
 
 import {
   NavLink,
@@ -77,6 +81,8 @@ const PAGE_TITLES = {
 
 const SuperadminLayout = () => {
   const location = useLocation();
+  const pageTitle = PAGE_TITLES[location.pathname.split("/")[2]] || "";
+  useHideDuplicateTitle(".sa-main", pageTitle);
 
 
   const navigate = useNavigate();
@@ -173,7 +179,7 @@ const SuperadminLayout = () => {
       />
 
       <div className="rms-page-title">
-        {PAGE_TITLES[location.pathname.split("/")[2]] || ""}
+        {pageTitle}
       </div>
 
       <aside className="sa-sidebar">

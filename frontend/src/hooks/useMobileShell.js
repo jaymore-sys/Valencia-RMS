@@ -86,3 +86,48 @@ export function useTableLabels(mainSelector) {
     };
   }, [mainSelector]);
 }
+
+// The phone top bar already shows the page name, so a page's own big <h1> with the same
+// name (e.g. "Field Visits", "Superadmin Overview") is marked data-dup-title and hidden on
+// phones (mobileCommon.css). Attributes only; desktop is unaffected.
+export function useHideDuplicateTitle(mainSelector, title) {
+  useEffect(() => {
+    const main = document.querySelector(mainSelector);
+    if (!main || !title) return undefined;
+
+    const normalize = (text) =>
+      String(text || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+
+    const wanted = normalize(title);
+    let timer = 0;
+
+    const mark = () => {
+      timer = 0;
+
+      main.querySelectorAll("h1").forEach((heading) => {
+        const same = normalize(heading.textContent).includes(wanted);
+
+        if (heading.hasAttribute("data-dup-title") !== same) {
+          heading.toggleAttribute("data-dup-title", same);
+        }
+      });
+    };
+
+    const schedule = () => {
+      if (!timer) timer = window.setTimeout(mark, 0);
+    };
+
+    mark();
+
+    const observer = new MutationObserver(schedule);
+    observer.observe(main, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+      if (timer) window.clearTimeout(timer);
+    };
+  }, [mainSelector, title]);
+}

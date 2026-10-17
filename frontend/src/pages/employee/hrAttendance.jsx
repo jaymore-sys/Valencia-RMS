@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import api from "../../api/axios";
+import PhoneSelect from "../../components/PhoneSelect";
 import "../../layouts/hrAttendance.css";
 
 /* =========================================================
@@ -1560,7 +1561,7 @@ await fetchEmployeeSummary({
   ========================================================= */
 
   return (
-    <div className="hr-page">
+    <div className={`hr-page${summaryOnly ? " hr-summary-only" : ""}`}>
       {toast && (
         <div className={`hr-toast hr-toast-${toast.type}`}>
           {toast.message}
@@ -1774,7 +1775,7 @@ await fetchEmployeeSummary({
           />
         </div>
 
-        <select
+        <PhoneSelect
           value={department}
           onChange={(event) => setDepartment(event.target.value)}
         >
@@ -1785,10 +1786,10 @@ await fetchEmployeeSummary({
               {item}
             </option>
           ))}
-        </select>
+        </PhoneSelect>
 
         {activeTab === "attendance" && (
-          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+          <PhoneSelect value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="all">All Status</option>
             <option value="Present">Present</option>
             <option value="Late">Late</option>
@@ -1804,12 +1805,12 @@ await fetchEmployeeSummary({
             <option value="Unpaid Leave">Unpaid Leave</option>
             <option value="Weekly Off">Weekly Off</option>
             <option value="Holiday">Holiday</option>
-          </select>
+          </PhoneSelect>
         )}
 
         {activeTab === "leave" && (
           <>
-            <select
+            <PhoneSelect
               value={leaveStatus}
               onChange={(e) => setLeaveStatus(e.target.value)}
             >
@@ -1830,9 +1831,9 @@ await fetchEmployeeSummary({
               <option value="Revert Rejected">
                 Revert Rejected
               </option>
-            </select>
+            </PhoneSelect>
 
-            <select
+            <PhoneSelect
               value={leaveType}
               onChange={(e) => setLeaveType(e.target.value)}
             >
@@ -1842,12 +1843,12 @@ await fetchEmployeeSummary({
               <option value="mandatory">Privileged Leave</option>
               <option value="festival">Festival Leave</option>
               <option value="unpaid">Unpaid Leave</option>
-            </select>
+            </PhoneSelect>
           </>
         )}
 
         {activeTab === "field" && (
-          <select
+          <PhoneSelect
             value={fieldStatus}
             onChange={(e) => setFieldStatus(e.target.value)}
           >
@@ -1855,7 +1856,7 @@ await fetchEmployeeSummary({
             <option value="pending">Pending</option>
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
-          </select>
+          </PhoneSelect>
         )}
 
         <button className="hr-filter-apply" onClick={applyFilters}>
@@ -3379,6 +3380,7 @@ await fetchEmployeeSummary({
     </div>
 
     <div className="hr-modal-footer">
+  {!summaryOnly && (
   <button
     className="hr-button primary"
     onClick={() =>
@@ -3390,6 +3392,7 @@ await fetchEmployeeSummary({
     <Plus size={16} />
     Add Attendance
   </button>
+  )}
 
   <button
     className="hr-button secondary"

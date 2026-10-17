@@ -4,6 +4,7 @@ import { Search, RefreshCw, MapPin, Users, CheckCircle, Clock, XCircle } from "l
 
 import api from "../../api/axios";
 import ReadMoreText from "../../components/ReadMoreText";
+import PhoneSelect from "../../components/PhoneSelect";
 
 import "./superadminFieldVisits.css";
 
@@ -99,23 +100,35 @@ export default function SuperadminFieldVisits() {
 
   const mayReview = v => roleOf(v) === "admin" || canReviewEmployee || currentRole === "superadmin";
 
-  // newest visit date first (then newest submitted)
+  // pending visits first, then newest visit date first (then newest submitted)
   const tabVisits = useMemo(()=>{
     const time=x=>{const n=Date.parse(x);return Number.isNaN(n)?0:n;};
     return visits
       .filter(v=>tab === "admin" ? roleOf(v) === "admin" : roleOf(v) === "employee")
-      .sort((a,b)=>time(b.visit_date)-time(a.visit_date)||time(b.created_at)-time(a.created_at)||Number(b.visit_id)-Number(a.visit_id));
+      .sort((a,b)=>(statusOf(a)==="pending"?0:1)-(statusOf(b)==="pending"?0:1)||time(b.visit_date)-time(a.visit_date)||time(b.created_at)-time(a.created_at)||Number(b.visit_id)-Number(a.visit_id));
   },[visits,tab]);
 
   const summary = useMemo(()=>({total:tabVisits.length,employees:new Set(tabVisits.map(v=>v.employee_id)).size,approved:tabVisits.filter(v=>statusOf(v)==="approved").length,pending:tabVisits.filter(v=>statusOf(v)==="pending").length}),[tabVisits]);
 
+  const [person,setPerson]=useState("all");
+
+  // people who have visits in this tab (for the "choose a name" picker)
+  const people=useMemo(()=>{
+    const map=new Map();
+    tabVisits.forEach(v=>{if(v.employee_id!=null&&!map.has(String(v.employee_id)))map.set(String(v.employee_id),{id:String(v.employee_id),name:v.full_name||"-",code:v.employee_code||""});});
+    return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  },[tabVisits]);
+
   const filteredVisits=useMemo(()=>tabVisits.filter(v=>{
+
+    if(person!=="all"&&String(v.employee_id)!==person)return false;
+
 
     const searchable=[v.full_name,v.employee_code,v.department_name,v.location,v.visit_type,v.comment,v.conclusion,v.remark,v.review_remark,...stopsOf(v).flatMap(s=>[s.location,s.description])].join(" ").toLowerCase();
 
     return (!search.trim()||searchable.includes(search.trim().toLowerCase()))&&(status==="all"||statusOf(v)===status);
 
-  }),[tabVisits,search,status]);
+  }),[tabVisits,search,status,person]);
 
   const submitDecision=async(visit,nextStatus,remark="")=>{
 
@@ -157,7 +170,7 @@ export default function SuperadminFieldVisits() {
 
     <div role="tablist" aria-label="Field visit owner" style={{display:"flex",gap:8,margin:"20px 0",flexWrap:"wrap"}}>
 
-      {[{id:"admin",label:"Admin Field Visits"},{id:"employee",label:"Employee Field Visits"}].map(t=><button key={t.id} role="tab" aria-selected={tab===t.id} type="button" onClick={()=>{setTab(t.id);setStatus("all");setSearch("");}} style={{padding:"12px 18px",borderRadius:10,border:"1px solid #e2e8f0",fontWeight:700,cursor:"pointer",background:tab===t.id?"#ff5838":"#fff",color:tab===t.id?"#fff":"#24324b"}}>{t.label}</button>)}
+      {[{id:"admin",label:"Admin Field Visits"},{id:"employee",label:"Employee Field Visits"}].map(t=><button key={t.id} role="tab" aria-selected={tab===t.id} type="button" onClick={()=>{setTab(t.id);setStatus("all");setSearch("");setPerson("all");}} style={{padding:"12px 18px",borderRadius:10,border:"1px solid #e2e8f0",fontWeight:700,cursor:"pointer",background:tab===t.id?"#ff5838":"#fff",color:tab===t.id?"#fff":"#24324b"}}>{t.label}</button>)}
 
     </div>
 
@@ -173,7 +186,7 @@ export default function SuperadminFieldVisits() {
 
     </div>
 
-    <div className="sa-field-filter-box"><div className="sa-field-search"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, department, location..."/></div><select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="changes_requested">Changes Requested</option></select></div>
+    <div className="sa-field-filter-box"><div className="sa-field-search"><Search size={18}/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name, department, location..."/></div><PhoneSelect className="sa-field-person" title="Choose a person" searchAfter={0} value={person} onChange={e=>setPerson(e.target.value)}><option value="all">All people</option>{people.map(x=><option key={x.id} value={x.id}>{x.name}{x.code?` (${x.code})`:""}</option>)}</PhoneSelect><PhoneSelect title="Status" value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All Status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="changes_requested">Changes Requested</option></PhoneSelect></div>
 
     <div className="sa-field-table-card">{loading?<div className="sa-field-loading">Loading field visits...</div>:!filteredVisits.length?<div className="sa-field-empty"><MapPin size={42}/><h3>No Field Visits Found</h3><p>No visits match your filters.</p></div>:<div className="sa-field-table-wrapper"><table><thead><tr><th>{tab==="admin"?"Admin":"Employee"}</th><th>Department</th><th>Visit Type</th><th>Date</th><th>Location</th><th>Description / Conclusion</th><th>Status</th><th>Action</th></tr></thead><tbody>{filteredVisits.map(v=>{
 

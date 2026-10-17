@@ -66,3 +66,13 @@
   flex: none;
   text-transform: capitalize;
 }
+
+.sa-users-updated-note {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fff7e6;
+  color: #7a5200;
+  font-size: 13px;
+  line-height: 1.45;
+}

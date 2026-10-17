@@ -88,6 +88,19 @@ export default function PhoneSelect({
             }}
           >
             <div className="rms-sheet" role="dialog" aria-modal="true">
+              <div className="rms-sheet-head">
+                <strong>{title || "Choose"}</strong>
+
+                <button
+                  type="button"
+                  className="rms-sheet-x"
+                  aria-label="Close"
+                  onClick={close}
+                >
+                  ✕
+                </button>
+              </div>
+
               {options.length > searchAfter && (
                 <input
                   type="search"

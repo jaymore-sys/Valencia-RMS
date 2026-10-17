@@ -12,6 +12,7 @@ import React, {
 
 import api from "../../api/axios";
 import HrAttendance from "../employee/hrAttendance";
+import PhoneSelect from "../../components/PhoneSelect";
 
 
 
@@ -1544,7 +1545,7 @@ const SuperadminAttendance =
 
 
 
-              <select
+              <PhoneSelect
 
                 style={
 
@@ -1612,7 +1613,7 @@ const SuperadminAttendance =
 
                 )}
 
-              </select>
+              </PhoneSelect>
 
             </div>
 
@@ -1924,10 +1925,10 @@ const SuperadminAttendance =
                   <div style={{fontWeight:800,color:"#17233a"}}>Day-wise Attendance · {detailRecords.length} records</div>
                   <label style={{fontWeight:750,fontSize:13,color:"#334155",display:"flex",alignItems:"center",gap:8}}>
                     Month
-                    <select value={detailMonth} onChange={(event) => setDetailMonth(event.target.value)} style={{padding:"10px 12px",border:"1px solid #cbd5e1",borderRadius:10,background:"#fff",minWidth:160}}>
+                    <PhoneSelect value={detailMonth} onChange={(event) => setDetailMonth(event.target.value)} style={{padding:"10px 12px",border:"1px solid #cbd5e1",borderRadius:10,background:"#fff",minWidth:160}}>
                       <option value="all">All Records</option>
                       {employeeMonths.map(month => <option key={month} value={month}>{new Date(`${month}-01T00:00:00`).toLocaleDateString("en-IN", {month:"long",year:"numeric"})}</option>)}
-                    </select>
+                    </PhoneSelect>
                   </label>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:9,marginBottom:18}}>

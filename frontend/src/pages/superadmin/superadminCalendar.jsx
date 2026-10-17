@@ -27,6 +27,32 @@ import { useIsPhone } from "../../components/ReadMoreText";
 import "./superadminCalendar.css";
 
 /* =========================================================
+   DEPARTMENT EMOJI (a quick visual cue next to each department name)
+========================================================= */
+
+const DEPARTMENT_EMOJI = [
+  [/(it|tech|software|dev)/i, "💻"],
+  [/finance|account/i, "💰"],
+  [/sales|marketing/i, "📈"],
+  [/creative|design/i, "🎨"],
+  [/hr|human/i, "🧑‍💼"],
+  [/nutra|health/i, "🥗"],
+  [/cans?/i, "🥫"],
+  [/pet/i, "🐾"],
+  [/pos/i, "🛍️"],
+  [/adv/i, "📣"],
+  [/crunz|snack/i, "🍿"],
+  [/corporate|office|admin/i, "🏢"],
+];
+
+const deptEmoji = (name) => {
+  const text = String(name || "");
+  const hit = DEPARTMENT_EMOJI.find(([pattern]) => pattern.test(text));
+
+  return hit ? hit[1] : "🏷️";
+};
+
+/* =========================================================
    DATE HELPERS
 ========================================================= */
 
@@ -1639,10 +1665,7 @@ const SuperadminCalendar = () => {
                     <>
                       {item.department_name && (
                         <p>
-                          Department:{" "}
-                          {
-                            item.department_name
-                          }
+                          {deptEmoji(item.department_name)} Department:{" "}{item.department_name}
                         </p>
                       )}
 
@@ -1682,10 +1705,7 @@ const SuperadminCalendar = () => {
 
                       {item.department_name && (
                         <p>
-                          Department:{" "}
-                          {
-                            item.department_name
-                          }
+                          {deptEmoji(item.department_name)} Department:{" "}{item.department_name}
                         </p>
                       )}
 
@@ -1716,10 +1736,7 @@ const SuperadminCalendar = () => {
 
                       {item.department_name && (
                         <p>
-                          Department:{" "}
-                          {
-                            item.department_name
-                          }
+                          {deptEmoji(item.department_name)} Department:{" "}{item.department_name}
                         </p>
                       )}
                     </>

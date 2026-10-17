@@ -2750,23 +2750,7 @@ const getSuperadminAttendance =
 
 
 
-      const startDate =
-
-
-
-        formatDateOnly(
-
-
-
-          rangeRows[0]
-
-
-
-            ?.start_date
-
-
-
-        );
+      const firstAttendanceDate = formatDateOnly(rangeRows[0]?.start_date);
 
 
 
@@ -2787,6 +2771,17 @@ const getSuperadminAttendance =
 
 
         );
+
+      // Attendance is only imported from April: the organization summary starts on 1 April
+      // of the financial year of the latest record (not at the oldest stray row).
+      const aprilStart = endDate
+        ? `${Number(endDate.slice(5, 7)) >= 4 ? endDate.slice(0, 4) : Number(endDate.slice(0, 4)) - 1}-04-01`
+        : null;
+
+      const startDate =
+        aprilStart && firstAttendanceDate && firstAttendanceDate < aprilStart
+          ? aprilStart
+          : firstAttendanceDate;
 
 
 
