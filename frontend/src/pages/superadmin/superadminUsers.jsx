@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import api from "../../api/axios";
 import "./superadminUsers.css";
+import "./superadminUsersExtra.css";
 
 const normalizePercentage = (value) => {
   const number = Number(value || 0);
@@ -58,12 +59,15 @@ const SuperadminUsers = () => {
     }
   };
 
-  const openUserDetails = async (userId) => {
+  // keepOpen: switching the attendance month keeps the dialog on screen
+  const openUserDetails = async (userId, month, keepOpen = false) => {
     try {
-      setDetailsLoading(true);
+      if (!keepOpen) setDetailsLoading(true);
       setMessage("");
 
-      const response = await api.get(`/superadmin/users/${userId}`);
+      const response = await api.get(`/superadmin/users/${userId}`, {
+        params: month ? { month } : {},
+      });
       setSelectedDetails(response.data);
     } catch (error) {
       setMessageType("error");
@@ -218,6 +222,9 @@ const filteredUsers = useMemo(() => {
       event.target.value = "";
     }
   };
+
+  const summaryNumber = (key) =>
+    Number(selectedDetails?.attendance_summary?.[key] || 0);
 
   return (
     <div className="sa-users-page">
@@ -502,6 +509,130 @@ const filteredUsers = useMemo(() => {
                   value={selectedDetails.user?.skills}
                 />
               </div>
+            </section>
+
+            <section className="sa-users-modal-section">
+              <div className="sa-users-month-row">
+                <h3>Attendance Summary</h3>
+
+                <input
+                  type="month"
+                  className="sa-users-month-input"
+                  value={selectedDetails.attendance_summary?.month || ""}
+                  onChange={(event) =>
+                    event.target.value &&
+                    openUserDetails(
+                      selectedDetails.user?.user_id,
+                      event.target.value,
+                      true
+                    )
+                  }
+                />
+              </div>
+
+              <div className="sa-users-info-grid">
+                <InfoBox label="Working Days" value={summaryNumber("working_days")} />
+                <InfoBox label="Present" value={summaryNumber("present")} />
+                <InfoBox label="Absent" value={summaryNumber("absent")} />
+                <InfoBox label="Late Marks" value={summaryNumber("late")} />
+                <InfoBox label="Half Day" value={summaryNumber("half_day")} />
+                <InfoBox label="Field Visit" value={summaryNumber("field_visit")} />
+                <InfoBox label="Leave" value={summaryNumber("leave")} />
+                <InfoBox label="No Punch" value={summaryNumber("no_punch")} />
+              </div>
+            </section>
+
+            <section className="sa-users-modal-section">
+              <h3>Leaves</h3>
+
+              {selectedDetails.leaves?.length ? (
+                <div className="sa-users-mini-list">
+                  {selectedDetails.leaves.map((leave) => (
+                    <article className="sa-users-mini-card" key={leave.leave_id}>
+                      <div>
+                        <strong>
+                          {String(leave.leave_type || "").replace(/_/g, " ")}
+                        </strong>
+                        <span>
+                          {leave.start_date}
+                          {leave.end_date && leave.end_date !== leave.start_date
+                            ? ` to ${leave.end_date}`
+                            : ""}{" "}
+                          · {Number(leave.total_days || 0)} day(s)
+                        </span>
+                      </div>
+
+                      <span className="sa-users-badge">
+                        {Number(leave.escalated_for_approval)
+                          ? `${leave.status} · escalated`
+                          : leave.status}
+                      </span>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="sa-users-empty">No leave applications.</div>
+              )}
+            </section>
+
+            <section className="sa-users-modal-section">
+              <h3>Field Visits</h3>
+
+              {selectedDetails.field_visits?.length ? (
+                <div className="sa-users-mini-list">
+                  {selectedDetails.field_visits.map((visit) => (
+                    <article className="sa-users-mini-card" key={visit.visit_id}>
+                      <div>
+                        <strong>{visit.visit_type || "Field visit"}</strong>
+                        <span>
+                          {visit.visit_date}
+                          {visit.end_date && visit.end_date !== visit.visit_date
+                            ? ` to ${visit.end_date}`
+                            : ""}
+                          {visit.location ? ` · ${visit.location}` : ""}
+                        </span>
+                      </div>
+
+                      <span className="sa-users-badge">{visit.status}</span>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="sa-users-empty">No field visits.</div>
+              )}
+            </section>
+
+            <section className="sa-users-modal-section">
+              <h3>Mini Tasks</h3>
+
+              {selectedDetails.mini_tasks?.length ? (
+                <div className="sa-users-mini-list">
+                  {selectedDetails.mini_tasks.map((mini) => {
+                    const minutes = Number(mini.total_minutes) || 0;
+
+                    return (
+                      <article
+                        className="sa-users-mini-card"
+                        key={mini.mini_task_id}
+                      >
+                        <div>
+                          <strong>{mini.mini_task_title || "Mini task"}</strong>
+                          <span>
+                            {mini.task_date}
+                            {mini.division ? ` · ${mini.division}` : ""}
+                          </span>
+                        </div>
+
+                        <span className="sa-users-badge">
+                          {Math.floor(minutes / 60)}h {minutes % 60}m
+                        </span>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="sa-users-empty">No mini tasks.</div>
+              )}
             </section>
 
             <TaskSection

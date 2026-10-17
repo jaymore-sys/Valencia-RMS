@@ -1,0 +1,68 @@
+/* Users dialog: attendance summary, leaves, field visits and mini tasks */
+
+.sa-users-month-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.sa-users-month-row h3 {
+  margin: 0;
+}
+
+.sa-users-month-input {
+  height: 42px;
+  padding: 0 12px;
+  border: 1px solid #d5dae2;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #111827;
+  font-weight: 800;
+}
+
+.sa-users-mini-list {
+  display: grid;
+  gap: 10px;
+}
+
+.sa-users-mini-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.sa-users-mini-card > div {
+  min-width: 0;
+}
+
+.sa-users-mini-card strong,
+.sa-users-mini-card > div > span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.sa-users-mini-card strong {
+  color: #111827;
+  font-size: 15px;
+  font-weight: 900;
+  text-transform: capitalize;
+}
+
+.sa-users-mini-card > div > span {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.sa-users-mini-card .sa-users-badge {
+  flex: none;
+  text-transform: capitalize;
+}

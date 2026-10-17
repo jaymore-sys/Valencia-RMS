@@ -16,6 +16,9 @@ import {
 
 import api from "../../api/axios";
 import ReadMoreText from "../../components/ReadMoreText";
+import PhoneSelect from "../../components/PhoneSelect";
+import StatusFilterChips from "../../components/StatusFilterChips";
+import { useIsPhone } from "../../components/ReadMoreText";
 
 import "./superadminTasks.css";
 
@@ -603,9 +606,26 @@ const SuperadminTasks = () => {
       assignee,
     ]);
 
+  // ?open=<task id> (from the calendar): open that task's details once the list has loaded
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+
+    if (!id || !tasks.length) return;
+
+    const task = tasks.find((item) => String(item.task_id) === id);
+
+    if (task) {
+      setSelectedTask(task);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, [tasks]);
+
   /* =========================================================
      GROUP TASKS
   ========================================================= */
+
+  const phone = useIsPhone();
+  const [statusView, setStatusView] = useState("all");
 
   const groupedTasks =
     useMemo(() => {
@@ -700,7 +720,7 @@ const SuperadminTasks = () => {
           />
         </label>
 
-        <select
+        <PhoneSelect
           value={department}
           onChange={(
             event
@@ -725,9 +745,9 @@ const SuperadminTasks = () => {
               </option>
             )
           )}
-        </select>
+        </PhoneSelect>
 
-        <select
+        <PhoneSelect
           value={assignee}
           onChange={(
             event
@@ -758,10 +778,22 @@ const SuperadminTasks = () => {
               </option>
             )
           )}
-        </select>
+        </PhoneSelect>
       </section>
 
       {/* KANBAN */}
+
+      <StatusFilterChips
+        columns={STATUS_COLUMNS}
+        counts={Object.fromEntries(
+          STATUS_COLUMNS.map((column) => [
+            column.key,
+            (groupedTasks[column.key] || []).length,
+          ])
+        )}
+        value={statusView}
+        onChange={setStatusView}
+      />
 
       {loading ? (
         <div className="sa-tasks-empty">
@@ -772,7 +804,12 @@ const SuperadminTasks = () => {
           className="sa-tasks-board"
           aria-label="Superadmin Task Kanban Board"
         >
-          {STATUS_COLUMNS.map(
+          {(phone && statusView !== "all"
+            ? STATUS_COLUMNS.filter(
+                (column) => column.key === statusView
+              )
+            : STATUS_COLUMNS
+          ).map(
             (column) => {
               const ColumnIcon =
                 column.icon;

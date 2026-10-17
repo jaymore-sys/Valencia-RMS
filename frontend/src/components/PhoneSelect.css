@@ -1,0 +1,109 @@
+/* PhoneSelect: phone replacement for native <select> (button + bottom sheet) */
+
+.rms-phone-select {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  width: 100% !important;
+  min-height: 50px !important;
+  padding: 0 14px !important;
+  border: 1.5px solid #d5dae2 !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  font: inherit !important;
+  font-weight: 800 !important;
+  text-align: left !important;
+  cursor: pointer;
+}
+
+.rms-phone-select span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rms-phone-select i {
+  flex: none;
+  font-style: normal;
+  color: #64748b;
+}
+
+.rms-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.rms-sheet {
+  width: 100%;
+  max-height: 82dvh;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom, 0px));
+  border-radius: 22px 22px 0 0;
+  background: #ffffff;
+  box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.25);
+}
+
+.rms-sheet-search {
+  flex: none;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid #d5dae2;
+  border-radius: 14px;
+  font-size: 16px;
+}
+
+.rms-sheet-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rms-sheet-option {
+  flex: none;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #111827;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rms-sheet-option.selected {
+  background: #fff1ec;
+  color: #ff5733;
+  font-weight: 900;
+}
+
+.rms-sheet-empty {
+  padding: 18px;
+  color: #64748b;
+  text-align: center;
+}
+
+.rms-sheet-cancel {
+  flex: none;
+  min-height: 50px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111827;
+  font-size: 16px;
+  font-weight: 900;
+  cursor: pointer;
+}

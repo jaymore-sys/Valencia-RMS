@@ -5,8 +5,7 @@ import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
 import {
   NavLink,
   Outlet,
-  useNavigate,
-} from "react-router-dom";
+  useNavigate, useLocation } from "react-router-dom";
 
 import {
   BarChart3,
@@ -63,7 +62,21 @@ const getUser = () => {
    COMPONENT
 ========================================================= */
 
+// Shown in the phone top bar (hidden on desktop, see mobileCommon.css).
+const PAGE_TITLES = {
+  overview: "Overview",
+  projects: "Projects",
+  tasks: "Tasks",
+  users: "Users",
+  calendar: "Calendar",
+  attendance: "Attendance",
+  "leave-applications": "Leave Applications",
+  "field-visits": "Field Visits",
+  profile: "Profile",
+};
+
 const SuperadminLayout = () => {
+  const location = useLocation();
 
 
   const navigate = useNavigate();
@@ -158,6 +171,10 @@ const SuperadminLayout = () => {
         onOpen={() => setMobileNavOpen(true)}
         onClose={() => setMobileNavOpen(false)}
       />
+
+      <div className="rms-page-title">
+        {PAGE_TITLES[location.pathname.split("/")[2]] || ""}
+      </div>
 
       <aside className="sa-sidebar">
 

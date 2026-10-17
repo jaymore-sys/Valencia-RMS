@@ -3,6 +3,16 @@
    Scoped to .sa-shell; desktop and the other dashboards are unaffected.
 ========================================================= */
 
+/* calendar day dots / open hint are phone-only */
+.superadmin-cal-dots,
+.superadmin-cal-open-hint {
+  display: none;
+}
+
+.superadmin-cal-detail-item.openable {
+  cursor: pointer;
+}
+
 @media (max-width: 700px) {
   /* ---------- Header action buttons / tab pills wrap instead of running off-screen ---------- */
   .sa-shell .sa-projects-header-actions {
@@ -342,5 +352,125 @@
     padding: 8px 6px !important;
     row-gap: 4px !important;
     font-size: 13px !important;
+  }
+
+  /* Manage Assignees dialog: everything fits the phone, clear count, big buttons */
+  .sa-shell .sa-project-manager-search,
+  .sa-shell .sa-project-assignee-search {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    min-width: 0 !important;
+  }
+
+  .sa-shell .sa-project-manager-search input {
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .sa-shell .sa-project-assignment-header p {
+    font-size: 14px !important;
+    line-height: 1.45 !important;
+  }
+
+  .sa-shell .sa-project-assignment-footer {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+
+  .sa-shell .sa-project-assignment-footer button {
+    width: 100% !important;
+    min-height: 50px !important;
+    justify-content: center !important;
+  }
+
+  /* ---------- Calendar: compact month with dots, today's agenda right below ---------- */
+  .sa-shell .superadmin-cal-event-layer {
+    display: none !important;
+  }
+
+  .sa-shell .superadmin-cal-grid {
+    height: auto !important;
+    max-height: none !important;
+    flex: 0 0 auto !important;
+  }
+
+  .sa-shell .superadmin-cal-week-row,
+  .sa-shell .superadmin-main-calendar .superadmin-cal-week-row {
+    position: relative !important;
+    height: 56px !important;
+    min-height: 56px !important;
+    flex: 0 0 56px !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .sa-shell .superadmin-cal-page .superadmin-cal-day,
+  .sa-shell .superadmin-main-calendar .superadmin-cal-day {
+    height: 56px !important;
+    min-height: 56px !important;
+    padding: 6px 2px 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 4px !important;
+  }
+
+  .sa-shell .superadmin-cal-day-number {
+    font-size: 15px !important;
+    font-weight: 800 !important;
+  }
+
+  .sa-shell .superadmin-cal-day.today .superadmin-cal-day-number {
+    color: #ff5733 !important;
+  }
+
+  .sa-shell .superadmin-cal-day.selected {
+    background: #fff1ec !important;
+    box-shadow: inset 0 0 0 2px #ff5733 !important;
+    border-radius: 12px !important;
+  }
+
+  .sa-shell .superadmin-cal-dots {
+    display: flex;
+    justify-content: center;
+    gap: 3px;
+    min-height: 7px;
+  }
+
+  .sa-shell .superadmin-cal-day-dot {
+    display: block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+  }
+
+  .sa-shell .superadmin-cal-day-dot.dot-project { background: #2786ee; }
+  .sa-shell .superadmin-cal-day-dot.dot-task { background: #f48127; }
+  .sa-shell .superadmin-cal-day-dot.dot-meeting { background: #ff573b; }
+  .sa-shell .superadmin-cal-day-dot.dot-mini { background: #24a75e; }
+
+  .sa-shell .superadmin-cal-details {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border-left: 0 !important;
+    border-top: 1px solid #e2e6ec !important;
+  }
+
+  .sa-shell .superadmin-cal-details-scroll {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  .sa-shell .superadmin-cal-open-hint {
+    display: block;
+    margin-top: 6px;
+    color: #ff5733;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 800;
   }
 }

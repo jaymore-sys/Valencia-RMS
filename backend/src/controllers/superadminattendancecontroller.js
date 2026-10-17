@@ -1746,6 +1746,22 @@ const buildUserAttendanceSummary =
 
 
 
+            // checked in after 11:00 = late mark (same rule as the HR attendance summary)
+
+
+
+            if (String(record.check_in_time || "").slice(0, 8) > "11:00:00") {
+
+
+
+              late += 1;
+
+
+
+            }
+
+
+
           }
 
 

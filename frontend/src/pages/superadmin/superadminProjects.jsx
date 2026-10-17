@@ -20,6 +20,9 @@ import {
 
 import api from "../../api/axios";
 import ReadMoreText from "../../components/ReadMoreText";
+import PhoneSelect from "../../components/PhoneSelect";
+import StatusFilterChips from "../../components/StatusFilterChips";
+import { useIsPhone } from "../../components/ReadMoreText";
 import "./superadminProjects.css";
 
 /* =========================================================
@@ -736,6 +739,26 @@ const SuperadminProjects = () => {
   /* =========================================================
      GROUP KANBAN
   ========================================================= */
+
+  const phone = useIsPhone();
+  const [statusView, setStatusView] = useState("all");
+
+  // ?open=<project id> (from the calendar): open that project's details once the list has loaded
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("open");
+
+    if (!id || !projects.length) return;
+
+    const project = projects.find(
+      (item) => String(item.project_id) === id
+    );
+
+    if (project) {
+      openProjectDetails(project);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects]);
 
   const groupedProjects =
     useMemo(() => {
@@ -1634,7 +1657,7 @@ const SuperadminProjects = () => {
           />
         </label>
 
-        <select
+        <PhoneSelect
           value={
             departmentFilter
           }
@@ -1664,9 +1687,9 @@ const SuperadminProjects = () => {
               </option>
             )
           )}
-        </select>
+        </PhoneSelect>
 
-        <select
+        <PhoneSelect
           value={creatorFilter}
           onChange={(event) =>
             setCreatorFilter(
@@ -1688,10 +1711,22 @@ const SuperadminProjects = () => {
               </option>
             )
           )}
-        </select>
+        </PhoneSelect>
       </section>
 
       {/* KANBAN */}
+
+      <StatusFilterChips
+        columns={PROJECT_COLUMNS}
+        counts={Object.fromEntries(
+          PROJECT_COLUMNS.map((column) => [
+            column.key,
+            (groupedProjects[column.key] || []).length,
+          ])
+        )}
+        value={statusView}
+        onChange={setStatusView}
+      />
 
       {loading ? (
         <div className="sa-projects-empty">
@@ -1699,7 +1734,12 @@ const SuperadminProjects = () => {
         </div>
       ) : (
         <section className="sa-projects-board">
-          {PROJECT_COLUMNS.map(
+          {(phone && statusView !== "all"
+            ? PROJECT_COLUMNS.filter(
+                (column) => column.key === statusView
+              )
+            : PROJECT_COLUMNS
+          ).map(
             (column) => {
               const ColumnIcon =
                 column.icon;
@@ -3164,8 +3204,9 @@ const ManageAssigneesModal = ({
             </h2>
 
             <p>
-              Add or remove project
-              assignees.
+              Tick everyone who should work on this project, then tap
+              Save Assignees. People you untick are removed from the
+              project.
             </p>
           </div>
 
@@ -3192,7 +3233,17 @@ const ManageAssigneesModal = ({
           />
         </label>
 
+        <p className="sa-project-manager-count">
+          {selectedIds.length} selected
+        </p>
+
         <div className="sa-project-manager-list">
+          {users.length === 0 && (
+            <div className="sa-project-manager-empty">
+              No users found.
+            </div>
+          )}
+
           {users.map((user) => {
             const id =
               String(

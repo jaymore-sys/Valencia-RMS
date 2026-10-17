@@ -15,7 +15,10 @@ import {
     Search,
 } from "lucide-react";
 
+import { useNavigate } from "react-router-dom";
+
 import api from "../../api/axios";
+import { useIsPhone } from "../../components/ReadMoreText";
 
 /*
   Reuse the existing working
@@ -161,6 +164,9 @@ const displayTime = (value) => {
 ========================================================= */
 
 const SuperadminCalendar = () => {
+  const navigate = useNavigate();
+  const phone = useIsPhone();
+
   const now =
     new Date();
 
@@ -513,6 +519,14 @@ const SuperadminCalendar = () => {
 
       return weeks;
     }, [calendarDays]);
+
+  // Phones: open on today's agenda straight away (no hunting for a date first).
+  useEffect(() => {
+    if (phone && !selectedDate) {
+      setSelectedDate(localDateString(new Date()));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone]);
 
   /* =========================================================
      EVENTS FOR WEEK
@@ -1469,6 +1483,17 @@ const SuperadminCalendar = () => {
       }
     };
 
+  // tapping a task / project in the agenda opens it on its own page
+  const openPath = (type, item) => {
+    const id = item?.id || item?.task_id || item?.project_id;
+
+    if (!id) return "";
+    if (type === "task") return `/superadmin/tasks?open=${id}`;
+    if (type === "project") return `/superadmin/projects?open=${id}`;
+
+    return "";
+  };
+
   /* =========================================================
      RIGHT DETAIL PANEL SECTION
   ========================================================= */
@@ -1570,7 +1595,14 @@ const SuperadminCalendar = () => {
 
             return (
               <div
-                className="superadmin-cal-detail-item"
+                className={`superadmin-cal-detail-item ${
+                  openPath(type, item) ? "openable" : ""
+                }`}
+                onClick={() => {
+                  const path = openPath(type, item);
+
+                  if (path) navigate(path);
+                }}
                 key={
                   item.id ||
                   item.task_id ||
@@ -1593,6 +1625,12 @@ const SuperadminCalendar = () => {
                   <strong>
                     {event.title}
                   </strong>
+
+                  {openPath(type, item) && (
+                    <em className="superadmin-cal-open-hint">
+                      Tap to open
+                    </em>
+                  )}
 
                   {/* PROJECT */}
 
@@ -2110,6 +2148,25 @@ const SuperadminCalendar = () => {
                                   {
                                     calendarDate.number
                                   }
+                                </span>
+
+                                {/* phone: one dot per kind of item on this day */}
+                                <span className="superadmin-cal-dots">
+                                  {[
+                                    ...new Set(
+                                      detailEventsForDate(
+                                        calendarDate.dateString
+                                      ).map(
+                                        (entry) =>
+                                          entry.type
+                                      )
+                                    ),
+                                  ].map((kind) => (
+                                    <i
+                                      key={kind}
+                                      className={`superadmin-cal-day-dot dot-${kind}`}
+                                    />
+                                  ))}
                                 </span>
                               </button>
                             );

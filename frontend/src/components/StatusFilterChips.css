@@ -1,0 +1,40 @@
+.rms-status-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+}
+
+.rms-status-chips button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.rms-status-chips button b {
+  min-width: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  font-size: 12px;
+  text-align: center;
+}
+
+.rms-status-chips button.active {
+  border-color: #ff5733;
+  background: #ff5733;
+  color: #ffffff;
+}
+
+.rms-status-chips button.active b {
+  background: rgba(255, 255, 255, 0.25);
+}

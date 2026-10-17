@@ -2789,6 +2789,47 @@ const getSuperadminUsers = async(req,res)=>{
     });
   }
 };
+/* =========================================================
+   USER DETAILS (superadmin Users page dialog)
+   tasks, month attendance summary (same numbers as the HR
+   employee summary, so late marks / leaves match), leaves,
+   field visits and mini tasks
+========================================================= */
+
+const { getHrEmployeeSummary } = require("./hrattendancecontroller");
+
+// Runs the HR employee-summary logic for one month and returns the row for one user.
+const getHrSummaryForUser = (user, fromDate, toDate) =>
+  new Promise((resolve) => {
+    const fakeRes = {
+      status() {
+        return this;
+      },
+      json(payload) {
+        resolve(payload);
+        return this;
+      },
+    };
+
+    Promise.resolve(
+      getHrEmployeeSummary(
+        {
+          user: { role_name: "superadmin" },
+          query: {
+            from_date: fromDate,
+            to_date: toDate,
+            search: user.employee_code || user.full_name || "",
+          },
+        },
+        fakeRes
+      )
+    ).catch(() => resolve(null));
+  }).then((payload) =>
+    (payload?.employees || []).find(
+      (row) => Number(row.user_id) === Number(user.user_id)
+    ) || null
+  );
+
 const getSuperadminUserById = async (req, res) => {
   try {
     const userId = Number(req.params.userId);
@@ -2800,7 +2841,11 @@ const getSuperadminUserById = async (req, res) => {
       });
     }
 
-    const users = await getAllUsersBase();
+    const [users, tasks, projects] = await Promise.all([
+      getAllUsersBase(),
+      getAllMainTasks(),
+      getAllProjects(),
+    ]);
 
     const user = users.find(
       (item) => Number(item.user_id) === userId
@@ -2813,22 +2858,156 @@ const getSuperadminUserById = async (req, res) => {
       });
     }
 
+    // month = YYYY-MM (defaults to the current month, up to today)
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const todayText = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const monthText = /^\d{4}-\d{2}$/.test(String(req.query.month || ""))
+      ? String(req.query.month)
+      : todayText.slice(0, 7);
+    const [year, month] = monthText.split("-").map(Number);
+    const fromDate = `${monthText}-01`;
+    const lastDay = `${monthText}-${pad(new Date(year, month, 0).getDate())}`;
+    const toDate = lastDay > todayText && fromDate <= todayText ? todayText : lastDay;
+
+    const assignedTasks = tasks.filter((task) =>
+      normalizeIdArray(task.assigned_user_ids).includes(userId)
+    );
+
+    const createdTasks = tasks.filter(
+      (task) => Number(task.created_by_user_id) === userId
+    );
+
+    const assignedProjects = projects.filter((project) =>
+      normalizeIdArray(project.assigned_user_ids).includes(userId)
+    );
+
+    const [
+      [recentAttendance],
+      [leaves],
+      [fieldVisits],
+      [miniTasks],
+      hrRow,
+    ] = await Promise.all([
+      db.query(
+        `
+        SELECT
+          attendance_id,
+          DATE_FORMAT(attendance_date, '%Y-%m-%d') AS attendance_date,
+          status,
+          check_in_time,
+          check_out_time,
+          total_minutes,
+          remarks
+        FROM attendance
+        WHERE employee_id = ?
+        ORDER BY attendance_date DESC
+        LIMIT 30
+        `,
+        [userId]
+      ),
+      db.query(
+        `
+        SELECT
+          leave_id,
+          leave_type,
+          DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
+          DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
+          total_days,
+          status,
+          escalated_for_approval
+        FROM leave_applications
+        WHERE employee_id = ?
+        ORDER BY start_date DESC, leave_id DESC
+        LIMIT 15
+        `,
+        [userId]
+      ),
+      db.query(
+        `
+        SELECT
+          visit_id,
+          visit_type,
+          DATE_FORMAT(visit_date, '%Y-%m-%d') AS visit_date,
+          DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
+          duration_type,
+          location,
+          status
+        FROM employee_field_visits
+        WHERE employee_id = ?
+        ORDER BY visit_date DESC, visit_id DESC
+        LIMIT 15
+        `,
+        [userId]
+      ),
+      db.query(
+        `
+        SELECT
+          mini_task_id,
+          mini_task_title,
+          DATE_FORMAT(COALESCE(task_date, DATE(created_at)), '%Y-%m-%d') AS task_date,
+          start_time,
+          end_time,
+          total_minutes,
+          status,
+          division
+        FROM mini_tasks
+        WHERE employee_id = ?
+        ORDER BY COALESCE(task_date, DATE(created_at)) DESC, mini_task_id DESC
+        LIMIT 20
+        `,
+        [userId]
+      ),
+      getHrSummaryForUser(user, fromDate, toDate),
+    ]);
+
+    const attendance = hrRow?.attendance || null;
+
     return res.json({
       success: true,
-      user,
+
+      user: {
+        ...user,
+        attendance: attendance
+          ? {
+              ...attendance,
+              attendance_percentage: attendance.working_days
+                ? Math.round(
+                    ((Number(attendance.present || 0) +
+                      Number(attendance.field_visit || 0)) /
+                      Number(attendance.working_days)) *
+                      100
+                  )
+                : 0,
+            }
+          : { attendance_percentage: 0 },
+      },
+
+      attendance_summary: {
+        month: monthText,
+        from_date: fromDate,
+        to_date: toDate,
+        ...(attendance || {}),
+      },
+
+      assigned_tasks: assignedTasks,
+      created_tasks: createdTasks,
+      assigned_projects: assignedProjects,
+      recent_attendance: recentAttendance,
+      leaves,
+      field_visits: fieldVisits,
+      mini_tasks: miniTasks,
     });
   } catch (error) {
-    console.error(
-      "SUPERADMIN USER DETAILS ERROR:",
-      error
-    );
+    console.error("SUPERADMIN USER DETAILS ERROR:", error);
 
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Failed to load user details.",
     });
   }
 };
+
 const getSuperadminProjectOptions = async(req,res)=>{
 
 try{
