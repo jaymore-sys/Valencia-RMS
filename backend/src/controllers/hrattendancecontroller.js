@@ -4545,7 +4545,11 @@ const getHrEmployeeSummary = async (
   res
 ) => {
   try {
-    if (!isAuthorizedHR(req)) {
+    // HR, or the superadmin (read-only summary shown in the superadmin Attendance page)
+    const isSuperadminViewer =
+      String(req.user?.role_name || "").toLowerCase() === "superadmin";
+
+    if (!isAuthorizedHR(req) && !isSuperadminViewer) {
       return res.status(
         403
       ).json({

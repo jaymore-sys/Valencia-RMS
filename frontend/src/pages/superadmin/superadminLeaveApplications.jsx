@@ -245,17 +245,48 @@ const getStatusLabel = (leave) => {
   const [visibleCount, setVisibleCount] =
     useState(PHONE_PAGE_SIZE);
 
+  // employees / admins / escalated are shown separately
+  const [group, setGroup] = useState("employees");
+
   useEffect(() => {
     setVisibleCount(PHONE_PAGE_SIZE);
-  }, [filter]);
+  }, [filter, group]);
+
+  const groupOf = (application) => {
+    if (
+      Number(application.escalated_for_approval) === 1 ||
+      application.escalated_for_approval === true
+    ) {
+      return "escalated";
+    }
+
+    const role = String(
+      application.applicant_role || ""
+    ).toLowerCase();
+
+    return role === "admin" || role === "administrator"
+      ? "admins"
+      : "employees";
+  };
+
+  const groupedApplications = useMemo(
+    () => ({
+      employees: applications.filter((a) => groupOf(a) === "employees"),
+      admins: applications.filter((a) => groupOf(a) === "admins"),
+      escalated: applications.filter((a) => groupOf(a) === "escalated"),
+    }),
+    [applications]
+  );
+
+  const groupApplications = groupedApplications[group] || [];
 
   const filteredApplications =
     useMemo(() => {
       if (filter === "all") {
-        return applications;
+        return groupApplications;
       }
 
-      return applications.filter(
+      return groupApplications.filter(
         (application) =>
           String(
             application.status ||
@@ -264,7 +295,7 @@ const getStatusLabel = (leave) => {
           filter
       );
     }, [
-      applications,
+      groupApplications,
       filter,
     ]);
 
@@ -570,30 +601,42 @@ if (leaveType === "sick") {
       }
     };
 
+  const countStatus = (list, status) =>
+    list.filter(
+      (a) =>
+        String(a.status || "").toLowerCase() === status
+    ).length;
+
   const cards = [
     {
       key: "total",
       label: "Total",
-      value: summary.total,
+      value: groupApplications.length,
     },
 
     {
       key: "pending",
       label: "Pending",
-      value: summary.pending,
+      value: countStatus(groupApplications, "pending"),
     },
 
     {
       key: "approved",
       label: "Approved",
-      value: summary.approved,
+      value: countStatus(groupApplications, "approved"),
     },
 
     {
       key: "rejected",
       label: "Rejected",
-      value: summary.rejected,
+      value: countStatus(groupApplications, "rejected"),
     },
+  ];
+
+  const groupTabs = [
+    { id: "employees", label: "Employees" },
+    { id: "admins", label: "Admins" },
+    { id: "escalated", label: "Escalated" },
   ];
 
   
@@ -678,6 +721,45 @@ return (
         </div>
       )}
 
+      <div
+        role="tablist"
+        aria-label="Leave applications by applicant"
+        style={styles.groupTabs}
+      >
+        {groupTabs.map((tab) => {
+          const list = groupedApplications[tab.id];
+          const pending = countStatus(list, "pending");
+
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={group === tab.id}
+              style={
+                group === tab.id
+                  ? styles.activeGroupTab
+                  : styles.groupTab
+              }
+              onClick={() => {
+                setGroup(tab.id);
+                setFilter("all");
+              }}
+            >
+              {tab.label}
+              <span style={styles.groupTabCount}>
+                {list.length}
+              </span>
+              {pending > 0 && (
+                <span style={styles.groupTabPending}>
+                  {pending} pending
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
       <div style={styles.summaryGrid}>
         {cards.map((card) => (
           <div
@@ -707,11 +789,19 @@ return (
         <div style={styles.toolbar}>
           <div>
             <h2 style={styles.sectionTitle}>
-  All Leave Requests
+  {group === "escalated"
+    ? "Escalated Leave Requests"
+    : group === "admins"
+    ? "Admin Leave Requests"
+    : "Employee Leave Requests"}
 </h2>
 
            <p style={styles.sectionSubtitle}>
-  Review leave requests from Employees, Admins and Administrators.
+  {group === "escalated"
+    ? "Requests escalated by an admin for your approval."
+    : group === "admins"
+    ? "Leave requests from Admins and Administrators."
+    : "Leave requests from Employees."}
 </p>
           </div>
 
@@ -1841,6 +1931,58 @@ const styles = {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap",
+  },
+
+  groupTabs: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginBottom: "18px",
+  },
+
+  groupTab: {
+    minHeight: "46px",
+    padding: "0 18px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+    background: "#ffffff",
+    color: "#334155",
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+
+  activeGroupTab: {
+    minHeight: "46px",
+    padding: "0 18px",
+    border: "1px solid #ff5733",
+    borderRadius: "14px",
+    background: "#ff5733",
+    color: "#ffffff",
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+  },
+
+  groupTabCount: {
+    minWidth: "24px",
+    padding: "2px 8px",
+    borderRadius: "999px",
+    background: "rgba(15, 23, 42, 0.1)",
+    fontSize: "12px",
+    textAlign: "center",
+  },
+
+  groupTabPending: {
+    padding: "2px 8px",
+    borderRadius: "999px",
+    background: "#fff3cd",
+    color: "#8a5a00",
+    fontSize: "11px",
   },
 
   filterBtn: {

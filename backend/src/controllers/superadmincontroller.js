@@ -5115,6 +5115,194 @@ const deleteOwnSuperadminProject =
   };
 
 /* =========================================================
+   OVERVIEW: NEEDS ATTENTION + MOST ACTIVE USERS
+========================================================= */
+
+const OPEN_TASK_FILTER = `
+  (t.parent_task_id IS NULL OR t.parent_task_id = 0)
+  AND LOWER(COALESCE(t.status, '')) NOT IN
+    ('completed', 'done', 'complete', 'cancelled', 'rejected')
+`;
+
+const getSuperadminAttention = async (req, res) => {
+  try {
+    const [
+      [escalatedLeaves],
+      [[pendingLeaves]],
+      [[pendingVisits]],
+      [overdueTasks],
+      [[overdueTaskCount]],
+      [[overdueProjectCount]],
+      [lateEmployees],
+      [mostActive],
+    ] = await Promise.all([
+      db.query(
+        `
+        SELECT
+          la.leave_id,
+          la.leave_type,
+          DATE_FORMAT(la.start_date, '%Y-%m-%d') AS start_date,
+          DATE_FORMAT(la.end_date, '%Y-%m-%d') AS end_date,
+          la.total_days,
+          la.escalation_remark,
+          u.full_name AS employee_name,
+          u.employee_code,
+          esc.full_name AS escalated_by_name
+        FROM leave_applications la
+        JOIN users u ON u.user_id = la.employee_id
+        LEFT JOIN users esc ON esc.user_id = la.escalated_by
+        WHERE la.escalated_for_approval = 1
+          AND LOWER(la.status) = 'pending'
+        ORDER BY la.escalated_at DESC, la.leave_id DESC
+        LIMIT 8
+        `
+      ),
+      db.query(
+        `SELECT COUNT(*) AS total FROM leave_applications WHERE LOWER(status) = 'pending'`
+      ),
+      db.query(
+        `SELECT COUNT(*) AS total FROM employee_field_visits WHERE LOWER(status) = 'pending'`
+      ),
+      db.query(
+        `
+        SELECT
+          t.task_id,
+          t.task_title,
+          DATE_FORMAT(t.due_date, '%Y-%m-%d') AS due_date,
+          u.full_name AS assigned_name,
+          p.project_title
+        FROM tasks t
+        LEFT JOIN users u ON u.user_id = t.assigned_to_user_id
+        LEFT JOIN projects p ON p.project_id = t.project_id
+        WHERE ${OPEN_TASK_FILTER}
+          AND t.due_date IS NOT NULL
+          AND t.due_date < CURDATE()
+        ORDER BY t.due_date ASC
+        LIMIT 6
+        `
+      ),
+      db.query(
+        `
+        SELECT COUNT(*) AS total
+        FROM tasks t
+        WHERE ${OPEN_TASK_FILTER}
+          AND t.due_date IS NOT NULL
+          AND t.due_date < CURDATE()
+        `
+      ),
+      db.query(
+        `
+        SELECT COUNT(*) AS total
+        FROM projects p
+        WHERE p.due_date IS NOT NULL
+          AND p.due_date < CURDATE()
+          AND LOWER(COALESCE(p.status, '')) NOT IN
+            ('completed', 'done', 'complete', 'cancelled', 'rejected', 'on_hold')
+        `
+      ),
+      db.query(
+        `
+        SELECT
+          u.user_id,
+          u.full_name,
+          u.employee_code,
+          d.department_name,
+          COUNT(*) AS late_days
+        FROM attendance a
+        JOIN users u ON u.user_id = a.employee_id
+        LEFT JOIN departments d ON d.department_id = u.department_id
+        WHERE a.attendance_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          AND (
+            LOWER(COALESCE(a.status, '')) = 'late'
+            OR (
+              LOWER(COALESCE(a.status, '')) = 'present'
+              AND a.check_in_time IS NOT NULL
+              AND a.check_in_time > '11:00:00'
+            )
+          )
+          AND LOWER(COALESCE(u.status, 'active')) = 'active'
+        GROUP BY u.user_id, u.full_name, u.employee_code, d.department_name
+        ORDER BY late_days DESC, u.full_name ASC
+        LIMIT 5
+        `
+      ),
+      db.query(
+        `
+        SELECT
+          u.user_id,
+          u.full_name,
+          u.employee_code,
+          d.department_name,
+          COALESCE(ws.minutes, 0) + COALESCE(mt.minutes, 0) AS tracked_minutes,
+          COALESCE(tc.completed, 0) AS completed_tasks,
+          COALESCE(att.present_days, 0) AS present_days
+        FROM users u
+        JOIN roles r ON r.role_id = u.role_id
+        LEFT JOIN departments d ON d.department_id = u.department_id
+        LEFT JOIN (
+          SELECT employee_id,
+                 SUM(TIMESTAMPDIFF(MINUTE, started_at, COALESCE(ended_at, NOW()))) AS minutes
+          FROM task_work_sessions
+          WHERE started_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          GROUP BY employee_id
+        ) ws ON ws.employee_id = u.user_id
+        LEFT JOIN (
+          SELECT employee_id, SUM(COALESCE(total_minutes, 0)) AS minutes
+          FROM mini_tasks
+          WHERE COALESCE(task_date, DATE(created_at)) >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+          GROUP BY employee_id
+        ) mt ON mt.employee_id = u.user_id
+        LEFT JOIN (
+          SELECT assigned_to_user_id AS user_id, COUNT(*) AS completed
+          FROM tasks
+          WHERE completed_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+          GROUP BY assigned_to_user_id
+        ) tc ON tc.user_id = u.user_id
+        LEFT JOIN (
+          SELECT employee_id, COUNT(*) AS present_days
+          FROM attendance
+          WHERE attendance_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+            AND LOWER(COALESCE(status, '')) IN ('present', 'late', 'half_day')
+          GROUP BY employee_id
+        ) att ON att.employee_id = u.user_id
+        WHERE LOWER(COALESCE(u.status, 'active')) = 'active'
+          AND LOWER(r.role_name) IN ('employee', 'admin')
+          AND (
+            COALESCE(ws.minutes, 0) + COALESCE(mt.minutes, 0) > 0
+            OR COALESCE(tc.completed, 0) > 0
+          )
+        ORDER BY tracked_minutes DESC, completed_tasks DESC, present_days DESC
+        LIMIT 5
+        `
+      ),
+    ]);
+
+    res.json({
+      success: true,
+      attention: {
+        pending_leaves: Number(pendingLeaves.total) || 0,
+        escalated_leaves: escalatedLeaves,
+        pending_field_visits: Number(pendingVisits.total) || 0,
+        overdue_tasks: {
+          count: Number(overdueTaskCount.total) || 0,
+          items: overdueTasks,
+        },
+        overdue_projects: Number(overdueProjectCount.total) || 0,
+        late_employees: lateEmployees,
+      },
+      most_active: mostActive,
+    });
+  } catch (error) {
+    console.error("SUPERADMIN ATTENTION ERROR:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to load attention items.",
+    });
+  }
+};
+
+/* =========================================================
    EXPORTS
 ========================================================= */
 
@@ -5139,6 +5327,7 @@ module.exports = {
   deleteOwnSuperadminProject,
 
    getSuperadminOverview,
+  getSuperadminAttention,
   getSuperadminLeaves,
   reviewSuperadminLeave,
   getSuperadminUserById

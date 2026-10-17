@@ -12,6 +12,7 @@ const {
   getSuperadminUserById,
   getSuperadminProjectOptions,
   getSuperadminOverview,
+  getSuperadminAttention,
   getSuperadminProjectContext,
   createSuperadminProject,
   updateSuperadminProjectAssignees,
@@ -38,6 +39,7 @@ const superadminOnly = [authMiddleware, requireRole("superadmin")];
 const fieldVisitReviewerAccess = [authMiddleware];
 
 router.get("/overview", ...superadminOnly, getSuperadminOverview);
+router.get("/overview/attention", ...superadminOnly, getSuperadminAttention);
 
 router.get("/projects", ...superadminOnly, getSuperadminProjects);
 router.get(

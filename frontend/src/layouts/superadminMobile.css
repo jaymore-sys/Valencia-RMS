@@ -320,4 +320,27 @@
     font-weight: 900 !important;
     cursor: pointer;
   }
+
+  /* three tabs share one row */
+  .sa-shell .sa-main section[style*="display: flex"][style*="gap: 12px"][style*="margin-bottom: 22px"]:has(> button:nth-child(3)) > button {
+    flex: 1 1 calc(33.333% - 8px) !important;
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+    font-size: 13px !important;
+  }
+
+  /* leave applications: Employees / Admins / Escalated tabs share one row */
+  .sa-shell .sa-main [role="tablist"][aria-label="Leave applications by applicant"] {
+    gap: 8px !important;
+  }
+
+  .sa-shell .sa-main [role="tablist"][aria-label="Leave applications by applicant"] > button {
+    flex: 1 1 calc(33.333% - 8px) !important;
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    padding: 8px 6px !important;
+    row-gap: 4px !important;
+    font-size: 13px !important;
+  }
 }

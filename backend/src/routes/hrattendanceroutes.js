@@ -58,10 +58,19 @@ const onlyHR = (req, res, next) => {
   next();
 };
 
+// Superadmin gets the same read-only employee summary (shown in its Attendance page).
+const hrOrSuperadmin = (req, res, next) => {
+  if (String(req.user?.role_name || "").toLowerCase() === "superadmin") {
+    return next();
+  }
+
+  return onlyHR(req, res, next);
+};
+
 router.get(
   "/employee-summary",
   authMiddleware,
-  onlyHR,
+  hrOrSuperadmin,
   getHrEmployeeSummary
 );
 

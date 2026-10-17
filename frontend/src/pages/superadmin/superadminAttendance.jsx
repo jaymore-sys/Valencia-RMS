@@ -11,6 +11,7 @@ import React, {
 
 
 import api from "../../api/axios";
+import HrAttendance from "../employee/hrAttendance";
 
 
 
@@ -737,7 +738,23 @@ const SuperadminAttendance =
 
           </button>
 
+          <button
+            type="button"
+            style={
+              activeTab === "hrSummary"
+                ? styles.activeTabButton
+                : styles.tabButton
+            }
+            onClick={() => setActiveTab("hrSummary")}
+          >
+            Employee Summary
+          </button>
+
         </section>
+
+        {activeTab === "hrSummary" && (
+          <HrAttendance summaryOnly />
+        )}
 
 
 

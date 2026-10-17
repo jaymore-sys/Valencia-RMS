@@ -1236,3 +1236,18 @@
     display: none !important;
   }
 }
+
+/* Notification bell drop-down: fixed 390px wide panel ran off the left edge on phones */
+@media (max-width: 700px) {
+  .rms-mobile [style*="position: absolute"][style*="top: 58px"][style*="width: 390px"] {
+    position: fixed !important;
+    top: 70px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 90px) !important;
+    overflow-y: auto !important;
+    z-index: 1200 !important;
+  }
+}

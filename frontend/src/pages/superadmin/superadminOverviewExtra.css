@@ -1,0 +1,136 @@
+/* Overview: "Needs Attention" and "Most Active Users" (last 30 days) */
+
+.sa-ov-attn-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  margin: 18px 0 8px;
+}
+
+.sa-ov-attn-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: #f8fafc;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sa-ov-attn-tile strong {
+  font-size: 28px;
+  font-weight: 900;
+  line-height: 1;
+  color: #111827;
+}
+
+.sa-ov-attn-tile span {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sa-ov-attn-tile.hot {
+  border-color: #fecaca;
+  background: #fff5f3;
+}
+
+.sa-ov-attn-tile.hot strong {
+  color: #ff5733;
+}
+
+.sa-ov-attn-group {
+  margin-top: 18px;
+}
+
+.sa-ov-attn-group h3 {
+  margin: 0 0 10px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #111827;
+}
+
+.sa-ov-attn-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 14px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  color: #111827;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sa-ov-attn-row > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.sa-ov-attn-row strong,
+.sa-ov-attn-row span,
+.sa-ov-attn-row small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.sa-ov-attn-row strong {
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.sa-ov-attn-row span {
+  margin-top: 3px;
+  font-size: 13px;
+  color: #475569;
+  text-transform: capitalize;
+}
+
+.sa-ov-attn-row small {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #64748b;
+}
+
+.sa-ov-attn-row b {
+  flex: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff3cd;
+  color: #8a5a00;
+  font-size: 12px;
+}
+
+.sa-ov-rank {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #ff5733;
+  color: #ffffff;
+  font-weight: 900;
+}
+
+@media (max-width: 1100px) {
+  .sa-ov-attn-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .sa-ov-attn-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sa-ov-attn-tiles > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}

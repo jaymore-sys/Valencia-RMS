@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api/axios";
 import NotificationBell from "../../components/NotificationBell";
 import "./superadminOverview.css";
+import "./superadminOverviewExtra.css";
 
 /* =====================================================
    HELPERS
@@ -140,6 +141,8 @@ const SuperadminOverview = () => {
   const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
+  const [attention, setAttention] = useState(null);
+  const [mostActive, setMostActive] = useState([]);
 
   const [message, setMessage] = useState("");
 
@@ -169,6 +172,19 @@ const SuperadminOverview = () => {
       );
 
       setData(response.data);
+
+      // needs-attention + most-active (30 days): optional, never blocks the page
+      try {
+        const extra = await api.get(
+          "/superadmin/overview/attention"
+        );
+
+        setAttention(extra.data?.attention || null);
+        setMostActive(extra.data?.most_active || []);
+      } catch {
+        setAttention(null);
+        setMostActive([]);
+      }
     } catch (error) {
       setMessage(
         error.response?.data?.message ||
@@ -723,6 +739,220 @@ const SuperadminOverview = () => {
       </div>
 
       {/* =====================================================
+          NEEDS ATTENTION (leaves, visits, overdue work)
+      ===================================================== */}
+
+      {attention && (
+        <section className="sa-ov-card sa-ov-attn">
+          <h2 className="sa-ov-section-title">
+            <AlertCircle
+              size={22}
+              className="sa-ov-section-icon"
+            />
+            Needs Attention
+          </h2>
+
+          <p className="sa-ov-section-sub">
+            Things waiting for you or running late. Tap any
+            item to open it.
+          </p>
+
+          <div className="sa-ov-attn-tiles">
+            <button
+              type="button"
+              className="sa-ov-attn-tile"
+              onClick={() =>
+                navigate("/superadmin/leave-applications")
+              }
+            >
+              <strong>{attention.pending_leaves}</strong>
+              <span>Pending leaves</span>
+            </button>
+
+            <button
+              type="button"
+              className={`sa-ov-attn-tile ${
+                attention.escalated_leaves.length
+                  ? "hot"
+                  : ""
+              }`}
+              onClick={() =>
+                navigate("/superadmin/leave-applications")
+              }
+            >
+              <strong>{attention.escalated_leaves.length}</strong>
+              <span>Escalated leaves</span>
+            </button>
+
+            <button
+              type="button"
+              className="sa-ov-attn-tile"
+              onClick={() => navigate("/superadmin/field-visits")}
+            >
+              <strong>{attention.pending_field_visits}</strong>
+              <span>Pending field visits</span>
+            </button>
+
+            <button
+              type="button"
+              className={`sa-ov-attn-tile ${
+                attention.overdue_tasks.count ? "hot" : ""
+              }`}
+              onClick={() => navigate("/superadmin/tasks")}
+            >
+              <strong>{attention.overdue_tasks.count}</strong>
+              <span>Overdue tasks</span>
+            </button>
+
+            <button
+              type="button"
+              className="sa-ov-attn-tile"
+              onClick={() => navigate("/superadmin/projects")}
+            >
+              <strong>{attention.overdue_projects}</strong>
+              <span>Overdue projects</span>
+            </button>
+          </div>
+
+          {attention.escalated_leaves.length > 0 && (
+            <div className="sa-ov-attn-group">
+              <h3>Escalated leave requests</h3>
+
+              {attention.escalated_leaves.map((leave) => (
+                <button
+                  type="button"
+                  key={leave.leave_id}
+                  className="sa-ov-attn-row"
+                  onClick={() =>
+                    navigate(
+                      `/superadmin/leave-applications?openLeave=${leave.leave_id}`
+                    )
+                  }
+                >
+                  <div>
+                    <strong>{leave.employee_name}</strong>
+                    <span>
+                      {String(leave.leave_type || "").replace(/_/g, " ")}{" "}
+                      · {leave.start_date}
+                      {leave.end_date &&
+                      leave.end_date !== leave.start_date
+                        ? ` to ${leave.end_date}`
+                        : ""}
+                    </span>
+                    <small>
+                      Escalated by {leave.escalated_by_name || "admin"}
+                      {leave.escalation_remark
+                        ? ` — ${leave.escalation_remark}`
+                        : ""}
+                    </small>
+                  </div>
+                  <ArrowRight size={18} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {attention.overdue_tasks.items.length > 0 && (
+            <div className="sa-ov-attn-group">
+              <h3>Oldest overdue tasks</h3>
+
+              {attention.overdue_tasks.items.map((task) => (
+                <button
+                  type="button"
+                  key={task.task_id}
+                  className="sa-ov-attn-row"
+                  onClick={() => navigate("/superadmin/tasks")}
+                >
+                  <div>
+                    <strong>{task.task_title}</strong>
+                    <span>
+                      {task.assigned_name || "Unassigned"} · due{" "}
+                      {task.due_date}
+                    </span>
+                    <small>{task.project_title || ""}</small>
+                  </div>
+                  <ArrowRight size={18} />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {attention.late_employees.length > 0 && (
+            <div className="sa-ov-attn-group">
+              <h3>Most late arrivals (last 30 days)</h3>
+
+              {attention.late_employees.map((person) => (
+                <button
+                  type="button"
+                  key={person.user_id}
+                  className="sa-ov-attn-row"
+                  onClick={() => navigate("/superadmin/attendance")}
+                >
+                  <div>
+                    <strong>{person.full_name}</strong>
+                    <span>
+                      {person.department_name || "No Department"}
+                    </span>
+                  </div>
+                  <b>{person.late_days} late</b>
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* =====================================================
+          MOST ACTIVE (last 30 days)
+      ===================================================== */}
+
+      {mostActive.length > 0 && (
+        <section className="sa-ov-card sa-ov-attn">
+          <h2 className="sa-ov-section-title">
+            <TrendingUp
+              size={22}
+              className="sa-ov-section-icon"
+            />
+            Most Active Users
+          </h2>
+
+          <p className="sa-ov-section-sub">
+            Ranked by time tracked on tasks and mini tasks in the
+            last 30 days.
+          </p>
+
+          <div className="sa-ov-attn-group">
+            {mostActive.map((person, index) => {
+              const minutes = Number(person.tracked_minutes) || 0;
+
+              return (
+                <button
+                  type="button"
+                  key={person.user_id}
+                  className="sa-ov-attn-row"
+                  onClick={() => navigate("/superadmin/users")}
+                >
+                  <span className="sa-ov-rank">{index + 1}</span>
+
+                  <div>
+                    <strong>{person.full_name}</strong>
+                    <span>
+                      {person.department_name || "No Department"}
+                    </span>
+                    <small>
+                      {Math.floor(minutes / 60)}h {minutes % 60}m tracked ·{" "}
+                      {person.completed_tasks} tasks completed ·{" "}
+                      {person.present_days} days present
+                    </small>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* =====================================================
           QUICK USER SEARCH
       ===================================================== */}
 
@@ -822,7 +1052,7 @@ const SuperadminOverview = () => {
               className="sa-ov-section-icon"
             />
 
-            Needs Attention
+            Users With Pending Tasks
           </h2>
 
           <p className="sa-ov-section-sub">
@@ -864,7 +1094,7 @@ const SuperadminOverview = () => {
               className="sa-ov-section-icon"
             />
 
-            Most Active Users
+            Users With Most Tasks
           </h2>
 
           <p className="sa-ov-section-sub">

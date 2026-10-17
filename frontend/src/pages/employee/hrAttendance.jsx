@@ -179,11 +179,14 @@ const StatusBadge = ({ value }) => {
    COMPONENT
 ========================================================= */
 
-export default function HrAttendance() {
+// summaryOnly: read-only "Employee Summary" view embedded in the superadmin Attendance page.
+export default function HrAttendance({ summaryOnly = false }) {
   const today = todayString();
   const fileInputRef = useRef(null);
 
-  const [activeTab, setActiveTab] = useState("attendance");
+  const [activeTab, setActiveTab] = useState(
+    summaryOnly ? "employee-summary" : "attendance"
+  );
 
   const [selectedDate, setSelectedDate] = useState(today);
   const [rangeMode, setRangeMode] = useState("day");
@@ -411,6 +414,11 @@ const [
   };
 
   useEffect(() => {
+    if (summaryOnly) {
+      loadMonth(today);
+      return;
+    }
+
     fetchAttendance({
       nextPage: 1,
       startDate: today,
@@ -1569,8 +1577,12 @@ await fetchEmployeeSummary({
 
       <header className="hr-header">
         <div>
-          <h1>HR Attendance</h1>
-          <p>Attendance, leave and field visit management</p>
+          <h1>{summaryOnly ? "Employee Summary" : "HR Attendance"}</h1>
+          <p>
+            {summaryOnly
+              ? "Attendance, late marks, leave and field visits for every employee"
+              : "Attendance, leave and field visit management"}
+          </p>
         </div>
 
         <div className="hr-header-actions">
@@ -1597,6 +1609,7 @@ await fetchEmployeeSummary({
             Refresh
           </button>
 
+          {!summaryOnly && (<>
           <button
             className="hr-button secondary"
             onClick={handleImport}
@@ -1643,6 +1656,7 @@ await fetchEmployeeSummary({
             <Plus size={16} />
             Add Attendance
           </button>
+          </>)}
         </div>
       </header>
 
@@ -1650,7 +1664,7 @@ await fetchEmployeeSummary({
 
     {/* TABS */}
 
-<div className="hr-tabs">
+{!summaryOnly && (<div className="hr-tabs">
   <Tab
     active={activeTab === "attendance"}
     icon={<CheckCircle2 size={16} />}
@@ -1687,7 +1701,7 @@ await fetchEmployeeSummary({
     label="Field Visits"
     onClick={() => setActiveTab("field")}
   />
-</div>
+</div>)}
 
       {/* DATE CONTROLS */}
 
