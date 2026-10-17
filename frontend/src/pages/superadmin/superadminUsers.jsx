@@ -223,8 +223,9 @@ const filteredUsers = useMemo(() => {
     }
   };
 
+  // string, so a real 0 is shown instead of "-"
   const summaryNumber = (key) =>
-    Number(selectedDetails?.attendance_summary?.[key] || 0);
+    String(Number(selectedDetails?.attendance_summary?.[key] || 0));
 
   return (
     <div className="sa-users-page">
