@@ -2058,30 +2058,6 @@ const normalizeFieldVisitStops = (body = {}) => {
 
 };
 
-const countFieldVisitWords = (value) =>
-
-  String(value || "")
-
-    .trim()
-
-    .split(/\s+/)
-
-    .filter(Boolean)
-
-    .length;
-
-const getFieldVisitDescriptionWordCount = (visitStops = []) =>
-
-  visitStops.reduce(
-
-    (total, stop) =>
-
-      total + countFieldVisitWords(stop?.description),
-
-    0
-
-  );
-
 const attachFieldVisitStops =
 
 async (visits) => {
@@ -3628,28 +3604,6 @@ async (
 
     }
 
-    const descriptionWordCount =
-
-      getFieldVisitDescriptionWordCount(visitStops);
-
-    if (descriptionWordCount < 50) {
-
-      return res.status(400).json({
-
-        success: false,
-
-        message:
-
-          `Field visit description must contain at least 50 words. Current count: ${descriptionWordCount}.`,
-
-        word_count: descriptionWordCount,
-
-        minimum_words: 50,
-
-      });
-
-    }
-
     /*
 
       EXISTING RULE:
@@ -4644,11 +4598,6 @@ const resubmitAdminFieldVisit = async (req, res) => {
       await connection.rollback();
       return res.status(400).json({ success: false, message: "Each location needs a location and description." });
     }
-    const wordCount = getFieldVisitDescriptionWordCount(stops);
-    if (wordCount < 50) {
-      await connection.rollback();
-      return res.status(400).json({ success: false, message: `Descriptions must total at least 50 words. Current: ${wordCount}.`, word_count: wordCount, minimum_words: 50 });
-    }
     const first = stops[0];
     await connection.query(
       `UPDATE employee_field_visits SET visit_type = ?, duration_type = ?, half_day_session = ?,
@@ -4677,7 +4626,7 @@ const resubmitAdminFieldVisit = async (req, res) => {
       );
     }
     await connection.commit();
-    return res.json({ success: true, message: "Field visit corrected and resubmitted for approval. Original dates preserved.", visit_id: visitId, status: "pending", word_count: wordCount });
+    return res.json({ success: true, message: "Field visit corrected and resubmitted for approval. Original dates preserved.", visit_id: visitId, status: "pending" });
   } catch (error) {
     if (connection) await connection.rollback();
     console.error("Resubmit Admin field visit error:", error);

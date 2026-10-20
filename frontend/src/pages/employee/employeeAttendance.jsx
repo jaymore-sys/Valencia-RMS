@@ -977,8 +977,6 @@ const EmployeeAttendance = ({
     setVisitError("");
     setShowVisitModal(true);
   };
-  const fieldVisitWordCount = (stops) => (Array.isArray(stops) ? stops : []).reduce((total, stop) =>
-    total + String(stop.description || "").replace(/\*\*|==/g, "").trim().split(/\s+/).filter(Boolean).length, 0);
   const submitFieldVisit = async () => {
     setVisitError("");
     setVisitSuccess("");
@@ -1021,11 +1019,6 @@ const EmployeeAttendance = ({
       setVisitError(
         "Please select First Half or Second Half."
       );
-      return;
-    }
-    const wordCount = fieldVisitWordCount(visitStops);
-    if (wordCount < 50) {
-      setVisitError(`Description needs at least 50 words (currently ${wordCount}).`);
       return;
     }
     try {
@@ -2114,7 +2107,6 @@ const EmployeeAttendance = ({
                   </div>
                   <label style={styles.formGroup}>
                     <span>Description / Purpose *</span>
-                    <div style={{fontSize:12,color:"#b91c1c",marginBottom:4}}>Description: {fieldVisitWordCount([stop])} words (minimum 50 across all stops)</div>
                     <RichVisitEditor
                       style={styles.formTextarea}
                       placeholder="What was discussed, checked or completed at this stop?"

@@ -860,11 +860,6 @@ const isPremal =
       setVisitError("Every visit stop requires its location and description.");
       return;
     }
-    const words = stops.reduce((n, stop) => n + String(stop.description || "").trim().split(/\s+/).filter(Boolean).length, 0);
-    if (words < 50) {
-      setVisitError(`Descriptions must total at least 50 words. Current: ${words}.`);
-      return;
-    }
     if (v.duration_type === "half_day" && !["first_half", "second_half"].includes(v.half_day_session)) {
       setVisitError("Select a valid half-day session.");
       return;
@@ -2677,7 +2672,6 @@ const isPremal =
                   </div>
                   <label style={styles.visitFormGroup}>
                     <span>Description / Purpose *</span>
-                    <small style={{color:"#b91c1c"}}>Description: {String(stop.description || "").trim().split(/\s+/).filter(Boolean).length} words — minimum 50 words in total</small>
                     <RichVisitEditor
                       style={styles.visitTextarea}
                       placeholder="What was discussed, checked or completed at this stop?"
