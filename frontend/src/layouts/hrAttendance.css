@@ -1188,3 +1188,76 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ---------- Revert a leave (Manage Employee Leave dialog) ---------- */
+.hr-leave-history-row:not(.adjustment) {
+  grid-template-columns: minmax(170px, 1.2fr) 90px 125px minmax(160px, 1fr) 92px;
+}
+
+.hr-revert-slot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.hr-revert-button {
+  min-height: 34px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: #fde8e6;
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.hr-revert-button:hover {
+  background: #fbd3cf;
+}
+
+.hr-revert-dialog {
+  padding: 0 22px 18px;
+}
+
+.hr-revert-dialog p {
+  margin: 0 0 14px;
+  color: var(--hr-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.hr-revert-dialog label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hr-revert-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--hr-border);
+  border-radius: 10px;
+  font: inherit;
+  resize: vertical;
+}
+
+@media (max-width: 700px) {
+  .hr-leave-history-row:not(.adjustment) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hr-revert-slot {
+    grid-column: 1 / -1;
+  }
+
+  .hr-revert-slot:empty {
+    display: none;
+  }
+
+  .hr-revert-button {
+    width: 100%;
+    min-height: 42px;
+  }
+}

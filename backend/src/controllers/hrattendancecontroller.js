@@ -5261,6 +5261,8 @@ const getHrLeaveManagement = async (req, res) => {
         la.total_days,
         la.reason,
         la.status,
+        COALESCE(la.revert_status, 'none') AS revert_status,
+        la.revert_reason,
         DATE_FORMAT(la.applied_at, '%Y-%m-%d %H:%i:%s') AS applied_at,
         DATE_FORMAT(la.reviewed_at, '%Y-%m-%d %H:%i:%s') AS reviewed_at,
         reviewer.full_name AS reviewed_by_name
@@ -5790,6 +5792,162 @@ const applyHrEmployeeLeave = async (req, res) => {
    EXPORTS
 ========================================================= */
 
+/* =========================================================
+   HR: REVERT A PENDING OR APPROVED LEAVE
+
+   POST /api/hr-attendance/leave-management/:userId/revert/:leaveId
+   body: { reason }
+
+   Uses the same state as an approved revert request
+   (revert_status = 'approved'), so the leave balance returns and
+   the leave no longer counts anywhere, exactly like the existing
+   employee revert flow - HR just does it directly.
+========================================================= */
+
+const revertHrEmployeeLeave = async (req, res) => {
+  let connection;
+
+  try {
+    if (!isAuthorizedHR(req)) {
+      return res.status(403).json({
+        success: false,
+        message: "HR Attendance access denied.",
+      });
+    }
+
+    const userId = Number(req.params.userId);
+    const leaveId = Number(req.params.leaveId);
+    const hrUserId = Number(req.user?.user_id || 0);
+    const reason = String(req.body?.reason || "").trim();
+
+    if (
+      !Number.isInteger(userId) ||
+      userId <= 0 ||
+      !Number.isInteger(leaveId) ||
+      leaveId <= 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid employee and leave IDs are required.",
+      });
+    }
+
+    if (!reason) {
+      return res.status(400).json({
+        success: false,
+        message: "Please enter a reason for reverting this leave.",
+      });
+    }
+
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [rows] = await connection.query(
+      `
+      SELECT
+        leave_id,
+        employee_id,
+        leave_type,
+        DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
+        status,
+        COALESCE(revert_status, 'none') AS revert_status
+      FROM leave_applications
+      WHERE leave_id = ?
+        AND employee_id = ?
+      LIMIT 1
+      FOR UPDATE
+      `,
+      [leaveId, userId]
+    );
+
+    const leave = rows[0];
+
+    if (!leave) {
+      await connection.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Leave application not found for this employee.",
+      });
+    }
+
+    const leaveStatus = String(leave.status || "").toLowerCase();
+
+    if (!["pending", "approved"].includes(leaveStatus)) {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Only pending or approved leave can be reverted.",
+      });
+    }
+
+    if (String(leave.revert_status).toLowerCase() === "approved") {
+      await connection.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "This leave has already been reverted.",
+      });
+    }
+
+    await connection.query(
+      `
+      UPDATE leave_applications
+      SET
+        revert_status = 'approved',
+        revert_reason = ?,
+        revert_requested_at = COALESCE(revert_requested_at, NOW()),
+        revert_reviewed_by = ?,
+        revert_reviewed_at = NOW(),
+        revert_review_remark = 'Reverted directly by HR'
+      WHERE leave_id = ?
+      `,
+      [reason, hrUserId || null, leaveId]
+    );
+
+    await connection.commit();
+
+    let balances = null;
+
+    if (leave.leave_type !== "unpaid") {
+      try {
+        balances = await buildLeaveBalances(
+          db,
+          userId,
+          Number(String(leave.start_date).slice(0, 4))
+        );
+      } catch (balanceError) {
+        console.error("HR revert balance refresh failed:", balanceError.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: "Leave reverted. The leave balance has been restored.",
+      leave_id: leaveId,
+      balances,
+    });
+  } catch (error) {
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch {
+        // ignore rollback errors
+      }
+    }
+
+    console.error("revertHrEmployeeLeave error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to revert leave.",
+    });
+  } finally {
+    if (connection) connection.release();
+  }
+};
+
 module.exports = {
   getHrAttendance,
   getHrEmployeeSummary,
@@ -5801,4 +5959,5 @@ module.exports = {
   addHrEmployeeExtraLeave,
   reduceHrEmployeeLeave,
   applyHrEmployeeLeave,
+  revertHrEmployeeLeave,
 };

@@ -5392,12 +5392,13 @@ const getSuperadminAttention = async (req, res) => {
         LEFT JOIN users esc ON esc.user_id = la.escalated_by
         WHERE la.escalated_for_approval = 1
           AND LOWER(la.status) = 'pending'
+          AND COALESCE(la.revert_status, 'none') <> 'approved'
         ORDER BY la.escalated_at DESC, la.leave_id DESC
         LIMIT 8
         `
       ),
       db.query(
-        `SELECT COUNT(*) AS total FROM leave_applications WHERE LOWER(status) = 'pending'`
+        `SELECT COUNT(*) AS total FROM leave_applications WHERE LOWER(status) = 'pending' AND COALESCE(revert_status, 'none') <> 'approved'`
       ),
       db.query(
         `SELECT COUNT(*) AS total FROM employee_field_visits WHERE LOWER(status) = 'pending'`

@@ -261,6 +261,11 @@ const [
   const [leaveManagementLoading, setLeaveManagementLoading] = useState(false);
   const [leaveManagementSaving, setLeaveManagementSaving] = useState(false);
   const [leaveManagementAction, setLeaveManagementAction] = useState("apply");
+
+  // HR reverts a pending / approved leave from the Manage Leave dialog
+  const [revertTarget, setRevertTarget] = useState(null);
+  const [revertReason, setRevertReason] = useState("");
+  const [reverting, setReverting] = useState(false);
   const [managedLeaveForm, setManagedLeaveForm] = useState(() =>
     createManagedLeaveForm(today)
   );
@@ -1131,6 +1136,43 @@ const employeeSummaryStatus = (record) => {
       );
     } finally {
       setLeaveManagementLoading(false);
+    }
+  };
+
+  const closeRevertDialog = () => {
+    setRevertTarget(null);
+    setRevertReason("");
+  };
+
+  const revertLeave = async () => {
+    if (!revertTarget) return;
+
+    if (!revertReason.trim()) {
+      notify("Please enter a reason for reverting this leave.", "error");
+      return;
+    }
+
+    try {
+      setReverting(true);
+
+      const response = await api.post(
+        `/hr-attendance/leave-management/${leaveManagementEmployeeId}/revert/${revertTarget.leave_id}`,
+        { reason: revertReason.trim() }
+      );
+
+      notify(response.data?.message || "Leave reverted.", "success");
+      closeRevertDialog();
+
+      // refresh the dialog (balances + history) and the Leave tab behind it
+      await loadLeaveManagement(leaveManagementEmployeeId);
+      fetchAttendance({ nextPage: page });
+    } catch (err) {
+      notify(
+        err?.response?.data?.message || "Failed to revert leave.",
+        "error"
+      );
+    } finally {
+      setReverting(false);
     }
   };
 
@@ -2590,8 +2632,34 @@ await fetchEmployeeSummary({
                             </small>
                           </div>
                           <span>{leave.total_days} day(s)</span>
-                          <StatusBadge value={titleCase(leave.status)} />
+                          <StatusBadge
+                            value={
+                              leave.revert_status === "approved"
+                                ? "Reverted"
+                                : leave.revert_status === "pending"
+                                ? "Revert Requested"
+                                : titleCase(leave.status)
+                            }
+                          />
                           <small>{leave.reason || "-"}</small>
+
+                          <span className="hr-revert-slot">
+                            {["pending", "approved"].includes(
+                              String(leave.status || "").toLowerCase()
+                            ) &&
+                              leave.revert_status !== "approved" && (
+                                <button
+                                  type="button"
+                                  className="hr-revert-button"
+                                  onClick={() => {
+                                    setRevertTarget(leave);
+                                    setRevertReason("");
+                                  }}
+                                >
+                                  Revert
+                                </button>
+                              )}
+                          </span>
                         </div>
                       ))
                     ) : (
@@ -2656,6 +2724,55 @@ await fetchEmployeeSummary({
               onClick={closeLeaveManagement}
             >
               Close
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {revertTarget && (
+        <Modal
+          title="Revert Leave"
+          subtitle={`${titleCase(revertTarget.leave_type)} · ${displayDate(
+            revertTarget.start_date
+          )}${
+            revertTarget.end_date !== revertTarget.start_date
+              ? ` – ${displayDate(revertTarget.end_date)}`
+              : ""
+          } · ${revertTarget.total_days} day(s)`}
+          onClose={closeRevertDialog}
+        >
+          <div className="hr-revert-dialog">
+            <p>
+              This cancels the {String(revertTarget.status).toLowerCase()}{" "}
+              leave and gives the leave days back to the employee's balance.
+            </p>
+
+            <label htmlFor="hr-revert-reason">Reason *</label>
+
+            <textarea
+              id="hr-revert-reason"
+              rows={4}
+              value={revertReason}
+              placeholder="Why is this leave being reverted?"
+              onChange={(event) => setRevertReason(event.target.value)}
+            />
+          </div>
+
+          <div className="hr-modal-footer">
+            <button
+              className="hr-button danger"
+              onClick={revertLeave}
+              disabled={reverting}
+            >
+              {reverting ? "Reverting..." : "Revert Leave"}
+            </button>
+
+            <button
+              className="hr-button secondary"
+              onClick={closeRevertDialog}
+              disabled={reverting}
+            >
+              Cancel
             </button>
           </div>
         </Modal>

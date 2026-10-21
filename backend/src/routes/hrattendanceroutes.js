@@ -13,6 +13,7 @@ const {
   addHrEmployeeExtraLeave,
   reduceHrEmployeeLeave,
   applyHrEmployeeLeave,
+  revertHrEmployeeLeave,
 } = require("../controllers/hrattendancecontroller");
 
 const router = express.Router();
@@ -86,6 +87,13 @@ router.post(
   authMiddleware,
   onlyHR,
   applyHrEmployeeLeave
+);
+
+router.post(
+  "/leave-management/:userId/revert/:leaveId",
+  authMiddleware,
+  onlyHR,
+  revertHrEmployeeLeave
 );
 
 router.post(
