@@ -57,11 +57,6 @@ const HOLIDAYS_2026 = [
     type: "fixed",
   },
 
-  {
-    date: "2026-11-10",
-    name: "Gujarati New Year",
-    type: "fixed",
-  },
 
   // =========================
   // OPTIONAL FESTIVAL LEAVES
@@ -135,6 +130,12 @@ const HOLIDAYS_2026 = [
   },
 
   {
+    date: "2026-11-10",
+    name: "Gujarati New Year",
+    type: "optional",
+  },
+
+  {
     date: "2026-11-11",
     name: "Bhai Dooj",
     type: "optional",
@@ -149,6 +150,18 @@ const HOLIDAYS_2026 = [
   {
     date: "2026-12-25",
     name: "Christmas Day",
+    type: "optional",
+  },
+
+  {
+    date: "2027-01-01",
+    name: "New Year's Day",
+    type: "optional",
+  },
+
+  {
+    date: "2027-08-15",
+    name: "Parsi New Year",
     type: "optional",
   },
 ];

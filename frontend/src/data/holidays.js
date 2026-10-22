@@ -32,15 +32,28 @@ export const HOLIDAYS = [
     type: "fixed",
   },
 
+
   {
     date: "2026-11-10",
     name: "Gujarati New Year",
-    type: "fixed",
+    type: "optional",
   },
 
   {
     date: "2026-12-25",
     name: "Christmas",
+    type: "optional",
+  },
+
+  {
+    date: "2027-01-01",
+    name: "New Year's Day",
+    type: "optional",
+  },
+
+  {
+    date: "2027-08-15",
+    name: "Parsi New Year",
     type: "optional",
   },
 ];

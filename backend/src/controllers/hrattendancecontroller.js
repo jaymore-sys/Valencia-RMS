@@ -74,9 +74,6 @@ const getDayName = (dateString) => {
 const getHolidayName = (dateString) => {
   const monthDay = String(dateString || "").slice(5);
 
-  if (dateString === "2026-11-10") return "Gujarati New Year";
-if (dateString === "2027-01-01") return "New Year";
-if (dateString === "2027-08-15") return "Independence Day / Parsi New Year";
 return FIXED_HOLIDAYS[monthDay] || null;
 };
 

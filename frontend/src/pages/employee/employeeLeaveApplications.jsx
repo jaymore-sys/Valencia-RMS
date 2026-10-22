@@ -787,6 +787,8 @@ const EmployeeLeaveApplications =
     const [holidays, setHolidays] =
       useState([]);
 
+    const [nextYearFestivalBalance, setNextYearFestivalBalance] = useState(null);
+
     const [
       historyFilter,
       setHistoryFilter,
@@ -1025,6 +1027,8 @@ return workingDays;
                 return false;
               }
 
+              if (new Date(`${date}T00:00:00`).getDay() === 0) return false;
+
               return true;
             })
             .sort((a, b) =>
@@ -1059,18 +1063,14 @@ return workingDays;
         ]
       );
 
-    const selectedAvailable =
-      selectedLeaveType
-        ? Number(
-          balances[
-            selectedLeaveType
-          ]?.available ??
-          balances[
-            selectedLeaveType
-          ]?.remaining ??
-          0
-        )
-        : 0;
+    const selectedBalance = selectedLeaveType === "festival" &&
+      form.start_date.slice(0, 4) === String(new Date().getFullYear() + 1)
+        ? nextYearFestivalBalance
+        : balances[selectedLeaveType];
+
+    const selectedAvailable = selectedLeaveType
+      ? Number(selectedBalance?.available ?? selectedBalance?.remaining ?? 0)
+      : 0;
 
         const isSelectedUnpaidSick =
   selectedLeaveType ===
@@ -1204,6 +1204,18 @@ const isSelectedUnpaid =
               "/employee-leaves/summary"
             );
 
+          let nextYearData = {};
+          try {
+            const nextYearResponse = await api.get("/employee-leaves/summary", {
+              params: { year: new Date().getFullYear() + 1 },
+            });
+            nextYearData = nextYearResponse.data || {};
+            setNextYearFestivalBalance(nextYearData.balances?.festival || null);
+          } catch (futureError) {
+            console.error("Next-year leave summary unavailable:", futureError);
+            setNextYearFestivalBalance(null);
+          }
+
           if (
             response.data?.balances
           ) {
@@ -1224,15 +1236,10 @@ const isSelectedUnpaid =
             );
           }
 
-          setApplications(
-            Array.isArray(
-              response.data
-                ?.applications
-            )
-              ? response.data
-                .applications
-              : []
-          );
+          setApplications([
+            ...(Array.isArray(response.data?.applications) ? response.data.applications : []),
+            ...(Array.isArray(nextYearData?.applications) ? nextYearData.applications : []),
+          ]);
         } catch (err) {
           console.error(
             "Fetch employee leave data error:",
@@ -1633,16 +1640,9 @@ must be applied at least 15 days prior.
       */
 
       if (!isUnpaid) {
-        const currentAvailable =
-          Number(
-            balances[
-              selectedLeaveType
-            ]?.available ??
-            balances[
-              selectedLeaveType
-            ]?.remaining ??
-            0
-          );
+        const currentAvailable = selectedLeaveType === "festival"
+          ? selectedAvailable
+          : Number(balances[selectedLeaveType]?.available ?? balances[selectedLeaveType]?.remaining ?? 0);
 
         if (
           calculateDays >
@@ -2472,7 +2472,7 @@ const casualAvailable = Number(
                                   ).slice(
                                     1
                                   )
-                                  : "Available"}
+                                  : new Date(`${date}T00:00:00`).getDay() === 0 ? "Weekly Off" : "Available"}
                               </small>
                             </div>
                           );
