@@ -36,6 +36,12 @@ const HOLIDAYS = [
     type: "fixed",
   },
 
+  {
+    date: "2026-11-10",
+    name: "Gujarati New Year",
+    type: "fixed",
+  },
+
   /* =========================
      FESTIVAL HOLIDAY OPTIONS
   ========================= */

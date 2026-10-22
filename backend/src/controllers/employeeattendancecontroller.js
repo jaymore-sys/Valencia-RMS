@@ -358,6 +358,12 @@ const FIXED_COMPANY_HOLIDAYS_2026 = new Map([
   ["2026-05-01", "Maharashtra Day"],
   ["2026-08-15", "Independence Day"],
   ["2026-10-02", "Mahatma Gandhi Jayanti"],
+  ["2026-11-10", "Gujarati New Year"],
+  ["2027-01-01", "New Year"],
+  ["2027-01-26", "Republic Day"],
+  ["2027-05-01", "Maharashtra Day"],
+  ["2027-08-15", "Independence Day / Parsi New Year"],
+  ["2027-10-02", "Mahatma Gandhi Jayanti"],
 ]);
 
 const buildAttendanceWithGeneratedAbsents = (

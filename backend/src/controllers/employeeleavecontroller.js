@@ -57,6 +57,12 @@ const HOLIDAYS_2026 = [
     type: "fixed",
   },
 
+  {
+    date: "2026-11-10",
+    name: "Gujarati New Year",
+    type: "fixed",
+  },
+
   // =========================
   // OPTIONAL FESTIVAL LEAVES
   // EMPLOYEE CAN TAKE ANY 2
