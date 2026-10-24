@@ -3773,7 +3773,7 @@ const attachFieldVisitStops = async (visits) => {
 
 
 
-             description, created_at, updated_at
+             description, conclusion, remark, needs_review, created_at, updated_at
 
 
 
@@ -3878,6 +3878,8 @@ const attachFieldVisitStops = async (visits) => {
 
 
               description: visit.comment || "",
+                  conclusion: visit.conclusion || "",
+                  remark: visit.remark || "",
 
 
 

@@ -2171,6 +2171,8 @@ const normalizeFieldVisitStops = (body = {}) => {
         stop?.description || ""
 
       ).trim(),
+      conclusion: String(stop?.conclusion || "").trim(),
+      remark: String(stop?.remark || "").trim(),
 
     }))
 
@@ -2243,6 +2245,8 @@ const normalizeFieldVisitStops = (body = {}) => {
         description:
 
           legacyComment,
+        conclusion: String(body.conclusion || "").trim(),
+        remark: String(body.remark || "").trim(),
 
       },
 
@@ -2314,7 +2318,7 @@ async (visits) => {
 
           description,
 
-          created_at,
+          conclusion, remark, needs_review, created_at,
 
           updated_at
 
@@ -2455,6 +2459,8 @@ async (visits) => {
                   visit.comment ||
 
                   "",
+                conclusion: visit.conclusion || "",
+                remark: visit.remark || "",
 
                 is_legacy:
 
@@ -2977,25 +2983,9 @@ async (
 
       ).trim();
 
-    const conclusion =
+    const conclusion = String(firstStop?.conclusion ?? req.body?.conclusion ?? "").trim();
 
-      String(
-
-        req.body?.conclusion ||
-
-          ""
-
-      ).trim();
-
-    const remark =
-
-      String(
-
-        req.body?.remark ||
-
-          ""
-
-      ).trim();
+    const remark = String(firstStop?.remark ?? req.body?.remark ?? "").trim();
 
     /* =========================
 
@@ -3434,6 +3424,8 @@ async (
             stop.description ||
 
               null,
+            stop.conclusion || null,
+            stop.remark || null,
 
           ]
 
@@ -3455,8 +3447,7 @@ async (
 
             visit_time,
 
-            description
-
+            description, conclusion, remark
           )
 
           VALUES ?
@@ -4799,117 +4790,84 @@ Valencia RMS
 // Use the existing date formatter; both original dates are immutable on resubmission.
 const formatDateOnly = formatDate;
 
-const resubmitEmployeeFieldVisit = async (req, res) => {
+const resubmitEmployeeFieldVisit = async (req,res) => {
   let connection;
   try {
     const employeeId = Number(req.user?.user_id || req.user?.id || 0);
-    if (!employeeId) return res.status(401).json({ success: false, message: "Unauthorized." });
-    const visitId = Number(req.params.visitId);
-    if (!Number.isInteger(visitId) || visitId <= 0) {
-      return res.status(400).json({ success: false, message: "Invalid field visit." });
+    if (!employeeId) return res.status(401).json({success:false,message:"Unauthorized."});
+    const visitId=Number(req.params.visitId);
+    if(!Number.isSafeInteger(visitId)||visitId<=0)
+      return res.status(400).json({success:false,message:"Invalid field visit."});
+    connection=await db.getConnection();await connection.beginTransaction();
+    const [rows]=await connection.query(`SELECT visit_id,employee_id,status,visit_type,
+      DATE_FORMAT(visit_date,'%Y-%m-%d') AS visit_date,DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date,
+      duration_type,half_day_session,location,comment,conclusion,remark
+      FROM employee_field_visits WHERE visit_id=? AND employee_id=? LIMIT 1 FOR UPDATE`,[visitId,employeeId]);
+    if(!rows.length){await connection.rollback();return res.status(404).json({success:false,message:"Field visit not found."});}
+    const original=rows[0];
+    if(String(original.status||"").toLowerCase()!=="changes_requested"){
+      await connection.rollback();return res.status(409).json({success:false,message:"Only visits returned for review can be resubmitted."});
     }
-    connection = await db.getConnection();
-    await connection.beginTransaction();
-    const [rows] = await connection.query(
-      `SELECT visit_id, employee_id, status, visit_type,
-              DATE_FORMAT(visit_date, '%Y-%m-%d') AS visit_date,
-              DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date,
-              duration_type, half_day_session, location, comment, conclusion, remark
-         FROM employee_field_visits
-        WHERE visit_id = ? AND employee_id = ? LIMIT 1 FOR UPDATE`,
-      [visitId, employeeId]
-    );
-    if (!rows.length) {
-      await connection.rollback();
-      return res.status(404).json({ success: false, message: "Your field visit was not found." });
-    }
-    const original = rows[0];
-    if (String(original.status || "").toLowerCase() !== "changes_requested") {
-      await connection.rollback();
-      return res.status(409).json({ success: false, message: "Only visits returned for review can be resubmitted." });
-    }
-    // Explicitly disallow changed dates; neither date is ever part of the UPDATE.
-    const start = formatDateOnly(original.visit_date);
-    const end = formatDateOnly(original.end_date);
-    const submittedStart = req.body?.visit_date;
-    const submittedEnd = req.body?.end_date;
-    if ((submittedStart !== undefined && formatDateOnly(submittedStart) !== start) ||
-        (submittedEnd !== undefined && formatDateOnly(submittedEnd) !== end)) {
-      await connection.rollback();
-      return res.status(400).json({ success: false, message: "Visit dates are locked during review and cannot be changed." });
-    }
-    const visitType = String(req.body?.visit_type ?? original.visit_type ?? "").trim();
-    const durationType = String(req.body?.duration_type ?? original.duration_type ?? "").toLowerCase().trim();
-    const halfDaySession = durationType === "half_day"
-      ? String(req.body?.half_day_session ?? original.half_day_session ?? "").toLowerCase().trim()
-      : null;
-    const conclusion = String(req.body?.conclusion ?? original.conclusion ?? "").trim();
-    const remark = String(req.body?.remark ?? original.remark ?? "").trim();
-    if (!visitType || !["full_day", "half_day"].includes(durationType) ||
-      (durationType === "half_day" && !["first_half", "second_half"].includes(halfDaySession))) {
-      await connection.rollback();
-      return res.status(400).json({ success: false, message: "Invalid visit type or duration." });
-    }
-    const [existingStops] = await connection.query(
-      `SELECT stop_id, location, visit_time, description FROM field_visit_stops
-        WHERE visit_id = ? ORDER BY sequence_no, stop_id`, [visitId]
-    );
-    let stops;
-    if (req.body?.visit_stops !== undefined) {
-      if (!Array.isArray(req.body.visit_stops)) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: "Visit stops must be an array." });
+    // Review corrections can change ONLY individual descriptions, conclusions and remarks.
+    // Reject attempts to change original dates, visit type, duration or team.
+    for(const k of ["visit_date","end_date","visit_type","duration_type","half_day_session","visitor_ids","location","comment"]){
+      if(Object.prototype.hasOwnProperty.call(req.body||{},k)){
+        const previous=k==="end_date" ? (original.end_date||null) :
+          k==="half_day_session" ? (original.half_day_session||null) : original[k];
+        if(k==="visitor_ids" || String(req.body[k]??"")!==String(previous??"")){
+          await connection.rollback();return res.status(400).json({success:false,message:"Date, location, visit details and team are locked during correction."});
+        }
       }
-      stops = req.body.visit_stops.map((stop) => ({
-        location: String(stop?.location || "").trim(),
-        visit_time: String(stop?.visit_time || "").trim() || null,
-        description: String(stop?.description || "").trim(),
-      }));
-    } else {
-      stops = existingStops.length
-        ? existingStops.map((stop) => ({ ...stop }))
-        : [{ location: original.location || "", visit_time: null, description: original.comment || "" }];
     }
-    if (!stops.length || stops.some((stop) => !stop.location || !stop.description)) {
-      await connection.rollback();
-      return res.status(400).json({ success: false, message: "Each location needs a location and description." });
+    const [existing]=await connection.query(`SELECT stop_id,sequence_no,location,visit_time,description,conclusion,remark
+      FROM field_visit_stops WHERE visit_id=? ORDER BY sequence_no,stop_id FOR UPDATE`,[visitId]);
+    const submitted=req.body?.visit_stops;
+    if(!Array.isArray(submitted)||!submitted.length){
+      await connection.rollback();return res.status(400).json({success:false,message:"Visit locations are required."});
     }
-    const first = stops[0];
-    await connection.query(
-      `UPDATE employee_field_visits SET visit_type = ?, duration_type = ?, half_day_session = ?,
-        location = ?, comment = ?, conclusion = ?, remark = ?, status = 'pending',
-        reviewed_by = NULL, reviewed_at = NULL, updated_at = NOW()
-        WHERE visit_id = ? AND employee_id = ? AND status = 'changes_requested'`,
-      [visitType, durationType, halfDaySession, first.location, first.description,
-        conclusion || null, remark || null, visitId, employeeId]
-    );
-    await connection.query(`DELETE FROM field_visit_stops WHERE visit_id = ?`, [visitId]);
-    await connection.query(
-      `INSERT INTO field_visit_stops (visit_id, sequence_no, location, visit_time, description) VALUES ?`,
-      [stops.map((stop, index) => [visitId, index + 1, stop.location, stop.visit_time, stop.description])]
-    );
-    // Team membership may also be corrected, but only when supplied explicitly.
-    if (req.body?.visitor_ids !== undefined) {
-      if (!Array.isArray(req.body.visitor_ids) || req.body.visitor_ids.some((id) => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
-        await connection.rollback();
-        return res.status(400).json({ success: false, message: "Invalid team members." });
+    // Historic records without a stop row: create their single legacy stop once.
+    if(!existing.length && submitted.length===1){
+      await connection.query(`INSERT INTO field_visit_stops(visit_id,sequence_no,location,visit_time,description,conclusion,remark)
+        VALUES(?,1,?,NULL,?,?,?)`,[visitId,original.location,original.comment,original.conclusion,original.remark]);
+      const [created]=await connection.query(`SELECT stop_id,sequence_no,location,visit_time,description,conclusion,remark
+        FROM field_visit_stops WHERE visit_id=? ORDER BY sequence_no,stop_id FOR UPDATE`,[visitId]);
+      existing.push(...created);
+    }
+    if(submitted.length!==existing.length){await connection.rollback();return res.status(400).json({success:false,message:"Locations cannot be added or removed after submission."});}
+    for(let i=0;i<existing.length;i++){
+      const old=existing[i],incoming=submitted[i];
+      if(!incoming || (incoming.stop_id!=null && Number(incoming.stop_id)!==Number(old.stop_id)) ||
+        String(incoming.location??"")!==String(old.location??"") ||
+        String(incoming.visit_time??"").slice(0,5)!==String(old.visit_time??"").slice(0,5)){
+        await connection.rollback();return res.status(400).json({success:false,message:"Location names, times and order are locked."});
       }
-      const unique = [...new Set(req.body.visitor_ids.map(Number))];
-      await connection.query(`DELETE FROM field_visit_members WHERE visit_id = ?`, [visitId]);
-      if (unique.length) await connection.query(
-        `INSERT INTO field_visit_members (visit_id, employee_id) VALUES ?`,
-        [unique.map((id) => [visitId, id])]
-      );
+      const description=String(incoming.description??"").trim();
+      const conclusion=String(incoming.conclusion??old.conclusion??"").trim();
+      const remark=String(incoming.remark??old.remark??"").trim();
+      if(!description || description.length>30000 || conclusion.length>30000 || remark.length>30000){
+        await connection.rollback();return res.status(400).json({success:false,message:"Invalid description, conclusion or remark."});
+      }
+      if(description!==String(old.description??"")||conclusion!==String(old.conclusion??"")||remark!==String(old.remark??"")){
+        await connection.query(`UPDATE field_visit_stops SET description=?,conclusion=?,remark=?,updated_at=NOW() WHERE stop_id=? AND visit_id=?`,
+          [description,conclusion||null,remark||null,old.stop_id,visitId]);
+        await connection.query(`INSERT INTO field_visit_stop_edit_history
+          (visit_id,stop_id,edited_by,visit_status,old_description,new_description,old_conclusion,new_conclusion,old_remark,new_remark)
+          VALUES(?,?,?,?,?,?,?,?,?,?)`,[visitId,old.stop_id,employeeId,original.status,old.description,description,old.conclusion,conclusion,old.remark,remark]);
+      }
     }
+    const first=submitted[0];
+    await connection.query(`UPDATE employee_field_visits
+      SET comment=?,conclusion=?,remark=?,status='pending',reviewed_by=NULL,reviewed_at=NULL,updated_at=NOW()
+      WHERE visit_id=? AND employee_id=? AND status='changes_requested'`,
+      [String(first.description).trim(),String(first.conclusion??"").trim()||null,
+       String(first.remark??"").trim()||null,visitId,employeeId]);
     await connection.commit();
-    return res.json({ success: true, message: "Field visit corrected and resubmitted for approval. Original dates preserved.", visit_id: visitId, status: "pending" });
-  } catch (error) {
-    if (connection) await connection.rollback();
-    console.error("Resubmit employee field visit error:", error);
-    return res.status(500).json({ success: false, message: "Failed to resubmit employee field visit.", error: error.message, sqlMessage: error.sqlMessage || null });
-  } finally {
-    if (connection) connection.release();
-  }
+    return res.json({success:true,message:"Field visit corrected and resubmitted for approval. Dates and locations preserved.",visit_id:visitId,status:"pending"});
+  } catch(error){
+    if(connection) await connection.rollback().catch(()=>{});
+    console.error("Resubmit field visit error:",error);
+    return res.status(500).json({success:false,message:"Failed to resubmit field visit."});
+  } finally{if(connection)connection.release();}
 };
 
 const getEmployeesForFieldVisit = async(req,res)=>{

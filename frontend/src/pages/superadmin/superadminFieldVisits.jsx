@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Search, RefreshCw, MapPin, Users, CheckCircle, Clock, XCircle } from "lucide-react";
 
 import api from "../../api/axios";
+import FieldVisitDocuments from "../../components/FieldVisitDocuments";
 import ReadMoreText from "../../components/ReadMoreText";
 import PhoneSelect from "../../components/PhoneSelect";
 
@@ -277,6 +278,10 @@ export default function SuperadminFieldVisits() {
               <div style={detailLabel}>Description / Purpose</div>
 
               <div style={{fontSize:13.5,color:"#415068",lineHeight:1.8,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}><ReadMoreText text={stop.description||"-"} /></div>
+              {stop.conclusion&&<div style={{marginTop:9}}><div style={detailLabel}>Conclusion</div><ReadMoreText text={stop.conclusion}/></div>}
+              {stop.remark&&<div style={{marginTop:9}}><div style={detailLabel}>Remark / Follow-up</div><ReadMoreText text={stop.remark}/></div>}
+              {Number(stop.needs_review)===1&&<div style={{marginTop:7,color:"#b45309",fontSize:12,fontWeight:700}}>Report edited after approval</div>}
+              {stop.stop_id&&<FieldVisitDocuments stopId={stop.stop_id}/>}
 
             </div>)}
 
@@ -284,9 +289,10 @@ export default function SuperadminFieldVisits() {
 
           <div style={{display:"grid",gap:10}}>
 
-            <div style={detailSection}><div style={detailLabel}>Conclusion</div><div style={{...detailValue,fontWeight:450,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detailVisit.conclusion||"-"}</div></div>
-
-            <div style={detailSection}><div style={detailLabel}>Remark / Follow-up</div><div style={{...detailValue,fontWeight:450,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detailVisit.remark||"-"}</div></div>
+            {!stopsOf(detailVisit).some(stop=>stop.conclusion||stop.remark)&&<>
+              <div style={detailSection}><div style={detailLabel}>Historical Overall Conclusion</div><div style={{...detailValue,fontWeight:450,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detailVisit.conclusion||"-"}</div></div>
+              <div style={detailSection}><div style={detailLabel}>Historical Overall Remark</div><div style={{...detailValue,fontWeight:450,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detailVisit.remark||"-"}</div></div>
+            </>}
 
             {detailVisit.review_remark&&<div style={{...detailSection,border:"1px solid #f5dfba",background:"#fff9ef"}}><div style={{...detailLabel,color:"#b67622"}}>Review Remark</div><div style={{...detailValue,fontWeight:500,whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{detailVisit.review_remark}</div></div>}
 

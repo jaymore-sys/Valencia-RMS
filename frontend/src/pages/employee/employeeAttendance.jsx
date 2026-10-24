@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import api from "../../api/axios";
+import FieldVisitDocuments from "../../components/FieldVisitDocuments";
 const getResponseData = (response) => {
   return response?.data?.data || response?.data || {};
 };
@@ -18,9 +19,7 @@ const asArray = (value) => {
   return [];
 };
 const createEmptyVisitStop = () => ({
-  location: "",
-  visit_time: "",
-  description: "",
+  location: "", visit_time: "", description: "", conclusion: "", remark: "", pendingFiles: [],
 });
 const getVisitStops = (visit = {}) => {
   const savedStops = asArray(visit.visit_stops)
@@ -44,6 +43,7 @@ const getVisitStops = (visit = {}) => {
         location: visit.location || "",
         visit_time: null,
         description: visit.comment || "",
+        conclusion: visit.conclusion || "", remark: visit.remark || "",
         is_legacy: true,
       },
     ];
@@ -859,6 +859,7 @@ const EmployeeAttendance = ({
   const [showVisitModal, setShowVisitModal] =
     useState(false);
   const [editVisitTarget, setEditVisitTarget] = useState(null);
+  const [manageDocumentsVisit,setManageDocumentsVisit] = useState(null);
   const [savingVisit, setSavingVisit] =
     useState(false);
   const [visitError, setVisitError] = useState("");
@@ -970,7 +971,7 @@ const EmployeeAttendance = ({
       duration_type: visit.duration_type || "full_day",
       half_day_session: visit.half_day_session || "",
       visit_stops: getVisitStops(visit).map(stop => ({
-        location: stop.location || "", visit_time: String(stop.visit_time || "").slice(0,5), description: stop.description || "",
+        location: stop.location || "", visit_time: String(stop.visit_time || "").slice(0,5), description: stop.description || "", stop_id: stop.stop_id, conclusion: stop.conclusion || "", remark: stop.remark || "", pendingFiles: [],
       })),
       conclusion: visit.conclusion || "", remark: visit.remark || "",
     });
@@ -978,103 +979,77 @@ const EmployeeAttendance = ({
     setShowVisitModal(true);
   };
   const submitFieldVisit = async () => {
-    setVisitError("");
-    setVisitSuccess("");
-    const visitStops = asArray(visitForm.visit_stops)
-      .map((stop) => ({
-        location: String(stop?.location || "").trim(),
-        visit_time: String(stop?.visit_time || "").trim() || null,
-        description: String(stop?.description || "").trim(),
-      }))
-      .filter((stop) => stop.location || stop.description);
-    if (
-      !visitForm.visit_date ||
-      !visitForm.duration_type ||
-      !visitStops.length ||
-      visitStops.some(
-        (stop) =>
-          !stop.location ||
-          !stop.description
-      )
-    ) {
-      setVisitError(
-        "Please complete the date, duration and every visit location with its description."
-      );
-      return;
+    setVisitError("");setVisitSuccess("");
+    const visitStops=asArray(visitForm.visit_stops).map(stop=>({
+      stop_id: stop.stop_id,
+      location: String(stop.location||"").trim(),
+      visit_time: String(stop.visit_time||"").trim()||null,
+      description: String(stop.description||"").trim(),
+      conclusion: String(stop.conclusion||"").trim(),
+      remark: String(stop.remark||"").trim(),
+    }));
+    if(!visitStops.length || visitStops.some(stop=>!stop.location||!stop.description)){
+      setVisitError("Every location needs its location and description.");return;
     }
-    if (visitForm.end_date && visitForm.end_date < visitForm.visit_date) {
-      setVisitError("End Date cannot be earlier than Visit Date.");
-      return;
+    if(!editVisitTarget && (!visitForm.visit_date || !visitForm.duration_type)){
+      setVisitError("Visit date and duration are required.");return;
     }
-    if (
-      visitForm.duration_type ===
-      "half_day" &&
-      ![
-        "first_half",
-        "second_half",
-      ].includes(
-        visitForm.half_day_session
-      )
-    ) {
-      setVisitError(
-        "Please select First Half or Second Half."
-      );
-      return;
+    if(!editVisitTarget && visitForm.end_date && visitForm.end_date<visitForm.visit_date){
+      setVisitError("End Date cannot be earlier than Visit Date.");return;
     }
-    try {
+    if(!editVisitTarget && visitForm.duration_type==="half_day" &&
+       !["first_half","second_half"].includes(visitForm.half_day_session)){
+      setVisitError("Select First Half or Second Half.");return;
+    }
+    const files=asArray(visitForm.visit_stops).map(stop=>asArray(stop.pendingFiles));
+    if(files.some(group=>group.length>5 || group.some(file=>file.size>10*1024*1024))){
+      setVisitError("Up to 5 documents per location, maximum 10 MB each.");return;
+    }
+    try{
       setSavingVisit(true);
-      const firstStop = visitStops[0];
-      await (editVisitTarget ? api.put : api.post)(
-        editVisitTarget ? `/employee-attendance/field-visits/${editVisitTarget.visit_id}/resubmit` : "/employee-attendance/field-visits",
-        {
-          visit_type: visitForm.visit_type,
-          visit_date: visitForm.visit_date,
-          end_date: visitForm.end_date || null,
-          duration_type:
-            visitForm.duration_type,
-          half_day_session:
-            visitForm.duration_type ===
-              "half_day"
-              ? visitForm.half_day_session
-              : null,
-          // Legacy fields are intentionally preserved for
-          // attendance and older Field Visit screens.
-          location: firstStop.location,
-          comment: firstStop.description,
-          visit_stops: visitStops,
-          conclusion: String(
-            visitForm.conclusion || ""
-          ).trim(),
-          remark: String(
-            visitForm.remark || ""
-          ).trim(),
-          // Preserve original team members when correcting an existing visit.
-          ...(editVisitTarget ? {} : { visitor_ids: selectedVisitors }),
+      let response;
+      if(editVisitTarget){
+        const correction=String(editVisitTarget.status||"").toLowerCase()==="changes_requested";
+        const endpoint=correction
+          ? `/employee-attendance/field-visits/${editVisitTarget.visit_id}/resubmit`
+          : `/field-visit-locations/visits/${editVisitTarget.visit_id}/report`;
+        const cleanStops=visitStops.map(({stop_id,description,conclusion,remark,location,visit_time})=>
+          correction?{stop_id,location,visit_time,description,conclusion,remark}:{stop_id,description,conclusion,remark});
+        response=correction
+          ? await api.put(endpoint,{visit_stops:cleanStops})
+          : await api.patch(endpoint,{visit_stops:cleanStops});
+      }else{
+        const first=visitStops[0];
+        response=await api.post("/employee-attendance/field-visits",{
+          visit_type:visitForm.visit_type,visit_date:visitForm.visit_date,end_date:visitForm.end_date||null,
+          duration_type:visitForm.duration_type,
+          half_day_session:visitForm.duration_type==="half_day"?visitForm.half_day_session:null,
+          location:first.location,comment:first.description,visit_stops:visitStops,
+          conclusion:first.conclusion,remark:first.remark,visitor_ids:selectedVisitors,
+        });
+      }
+      let uploadsFailed=0;
+      if(!editVisitTarget){
+        const savedStops=response.data?.visit?.visit_stops||[];
+        for(let index=0;index<files.length;index++){
+          const stopId=Number(savedStops[index]?.stop_id);
+          for(const file of files[index]){
+            if(!stopId){uploadsFailed++;continue;}
+            const body=new FormData();body.append("file",file);
+            try{await api.post(`/field-visit-locations/stops/${stopId}/documents`,body);}
+            catch(error){console.error("Visit document upload failed",error);uploadsFailed++;}
+          }
         }
-      );
-      setVisitForm({
-        visit_type: "Sales Visit",
-        visit_date: "",
-        duration_type: "full_day",
-        half_day_session: "",
-        visit_stops: [createEmptyVisitStop()],
-        conclusion: "",
-        remark: "",
-      });
-      setShowVisitModal(false);
-      setEditVisitTarget(null);
-      setVisitSuccess(
-        editVisitTarget ? "Corrected field visit resubmitted for approval." : "Field visit submitted for approval."
-      );
+      }
+      setVisitForm({visit_type:"Sales Visit",visit_date:"",end_date:"",duration_type:"full_day",
+        half_day_session:"",visit_stops:[createEmptyVisitStop()],conclusion:"",remark:""});
+      setShowVisitModal(false);setEditVisitTarget(null);
+      setVisitSuccess(editVisitTarget?"Field Visit report saved.":uploadsFailed
+        ?`Field Visit saved, but ${uploadsFailed} document(s) could not upload. Open Documents to retry.`
+        :"Field Visit submitted for approval.");
       await fetchFieldVisits();
-    } catch (err) {
-      setVisitError(
-        err?.response?.data?.message ||
-        "Failed to submit field visit."
-      );
-    } finally {
-      setSavingVisit(false);
-    }
+    }catch(err){setVisitError(err?.response?.data?.message||"Failed to save Field Visit.");}
+    finally{setSavingVisit(false);}
   };
   useEffect(() => {
     fetchAttendance();
@@ -1618,12 +1593,17 @@ const EmployeeAttendance = ({
                                   <div style={styles.visitStopDescription}>
                                     <FormattedVisitText value={location.description} />
                                   </div>
+                                  {(location.conclusion || location.remark) && <div style={{fontSize:12,marginTop:8,lineHeight:1.65}}>
+                                    {location.conclusion && <div><strong>Conclusion: </strong><FormattedVisitText value={location.conclusion}/></div>}
+                                    {location.remark && <div><strong>Remark / Follow-up: </strong><FormattedVisitText value={location.remark}/></div>}
+                                    {location.needs_review===1 && <div style={{color:"#b45309"}}>Report updated after approval</div>}
+                                  </div>}
                                 </div>
                               ))}
                             </div>
                           </td>
                           <td style={styles.td}>
-                            <div style={styles.outcomeBlock}>
+                            {!locations.some(stop=>stop.conclusion||stop.remark) && <div style={styles.outcomeBlock}>
                               <div>
                                 <span style={styles.outcomeLabel}>Conclusion</span>
                                 <div style={styles.outcomeText}>
@@ -1636,7 +1616,7 @@ const EmployeeAttendance = ({
                                   <FormattedVisitText value={visit.remark} />
                                 </div>
                               </div>
-                            </div>
+                            </div>}
                           </td>
                           <td style={styles.td}>
                             <span
@@ -1656,12 +1636,14 @@ const EmployeeAttendance = ({
                             <FormattedVisitText value={visit.review_remark} />
                           </td>
                           <td style={styles.td}>
-                            {status === "changes_requested" && (
-                              <button type="button" onClick={() => openEmployeeCorrection(visit)}
-                                style={{border:"none",background:"#fff1ed",color:"#e34c2a",fontWeight:800,padding:"8px 10px",borderRadius:8,cursor:"pointer",whiteSpace:"nowrap"}}>
-                                Edit & Resubmit
-                              </button>
-                            )}
+                            <button type="button" onClick={() => openEmployeeCorrection(visit)}
+                              style={{border:"none",background:"#fff1ed",color:"#e34c2a",fontWeight:800,padding:"8px 10px",borderRadius:8,cursor:"pointer",whiteSpace:"nowrap"}}>
+                              {status==="changes_requested"?"Edit & Resubmit":"Edit Report"}
+                            </button>
+                            <button type="button" onClick={()=>setManageDocumentsVisit(visit)}
+                              style={{border:"1px solid #dce3eb",background:"#fff",marginTop:6,padding:"8px 10px",borderRadius:8,cursor:"pointer",whiteSpace:"nowrap"}}>
+                              Documents
+                            </button>
                           </td>
                         </tr>
                       );
@@ -1689,7 +1671,7 @@ const EmployeeAttendance = ({
             <div style={styles.modalHeader}>
               <div>
                 <h2 style={styles.modalTitle}>
-                  {editVisitTarget ? "Correct Field Visit" : "Add Field Visit"}
+                  {editVisitTarget ? "Edit Field Visit Report" : "Add Field Visit"}
                 </h2>
                 <p style={styles.modalSubtitle}>
                   Add your outside sales or
@@ -1721,6 +1703,7 @@ const EmployeeAttendance = ({
                 <span>Visit Type *</span>
                 <select
                   style={styles.formInput}
+                  disabled={Boolean(editVisitTarget)}
                   value={
                     visitForm.visit_type
                   }
@@ -1763,6 +1746,7 @@ const EmployeeAttendance = ({
                   </option>
                 </select>
               </label>
+              {!editVisitTarget && (<>
               <label style={styles.formGroup}>
                 <span>
                   Visitors / Team Members
@@ -1912,6 +1896,7 @@ const EmployeeAttendance = ({
                   }
                 </div>
               </label>
+              </>)}
               <label style={styles.formGroup}>
                 <span>Date *</span>
                 <input
@@ -1950,6 +1935,7 @@ const EmployeeAttendance = ({
                 <span>Duration *</span>
                 <select
                   style={styles.formInput}
+                  disabled={Boolean(editVisitTarget)}
                   value={visitForm.duration_type}
                   onChange={(event) => {
                     const value =
@@ -1984,6 +1970,7 @@ const EmployeeAttendance = ({
                     </span>
                     <select
                       style={styles.formInput}
+                      disabled={Boolean(editVisitTarget)}
                       value={
                         visitForm.half_day_session
                       }
@@ -2020,7 +2007,8 @@ const EmployeeAttendance = ({
                 </div>
                 <button
                   type="button"
-                  style={styles.addStopButton}
+                  style={{...styles.addStopButton,display:editVisitTarget?"none":undefined}}
+                  disabled={Boolean(editVisitTarget)}
                   onClick={() =>
                     setVisitForm((previous) => ({
                       ...previous,
@@ -2041,7 +2029,7 @@ const EmployeeAttendance = ({
                     <strong style={styles.stopTitle}>
                       Visit Location
                     </strong>
-                    {visitForm.visit_stops.length > 1 && (
+                    {!editVisitTarget && visitForm.visit_stops.length > 1 && (
                       <button
                         type="button"
                         style={styles.removeStopButton}
@@ -2065,6 +2053,7 @@ const EmployeeAttendance = ({
                         type="text"
                         style={styles.formInput}
                         placeholder="Example: Vashi, Navi Mumbai"
+                        disabled={Boolean(editVisitTarget)}
                         value={stop.location}
                         onChange={(event) =>
                           setVisitForm((previous) => ({
@@ -2087,6 +2076,7 @@ const EmployeeAttendance = ({
                       <input
                         type="time"
                         style={styles.formInput}
+                        disabled={Boolean(editVisitTarget)}
                         value={stop.visit_time || ""}
                         onChange={(event) =>
                           setVisitForm((previous) => ({
@@ -2127,37 +2117,25 @@ const EmployeeAttendance = ({
                       }
                     />
                   </label>
+                  <label style={styles.formGroup}><span>Conclusion</span>
+                    <RichVisitEditor style={styles.formTextarea} value={stop.conclusion||""}
+                      placeholder="Result of this location's visit..."
+                      onChange={value=>setVisitForm(previous=>({...previous,visit_stops:previous.visit_stops.map((item,i)=>i===index?{...item,conclusion:value}:item)}))}/>
+                  </label>
+                  <label style={styles.formGroup}><span>Remark / Follow-up</span>
+                    <RichVisitEditor style={styles.formTextarea} value={stop.remark||""}
+                      placeholder="Next action for this location..."
+                      onChange={value=>setVisitForm(previous=>({...previous,visit_stops:previous.visit_stops.map((item,i)=>i===index?{...item,remark:value}:item)}))}/>
+                  </label>
+                  {!editVisitTarget && <label style={styles.formGroup}>
+                    <span>Attach Documents (optional · up to 10 MB each, maximum 5)</span>
+                    <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx"
+                      onChange={event=>{const fs=Array.from(event.target.files||[]);setVisitForm(previous=>({...previous,visit_stops:previous.visit_stops.map((item,i)=>i===index?{...item,pendingFiles:fs}:item)}));}} />
+                  </label>}
+                  {editVisitTarget && stop.stop_id && <FieldVisitDocuments stopId={stop.stop_id} canEdit />}
                 </div>
               ))}
             </section>
-            <label style={styles.formGroup}>
-              <span>Conclusion</span>
-              <RichVisitEditor
-                style={styles.formTextarea}
-                placeholder="Overall result or conclusion from the complete visit..."
-                value={visitForm.conclusion}
-                onChange={(nextValue) =>
-                  setVisitForm((previous) => ({
-                    ...previous,
-                    conclusion: nextValue,
-                  }))
-                }
-              />
-            </label>
-            <label style={styles.formGroup}>
-              <span>Remark / Follow-up</span>
-              <RichVisitEditor
-                style={styles.formTextarea}
-                placeholder="Next action, follow-up, quotation, callback or other remark..."
-                value={visitForm.remark}
-                onChange={(nextValue) =>
-                  setVisitForm((previous) => ({
-                    ...previous,
-                    remark: nextValue,
-                  }))
-                }
-              />
-            </label>
             <div style={styles.modalFooter}>
               <button
                 type="button"
@@ -2182,6 +2160,18 @@ const EmployeeAttendance = ({
           </div>
         </div>
       )}
+      {manageDocumentsVisit && <div style={styles.modalOverlay}>
+        <div style={{...styles.visitModal,maxHeight:"86vh",overflowY:"auto"}} role="dialog" aria-modal="true" aria-label="Visit documents">
+          <div style={styles.modalHeader}>
+            <h2 style={styles.modalTitle}>Field Visit Documents</h2>
+            <button type="button" onClick={()=>setManageDocumentsVisit(null)}>Close</button>
+          </div>
+          {getVisitStops(manageDocumentsVisit).map((stop,index)=><div key={stop.stop_id||index} style={{padding:12}}>
+            <strong>{index+1}. {stop.location}</strong>
+            {stop.stop_id?<FieldVisitDocuments stopId={stop.stop_id} canEdit/>:<div>No saved location ID.</div>}
+          </div>)}
+        </div>
+      </div>}
     </div>
   );
 };

@@ -47,6 +47,7 @@ const leaveReviewRoutes = require("./routes/leavereviewroutes");
 const fieldVisitReviewRoutes = require("./routes/fieldvisitreviewroutes");
 
 const chatRoutes = require("./routes/chatroutes");
+const fieldVisitLocationsRoutes = require("./routes/fieldvisitlocationsroutes");
 
 const {
   startDeadlineEmailJob
@@ -420,6 +421,8 @@ app.use(
   "/api/notifications",
   notificationRoutes
 );
+
+app.use("/api/field-visit-locations", fieldVisitLocationsRoutes);
 
 // Valencia RMS Text Chat
 // Remains disabled until CHAT_ENABLED=true

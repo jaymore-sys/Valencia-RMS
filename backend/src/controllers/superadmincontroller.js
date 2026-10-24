@@ -343,7 +343,7 @@ async (visits) => {
           location,
           visit_time,
           description,
-          created_at,
+          conclusion, remark, needs_review, created_at,
           updated_at
 
         FROM field_visit_stops
@@ -432,6 +432,8 @@ async (visits) => {
                 description:
                   visit.comment ||
                   "",
+                  conclusion: visit.conclusion || "",
+                  remark: visit.remark || "",
 
                 is_legacy:
                   true,

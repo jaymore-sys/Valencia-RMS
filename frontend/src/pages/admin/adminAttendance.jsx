@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Bold, Highlighter, List } from "lucide-react";
 import api from "../../api/axios";
+import FieldVisitDocuments from "../../components/FieldVisitDocuments";
 import { ReadMoreButton, firstWords, useIsPhone } from "../../components/ReadMoreText";
 const getInitials = (name) => {
   const cleanName = String(name || "User").trim();
@@ -40,9 +41,7 @@ const getVisitDurationLabel = (visit) => {
   return "-";
 };
 const createEmptyVisitStop = () => ({
-  location: "",
-  visit_time: "",
-  description: "",
+  location: "",visit_time: "",description: "",conclusion: "",remark: "",pendingFiles: [],
 });
 const getVisitStops = (visit = {}) => {
   const savedStops = Array.isArray(visit.visit_stops)
@@ -68,6 +67,7 @@ const getVisitStops = (visit = {}) => {
         location: visit.location || "",
         visit_time: null,
         description: visit.comment || "",
+        conclusion: visit.conclusion || "",remark: visit.remark || "",
         is_legacy: true,
       },
     ];
@@ -669,6 +669,7 @@ const isPremal =
   const [reviewSaving, setReviewSaving] = useState(false);
   const [showVisitModal, setShowVisitModal] = useState(false);
   const [editVisitTarget, setEditVisitTarget] = useState(null);
+  const [manageDocumentsVisit,setManageDocumentsVisit] = useState(null);
   const [editVisitSaving, setEditVisitSaving] = useState(false);
   const [editVisitors, setEditVisitors] = useState([]);
   const [savingVisit, setSavingVisit] = useState(false);
@@ -842,7 +843,8 @@ const isPremal =
       visit_stops: getVisitStops(visit).map((stop) => ({
         location: stop.location || "",
         visit_time: String(stop.visit_time || "").slice(0, 5),
-        description: stop.description || "",
+        description: stop.description || "",stop_id:stop.stop_id,
+        conclusion:stop.conclusion||"",remark:stop.remark||"",pendingFiles:[],
       })),
       conclusion: visit.conclusion || "",
       remark: visit.remark || "",
@@ -853,38 +855,26 @@ const isPremal =
   };
 
   const submitReviewCorrection = async () => {
-    if (!editVisitTarget || editVisitSaving) return;
-    const v = editVisitTarget;
-    const stops = v.visit_stops || [];
-    if (!stops.length || stops.some((stop) => !String(stop.location || "").trim() || !String(stop.description || "").trim())) {
-      setVisitError("Every visit stop requires its location and description.");
-      return;
+    if(!editVisitTarget||editVisitSaving)return;
+    const visit=editVisitTarget;
+    const stops=visit.visit_stops||[];
+    if(!stops.length||stops.some(stop=>!String(stop.description||"").trim())){
+      setVisitError("Each location needs a description.");return;
     }
-    if (v.duration_type === "half_day" && !["first_half", "second_half"].includes(v.half_day_session)) {
-      setVisitError("Select a valid half-day session.");
-      return;
-    }
-    try {
-      setEditVisitSaving(true);
-      setVisitError("");
-     const response = await api.put(`/admin-attendance/field-visits/${v.visit_id}/resubmit`, {
-  // Dates are locked and must remain unchanged.
-  // Backend preserves the original dates.
-  visit_type: v.visit_type,
-        duration_type: v.duration_type,
-        half_day_session: v.duration_type === "half_day" ? v.half_day_session : null,
-        visit_stops: stops,
-        conclusion: v.conclusion,
-        remark: v.remark,
-      });
+    const correction=String(visit.status||"").toLowerCase()==="changes_requested";
+    const clean=stops.map(stop=>({stop_id:stop.stop_id,description:String(stop.description||"").trim(),
+      conclusion:String(stop.conclusion||"").trim(),remark:String(stop.remark||"").trim(),
+      ...(correction?{location:stop.location,visit_time:stop.visit_time||null}:{})}));
+    try{
+      setEditVisitSaving(true);setVisitError("");
+      const response=correction
+        ?await api.put(`/admin-attendance/field-visits/${visit.visit_id}/resubmit`,{visit_stops:clean})
+        :await api.patch(`/field-visit-locations/visits/${visit.visit_id}/report`,{visit_stops:clean});
       setEditVisitTarget(null);
-      setVisitMessage(response.data?.message || "Field visit resubmitted for approval.");
+      setVisitMessage(response.data?.message||"Field Visit report saved.");
       await fetchMyVisits();
-    } catch (err) {
-      setVisitError(err?.response?.data?.message || "Unable to resubmit this visit.");
-    } finally {
-      setEditVisitSaving(false);
-    }
+    }catch(err){setVisitError(err.response?.data?.message||"Could not update Field Visit report.");}
+    finally{setEditVisitSaving(false);}
   };
 
   const submitAdminVisit = async () => {
@@ -896,6 +886,8 @@ const isPremal =
             location: String(stop?.location || "").trim(),
             visit_time: String(stop?.visit_time || "").trim() || null,
             description: String(stop?.description || "").trim(),
+            conclusion: String(stop?.conclusion || "").trim(),
+            remark: String(stop?.remark || "").trim(),
           }))
           .filter((stop) => stop.location || stop.description)
       : [];
@@ -930,10 +922,14 @@ const isPremal =
       );
       return;
     }
+    const pending=Array.isArray(visitForm.visit_stops)?visitForm.visit_stops.map(stop=>Array.isArray(stop.pendingFiles)?stop.pendingFiles:[]):[];
+    if(pending.some(files=>files.length>5||files.some(file=>file.size>10*1024*1024))){
+      setVisitError("Up to 5 documents per location, maximum 10 MB each.");return;
+    }
     try {
       setSavingVisit(true);
       const firstStop = visitStops[0];
-      await api.post(
+      const submittedResponse=await api.post(
         "/admin-attendance/field-visits",
         {
           visit_type: visitForm.visit_type,
@@ -950,15 +946,21 @@ const isPremal =
           location: firstStop.location,
           comment: firstStop.description,
           visit_stops: visitStops,
-          conclusion: String(
-            visitForm.conclusion || ""
-          ).trim(),
-          remark: String(
-            visitForm.remark || ""
-          ).trim(),
+          conclusion:firstStop.conclusion,remark:firstStop.remark,
           visitor_ids: selectedVisitors,
         }
       );
+      const savedStops=submittedResponse.data?.visit?.visit_stops||[];
+      let filesFailed=0;
+      for(let i=0;i<pending.length;i++){
+        for(const file of pending[i]){
+          const stopId=Number(savedStops[i]?.stop_id);
+          if(!stopId){filesFailed++;continue;}
+          const body=new FormData();body.append("file",file);
+          try{await api.post(`/field-visit-locations/stops/${stopId}/documents`,body);}
+          catch(err){console.error("Field Visit document upload failed",err);filesFailed++;}
+        }
+      }
       setVisitForm({
         visit_type: "Sales Visit",
         visit_date: "",
@@ -973,7 +975,7 @@ const isPremal =
       setVisitorSearch("");
       setShowVisitModal(false);
       setFieldVisitMode("my");
-      setVisitMessage("Field visit added successfully.");
+      setVisitMessage(filesFailed ? `Field Visit saved, but ${filesFailed} document(s) failed to upload. Use Documents to retry.` : "Field visit added successfully.");
       await fetchMyVisits();
     } catch (err) {
       setVisitError(
@@ -1567,7 +1569,7 @@ const isPremal =
                       No pending field visits. You're all caught up.
                     </div>
                   ) : (
-                    <table style={styles.table}>
+                    <table style={{...styles.table,minWidth:1100,tableLayout:"fixed"}}>
                       <thead>
                         <tr>
                           <th style={styles.th}>Employee</th>
@@ -1621,10 +1623,19 @@ const isPremal =
                                         : ""}
                                     </strong>
                                     <FormattedVisitText value={stop.description} />
+                                    {(stop.conclusion||stop.remark) && <div style={{fontSize:12,lineHeight:1.6,marginTop:5}}>
+                                      {stop.conclusion&&<div><strong>Conclusion: </strong><FormattedVisitText value={stop.conclusion}/></div>}
+                                      {stop.remark&&<div><strong>Remark / Follow-up: </strong><FormattedVisitText value={stop.remark}/></div>}
+                                      {Number(stop.needs_review)===1&&<div style={{color:"#b45309"}}>Report updated after approval</div>}
+                                    </div>}
                                   </div>
                                 ))}
                               </div>
-                              {(visit.conclusion || visit.remark) && (
+                              {getVisitStops(visit).some(stop=>Number(stop.document_count||0)>0) && (
+<button type="button" style={{border:"1px solid #dce3eb",padding:"6px 10px",borderRadius:7,background:"#fff",color:"#334155",cursor:"pointer",marginTop:8,fontWeight:750,whiteSpace:"nowrap"}}
+                                onClick={()=>setManageDocumentsVisit(visit)}>Documents ({getVisitStops(visit).reduce((sum,stop)=>sum+Number(stop.document_count||0),0)})</button>
+)}
+                              {(!getVisitStops(visit).some(stop=>stop.conclusion||stop.remark) && (visit.conclusion || visit.remark)) && (
                                 <div style={styles.visitOutcomeCompact}>
                                   {visit.conclusion && (
                                     <div>
@@ -1809,10 +1820,19 @@ const isPremal =
                                         : ""}
                                     </strong>
                                     <FormattedVisitText value={stop.description} />
+                                    {(stop.conclusion||stop.remark) && <div style={{fontSize:12,lineHeight:1.6,marginTop:5}}>
+                                      {stop.conclusion&&<div><strong>Conclusion: </strong><FormattedVisitText value={stop.conclusion}/></div>}
+                                      {stop.remark&&<div><strong>Remark / Follow-up: </strong><FormattedVisitText value={stop.remark}/></div>}
+                                      {Number(stop.needs_review)===1&&<div style={{color:"#b45309"}}>Report updated after approval</div>}
+                                    </div>}
                                   </div>
                                 ))}
                               </div>
-                              {(visit.conclusion || visit.remark) && (
+                              {getVisitStops(visit).some(stop=>Number(stop.document_count||0)>0) && (
+<button type="button" style={{border:"1px solid #dce3eb",padding:"6px 10px",borderRadius:7,background:"#fff",color:"#334155",cursor:"pointer",marginTop:8,fontWeight:750,whiteSpace:"nowrap"}}
+                                onClick={()=>setManageDocumentsVisit(visit)}>Documents ({getVisitStops(visit).reduce((sum,stop)=>sum+Number(stop.document_count||0),0)})</button>
+)}
+                              {(!getVisitStops(visit).some(stop=>stop.conclusion||stop.remark) && (visit.conclusion || visit.remark)) && (
                                 <div style={styles.visitOutcomeCompact}>
                                   {visit.conclusion && (
                                     <div>
@@ -2031,10 +2051,17 @@ const isPremal =
                                       : ""}
                                   </strong>
                                   <FormattedVisitText value={stop.description} />
+                                    {(stop.conclusion||stop.remark) && <div style={{fontSize:12,lineHeight:1.6,marginTop:5}}>
+                                      {stop.conclusion&&<div><strong>Conclusion: </strong><FormattedVisitText value={stop.conclusion}/></div>}
+                                      {stop.remark&&<div><strong>Remark / Follow-up: </strong><FormattedVisitText value={stop.remark}/></div>}
+                                      {Number(stop.needs_review)===1&&<div style={{color:"#b45309"}}>Report updated after approval</div>}
+                                    </div>}
                                 </div>
                               ))}
                             </div>
-                            {(visit.conclusion || visit.remark) && (
+                            <button type="button" style={{border:"1px solid #dce3eb",padding:"6px 10px",borderRadius:7,background:"#fff",color:"#334155",cursor:"pointer",marginTop:8,fontWeight:750,whiteSpace:"nowrap"}}
+                                onClick={()=>setManageDocumentsVisit(visit)}>Documents</button>
+                              {(!getVisitStops(visit).some(stop=>stop.conclusion||stop.remark) && (visit.conclusion || visit.remark)) && (
                               <div style={styles.visitOutcomeCompact}>
                                 {visit.conclusion && (
                                   <div>
@@ -2078,11 +2105,10 @@ const isPremal =
                                 <FormattedVisitText value={visit.review_remark} />
                               </div>
                             )}
-                            {Number(visit.employee_id) === Number(myAttendance?.user_id) &&
-                              String(visit.status || "").toLowerCase() === "changes_requested" && (
+                            {Number(visit.employee_id) === Number(myAttendance?.user_id) && (
                                 <button type="button" style={{ ...styles.outlineVisitButton, marginTop: 10 }}
                                   onClick={() => openReviewCorrection(visit)}>
-                                  Edit &amp; Resubmit
+                                  {String(visit.status||"").toLowerCase()==="changes_requested"?"Edit & Resubmit":"Edit Report"}
                                 </button>
                               )}
                           </td>
@@ -2100,8 +2126,8 @@ const isPremal =
         <div style={styles.visitModalOverlay}>
           <div style={styles.visitModal} role="dialog" aria-modal="true" aria-label="Correct field visit">
             <div style={styles.visitModalHeader}>
-              <div><h2 style={styles.visitModalTitle}>Correct &amp; Resubmit Field Visit</h2>
-                <p style={styles.sectionSubtitle}>Review the feedback and update your visit. Dates cannot be changed.</p>
+              <div><h2 style={styles.visitModalTitle}>Edit Field Visit Report</h2>
+                <p style={styles.sectionSubtitle}>Only Description, Conclusion and Remark can be edited. Visit details remain locked.</p>
               </div>
               <button type="button" style={styles.visitCloseButton} disabled={editVisitSaving}
                 onClick={() => { setEditVisitTarget(null); setVisitError(""); }}>×</button>
@@ -2119,19 +2145,19 @@ const isPremal =
                   value={editVisitTarget.end_date ? formatVisitDate(editVisitTarget.end_date) : ""} />
               </label>
               <label style={styles.visitFormGroup}><span>Visit Type</span>
-                <select style={styles.visitFormInput} value={editVisitTarget.visit_type}
+                <select style={styles.visitFormInput} disabled value={editVisitTarget.visit_type}
                   onChange={(e) => setEditVisitTarget((v) => ({ ...v, visit_type: e.target.value }))}>
                   {["Sales Visit", "Exhibition Visit", "Manufacturer Visit", "Document Visit", "Procurement Visit"].map((t) => <option key={t}>{t}</option>)}
                 </select>
               </label>
               <label style={styles.visitFormGroup}><span>Duration</span>
-                <select style={styles.visitFormInput} value={editVisitTarget.duration_type}
+                <select style={styles.visitFormInput} disabled value={editVisitTarget.duration_type}
                   onChange={(e) => setEditVisitTarget((v) => ({ ...v, duration_type: e.target.value }))}>
                   <option value="full_day">Full Day</option><option value="half_day">Half Day</option>
                 </select>
               </label>
               {editVisitTarget.duration_type === "half_day" && <label style={styles.visitFormGroup}><span>Half Day Session</span>
-                <select style={styles.visitFormInput} value={editVisitTarget.half_day_session}
+                <select style={styles.visitFormInput} disabled value={editVisitTarget.half_day_session}
                   onChange={(e) => setEditVisitTarget((v) => ({ ...v, half_day_session: e.target.value }))}>
                   <option value="">Select Half</option><option value="first_half">First Half</option><option value="second_half">Second Half</option>
                 </select>
@@ -2139,19 +2165,17 @@ const isPremal =
             </div>
             <section style={styles.visitStopsSection}>
               <div style={styles.visitStopsHeader}><strong>Visit Stops / Locations</strong>
-                <button type="button" style={styles.addVisitStopButton}
-                  onClick={() => setEditVisitTarget((v) => ({ ...v, visit_stops: [...v.visit_stops, createEmptyVisitStop()] }))}>+ Add Location</button>
+
               </div>
               {editVisitTarget.visit_stops.map((stop, index) => (
                 <div key={index} style={styles.visitStopCard}>
                   <div style={styles.visitStopCardHeader}><strong>Location {index + 1}</strong>
-                    {editVisitTarget.visit_stops.length > 1 && <button type="button" style={styles.removeVisitStopButton}
-                      onClick={() => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.filter((_, i) => i !== index) }))}>Remove</button>}
+
                   </div>
                   <div style={styles.visitStopGrid}>
-                    <label style={styles.visitFormGroup}><span>Location *</span><input style={styles.visitFormInput} value={stop.location}
+                    <label style={styles.visitFormGroup}><span>Location *</span><input style={styles.visitFormInput} disabled value={stop.location}
                       onChange={(e) => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.map((x, i) => i === index ? { ...x, location: e.target.value } : x) }))}/></label>
-                    <label style={styles.visitFormGroup}><span>Time</span><input style={styles.visitFormInput} type="time" value={stop.visit_time || ""}
+                    <label style={styles.visitFormGroup}><span>Time</span><input style={styles.visitFormInput} type="time" disabled value={stop.visit_time || ""}
                       onChange={(e) => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.map((x, i) => i === index ? { ...x, visit_time: e.target.value } : x) }))}/></label>
                   </div>
                   <label style={styles.visitFormGroup}><span>Description *</span>
@@ -2159,20 +2183,19 @@ const isPremal =
                       placeholder="Update the description following the reviewer's feedback."
                       onChange={(value) => setEditVisitTarget((v) => ({ ...v, visit_stops: v.visit_stops.map((x, i) => i === index ? { ...x, description: value } : x) }))}/>
                   </label>
+                  <label style={styles.visitFormGroup}><span>Conclusion</span><RichVisitEditor style={styles.visitTextarea}
+                    value={stop.conclusion||""} onChange={value=>setEditVisitTarget(v=>({...v,visit_stops:v.visit_stops.map((x,i)=>i===index?{...x,conclusion:value}:x)}))}/></label>
+                  <label style={styles.visitFormGroup}><span>Remark / Follow-up</span><RichVisitEditor style={styles.visitTextarea}
+                    value={stop.remark||""} onChange={value=>setEditVisitTarget(v=>({...v,visit_stops:v.visit_stops.map((x,i)=>i===index?{...x,remark:value}:x)}))}/></label>
+                  {stop.stop_id&&<FieldVisitDocuments stopId={stop.stop_id} canEdit/>}
                 </div>
               ))}
             </section>
-            <label style={styles.visitFormGroup}><span>Conclusion</span><RichVisitEditor style={styles.visitTextarea}
-              placeholder="Conclusion" value={editVisitTarget.conclusion}
-              onChange={(value) => setEditVisitTarget((v) => ({ ...v, conclusion: value }))}/></label>
-            <label style={styles.visitFormGroup}><span>Remark / Follow-up</span><RichVisitEditor style={styles.visitTextarea}
-              placeholder="Remark" value={editVisitTarget.remark}
-              onChange={(value) => setEditVisitTarget((v) => ({ ...v, remark: value }))}/></label>
             <div style={styles.visitModalFooter}>
               <button type="button" style={styles.visitCancelButton} disabled={editVisitSaving}
                 onClick={() => { setEditVisitTarget(null); setVisitError(""); }}>Cancel</button>
               <button type="button" style={styles.visitSubmitButton} disabled={editVisitSaving}
-                onClick={submitReviewCorrection}>{editVisitSaving ? "Resubmitting..." : "Resubmit for Approval"}</button>
+                onClick={submitReviewCorrection}>{editVisitSaving ? "Resubmitting..." : String(editVisitTarget.status||"").toLowerCase()==="changes_requested"?"Resubmit for Approval":"Save Changes"}</button>
             </div>
           </div>
         </div>
@@ -2692,37 +2715,21 @@ const isPremal =
                       }
                     />
                   </label>
+                  <label style={styles.visitFormGroup}><span>Conclusion</span>
+                    <RichVisitEditor style={styles.visitTextarea} value={stop.conclusion||""}
+                      placeholder="Outcome of this location" onChange={value=>setVisitForm(previous=>({...previous,visit_stops:previous.visit_stops.map((x,i)=>i===index?{...x,conclusion:value}:x)}))}/>
+                  </label>
+                  <label style={styles.visitFormGroup}><span>Remark / Follow-up</span>
+                    <RichVisitEditor style={styles.visitTextarea} value={stop.remark||""}
+                      placeholder="Next action for this location" onChange={value=>setVisitForm(previous=>({...previous,visit_stops:previous.visit_stops.map((x,i)=>i===index?{...x,remark:value}:x)}))}/>
+                  </label>
+                  <label style={styles.visitFormGroup}><span>Documents (optional · max 5, up to 10 MB each)</span>
+                    <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx"
+                      onChange={event=>{const files=Array.from(event.target.files||[]);setVisitForm(previous=>({...previous,visit_stops:previous.visit_stops.map((x,i)=>i===index?{...x,pendingFiles:files}:x)}));}}/>
+                  </label>
                 </div>
               ))}
             </section>
-            <label style={styles.visitFormGroup}>
-              <span>Conclusion</span>
-              <RichVisitEditor
-                style={styles.visitTextarea}
-                placeholder="Overall result or conclusion from the complete visit..."
-                value={visitForm.conclusion}
-                onChange={(nextValue) =>
-                  setVisitForm((previous) => ({
-                    ...previous,
-                    conclusion: nextValue,
-                  }))
-                }
-              />
-            </label>
-            <label style={styles.visitFormGroup}>
-              <span>Remark / Follow-up</span>
-              <RichVisitEditor
-                style={styles.visitTextarea}
-                placeholder="Next action, quotation, callback, follow-up or other remark..."
-                value={visitForm.remark}
-                onChange={(nextValue) =>
-                  setVisitForm((previous) => ({
-                    ...previous,
-                    remark: nextValue,
-                  }))
-                }
-              />
-            </label>
             <div style={styles.visitModalFooter}>
               <button
                 type="button"
@@ -2743,6 +2750,17 @@ const isPremal =
           </div>
         </div>
       )}
+      {manageDocumentsVisit&&<div style={styles.visitModalOverlay}>
+        <div style={{...styles.visitModal,maxHeight:"88vh",overflowY:"auto"}} role="dialog" aria-modal="true" aria-label="Field Visit Documents">
+          <div style={styles.visitModalHeader}><h2 style={styles.visitModalTitle}>Field Visit Documents</h2>
+            <button type="button" onClick={()=>setManageDocumentsVisit(null)}>Close</button></div>
+          {getVisitStops(manageDocumentsVisit).map((stop,index)=><div key={stop.stop_id||index} style={{padding:12}}>
+            <strong>{index+1}. {stop.location}</strong>
+            {stop.stop_id?<FieldVisitDocuments stopId={stop.stop_id}
+              canEdit={Number(manageDocumentsVisit.employee_id)===Number(myAttendance?.user_id)}/>:<div>No saved stop ID</div>}
+          </div>)}
+        </div>
+      </div>}
     </div>
   );
 };
