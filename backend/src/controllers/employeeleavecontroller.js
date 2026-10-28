@@ -2540,6 +2540,8 @@ const requestLeaveRevert =
           });
       }
 
+      const revertColumns = await getLeaveColumns();
+
       const [leaveRows] =
   await db.query(
     `
@@ -2549,7 +2551,7 @@ const requestLeaveRevert =
       la.leave_type,
       la.start_date,
       la.end_date,
-      la.subject,
+      ${revertColumns.has("subject") ? "la.subject" : "NULL AS subject"},
       la.total_days,
       la.status,
 

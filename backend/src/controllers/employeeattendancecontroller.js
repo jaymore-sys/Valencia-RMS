@@ -4613,6 +4613,8 @@ Valencia RMS
 
       );
 
+      const reviewApprovalUrl = `https://myvol.in/field-visit-review/${reviewToken}`;
+
       const mailResponse = await sendMail({
 
   to: toEmails.filter(
@@ -4637,10 +4639,12 @@ Valencia RMS
 
   subject,
 
-  text,
-
-  html,
-
+  text: text + "\n\nOPEN FIELD VISIT FOR APPROVAL:\n" + reviewApprovalUrl + "\n",
+  html: html.replace(
+    /<\/div>\s*$/,
+    '<p style="margin-top:22px"><a href="' + reviewApprovalUrl +
+    '" style="display:inline-block;background:#ff5733;color:#fff;padding:13px 20px;border-radius:8px;text-decoration:none;font-weight:bold">Open Field Visit for Approval</a></p></div>'
+  ),
   replyTo: employee.email || undefined,
 
 });
