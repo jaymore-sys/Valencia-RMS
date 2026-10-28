@@ -3006,7 +3006,7 @@ const submitInterdepartmentReview = async (action) => {
                           ...(reviewActionLoading ? styles.disabledReviewButton : {}),
                         }}
                         disabled={reviewActionLoading}
-                        onClick={() => handleProjectReviewAction("on_hold")}
+                        onClick={() => handleProjectReviewAction("in_progress")}
                       >
                         <RefreshCw size={18} />
                         {reviewActionLoading ? "Processing..." : "Resume"}
@@ -3212,7 +3212,7 @@ const submitInterdepartmentReview = async (action) => {
 
                               <div style={styles.mainTaskActions}>
                                 <span style={styles.taskStatusBadge}>
-                                  {getStatusLabel(task.status)} ·{" "}
+                                  {getStatusLabel(task.status)} Â·{" "}
                                   {task.progress || 0}%
                                 </span>
 
