@@ -7,6 +7,7 @@ import {
   Download,
   Eye,
   FileSpreadsheet,
+  History,
   MapPin,
   Plus,
   RefreshCw,
@@ -254,6 +255,7 @@ const [
 
   const [showExport, setShowExport] = useState(false);
   const [showAddAttendance, setShowAddAttendance] = useState(false);
+  const [attendanceMode, setAttendanceMode] = useState("individual");
   const [showLeaveManagement, setShowLeaveManagement] = useState(false);
   const [leaveManagementEmployeeId, setLeaveManagementEmployeeId] =
     useState("");
@@ -1293,6 +1295,7 @@ const employeeSummaryStatus = (record) => {
   ========================================================= */
 
   const openAddAttendance = () => {
+    setAttendanceMode("individual");
     setAttendanceForm({
       employee_id: "",
       attendance_date: selectedDate,
@@ -1307,6 +1310,7 @@ const employeeSummaryStatus = (record) => {
   };
 
   const openAddAttendanceForEmployee = (employee) => {
+  setAttendanceMode("individual");
   setAttendanceForm({
     employee_id: String(employee?.user_id || ""),
     attendance_date: selectedDate,
@@ -1688,6 +1692,14 @@ await fetchEmployeeSummary({
           </div>
 
           <button
+            className="hr-button secondary"
+            onClick={() => setActiveTab("activity")}
+          >
+            <History size={16} />
+            Activity Log
+          </button>
+
+          <button
             className="hr-button leave-management"
             onClick={openLeaveManagement}
           >
@@ -1707,7 +1719,7 @@ await fetchEmployeeSummary({
 
     {/* TABS */}
 
-{!summaryOnly && (<div className="hr-tabs">
+{!summaryOnly && activeTab !== "activity" && (<div className="hr-tabs">
   <Tab
     active={activeTab === "attendance"}
     icon={<CheckCircle2 size={16} />}
@@ -1746,6 +1758,7 @@ await fetchEmployeeSummary({
   />
 </div>)}
 
+      {activeTab !== "activity" && (<>
       {/* DATE CONTROLS */}
 
       <div className="hr-date-bar">
@@ -1910,6 +1923,8 @@ await fetchEmployeeSummary({
         </button>
       </div>
 
+      </>)}
+
       {/* ATTENDANCE */}
 
       {activeTab === "attendance" && (
@@ -1989,6 +2004,11 @@ await fetchEmployeeSummary({
             />
           </section>
         </>
+      )}
+
+      {/* ACTIVITY LOG */}
+      {activeTab === "activity" && (
+        <AttendanceActivityLog onBack={() => { setActiveTab("attendance"); fetchAttendance({ nextPage: 1 }); }} />
       )}
 
       {/* EMPLOYEE SUMMARY */}
@@ -2786,6 +2806,13 @@ await fetchEmployeeSummary({
           subtitle="Add or correct an attendance record"
           onClose={() => setShowAddAttendance(false)}
         >
+          <div className="hr-attendance-modes">
+            <button className={attendanceMode === "individual" ? "active" : ""}
+              onClick={() => setAttendanceMode("individual")}>Individual</button>
+            <button className={attendanceMode === "bulk" ? "active" : ""}
+              onClick={() => setAttendanceMode("bulk")}>Bulk Mark Present</button>
+          </div>
+          {attendanceMode === "individual" ? (<>
           <div className="hr-form">
             <label>Employee</label>
 
@@ -2924,6 +2951,18 @@ await fetchEmployeeSummary({
               {saving ? "Saving..." : "Save Attendance"}
             </button>
           </div>
+          </>) : (
+            <BulkMarkPresent
+              users={users}
+              initialDate={selectedDate}
+              notify={notify}
+              onSaved={async () => {
+                setShowAddAttendance(false);
+                await fetchAttendance({ nextPage: page });
+                if (activeTab === "employee-summary") await fetchEmployeeSummary();
+              }}
+            />
+          )}
         </Modal>
       )}
 
@@ -3529,6 +3568,267 @@ await fetchEmployeeSummary({
 /* =========================================================
    SMALL COMPONENTS
 ========================================================= */
+
+/* Frontend contract: POST /hr-attendance/bulk/preview returns
+   {preview_id, eligible_count, skipped_count, scheduled_count, conflicts:[]};
+   POST /hr-attendance/bulk requires that preview_id. The server must
+   verify permission and date conflicts again before committing. */
+function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState([]);
+  const [start, setStart] = useState(initialDate);
+  const [end, setEnd] = useState(initialDate);
+  const [reason, setReason] = useState("");
+  const [description, setDescription] = useState("");
+  const [preview, setPreview] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const matches = query.trim()
+    ? users.filter((u) =>
+        u.full_name?.toLowerCase().includes(query.trim().toLowerCase()) &&
+        !selected.includes(String(u.user_id))
+      ).slice(0, 8)
+    : [];
+  const chosen = users.filter((u) => selected.includes(String(u.user_id)));
+  const allSelected = users.length > 0 && chosen.length === users.length;
+  const payload = {
+    employee_ids: selected.map(Number),
+    start_date: start,
+    end_date: end,
+    reason: reason.trim(),
+    description: description.trim(),
+  };
+
+  const showBulkPreview = async () => {
+    setShowPreview(true);
+    setPreview(null);
+    setError("");
+    setBusy(true);
+    try {
+      const { data } = await api.post("/hr-attendance/bulk/preview", payload);
+      setPreview(data);
+    } catch (err) {
+      setError(err?.response?.data?.message || "Preview validation is not available yet. No attendance has been changed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmBulk = async () => {
+    if (!preview?.preview_id || !preview?.eligible_count || busy) return;
+    setBusy(true);
+    try {
+      const { data } = await api.post("/hr-attendance/bulk", {
+        ...payload,
+        preview_id: preview.preview_id,
+      });
+      notify(data?.message || "Attendance changes saved.");
+      await onSaved();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Unable to save bulk attendance.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="hr-bulk">
+      {!showPreview ? (<>
+        <label>Search and select employees</label>
+        <label className="hr-bulk-select-all">
+          <input type="checkbox" checked={allSelected} disabled={!users.length}
+            onChange={(e) => {
+              setSelected(e.target.checked ? users.map((u) => String(u.user_id)) : []);
+              setQuery("");
+            }} />
+          Select everyone
+        </label>
+        <div className="hr-bulk-search">
+          <Search size={16} />
+          <input value={query} disabled={allSelected} placeholder="Search employee by name..."
+            onChange={(e) => setQuery(e.target.value)} />
+        </div>
+        {query.trim() && (
+          <div className="hr-bulk-results">
+            {matches.length ? matches.map((u) => (
+              <button key={u.user_id} onClick={() => {
+                setSelected((prev) => [...prev, String(u.user_id)]);
+                setQuery("");
+              }}>
+                {u.full_name} <small>{u.employee_code || ""}</small>
+              </button>
+            )) : <span>No matching employees</span>}
+          </div>
+        )}
+        {!!chosen.length && !allSelected && (
+          <div className="hr-bulk-chips">
+            {chosen.map((u) => (
+              <button key={u.user_id} onClick={() =>
+                setSelected((prev) => prev.filter((id) => id !== String(u.user_id)))}>
+                {u.full_name} <X size={13} />
+              </button>
+            ))}
+          </div>
+        )}
+        <small>{selected.length} employee(s) selected</small>
+        <div className="hr-form-two">
+          <div><label>Start date</label><input type="date" value={start}
+            onChange={(e) => {
+              setStart(e.target.value);
+              if (end < e.target.value) setEnd(e.target.value);
+            }} /></div>
+          <div><label>End date</label><input type="date" min={start}
+            value={end} onChange={(e) => setEnd(e.target.value)} /></div>
+        </div>
+        <label>Reason *</label>
+        <input value={reason} maxLength={200} placeholder="Enter reason"
+          onChange={(e) => setReason(e.target.value)} />
+        <label>Description (optional)</label>
+        <textarea rows={3} value={description} maxLength={2000}
+          placeholder="Additional details" onChange={(e) => setDescription(e.target.value)} />
+        <p className="hr-bulk-note">Sundays, holidays, approved leave and existing biometric records are protected. Future attendance takes effect only on its date.</p>
+        <button className="hr-button primary hr-bulk-submit"
+          disabled={!selected.length || !start || !end || end < start || !reason.trim() || busy}
+          onClick={showBulkPreview}>Preview &amp; Mark Present</button>
+      </>) : (<>
+        <h4>Confirmation Preview</h4>
+        <p><strong>{selected.length}</strong> employee(s) · {displayDate(start)} – {displayDate(end)}</p>
+        {allSelected ? <p>All {users.length} employees selected</p> : (
+          <div className="hr-bulk-chips">{chosen.map((u) =>
+            <span key={u.user_id}>{u.full_name}</span>)}</div>
+        )}
+        <p><strong>Reason:</strong> {reason}</p>
+        {description && <p><strong>Description:</strong> {description}</p>}
+        {busy && <p>Checking eligible attendance records...</p>}
+        {preview && (<>
+          <p>Eligible: <strong>{preview.eligible_count ?? 0}</strong> ·
+            Skipped: <strong>{preview.skipped_count ?? 0}</strong> ·
+            Scheduled: <strong>{preview.scheduled_count ?? 0}</strong></p>
+          {!!preview.conflicts?.length && (
+            <div className="hr-bulk-conflicts">
+              {preview.conflicts.map((c, i) =>
+                <p key={i}>{c.employee_name} · {displayDate(c.date)} · {c.reason}</p>)}
+            </div>
+          )}
+        </>)}
+        {error && <p className="hr-bulk-error">{error}</p>}
+        <div className="hr-bulk-actions">
+          <button className="hr-button secondary" disabled={busy}
+            onClick={() => { setShowPreview(false); setPreview(null); setError(""); }}>Back to Edit</button>
+          <button className="hr-button primary" disabled={busy || !preview?.preview_id || !preview?.eligible_count}
+            onClick={confirmBulk}>{busy ? "Processing..." : "Confirm & Mark Present"}</button>
+        </div>
+      </>)}
+    </div>
+  );
+}
+
+function AttendanceActivityLog({ onBack }) {
+  const [items, setItems] = useState([]);
+  const [filter, setFilter] = useState("all");
+  const [expanded, setExpanded] = useState(null);
+  const [detail, setDetail] = useState(null);
+  const [offset, setOffset] = useState(0);
+  const [confirmUndo, setConfirmUndo] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const reload = async () => {
+    const { data } = await api.get("/hr-attendance/activity-log");
+    setItems(Array.isArray(data?.activities) ? data.activities : []);
+  };
+  useEffect(() => {
+    reload().catch(e => setError(e?.response?.data?.message || "Unable to load activity log"))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const openDetail = async (item, nextOffset = 0) => {
+    setConfirmUndo(false);
+    setError("");
+    setExpanded(item.id);
+    if (!nextOffset) setDetail(null);
+    setBusy(true);
+    try {
+      const { data } = await api.get(`/hr-attendance/activity-log/${item.id}`, { params: { offset: nextOffset } });
+      setDetail(old => nextOffset && old ? { ...data, items: [...old.items, ...data.items] } : data);
+      setOffset(nextOffset);
+    } catch (e) { setError(e?.response?.data?.message || "Unable to load activity details"); }
+    finally { setBusy(false); }
+  };
+  const undo = async (item) => {
+    setBusy(true);
+    setError("");
+    try {
+      const { data } = await api.post(`/hr-attendance/activity-log/${item.id}/undo`);
+      setMessage(data?.message || "Attendance change reversed.");
+      setConfirmUndo(false);
+      await reload();
+      await openDetail(item);
+    } catch (e) { setError(e?.response?.data?.message || "Undo could not be completed safely"); }
+    finally { setBusy(false); }
+  };
+  const labels = {
+    bulk_mark_present: "Bulk Mark Present", add_attendance: "Add Attendance",
+    edit_attendance: "Edit Attendance", import: "Import", export: "Export",
+    undo_bulk: "Undo Bulk Attendance", undo_attendance: "Undo Attendance",
+  };
+  const visible = filter === "all" ? items : items.filter(item => item.action === filter);
+  return (
+    <section className="hr-card hr-activity">
+      <div className="hr-activity-heading">
+        <div><h2>Attendance Activity Log</h2><p>Summary of attendance changes, imports and exports</p></div>
+        <button className="hr-button secondary" onClick={onBack}>Back to Attendance</button>
+      </div>
+      <div className="hr-activity-filter">
+        <select value={filter} onChange={e => { setFilter(e.target.value); setExpanded(null); setDetail(null); }}>
+          <option value="all">All Activities</option>
+          {Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+        </select>
+      </div>
+      {message && <p className="hr-activity-message">{message}</p>}
+      {error && <p className="hr-bulk-error">{error}</p>}
+      {loading ? <p>Loading history...</p> : !visible.length ? <p className="hr-activity-empty">No activities found.</p> :
+        visible.map(item => (
+          <div className="hr-activity-item" key={item.id}>
+            <div className="hr-activity-row">
+              <strong>{labels[item.action] || item.action}</strong>
+              <span className="hr-activity-summary">{item.summary}</span>
+              <span>{displayDateTime(item.created_at)}</span>
+              <button onClick={() => expanded === item.id ? (setExpanded(null),setDetail(null),setConfirmUndo(false)) : openDetail(item)}>
+                {expanded === item.id ? "Hide" : "View"}
+              </button>
+            </div>
+            {expanded === item.id && <div className="hr-activity-details">
+              <p><strong>By:</strong> {item.actor_name || "-"} · <strong>Status:</strong> {item.status}</p>
+              {(item.start_date || item.end_date) && <p><strong>Dates:</strong> {displayDate(item.start_date)} – {displayDate(item.end_date || item.start_date)}</p>}
+              {item.reason && <p><strong>Reason:</strong> {item.reason}</p>}
+              {item.description && <p><strong>Description:</strong> {item.description}</p>}
+              {item.file_name && <p><strong>File:</strong> {item.file_name}</p>}
+              {detail?.items?.length > 0 && <div className="hr-activity-changes">
+                <div className="hr-activity-change hr-activity-change-head"><span>Employee</span><span>Date</span><span>Change</span><span>Result</span></div>
+                {detail.items.map((change, index) => <div className="hr-activity-change" key={`${change.employee_name}-${change.date}-${index}`}>
+                  <span>{change.employee_name}</span><span>{displayDate(change.date)}</span>
+                  <span>{change.before_status} → {change.after_status}</span><span>{change.outcome || change.status}</span>
+                </div>)}
+              </div>}
+              {detail?.has_more && <button className="hr-button secondary" disabled={busy} onClick={() => openDetail(item,offset + 200)}>Show more</button>}
+              {item.can_undo && !confirmUndo && <button className="hr-button danger" disabled={busy} onClick={() => setConfirmUndo(true)}>Undo Changes</button>}
+              {confirmUndo && <div className="hr-activity-undo-confirm">
+                <span>Reverse this action? Records changed afterwards will be protected.</span>
+                <button className="hr-button danger" disabled={busy} onClick={() => undo(item)}>{busy ? "Reversing..." : "Confirm Undo"}</button>
+                <button className="hr-button secondary" disabled={busy} onClick={() => setConfirmUndo(false)}>Cancel</button>
+              </div>}
+              {!["bulk_mark_present","add_attendance","edit_attendance"].includes(item.action) &&
+                <p className="hr-activity-hint">This is a reference record; there is no attendance change to undo here.</p>}
+            </div>}
+          </div>))}
+    </section>
+  );
+}
 
 function Tab({
   active,
