@@ -5948,7 +5948,533 @@ const revertHrEmployeeLeave = async (req, res) => {
   }
 };
 
+
+/* ADDITIVE: Bulk Mark Present and Attendance Activity Log */
+// Additive bulk attendance workflow. Existing attendance calculation code is untouched.
+const crypto = require('crypto');
+const { randomUUID } = crypto;
+
+const todayIndia = () => {
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+};
+const fixedHolidays = new Set(Object.keys(FIXED_HOLIDAYS));
+const additionalExcludedDates = new Set(['2026-11-10','2027-01-01']); // Requested future holidays; verify with HR calendar before production.
+const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0,10) === s;
+const nextDay = s => new Date(Date.parse(`${s}T00:00:00Z`) + 86400000).toISOString().slice(0,10);
+const isOff = s => new Date(`${s}T00:00:00Z`).getUTCDay() === 0 || fixedHolidays.has(s.slice(5)) || additionalExcludedDates.has(s);
+const fail = (res, message, status = 400) => res.status(status).json({success:false,message});
+const mysqlDate = s => s && /^\d{4}-\d{2}-\d{2}$/.test(String(s).slice(0,10)) ? String(s).slice(0,10) : null;
+const previewSecret = () => process.env.JWT_SECRET;
+const sign = p => crypto.createHmac('sha256', previewSecret()).update(p).digest('hex');
+const encodePreview = payload => {
+  const body = Buffer.from(JSON.stringify({...payload,expires:Date.now()+5*60000})).toString('base64url');
+  return `${body}.${sign(body)}`;
+};
+const readPreview = token => {
+  try {
+  const [body,mac] = String(token || '').split('.');
+  if (!body || !mac || mac.length !== 64 || !crypto.timingSafeEqual(Buffer.from(sign(body)),Buffer.from(mac))) return null;
+  const p = JSON.parse(Buffer.from(body,'base64url').toString());
+  return p.expires > Date.now() ? p : null;
+  } catch { return null; }
+};
+const identity = req => Number(req.user?.user_id || 0);
+const onlyRathika = async (req,res,next) => {
+  try {
+    const id = identity(req);
+    if (!id) return fail(res,'Unauthorized',403);
+    const [rows] = await db.query('SELECT user_id FROM users WHERE user_id=? AND LOWER(TRIM(email))=? AND LOWER(COALESCE(status,\'active\'))=\'active\' LIMIT 1',[id,'rathika.haleangadi@valencianutrition.com']);
+    if (!rows.length) return fail(res,'Attendance modification not permitted',403);
+    next();
+  } catch(e) { console.error('Attendance authorization',e); return fail(res,'Authorization check failed',500); }
+};
+const clean = body => {
+  const ids = [...new Set((Array.isArray(body.employee_ids)?body.employee_ids:[]).map(Number))];
+  const start = String(body.start_date || ''), end = String(body.end_date || '');
+  const reason = String(body.reason || '').trim(), description = String(body.description || '').trim();
+  if (!ids.length || ids.length > 250 || ids.some(x=>!Number.isSafeInteger(x)||x<=0)) throw Error('Select valid employees (up to 250).');
+  if (!validDate(start) || !validDate(end) || end < start || (Date.parse(end)-Date.parse(start))/86400000 > 366) throw Error('Select a valid date range of up to 366 days.');
+  if (!reason || reason.length > 200 || description.length > 2000) throw Error('A reason (up to 200 characters) is required.');
+  return {ids:ids.sort((a,b)=>a-b),start,end,reason,description};
+};
+let fieldVisitMemberKey;
+async function memberKey(conn) {
+  if (fieldVisitMemberKey !== undefined) return fieldVisitMemberKey;
+  const [columns]=await conn.query('SHOW COLUMNS FROM field_visit_members');
+  fieldVisitMemberKey=columns.some(x=>x.Field==='field_visit_id')?'field_visit_id':columns.some(x=>x.Field==='visit_id')?'visit_id':null;
+  return fieldVisitMemberKey;
+}
+// Read the relevant rows once, including field-visit members, rather than
+// issuing a separate query for every employee and date in a bulk preview.
+async function inspectAttendance(conn, ids, start, end, checkScheduled = true) {
+  const marks = ids.map(() => '?').join(',');
+  const [people] = await conn.query(`
+    SELECT u.user_id,u.full_name,DATE_FORMAT(ep.joining_date,'%Y-%m-%d') joining_date
+    FROM users u LEFT JOIN employee_profiles ep ON ep.user_id=u.user_id
+    WHERE u.user_id IN (${marks}) AND LOWER(COALESCE(u.status,'active'))='active'
+  `, ids);
+  if (people.length !== ids.length) throw Error('One or more selected employees are inactive or invalid.');
+
+  const [attendance] = await conn.query(`
+    SELECT attendance_id,employee_id,DATE_FORMAT(attendance_date,'%Y-%m-%d') attendance_date,
+           status,check_in_time,check_out_time,total_minutes,remarks
+    FROM attendance WHERE employee_id IN (${marks}) AND attendance_date BETWEEN ? AND ?
+  `, [...ids,start,end]);
+  const [leaves] = await conn.query(`
+    SELECT employee_id,DATE_FORMAT(start_date,'%Y-%m-%d') start_date,
+           DATE_FORMAT(end_date,'%Y-%m-%d') end_date,LOWER(status) status
+    FROM leave_applications WHERE employee_id IN (${marks})
+      AND LOWER(status) IN ('pending','approved')
+      AND COALESCE(revert_status,'none')<>'approved'
+      AND start_date<=? AND end_date>=?
+  `, [...ids,end,start]);
+
+  const memberColumn = await memberKey(conn);
+  if (!memberColumn) throw Error('Cannot safely determine field visit member key');
+  const [visits] = await conn.query(`
+    SELECT fv.employee_id owner_id,m.employee_id member_id,
+           DATE_FORMAT(fv.visit_date,'%Y-%m-%d') start_date,
+           DATE_FORMAT(COALESCE(fv.end_date,fv.visit_date),'%Y-%m-%d') end_date,
+           LOWER(fv.status) status
+    FROM employee_field_visits fv
+    LEFT JOIN field_visit_members m ON m.${memberColumn}=fv.visit_id
+    WHERE LOWER(fv.status) IN ('pending','approved')
+      AND fv.visit_date<=? AND COALESCE(fv.end_date,fv.visit_date)>=?
+      AND (fv.employee_id IN (${marks}) OR m.employee_id IN (${marks}))
+  `, [end,start,...ids,...ids]);
+
+  const [entries] = checkScheduled ? await conn.query(`
+    SELECT employee_id,DATE_FORMAT(attendance_date,'%Y-%m-%d') attendance_date
+    FROM hr_attendance_bulk_entries
+    WHERE employee_id IN (${marks}) AND attendance_date BETWEEN ? AND ?
+  `, [...ids,start,end]) : [[]];
+
+  const peopleMap = new Map(people.map(u => [Number(u.user_id),u]));
+  const attendanceMap = new Map(), duplicates = new Set();
+  attendance.forEach(row => {
+    const key = `${row.employee_id}|${row.attendance_date}`;
+    if (attendanceMap.has(key)) duplicates.add(key);
+    attendanceMap.set(key,row);
+  });
+  const leaveMap = new Map(), visitMap = new Map(), idsSet = new Set(ids);
+  leaves.forEach(row => {
+    const id = Number(row.employee_id);
+    if (!leaveMap.has(id)) leaveMap.set(id,[]);
+    leaveMap.get(id).push(row);
+  });
+  visits.forEach(row => {
+    for (const id of new Set([Number(row.owner_id),Number(row.member_id)])) {
+      if (!idsSet.has(id)) continue;
+      if (!visitMap.has(id)) visitMap.set(id,[]);
+      visitMap.get(id).push(row);
+    }
+  });
+  const scheduled = new Set(entries.map(row => `${row.employee_id}|${row.attendance_date}`));
+  const find = (rows,date,status) => rows?.some(r => r.start_date<=date && r.end_date>=date && r.status===status);
+  const why = (id,date) => {
+    if (isOff(date)) return 'Sunday or company holiday';
+    const user = peopleMap.get(id);
+    if (!user) return 'Employee not active';
+    if (user.joining_date && date < user.joining_date) return 'Before joining date';
+    const key = `${id}|${date}`, previous = attendanceMap.get(key);
+    if (duplicates.has(key)) return 'Multiple attendance records require review';
+    if (previous) {
+      if (previous.check_in_time != null || previous.check_out_time != null || Number(previous.total_minutes || 0) > 0)
+        return 'Existing biometric attendance protected';
+      if (String(previous.status || '').toLowerCase() !== 'absent')
+        return 'Existing attendance status protected';
+    }
+    if (find(leaveMap.get(id),date,'approved')) return 'Approved leave protected';
+    if (find(leaveMap.get(id),date,'pending')) return 'Pending leave protected';
+    if (find(visitMap.get(id),date,'approved')) return 'Approved field visit protected';
+    if (find(visitMap.get(id),date,'pending')) return 'Pending field visit protected';
+    if (checkScheduled && scheduled.has(key)) return 'Already scheduled or applied';
+    return null;
+  };
+  return {peopleMap,attendanceMap,why};
+}
+
+async function assess(body) {
+  const p=clean(body), conn=await db.getConnection();
+  try {
+    const data=await inspectAttendance(conn,p.ids,p.start,p.end);
+    const conflicts=[]; let eligible=0, scheduled=0, skipped=0;
+    const today=todayIndia();
+    for(const id of p.ids) for(let date=p.start;date<=p.end;date=nextDay(date)) {
+      const why=data.why(id,date);
+      if(why){skipped++;if(conflicts.length<100)conflicts.push({employee_name:data.peopleMap.get(id).full_name,date,reason:why});}
+      else {eligible++;if(date>today)scheduled++;}
+    }
+    return {p,employee_names:p.ids.map(id=>data.peopleMap.get(id).full_name),eligible_count:eligible,scheduled_count:scheduled,skipped_count:skipped,conflicts};
+  } finally {conn.release();}
+}
+const preview=async (req,res)=>{try {
+  const a=await assess(req.body);
+  res.json({success:true,preview_id:encodePreview({...a.p,actor:identity(req)}),eligible_count:a.eligible_count,scheduled_count:a.scheduled_count,skipped_count:a.skipped_count,conflicts:a.conflicts});
+} catch(e){fail(res,e.message);}};
+
+const commit=async (req,res)=>{
+  let conn;try{
+    const p=clean(req.body), signed=readPreview(req.body.preview_id);
+    if(!signed||signed.actor!==identity(req)||JSON.stringify(p)!==JSON.stringify({ids:signed.ids,start:signed.start,end:signed.end,reason:signed.reason,description:signed.description}))
+      return fail(res,'Preview expired or selection changed. Preview again.');
+    conn=await db.getConnection();await conn.beginTransaction();
+    const data=await inspectAttendance(conn,p.ids,p.start,p.end);
+    const batch=randomUUID(), eligible=[];
+    for(const id of p.ids) for(let date=p.start;date<=p.end;date=nextDay(date)) {
+      if(!data.why(id,date)) eligible.push([batch,id,date,p.reason,p.description,identity(req)]);
+    }
+    if(!eligible.length){await conn.rollback();return fail(res,'No eligible attendance records remain.');}
+    for(let i=0;i<eligible.length;i+=200){
+      const chunk=eligible.slice(i,i+200);
+      await conn.query(`INSERT INTO hr_attendance_bulk_entries
+        (batch_id,employee_id,attendance_date,reason,description,created_by) VALUES ${chunk.map(()=>'(?,?,?,?,?,?)').join(',')}`,
+        chunk.flat());
+    }
+    await conn.query(`INSERT INTO hr_attendance_activity
+      (actor_user_id,action,batch_id,from_date,to_date,reason,description,details)
+      VALUES (?,'bulk_mark_present',?,?,?,?,?,?)`,
+      [identity(req),batch,p.start,p.end,p.reason,p.description,JSON.stringify({selected_employees:p.ids,employee_names:p.ids.map(id=>data.peopleMap.get(id).full_name),scheduled_entries:eligible.length})]);
+    await conn.commit();conn.release();conn=null;
+    await processDue(batch);
+    const [[counts]]=await db.query(`SELECT
+      SUM(status='applied') applied_count,SUM(status='scheduled') scheduled_count,
+      SUM(status='skipped') skipped_count FROM hr_attendance_bulk_entries WHERE batch_id=?`,[batch]);
+    const applied=Number(counts.applied_count||0), scheduled=Number(counts.scheduled_count||0), skipped=Number(counts.skipped_count||0);
+    res.json({success:true,message:`${applied} marked Present, ${scheduled} scheduled, ${skipped} skipped.`,batch_id:batch,applied_count:applied,scheduled_count:scheduled,skipped_count:skipped});
+  }catch(e){if(conn)await conn.rollback();console.error('Bulk attendance commit',e);fail(res,'Bulk attendance could not be saved',500);}finally{if(conn)conn.release();}
+};
+
+const bulkRemark = row => `Bulk Present: ${row.reason}${row.description?' | '+row.description:''}`.slice(0,240);
+let processingPromise;
+async function processDue(batchId) {
+  if(processingPromise){
+    if(!batchId)return;
+    await processingPromise;
+  }
+  const job=processDueRows(batchId);
+  processingPromise=job;
+  try { await job; } finally { if(processingPromise===job)processingPromise=null; }
+}
+async function processDueRows(batchId){
+  for(;;){
+    let conn;
+    try{
+      conn=await db.getConnection();await conn.beginTransaction();
+      const params=[todayIndia(),...(batchId?[batchId]:[])];
+      const [due]=await conn.query(`
+        SELECT id,employee_id,DATE_FORMAT(attendance_date,'%Y-%m-%d') attendance_date,
+               reason,description,created_by,batch_id
+        FROM hr_attendance_bulk_entries WHERE status='scheduled' AND attendance_date<=?
+        ${batchId?'AND batch_id=?':''} ORDER BY id LIMIT 250 FOR UPDATE
+      `,params);
+      if(!due.length){await conn.rollback();return;}
+      const ids=[...new Set(due.map(x=>Number(x.employee_id)))].sort((a,b)=>a-b);
+      const dates=due.map(x=>x.attendance_date).sort();
+      const data=await inspectAttendance(conn,ids,dates[0],dates[dates.length-1],false);
+      const applied=[], corrections=[], additions=[], skipped=[];
+      for(const row of due){
+        const why=data.why(Number(row.employee_id),row.attendance_date);
+        if(why) skipped.push({row,why});
+        else {
+          applied.push(row);
+          if(data.attendanceMap.has(`${row.employee_id}|${row.attendance_date}`))corrections.push(row);
+          else additions.push(row);
+        }
+      }
+      if(corrections.length){
+        const marks=corrections.map(()=>'?').join(',');
+        const [updated]=await conn.query(`
+          UPDATE attendance a JOIN hr_attendance_bulk_entries b
+            ON b.employee_id=a.employee_id AND b.attendance_date=a.attendance_date
+          SET a.status='present',a.remarks=LEFT(CONCAT('Bulk Present: ',b.reason,
+            IF(b.description IS NULL OR b.description='', '',CONCAT(' | ',b.description))),240)
+          WHERE b.id IN (${marks}) AND LOWER(a.status)='absent'
+            AND a.check_in_time IS NULL AND a.check_out_time IS NULL AND COALESCE(a.total_minutes,0)=0
+        `,corrections.map(x=>x.id));
+        if(updated.affectedRows!==corrections.length) throw Error('Attendance changed during bulk processing; retrying later');
+      }
+      if(additions.length){
+        const marks=additions.map(()=>'?').join(',');
+        const [inserted]=await conn.query(`
+          INSERT INTO attendance (employee_id,attendance_date,check_in_time,check_out_time,total_minutes,status,remarks)
+          SELECT b.employee_id,b.attendance_date,NULL,NULL,0,'present',
+            LEFT(CONCAT('Bulk Present: ',b.reason,
+              IF(b.description IS NULL OR b.description='', '',CONCAT(' | ',b.description))),240)
+          FROM hr_attendance_bulk_entries b WHERE b.id IN (${marks})
+            AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.employee_id=b.employee_id AND a.attendance_date=b.attendance_date)
+        `,additions.map(x=>x.id));
+        if(inserted.affectedRows!==additions.length) throw Error('Attendance changed during bulk processing; retrying later');
+      }
+      if(applied.length){
+        await conn.query(`UPDATE hr_attendance_bulk_entries SET status='applied',outcome='Present applied',processed_at=NOW() WHERE id IN (${applied.map(()=>'?').join(',')})`,applied.map(x=>x.id));
+      }
+      if(skipped.length){
+        await conn.query(`UPDATE hr_attendance_bulk_entries SET status='skipped',processed_at=NOW(),
+          outcome=CASE id ${skipped.map(()=> 'WHEN ? THEN ?').join(' ')} END
+          WHERE id IN (${skipped.map(()=>'?').join(',')})`,
+          [...skipped.flatMap(({row,why})=>[row.id,why]),...skipped.map(x=>x.row.id)]);
+      }
+      const logs=[...applied.map(row=>({row,why:null})),...skipped];
+      if(logs.length){
+        await conn.query(`INSERT INTO hr_attendance_activity
+          (actor_user_id,action,employee_id,batch_id,from_date,to_date,reason,description,details)
+          VALUES ${logs.map(()=>'(?,?,?,?,?,?,?,?,?)').join(',')}`,
+          logs.flatMap(({row,why})=>{
+            const before=data.attendanceMap.get(`${row.employee_id}|${row.attendance_date}`)||null;
+            return [row.created_by,why?'bulk_skipped':'bulk_applied',row.employee_id,row.batch_id,
+              row.attendance_date,row.attendance_date,row.reason,row.description,
+              JSON.stringify({before,after:why?null:{status:'present',check_in_time:null,check_out_time:null,total_minutes:0,remarks:bulkRemark(row)},outcome:why||'Present applied'})];
+          }));
+      }
+      await conn.commit();
+    }catch(e){if(conn)await conn.rollback();console.error('Bulk due processing',e);return;}
+    finally{if(conn)conn.release();}
+  }
+}
+// Summaries only: one row per operation, never one row per employee-day.
+const parseDetails = value => {
+  try { return typeof value === 'string' ? JSON.parse(value) : value || {}; }
+  catch { return {}; }
+};
+const sameAttendance = (a,b) => !!a && !!b &&
+  ['status','check_in_time','check_out_time','remarks'].every(k => String(a[k] ?? '')===String(b[k] ?? '')) &&
+  Number(a.total_minutes || 0)===Number(b.total_minutes || 0);
+
+const activity = async (req,res) => {
+  try {
+    const [rows]=await db.query(`SELECT a.id,a.action,a.employee_id,a.batch_id,
+      DATE_FORMAT(a.from_date,'%Y-%m-%d') from_date,DATE_FORMAT(a.to_date,'%Y-%m-%d') to_date,
+      a.reason,a.description,a.details,DATE_FORMAT(a.created_at,'%Y-%m-%d %H:%i:%s') created_at,
+      u.full_name actor_name,affected.full_name employee_name
+      FROM hr_attendance_activity a LEFT JOIN users u ON u.user_id=a.actor_user_id
+      LEFT JOIN users affected ON affected.user_id=a.employee_id
+      WHERE a.action NOT IN ('bulk_applied','bulk_skipped','bulk_undo_item')
+      ORDER BY a.id DESC LIMIT 300`);
+    const batchIds=[...new Set(rows.filter(x=>x.batch_id).map(x=>x.batch_id))];
+    const [stats]=batchIds.length?await db.query(`SELECT batch_id,COUNT(*) total,
+      SUM(status='applied') applied,SUM(status='scheduled') scheduled,SUM(status='skipped') skipped
+      FROM hr_attendance_bulk_entries WHERE batch_id IN (${batchIds.map(()=>'?').join(',')}) GROUP BY batch_id`,batchIds):[[]];
+    const [undoStats]=batchIds.length?await db.query(`SELECT batch_id,COUNT(*) undone
+      FROM hr_attendance_activity WHERE action='bulk_undo_item'
+      AND batch_id IN (${batchIds.map(()=>'?').join(',')}) GROUP BY batch_id`,batchIds):[[]];
+    const [undos]=await db.query(`SELECT JSON_UNQUOTE(JSON_EXTRACT(details,'$.undone_activity_id')) original_id
+      FROM hr_attendance_activity WHERE action='undo_attendance' AND id > ?`,[Math.max(0,Number(rows[rows.length-1]?.id||0)-1)]);
+    const byBatch=new Map(stats.map(x=>[x.batch_id,x]));
+    const byUndo=new Map(undoStats.map(x=>[x.batch_id,Number(x.undone)]));
+    const undoneIds=new Set(undos.map(x=>Number(x.original_id)));
+    const seenBatches=new Set();
+    const activities=rows.filter(row=>{
+      if(row.action==='bulk_mark_present' && row.batch_id){
+        if(seenBatches.has(row.batch_id))return false;
+        seenBatches.add(row.batch_id);
+      }
+      return true;
+    }).map(row=>{
+      const d=parseDetails(row.details),b=byBatch.get(row.batch_id);
+      const applied=Number(b?.applied||0),scheduled=Number(b?.scheduled||0),skipped=Number(b?.skipped||0);
+      const undone=byUndo.get(row.batch_id)||0;
+      const isBulk=row.action==='bulk_mark_present';
+      const status=isBulk?(undone && !applied && !scheduled?'Undone':scheduled?'Scheduled':skipped?'Completed with skips':'Completed'):
+        undoneIds.has(Number(row.id))?'Undone':'Completed';
+      const affectedCount=isBulk?new Set(d.selected_employees||[]).size:
+        row.action==='undo_bulk'?Number(d.restored||0)+Number(d.cancelled||0):row.employee_id?1:null;
+      const before=d.before?.status||(row.action==='add_attendance'?'No record':null);
+      const after=d.after?.status||null;
+      const summary=isBulk?`${d.employee_names?.length===1?d.employee_names[0]:`${affectedCount} employees`} · ${applied} marked Present · ${scheduled} scheduled · ${skipped} skipped${undone?` · ${undone} reversed/cancelled`:''}`:
+        row.action==='undo_bulk'?`${d.restored||0} restored · ${d.cancelled||0} cancelled · ${d.conflicts||0} protected`:
+        row.action==='undo_attendance'?`${row.employee_name||'Employee'} · Reverted`:
+        row.action==='import'?(d.file||'Attendance file'):
+        row.action==='export'?`${row.from_date||'-'} – ${row.to_date||'-'} (${d.format||'file'})`:
+        `${row.employee_name||'Employee'} · ${before||'Unknown'} → ${after||'Unknown'}`;
+      return {...row,start_date:row.from_date,end_date:row.to_date,
+        employee_names:d.employee_names||(row.employee_name?[row.employee_name]:[]),
+        affected_count:affectedCount,previous_status:before,new_status:after,
+        file_name:d.file||null,status,summary,
+        can_undo:(isBulk?applied+scheduled>0:
+          ['add_attendance','edit_attendance'].includes(row.action) && !!d.after && !undoneIds.has(Number(row.id)))};
+    });
+    res.json({success:true,activities});
+  } catch(e){console.error('Activity log',e);fail(res,'Unable to load activity log',500);}
+};
+
+// View fetches up to 200 employee-days at a time, including original status and outcome.
+const activityDetail = async (req,res) => {
+  try {
+    const id=Number(req.params.id),offset=Math.max(0,Math.min(100000,Number(req.query.offset)||0));
+    if(!Number.isSafeInteger(id)||id<=0)return fail(res,'Invalid activity ID');
+    const [[a]]=await db.query(`SELECT *,DATE_FORMAT(from_date,'%Y-%m-%d') date_from FROM hr_attendance_activity WHERE id=?`,[id]);
+    if(!a)return fail(res,'Activity not found',404);
+    if(a.action!=='bulk_mark_present'){
+      const d=parseDetails(a.details);
+      const [[employee]]=a.employee_id?await db.query('SELECT full_name FROM users WHERE user_id=?',[a.employee_id]):[[null]];
+      return res.json({success:true,items:['add_attendance','edit_attendance','undo_attendance'].includes(a.action)?[{
+        employee_name:employee?.full_name||'-',date:a.date_from,
+        before_status:d.before?.status||'No record',after_status:d.after?.status||'No record',
+        before:d.before||null,after:d.after||null,status:'Completed'
+      }]:[],has_more:false});
+    }
+    const [countRows]=await db.query(`SELECT
+      (SELECT COUNT(*) FROM hr_attendance_bulk_entries WHERE batch_id=?) +
+      (SELECT COUNT(*) FROM hr_attendance_activity WHERE batch_id=? AND action='bulk_undo_item') total`,[a.batch_id,a.batch_id]);
+    const [rows]=await db.query(`SELECT x.employee_id,DATE_FORMAT(x.attendance_date,'%Y-%m-%d') date,
+      x.item_status,x.outcome,u.full_name employee_name,
+      (SELECT h.details FROM hr_attendance_activity h WHERE h.batch_id=?
+       AND h.employee_id=x.employee_id AND h.from_date=x.attendance_date
+       AND h.action IN ('bulk_applied','bulk_skipped') ORDER BY h.id DESC LIMIT 1) audit_details
+      FROM (
+        SELECT employee_id,attendance_date,status item_status,outcome
+        FROM hr_attendance_bulk_entries WHERE batch_id=?
+        UNION ALL
+        SELECT employee_id,from_date attendance_date,'undone' item_status,
+          JSON_UNQUOTE(JSON_EXTRACT(details,'$.outcome')) outcome
+        FROM hr_attendance_activity WHERE batch_id=? AND action='bulk_undo_item'
+      ) x JOIN users u ON u.user_id=x.employee_id
+      ORDER BY x.attendance_date,u.full_name LIMIT 200 OFFSET ?`,[a.batch_id,a.batch_id,a.batch_id,offset]);
+    const items=rows.map(row=>{
+      const d=parseDetails(row.audit_details),before=d.before||null;
+      return {employee_name:row.employee_name,date:row.date,status:row.item_status,
+        before_status:before?.status||'No record',
+        after_status:row.item_status==='applied'?'Present':row.item_status==='scheduled'?'Scheduled':
+          row.item_status==='undone'?(before?.status||'No record'):'Unchanged',
+        outcome:row.outcome||null, before,after:d.after||null};
+    });
+    res.json({success:true,items,total:Number(countRows[0]?.total||0),has_more:offset+items.length<Number(countRows[0]?.total||0)});
+  }catch(e){console.error('Activity details',e);fail(res,'Unable to load activity details',500);}
+};
+
+// Safe, audited undo. Exports and imports have no automatic rollback.
+const undoAttendanceActivity = async (req,res) => {
+  let conn;
+  try {
+    const id=Number(req.params.id);
+    if(!Number.isSafeInteger(id)||id<=0)return fail(res,'Invalid activity ID');
+    if(processingPromise)await processingPromise;
+    conn=await db.getConnection();await conn.beginTransaction();
+    const [[a]]=await conn.query(`SELECT *,DATE_FORMAT(from_date,'%Y-%m-%d') date_from FROM hr_attendance_activity WHERE id=? FOR UPDATE`,[id]);
+    if(!a){await conn.rollback();return fail(res,'Activity not found',404);}
+    if(!['bulk_mark_present','add_attendance','edit_attendance'].includes(a.action)){
+      await conn.rollback();return fail(res,'Undo is unavailable for this activity',400);
+    }
+    let reversed=0,cancelled=0,cleared=0,conflicts=0;
+    if(a.action==='bulk_mark_present'){
+      const [entries]=await conn.query(`SELECT id,employee_id,DATE_FORMAT(attendance_date,'%Y-%m-%d') date,
+        status,reason,description FROM hr_attendance_bulk_entries
+        WHERE batch_id=? ORDER BY id FOR UPDATE`,[a.batch_id]);
+      if(!entries.length){await conn.rollback();return fail(res,'This bulk action is already undone or has no remaining entries',409);}
+      const [events]=await conn.query(`SELECT employee_id,DATE_FORMAT(from_date,'%Y-%m-%d') date,details
+        FROM hr_attendance_activity WHERE batch_id=? AND action='bulk_applied'`,[a.batch_id]);
+      const auditMap=new Map(events.map(x=>[`${x.employee_id}|${x.date}`,parseDetails(x.details)]));
+      for(const entry of entries){
+        let outcome='Cancelled';
+        if(entry.status==='applied'){
+          const audit=auditMap.get(`${entry.employee_id}|${entry.date}`);
+          if(!audit || !audit.after){conflicts++;continue;}
+          const [current]=await conn.query(`SELECT attendance_id,status,check_in_time,check_out_time,total_minutes,remarks
+            FROM attendance WHERE employee_id=? AND attendance_date=? FOR UPDATE`,[entry.employee_id,entry.date]);
+          const existing=current[0],expected={...audit.after,remarks:bulkRemark(entry)};
+          if(current.length!==1 || !sameAttendance(existing,expected)) {conflicts++;continue;}
+          if(audit.before){
+            await conn.query(`UPDATE attendance SET status=?,remarks=? WHERE attendance_id=?`,
+              [audit.before.status,audit.before.remarks||null,existing.attendance_id]);
+            outcome='Restored previous attendance';
+          }else{
+            await conn.query('DELETE FROM attendance WHERE attendance_id=?',[existing.attendance_id]);
+            outcome='Removed added attendance';
+          }
+        }
+        if(entry.status==='applied')reversed++;
+        else if(entry.status==='scheduled')cancelled++;
+        else cleared++;
+        await conn.query('DELETE FROM hr_attendance_bulk_entries WHERE id=?',[entry.id]);
+        await conn.query(`INSERT INTO hr_attendance_activity
+          (actor_user_id,action,employee_id,batch_id,from_date,to_date,reason,details)
+          VALUES (?,'bulk_undo_item',?,?,?,?,?,?)`,
+          [identity(req),entry.employee_id,a.batch_id,entry.date,entry.date,'Undo bulk attendance',JSON.stringify({outcome})]);
+      }
+      if(!reversed && !cancelled && !cleared){await conn.rollback();return fail(res,'Attendance was modified after this action. No records were reversed.',409);}
+      await conn.query(`INSERT INTO hr_attendance_activity
+        (actor_user_id,action,batch_id,from_date,to_date,reason,details)
+        VALUES (?,'undo_bulk',?,?,?,'Undo bulk attendance',?)`,
+        [identity(req),a.batch_id,a.from_date,a.to_date,JSON.stringify({original_activity_id:id,restored:reversed,cancelled,cleared,conflicts})]);
+    }else{
+      const d=parseDetails(a.details);
+      if(!d.after){await conn.rollback();return fail(res,'The original record snapshot is unavailable; undo is not safe.',409);}
+      const [undoRows]=await conn.query(`SELECT id FROM hr_attendance_activity WHERE action='undo_attendance'
+        AND JSON_UNQUOTE(JSON_EXTRACT(details,'$.undone_activity_id'))=? LIMIT 1`,[String(id)]);
+      if(undoRows.length){await conn.rollback();return fail(res,'This attendance action was already undone.',409);}
+      const date=a.date_from,employeeId=Number(a.employee_id);
+      if(!date || !employeeId){await conn.rollback();return fail(res,'Original employee/date unavailable',409);}
+      const [latest]=await conn.query(`SELECT id FROM hr_attendance_activity WHERE id>? AND employee_id=?
+        AND from_date=? AND action IN ('add_attendance','edit_attendance','bulk_applied') LIMIT 1`,[id,employeeId,date]);
+      if(latest.length){await conn.rollback();return fail(res,'Later attendance changes exist. Undo is not safe.',409);}
+      const [records]=await conn.query(`SELECT attendance_id,status,check_in_time,check_out_time,total_minutes,remarks
+        FROM attendance WHERE employee_id=? AND attendance_date=? FOR UPDATE`,[employeeId,date]);
+      if(records.length!==1 || !sameAttendance(records[0],d.after)){
+        await conn.rollback();return fail(res,'Attendance has changed since this action; undo is blocked.',409);
+      }
+      if(d.before){
+        await conn.query(`UPDATE attendance SET check_in_time=?,check_out_time=?,total_minutes=?,status=?,remarks=?
+          WHERE attendance_id=?`,[d.before.check_in_time,d.before.check_out_time,d.before.total_minutes||0,
+          d.before.status,d.before.remarks||null,records[0].attendance_id]);
+      }else{
+        await conn.query('DELETE FROM attendance WHERE attendance_id=?',[records[0].attendance_id]);
+      }
+      await conn.query(`INSERT INTO hr_attendance_activity
+        (actor_user_id,action,employee_id,from_date,to_date,reason,details)
+        VALUES (?,'undo_attendance',?,?,?,'Undo attendance correction',?)`,
+        [identity(req),employeeId,date,date,JSON.stringify({undone_activity_id:id,before:d.after,after:d.before})]);
+      reversed=1;
+    }
+    await conn.commit();
+    return res.json({success:true,message:`${reversed} restored, ${cancelled} future entries cancelled${cleared?`, ${cleared} skipped entries cleared`:''}${conflicts?`; ${conflicts} protected because records changed`:''}.`,undone_count:reversed,cancelled_count:cancelled,conflicts});
+  }catch(e){if(conn)await conn.rollback();console.error('Attendance undo',e);fail(res,'Unable to undo attendance safely',500);}
+  finally{if(conn)conn.release();}
+};
+// Audit existing actions without changing their controllers or response behavior.
+const auditExisting = action => async (req,res,next) => {
+  let before = null;
+  const employeeId = Number(req.body?.employee_id || 0);
+  const date = mysqlDate(req.body?.attendance_date);
+  if (action === 'add_attendance' && employeeId && date) {
+    try {
+      const [rows] = await db.query('SELECT check_in_time,check_out_time,total_minutes,status,remarks FROM attendance WHERE employee_id=? AND attendance_date=? LIMIT 1',[employeeId,date]);
+      before = rows[0] || null;
+    } catch(e) { console.error('Attendance audit snapshot',e); }
+  }
+  res.once('finish',async () => {
+    if (res.statusCode < 200 || res.statusCode >= 300) return;
+    try {
+      let after = null;
+      if (action === 'add_attendance' && employeeId && date) {
+        const [rows] = await db.query('SELECT check_in_time,check_out_time,total_minutes,status,remarks FROM attendance WHERE employee_id=? AND attendance_date=? LIMIT 1',[employeeId,date]);
+        after = rows[0] || null;
+      }
+      const actualAction = action === 'add_attendance' && before ? 'edit_attendance' : action;
+      await db.query('INSERT INTO hr_attendance_activity (actor_user_id,action,employee_id,from_date,to_date,reason,details) VALUES (?,?,?,?,?,?,?)',[
+        identity(req), actualAction, employeeId || null,
+        date || mysqlDate(req.query?.from_date), date || mysqlDate(req.query?.to_date),
+        String(req.body?.remarks || '').slice(0,200) || null,
+        JSON.stringify({before,after,file:req.file?.originalname||null,format:req.query?.format||null})
+      ]);
+    } catch(e) { console.error('Attendance audit insert',e); }
+  });
+  next();
+};
+// Worker starts when the HR route is loaded. It never changes existing attendance rows.
+const startProcessor=()=>{setInterval(processDue,60000).unref();processDue();};
+
 module.exports = {
+  onlyRathika,
+  previewBulkAttendance: preview,
+  commitBulkAttendance: commit,
+  getAttendanceActivity: activity,
+  getAttendanceActivityDetail: activityDetail,
+  undoAttendanceActivity,
+  auditExisting,
+  startBulkProcessor: startProcessor,
+
   getHrAttendance,
   getHrEmployeeSummary,
   saveHrAttendance,

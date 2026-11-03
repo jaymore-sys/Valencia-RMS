@@ -14,6 +14,14 @@ const {
   reduceHrEmployeeLeave,
   applyHrEmployeeLeave,
   revertHrEmployeeLeave,
+  onlyRathika,
+  previewBulkAttendance,
+  commitBulkAttendance,
+  getAttendanceActivity,
+  getAttendanceActivityDetail,
+  undoAttendanceActivity,
+  auditExisting,
+  startBulkProcessor,
 } = require("../controllers/hrattendancecontroller");
 
 const router = express.Router();
@@ -114,6 +122,7 @@ router.get(
   "/export",
   authMiddleware,
   onlyHR,
+  auditExisting("export"),
   exportHrAttendance
 );
 
@@ -122,8 +131,33 @@ router.post(
   authMiddleware,
   onlyHR,
   upload.single("file"),
+  auditExisting("import"),
   importHrAttendance
 );
+
+router.post(
+  "/bulk/preview",
+  authMiddleware,
+  onlyRathika,
+  previewBulkAttendance
+);
+
+router.post(
+  "/bulk",
+  authMiddleware,
+  onlyRathika,
+  commitBulkAttendance
+);
+
+router.get(
+  "/activity-log",
+  authMiddleware,
+  onlyRathika,
+  getAttendanceActivity
+);
+
+router.get("/activity-log/:id", authMiddleware, onlyRathika, getAttendanceActivityDetail);
+router.post("/activity-log/:id/undo", authMiddleware, onlyRathika, undoAttendanceActivity);
 
 router.get(
   "/",
@@ -136,7 +170,9 @@ router.post(
   "/",
   authMiddleware,
   onlyHR,
+  auditExisting("add_attendance"),
   saveHrAttendance
 );
 
+startBulkProcessor();
 module.exports = router;

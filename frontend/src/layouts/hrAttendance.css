@@ -1,1263 +1,2579 @@
 :root {
+
   --hr-orange: #ff5733;
+
   --hr-border: #e4e7ec;
+
   --hr-text: #101828;
+
   --hr-muted: #667085;
+
   --hr-bg: #f7f8fb;
+
 }
+
+
 
 .hr-page {
+
   width: 100%;
+
   min-height: 100vh;
+
   padding: 20px 22px 35px;
+
   box-sizing: border-box;
+
   background: var(--hr-bg);
+
   color: var(--hr-text);
+
 }
+
+
 
 .hr-header {
+
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
+
   gap: 20px;
+
   flex-wrap: wrap;
+
   margin-bottom: 16px;
+
 }
+
+
 
 .hr-header h1 {
+
   margin: 0;
+
   font-size: 28px;
+
   font-weight: 900;
+
 }
+
+
 
 .hr-header p,
+
 .hr-card-header p,
+
 .hr-modal-header p {
+
   margin: 4px 0 0;
+
   color: var(--hr-muted);
+
   font-size: 12px;
+
 }
+
+
 
 .hr-header-actions {
+
   display: flex;
+
   align-items: center;
+
   gap: 8px;
+
   flex-wrap: wrap;
+
 }
+
+
 
 .hr-button {
+
   height: 40px;
+
   padding: 0 14px;
+
   border-radius: 9px;
+
   font-weight: 800;
+
   cursor: pointer;
+
   display: inline-flex;
+
   align-items: center;
+
   justify-content: center;
+
   gap: 6px;
+
 }
+
+
 
 .hr-button:disabled {
+
   opacity: 0.6;
+
   cursor: not-allowed;
+
 }
+
+
 
 .hr-button.primary {
+
   border: 0;
+
   background: var(--hr-orange);
+
   color: #fff;
+
 }
+
+
 
 .hr-button.secondary {
+
   border: 1px solid var(--hr-border);
+
   background: #fff;
+
   color: #344054;
+
 }
+
+
 
 .hr-button.approve {
+
   border: 0;
+
   background: #067647;
+
   color: #fff;
+
 }
+
+
 
 .hr-button.danger {
+
   border: 0;
+
   background: #b42318;
+
   color: #fff;
+
 }
+
+
 
 .hr-error {
+
   margin-bottom: 12px;
+
   padding: 10px 13px;
+
   border: 1px solid #fecdca;
+
   border-radius: 9px;
+
   background: #fef3f2;
+
   color: #b42318;
+
 }
+
+
 
 .hr-toast {
+
   position: fixed;
+
   top: 22px;
+
   right: 24px;
+
   z-index: 12000;
+
   max-width: 460px;
+
   padding: 11px 14px;
+
   border-radius: 10px;
+
   font-size: 12px;
+
   font-weight: 800;
+
   box-shadow: 0 12px 30px rgba(16, 24, 40, 0.18);
+
 }
+
+
 
 .hr-toast-success {
+
   border: 1px solid #abefc6;
+
   background: #ecfdf3;
+
   color: #067647;
+
 }
 
+
+
 .hr-toast-error {
+
   border: 1px solid #fecdca;
+
   background: #fef3f2;
+
   color: #b42318;
+
 }
+
+
 
 /* Tabs */
 
+
+
 .hr-tabs {
+
   display: grid;
+
   grid-template-columns: repeat(4, 1fr);
+
   margin-bottom: 12px;
+
   overflow: hidden;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 11px;
+
   background: #fff;
+
 }
+
+
 
 .hr-tab {
+
   height: 44px;
+
   border: 0;
+
   border-right: 1px solid var(--hr-border);
+
   background: #fff;
+
   color: var(--hr-muted);
+
   font-weight: 800;
+
   cursor: pointer;
+
   display: flex;
+
   justify-content: center;
+
   align-items: center;
+
   gap: 7px;
+
 }
+
+
 
 .hr-tab:last-child {
+
   border-right: 0;
+
 }
 
+
+
 .hr-tab.active {
+
   background: #fff7f4;
+
   color: var(--hr-orange);
+
   box-shadow: inset 0 -3px 0 var(--hr-orange);
+
 }
+
+
 
 /* Date controls */
 
+
+
 .hr-date-bar {
+
   display: flex;
+
   align-items: center;
+
   gap: 7px;
+
   padding: 8px;
+
   margin-bottom: 12px;
+
   overflow-x: auto;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 11px;
+
   background: #fff;
+
 }
+
+
 
 .hr-date-strip {
+
   flex: 1;
+
   min-width: 440px;
+
   display: grid;
+
   grid-template-columns: repeat(7, minmax(55px, 1fr));
+
   gap: 5px;
+
 }
+
+
 
 .hr-day,
+
 .hr-arrow,
+
 .hr-range {
+
   border: 1px solid var(--hr-border);
+
   border-radius: 8px;
+
   background: #fff;
+
   cursor: pointer;
+
 }
+
+
 
 .hr-day {
+
   height: 49px;
+
   color: #475467;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
+
   justify-content: center;
+
 }
+
+
 
 .hr-day.active {
+
   border-color: var(--hr-orange);
+
   background: var(--hr-orange);
+
   color: #fff;
+
 }
+
+
 
 .hr-arrow {
+
   flex: 0 0 34px;
+
   width: 34px;
+
   height: 49px;
+
   display: grid;
+
   place-items: center;
+
 }
+
+
 
 .hr-range {
+
   height: 39px;
+
   padding: 0 11px;
+
   white-space: nowrap;
+
   font-weight: 750;
+
 }
+
+
 
 .hr-range.active {
+
   border-color: var(--hr-orange);
+
   background: #fff7f4;
+
   color: var(--hr-orange);
+
 }
 
+
+
 .hr-month-picker {
+
   height: 39px;
+
   min-width: 145px;
+
   padding: 0 9px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 8px;
+
   background: #fff;
+
   font-weight: 700;
+
 }
+
+
 
 /* Filters */
 
+
+
 .hr-filters {
+
   display: flex;
+
   gap: 8px;
+
   flex-wrap: wrap;
+
   align-items: center;
+
   padding: 9px;
+
   margin-bottom: 12px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 11px;
+
   background: #fff;
+
 }
+
+
 
 .hr-search {
+
   flex: 1 1 260px;
+
   height: 39px;
+
   padding: 0 10px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 8px;
+
   color: #98a2b3;
+
   display: flex;
+
   align-items: center;
+
   gap: 7px;
+
 }
+
+
 
 .hr-search input {
+
   width: 100%;
+
   border: 0;
+
   outline: 0;
+
   background: transparent;
+
 }
+
+
 
 .hr-filters select {
+
   height: 39px;
+
   min-width: 155px;
+
   padding: 0 9px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 8px;
+
   background: #fff;
+
 }
+
+
 
 .hr-filter-apply,
+
 .hr-filter-clear {
+
   height: 39px;
+
   padding: 0 14px;
+
   border-radius: 8px;
+
   font-weight: 800;
+
   cursor: pointer;
+
 }
+
+
 
 .hr-filter-apply {
+
   border: 0;
+
   background: #101828;
+
   color: #fff;
+
 }
 
+
+
 .hr-filter-clear {
+
   border: 1px solid var(--hr-border);
+
   background: #fff;
+
 }
+
+
 
 /* Metrics */
 
+
+
 .hr-metrics {
+
   display: grid;
+
   gap: 8px;
+
   margin-bottom: 12px;
+
 }
+
+
 
 .hr-metrics.seven {
+
   grid-template-columns: repeat(7, minmax(100px, 1fr));
+
 }
+
+
 
 .hr-metrics.six {
+
   grid-template-columns: repeat(6, minmax(110px, 1fr));
+
 }
+
+
 
 .hr-metrics.five {
+
   grid-template-columns: repeat(5, minmax(120px, 1fr));
+
 }
+
+
 
 .hr-metric {
+
   padding: 12px 13px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 10px;
+
   background: #fff;
+
   display: flex;
+
   flex-direction: column;
+
   gap: 4px;
+
 }
 
+
+
 .hr-metric strong {
+
   font-size: 18px;
+
 }
+
+
 
 /* Card / tables */
 
+
+
 .hr-card {
+
   overflow: hidden;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 12px;
+
   background: #fff;
+
 }
+
+
 
 .hr-card-header {
+
   padding: 13px 15px;
+
   border-bottom: 1px solid var(--hr-border);
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: 12px;
+
 }
+
+
 
 .hr-card-header h2 {
+
   margin: 0;
+
   font-size: 17px;
+
   font-weight: 900;
+
 }
+
+
 
 .hr-table-head,
+
 .hr-table-row {
+
   display: grid;
+
   gap: 10px;
+
   padding: 10px 14px;
+
 }
+
+
 
 .hr-table-head {
+
   border-bottom: 1px solid var(--hr-border);
+
   background: #f9fafb;
+
   color: var(--hr-muted);
+
   font-size: 10px;
+
   font-weight: 900;
+
 }
+
+
 
 .hr-table-row {
+
   min-height: 52px;
+
   align-items: center;
+
   border-bottom: 1px solid #f2f4f7;
+
   font-size: 11px;
+
 }
+
+
 
 .hr-attendance-grid {
+
   grid-template-columns: 1.25fr 0.8fr 0.8fr 1.05fr 1fr 1.3fr 1fr;
+
 }
+
+
 
 .hr-leave-grid {
+
   grid-template-columns: 1.2fr 0.8fr 0.9fr 1.1fr 0.75fr 1.2fr 1fr;
+
 }
+
+
 
 .hr-horizontal-scroll {
+
   width: 100%;
+
   overflow-x: auto;
+
 }
+
+
 
 .hr-field-grid {
+
   min-width: 1500px;
+
   grid-template-columns:
+
     1.2fr 0.9fr 0.7fr 0.9fr 0.85fr 0.9fr
+
     1fr 0.75fr 1fr 1.2fr 1.25fr;
+
 }
+
+
 
 .hr-employee {
+
   display: flex;
+
   flex-direction: column;
+
 }
+
+
 
 .hr-employee small {
+
   margin-top: 2px;
+
   color: #98a2b3;
+
   font-size: 9px;
+
 }
+
+
 
 .ellipsis {
+
   overflow: hidden;
+
   white-space: nowrap;
+
   text-overflow: ellipsis;
+
 }
 
+
+
 .hr-empty {
+
   padding: 35px 15px;
+
   text-align: center;
+
   color: #98a2b3;
+
 }
+
+
 
 /* Status */
 
+
+
 .hr-status {
+
   display: inline-flex;
+
   align-items: center;
+
   min-height: 24px;
+
   padding: 0 8px;
+
   border-radius: 999px;
+
   font-size: 10px;
+
   font-weight: 850;
+
   white-space: nowrap;
+
 }
+
+
 
 .hr-status-success {
+
   background: #ecfdf3;
+
   color: #067647;
+
 }
+
+
 
 .hr-status-danger {
+
   background: #fef2f2;
+
   color: #b42318;
+
 }
+
+
 
 .hr-status-warning {
+
   background: #fffaeb;
+
   color: #b54708;
+
 }
+
+
 
 .hr-status-orange {
+
   background: #fff4ed;
+
   color: #c4320a;
+
 }
+
+
 
 .hr-status-purple {
+
   background: #f4ebff;
+
   color: #6941c6;
+
 }
+
+
 
 .hr-status-blue {
+
   background: #eff8ff;
+
   color: #175cd3;
+
 }
 
+
+
 .hr-status-neutral {
+
   background: #f2f4f7;
+
   color: #475467;
+
 }
+
+
 
 /* Leave action */
 
+
+
 .hr-view-button {
+
   width: fit-content;
+
   padding: 6px 8px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 7px;
+
   background: #fff;
+
   color: #475467;
+
   font-size: 10px;
+
   font-weight: 800;
+
   cursor: pointer;
+
   display: inline-flex;
+
   align-items: center;
+
   gap: 4px;
+
 }
+
+
 
 /* Export */
 
+
+
 .hr-export {
+
   position: relative;
+
 }
+
+
 
 .hr-export-menu {
+
   position: absolute;
+
   top: 44px;
+
   right: 0;
+
   z-index: 50;
+
   width: 130px;
+
   padding: 5px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 9px;
+
   background: #fff;
+
   box-shadow: 0 12px 28px rgba(16, 24, 40, 0.12);
+
 }
 
+
+
 .hr-export-menu button {
+
   width: 100%;
+
   height: 34px;
+
   border: 0;
+
   border-radius: 6px;
+
   background: #fff;
+
   cursor: pointer;
+
   display: flex;
+
   align-items: center;
+
   gap: 7px;
+
 }
+
+
 
 /* Modal */
 
+
+
 .hr-overlay {
+
   position: fixed;
+
   inset: 0;
+
   z-index: 9999;
+
   padding: 20px;
+
   background: rgba(16, 24, 40, 0.45);
+
   display: grid;
+
   place-items: center;
+
 }
+
+
 
 .hr-modal {
+
   width: 100%;
+
   max-width: 750px;
+
   max-height: 88vh;
+
   overflow-y: auto;
+
   border-radius: 14px;
+
   background: #fff;
+
   box-shadow: 0 25px 60px rgba(16, 24, 40, 0.22);
+
 }
+
+
 
 .hr-modal-header {
+
   padding: 16px 18px;
+
   border-bottom: 1px solid var(--hr-border);
+
   display: flex;
+
   justify-content: space-between;
+
   align-items: flex-start;
+
 }
+
+
 
 .hr-modal-header h3 {
+
   margin: 0;
+
   font-size: 18px;
+
 }
+
+
 
 .hr-modal-header > button {
+
   width: 32px;
+
   height: 32px;
+
   border: 0;
+
   border-radius: 7px;
+
   background: #f2f4f7;
+
   cursor: pointer;
+
   display: grid;
+
   place-items: center;
+
 }
+
+
 
 .hr-form,
+
 .hr-review-box {
+
   padding: 16px 18px;
+
 }
+
+
 
 .hr-form label,
+
 .hr-review-box label {
+
   display: block;
+
   margin: 9px 0 5px;
+
   color: #475467;
+
   font-size: 11px;
+
   font-weight: 800;
+
 }
 
+
+
 .hr-form input,
+
 .hr-form select,
+
 .hr-form textarea,
+
 .hr-review-box textarea {
+
   width: 100%;
+
   box-sizing: border-box;
+
   padding: 9px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 8px;
+
   background: #fff;
+
 }
+
+
 
 .hr-form input,
+
 .hr-form select {
+
   height: 40px;
+
 }
 
+
+
 .hr-form textarea,
+
 .hr-review-box textarea {
+
   resize: vertical;
+
 }
+
+
 
 .hr-form-two {
+
   display: grid;
+
   grid-template-columns: 1fr 1fr;
+
   gap: 10px;
+
 }
 
+
+
 .hr-modal-footer {
+
   padding: 13px 18px;
+
   border-top: 1px solid var(--hr-border);
+
   display: flex;
+
   justify-content: flex-end;
+
   gap: 8px;
+
   flex-wrap: wrap;
+
 }
+
+
 
 /* Leave details */
 
+
+
 .hr-details {
+
   padding: 10px 18px;
+
 }
 
+
+
 .hr-detail {
+
   min-height: 38px;
+
   border-bottom: 1px solid #f2f4f7;
+
   font-size: 11px;
+
   display: grid;
+
   grid-template-columns: 140px 1fr;
+
   align-items: center;
+
   gap: 12px;
+
 }
+
+
 
 /* Pagination */
 
+
+
 .hr-pagination {
+
   padding: 10px 14px;
+
   font-size: 11px;
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
 }
+
+
 
 .hr-pagination > div {
+
   display: flex;
+
   align-items: center;
+
   gap: 8px;
+
 }
 
+
+
 .hr-pagination button {
+
   width: 32px;
+
   height: 32px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 7px;
+
   background: #fff;
+
   cursor: pointer;
+
   display: grid;
+
   place-items: center;
+
 }
+
+
 
 /* Responsive */
 
+
+
 @media (max-width: 1100px) {
+
   .hr-metrics.seven,
+
   .hr-metrics.six,
+
   .hr-metrics.five {
+
     grid-template-columns: repeat(3, 1fr);
+
   }
+
+
 
   .hr-attendance-grid,
+
   .hr-leave-grid {
+
     min-width: 1000px;
+
   }
+
+
 
   .hr-card {
+
     overflow-x: auto;
+
   }
+
 }
+
+
 
 @media (max-width: 700px) {
+
   .hr-page {
+
     padding: 14px;
+
   }
+
+
 
   .hr-header h1 {
+
     font-size: 23px;
+
   }
+
+
 
   .hr-metrics.seven,
+
   .hr-metrics.six,
+
   .hr-metrics.five {
+
     grid-template-columns: repeat(2, 1fr);
+
   }
+
+
 
   .hr-form-two {
+
     grid-template-columns: 1fr;
+
   }
+
 }
 
+
+
 /* =========================================================
+
    EMPLOYEE ATTENDANCE SUMMARY
+
 ========================================================= */
+
+
 
 /* Main employee summary table */
 
+
+
 .hr-summary-grid {
+
   display: grid;
+
   grid-template-columns:
+
     minmax(190px, 1.5fr)
+
     minmax(140px, 1fr)
+
     100px
+
     80px
+
     80px
+
     70px
+
     90px
+
     95px
+
     75px
+
     110px
+
     90px;
+
   gap: 12px;
+
   align-items: center;
+
   min-width: 1260px;
+
 }
+
+
 
 /* =========================================================
+
    EMPLOYEE SUMMARY MODAL
+
 ========================================================= */
 
+
+
 /*
+
   Make only the Employee Summary modal wider.
+
   Leave / Add Attendance modals stay unchanged.
+
 */
+
 .hr-modal:has(.hr-employee-summary-details) {
+
   max-width: 980px;
+
   width: calc(100% - 40px);
+
   max-height: 90vh;
+
   overflow: hidden;
+
 }
 
+
+
 /* Keep modal header visible while scrolling */
+
 .hr-modal:has(.hr-employee-summary-details)
+
 .hr-modal-header {
+
   position: sticky;
+
   top: 0;
+
   z-index: 10;
+
+
 
   padding: 18px 22px;
 
+
+
   background: #ffffff;
 
+
+
   border-bottom: 1px solid
+
     var(--hr-border);
+
 }
 
+
+
 /* Scroll only the actual summary content */
+
 .hr-employee-summary-details {
+
   display: flex;
+
   flex-direction: column;
+
+
 
   gap: 26px;
 
+
+
   padding: 20px 22px 26px;
+
+
 
   max-height: calc(90vh - 145px);
 
+
+
   overflow-y: auto;
 
+
+
   box-sizing: border-box;
+
 }
 
+
+
 /* =========================================================
+
    SECTIONS
+
 ========================================================= */
 
+
+
 .hr-summary-section {
+
   display: flex;
+
   flex-direction: column;
+
+
 
   gap: 13px;
 
+
+
   width: 100%;
+
 }
+
+
 
 .hr-summary-section + .hr-summary-section {
+
   padding-top: 4px;
+
 }
 
+
+
 .hr-summary-section h4 {
+
   margin: 0;
+
+
 
   color: #101828;
 
+
+
   font-size: 14px;
+
   font-weight: 850;
 
+
+
   line-height: 1.3;
+
 }
+
+
 
 /* =========================================================
+
    SUMMARY CARDS
+
 ========================================================= */
 
+
+
 .hr-summary-cards {
+
   display: grid;
 
+
+
   grid-template-columns:
+
     repeat(4, minmax(0, 1fr));
 
+
+
   gap: 10px;
+
 }
 
+
+
 .hr-summary-item {
+
   min-width: 0;
+
   min-height: 82px;
+
+
 
   padding: 13px 15px;
 
+
+
   box-sizing: border-box;
 
+
+
   border: 1px solid #e4e7ec;
+
   border-radius: 11px;
+
+
 
   background: #ffffff;
 
+
+
   display: flex;
+
   flex-direction: column;
+
   justify-content: center;
 
+
+
   gap: 5px;
+
 }
+
+
 
 .hr-summary-item span {
+
   color: #667085;
+
+
 
   font-size: 11px;
+
   font-weight: 600;
 
+
+
   line-height: 1.3;
+
 }
+
+
 
 .hr-summary-item strong {
+
   color: #101828;
 
+
+
   font-size: 20px;
+
   font-weight: 850;
 
+
+
   line-height: 1.15;
+
 }
 
+
+
 .hr-summary-item small {
+
   margin-top: 1px;
 
+
+
   color: #667085;
+
+
 
   font-size: 10px;
 
+
+
   line-height: 1.3;
+
 }
 
+
+
 /* =========================================================
+
    DAY-WISE ATTENDANCE
+
 ========================================================= */
 
+
+
 .hr-summary-days {
+
   width: 100%;
 
+
+
   border: 1px solid #e4e7ec;
+
   border-radius: 11px;
+
+
 
   overflow: hidden;
 
+
+
   background: #ffffff;
+
 }
 
+
+
 .hr-summary-day {
+
   display: grid;
 
+
+
   grid-template-columns:
+
     minmax(145px, 0.9fr)
+
     130px
+
     minmax(165px, 0.9fr)
+
     minmax(220px, 1.5fr);
+
+
 
   gap: 14px;
 
+
+
   align-items: center;
+
+
 
   min-height: 56px;
 
+
+
   padding: 10px 14px;
+
+
 
   box-sizing: border-box;
 
+
+
   border-bottom: 1px solid #f2f4f7;
 
+
+
   font-size: 11px;
+
 }
+
+
 
 .hr-summary-day:last-child {
+
   border-bottom: 0;
+
 }
+
+
 
 .hr-summary-day > div:first-child {
+
   display: flex;
+
   flex-direction: column;
 
+
+
   gap: 3px;
+
 }
+
+
 
 .hr-summary-day > div:first-child strong {
+
   color: #101828;
 
+
+
   font-size: 11px;
+
   font-weight: 800;
+
 }
+
+
 
 .hr-summary-day small {
+
   color: #98a2b3;
 
+
+
   font-size: 9px;
+
 }
 
+
+
 /* =========================================================
+
    EMPLOYEE SUMMARY MODAL FOOTER
+
 ========================================================= */
 
+
+
 .hr-modal:has(.hr-employee-summary-details)
+
 .hr-modal-footer {
+
   position: sticky;
 
+
+
   bottom: 0;
+
   z-index: 10;
+
+
 
   padding: 12px 22px;
 
+
+
   background: #ffffff;
 
+
+
   border-top: 1px solid
+
     var(--hr-border);
+
 }
 
+
+
 /* =========================================================
+
    TABLE HOVER
+
 ========================================================= */
+
+
 
 .hr-summary-grid.hr-table-row {
+
   transition:
+
     background 0.15s ease;
+
 }
+
+
 
 .hr-summary-grid.hr-table-row:hover {
+
   background: #fafafa;
+
 }
+
+
 
 /* =========================================================
+
    RESPONSIVE
+
 ========================================================= */
 
+
+
 @media (max-width: 900px) {
+
   .hr-modal:has(.hr-employee-summary-details) {
+
     width: calc(100% - 24px);
+
     max-height: 94vh;
+
   }
+
+
 
   .hr-employee-summary-details {
+
     padding: 16px;
 
+
+
     max-height:
+
       calc(94vh - 140px);
+
   }
 
+
+
   .hr-summary-cards {
+
     grid-template-columns:
+
       repeat(
+
         3,
+
         minmax(0, 1fr)
+
       );
+
   }
+
 }
 
+
+
 @media (max-width: 700px) {
+
   .hr-summary-cards {
+
     grid-template-columns:
+
       repeat(
+
         2,
+
         minmax(0, 1fr)
+
       );
+
   }
 
+
+
   .hr-summary-day {
+
     grid-template-columns: 1fr;
+
+
 
     gap: 7px;
 
+
+
     padding: 12px;
+
   }
 
+
+
   .hr-modal:has(.hr-employee-summary-details)
+
   .hr-modal-header {
+
     padding: 14px 16px;
+
   }
 
+
+
   .hr-modal:has(.hr-employee-summary-details)
+
   .hr-modal-footer {
+
     padding: 11px 16px;
+
   }
+
 }
+
+
 
 @media (max-width: 480px) {
+
   .hr-summary-cards {
+
     grid-template-columns: 1fr 1fr;
+
   }
+
+
 
   .hr-summary-item {
+
     min-height: 76px;
 
+
+
     padding: 11px 12px;
+
   }
+
+
 
   .hr-summary-item strong {
+
     font-size: 18px;
+
   }
+
 }
+
 /* =========================================================
+
    ADD ONLY: HR LEAVE MANAGEMENT
+
    Paste this at the very bottom of the existing
+
    frontend/src/layouts/hrAttendance.css file.
+
 ========================================================= */
 
+
+
 .hr-button.leave-management {
+
   border: 1px solid var(--hr-orange);
+
   background: #fff7f4;
+
   color: var(--hr-orange);
+
 }
+
+
 
 .hr-button.leave-management:hover {
+
   background: #ffede8;
+
 }
+
+
 
 .hr-modal:has(.hr-leave-manager) {
+
   width: calc(100% - 40px);
+
   max-width: 980px;
+
   max-height: 92vh;
+
   overflow: hidden;
+
 }
+
+
 
 .hr-modal:has(.hr-leave-manager) .hr-modal-header {
+
   position: sticky;
+
   top: 0;
+
   z-index: 10;
+
   background: #fff;
+
 }
+
+
 
 .hr-leave-manager {
+
   max-height: calc(92vh - 140px);
+
   padding: 0 18px 22px;
+
   overflow-y: auto;
+
   box-sizing: border-box;
+
 }
+
+
 
 .hr-leave-employee-picker {
+
   padding-right: 0;
+
   padding-left: 0;
+
 }
+
+
 
 .hr-leave-employee-bar {
+
   display: flex;
+
   align-items: center;
+
   justify-content: space-between;
+
   gap: 16px;
+
   padding: 13px 15px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 10px;
+
   background: #f9fafb;
+
 }
+
+
 
 .hr-leave-employee-bar > div {
+
   display: flex;
+
   flex-direction: column;
+
   gap: 3px;
+
 }
+
+
 
 .hr-leave-employee-bar span,
+
 .hr-leave-employee-bar small {
+
   color: var(--hr-muted);
+
   font-size: 11px;
+
 }
+
+
 
 .hr-leave-balance-section {
+
   margin-top: 18px;
+
 }
+
+
 
 .hr-leave-action-tabs {
+
   display: grid;
+
   grid-template-columns: repeat(3, minmax(0, 1fr));
+
   gap: 8px;
+
   margin-top: 20px;
+
 }
+
+
 
 .hr-leave-action-tabs button {
+
   min-height: 42px;
+
   padding: 8px 12px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 9px;
+
   background: #fff;
+
   color: #475467;
+
   font-weight: 800;
+
   cursor: pointer;
+
 }
+
+
 
 .hr-leave-action-tabs button.active {
+
   border-color: var(--hr-orange);
+
   background: #fff4f0;
+
   color: var(--hr-orange);
+
 }
+
+
 
 .hr-managed-leave-form {
+
   margin-top: 12px;
+
   padding: 15px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 11px;
+
   background: #fff;
+
 }
+
+
 
 .hr-leave-history-section {
+
   margin-top: 22px;
+
 }
+
+
 
 .hr-leave-history-section h4 {
+
   margin: 0 0 10px;
+
   color: var(--hr-text);
+
   font-size: 14px;
+
 }
+
+
 
 .hr-leave-history-list {
+
   overflow: hidden;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 10px;
+
   background: #fff;
+
 }
+
+
 
 .hr-leave-history-row {
+
   display: grid;
+
   grid-template-columns: minmax(190px, 1.2fr) 100px 115px minmax(200px, 1fr);
+
   align-items: center;
+
   gap: 12px;
+
   min-height: 58px;
+
   padding: 9px 12px;
+
   border-bottom: 1px solid #f2f4f7;
+
   box-sizing: border-box;
+
   font-size: 11px;
+
 }
+
+
 
 .hr-leave-history-row:last-child {
+
   border-bottom: 0;
+
 }
+
+
 
 .hr-leave-history-row > div:first-child {
+
   display: flex;
+
   flex-direction: column;
+
   gap: 3px;
+
 }
+
+
 
 .hr-leave-history-row small {
+
   color: var(--hr-muted);
+
   line-height: 1.35;
+
 }
 
-.hr-leave-history-row.adjustment > span:nth-child(2) {
+
+
+.hr-leave-history-row\.adjustment > span:nth-child(2) {
+
   color: #067647;
+
   font-weight: 800;
+
 }
+
+
 
 @media (max-width: 700px) {
+
   .hr-modal:has(.hr-leave-manager) {
+
     width: calc(100% - 20px);
+
   }
+
+
 
   .hr-leave-manager {
+
     padding: 0 12px 18px;
+
   }
+
+
 
   .hr-leave-action-tabs {
+
     grid-template-columns: 1fr;
+
   }
+
+
 
   .hr-leave-history-row {
+
     grid-template-columns: 1fr 1fr;
+
   }
+
+
 
   .hr-leave-history-row > small {
+
     grid-column: 1 / -1;
+
   }
+
 }
+
+
 
 /* ---------- Revert a leave (Manage Employee Leave dialog) ---------- */
+
 .hr-leave-history-row:not(.adjustment) {
+
   grid-template-columns: minmax(170px, 1.2fr) 90px 125px minmax(160px, 1fr) 92px;
+
 }
+
+
 
 .hr-revert-slot {
+
   display: flex;
+
   justify-content: flex-end;
+
 }
+
+
 
 .hr-revert-button {
+
   min-height: 34px;
+
   padding: 0 16px;
+
   border: 0;
+
   border-radius: 9px;
+
   background: #fde8e6;
+
   color: #b42318;
+
   font-size: 12px;
+
   font-weight: 800;
+
   cursor: pointer;
+
 }
+
+
 
 .hr-revert-button:hover {
+
   background: #fbd3cf;
+
 }
+
+
 
 .hr-revert-dialog {
+
   padding: 0 22px 18px;
+
 }
+
+
 
 .hr-revert-dialog p {
+
   margin: 0 0 14px;
+
   color: var(--hr-muted);
+
   font-size: 13px;
+
   line-height: 1.5;
+
 }
+
+
 
 .hr-revert-dialog label {
+
   display: block;
+
   margin-bottom: 6px;
+
   font-size: 13px;
+
   font-weight: 800;
+
 }
+
+
 
 .hr-revert-dialog textarea {
+
   width: 100%;
+
   box-sizing: border-box;
+
   padding: 10px 12px;
+
   border: 1px solid var(--hr-border);
+
   border-radius: 10px;
+
   font: inherit;
+
   resize: vertical;
+
 }
+
+
 
 @media (max-width: 700px) {
+
   .hr-leave-history-row:not(.adjustment) {
+
     grid-template-columns: 1fr 1fr;
+
   }
+
+
 
   .hr-revert-slot {
+
     grid-column: 1 / -1;
+
   }
+
+
 
   .hr-revert-slot:empty {
+
     display: none;
+
   }
 
+
+
   .hr-revert-button {
+
     width: 100%;
+
     min-height: 42px;
+
   }
+
 }
+
+/* Add Attendance: new controls only. Existing HR styles remain unchanged. */
+.hr-attendance-modes{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;margin:0 20px 16px;background:#f3f4f6;border-radius:12px}
+.hr-attendance-modes button{border:0;border-radius:9px;padding:10px 8px;background:transparent;color:#667085;font:inherit;font-weight:600;cursor:pointer}
+.hr-attendance-modes button.active{background:white;color:#121b2c;box-shadow:0 1px 4px #10182812}
+.hr-bulk{display:flex;flex-direction:column;gap:10px;padding:0 20px 20px}
+.hr-bulk label{font-size:13px;font-weight:600;color:#263043}
+.hr-bulk input,.hr-bulk textarea{box-sizing:border-box;width:100%;min-width:0;border:1px solid #d5d9e1;border-radius:9px;padding:11px;font:inherit;background:white;color:#182335}
+.hr-bulk textarea{resize:vertical}
+.hr-bulk-search{display:flex;align-items:center;gap:8px;border:1px solid #d5d9e1;border-radius:9px;padding:0 10px}
+.hr-bulk-search input{border:0;outline:0;padding:11px 2px}
+.hr-bulk-results{display:flex;flex-direction:column;max-height:170px;overflow:auto;border:1px solid #d5d9e1;border-radius:9px}
+.hr-bulk-results button{display:flex;justify-content:space-between;gap:10px;padding:9px 12px;background:white;border:0;text-align:left;cursor:pointer}
+.hr-bulk-results button:hover{background:#f5f6f9}
+.hr-bulk-results small,.hr-bulk-results span{color:#667085}
+.hr-bulk-results>span{padding:9px 12px}
+.hr-bulk-chips{display:flex;flex-wrap:wrap;gap:6px}
+.hr-bulk-chips button,.hr-bulk-chips span{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:0;border-radius:20px;background:#f2f4f7;color:#344054;font-size:12px}
+.hr-bulk-chips button{cursor:pointer}
+.hr-bulk-note{padding:10px;margin:4px 0;color:#475467;background:#f8f9fb;border-radius:9px;font-size:12px;line-height:1.5}
+.hr-bulk-submit{width:100%;justify-content:center}
+.hr-bulk-actions{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.hr-bulk-error{color:#b42318;font-size:13px}
+.hr-bulk-conflicts{max-height:135px;overflow:auto;padding:8px 12px;border-radius:9px;background:#fff8f2;font-size:12px}
+.hr-bulk-conflicts p{margin:4px 0}
+.hr-activity{padding:18px 20px}
+.hr-activity-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hr-activity-heading h2{margin:0;font-size:20px}
+.hr-activity-heading p{margin:5px 0;color:#667085;font-size:12px}
+.hr-activity-filter{margin:15px 0}
+.hr-activity-filter select{max-width:230px;width:100%;padding:9px;border:1px solid #d5d9e1;border-radius:9px;background:white;color:#182335}
+.hr-activity-row{display:grid;grid-template-columns:1.5fr 1.3fr .8fr auto;align-items:center;gap:10px;padding:12px 0;border-top:1px solid #e7e9ee;font-size:12px}
+.hr-activity-row strong{font-size:13px}
+.hr-activity-row span{color:#667085}
+.hr-activity-row button{border:0;background:transparent;color:#e65030;font-weight:600;cursor:pointer}
+.hr-activity-details{padding:10px 14px;margin-bottom:8px;border-radius:9px;background:#f7f8fa;font-size:12px;overflow-wrap:anywhere}
+.hr-activity-details p{margin:5px 0}
+.hr-activity-empty{padding:15px 0;color:#667085}
+@media(max-width:600px){.hr-activity-heading{align-items:flex-start;flex-direction:column}.hr-activity-row{grid-template-columns:1fr auto}.hr-activity-row span:nth-of-type(2){display:none}.hr-bulk-actions .hr-button{flex:1}}
+
+.hr-bulk .hr-bulk-select-all{display:flex;align-items:center;gap:8px;align-self:flex-start;cursor:pointer;margin:0}
+.hr-bulk .hr-bulk-select-all input{width:16px;height:16px;min-width:16px;margin:0;padding:0;accent-color:var(--hr-orange)}
+
+/* Compact activity summary, employee-level details and guarded undo */
+.hr-activity-row{grid-template-columns:1fr 2fr 1fr auto}
+.hr-activity-summary{color:#475467!important;font-weight:500}
+.hr-activity-changes{max-height:320px;overflow:auto;margin:12px 0;border:1px solid var(--hr-border);border-radius:8px}
+.hr-activity-change{display:grid;grid-template-columns:1.1fr 110px 1.2fr 1fr;gap:9px;padding:8px 10px;border-bottom:1px solid #edf0f3;font-size:12px}
+.hr-activity-change:last-child{border:0}
+.hr-activity-change-head{background:#f2f4f7;font-weight:700;position:sticky;top:0}
+.hr-activity-undo-confirm{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:12px}
+.hr-activity-hint{color:#667085}
+.hr-activity-message{color:#067647;font-size:12px}
+@media(max-width:700px){.hr-activity-row{grid-template-columns:1fr auto}.hr-activity-summary{grid-column:1/-1;grid-row:2}.hr-activity-changes{overflow-x:auto}.hr-activity-change{min-width:610px}}
