@@ -3576,6 +3576,7 @@ await fetchEmployeeSummary({
 function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState([]);
+  const [everyoneMode, setEveryoneMode] = useState(false);
   const [start, setStart] = useState(initialDate);
   const [end, setEnd] = useState(initialDate);
   const [reason, setReason] = useState("");
@@ -3588,11 +3589,12 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
   const matches = query.trim()
     ? users.filter((u) =>
         u.full_name?.toLowerCase().includes(query.trim().toLowerCase()) &&
-        !selected.includes(String(u.user_id))
-      ).slice(0, 8)
+        (everyoneMode || !selected.includes(String(u.user_id)))
+      ).slice(0, 12)
     : [];
   const chosen = users.filter((u) => selected.includes(String(u.user_id)));
   const allSelected = users.length > 0 && chosen.length === users.length;
+  const excluded = everyoneMode ? users.filter(u=>!selected.includes(String(u.user_id))) : [];
   const payload = {
     employee_ids: selected.map(Number),
     start_date: start,
@@ -3638,8 +3640,9 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
       {!showPreview ? (<>
         <label>Search and select employees</label>
         <label className="hr-bulk-select-all">
-          <input type="checkbox" checked={allSelected} disabled={!users.length}
+          <input type="checkbox" checked={everyoneMode} disabled={!users.length}
             onChange={(e) => {
+              setEveryoneMode(e.target.checked);
               setSelected(e.target.checked ? users.map((u) => String(u.user_id)) : []);
               setQuery("");
             }} />
@@ -3647,22 +3650,27 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
         </label>
         <div className="hr-bulk-search">
           <Search size={16} />
-          <input value={query} disabled={allSelected} placeholder="Search employee by name..."
+          <input value={query} placeholder={everyoneMode ? "Search someone to exclude/restore..." : "Search employee by name..."}
             onChange={(e) => setQuery(e.target.value)} />
         </div>
         {query.trim() && (
           <div className="hr-bulk-results">
             {matches.length ? matches.map((u) => (
               <button key={u.user_id} onClick={() => {
-                setSelected((prev) => [...prev, String(u.user_id)]);
-                setQuery("");
+                const id=String(u.user_id);
+                setSelected(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+                if(!everyoneMode)setQuery("");
               }}>
-                {u.full_name} <small>{u.employee_code || ""}</small>
+                {u.full_name} <small>{u.employee_code || ""} · {selected.includes(String(u.user_id)) ? "Exclude" : "Select"}</small>
               </button>
             )) : <span>No matching employees</span>}
           </div>
         )}
-        {!!chosen.length && !allSelected && (
+        {everyoneMode && <div className="hr-bulk-excluded">
+          <small>{excluded.length} excluded</small>
+          {excluded.map(u=><button type="button" key={u.user_id} onClick={()=>setSelected(prev=>[...prev,String(u.user_id)])}>{u.full_name} · Restore</button>)}
+        </div>}
+        {!!chosen.length && !everyoneMode && !allSelected && (
           <div className="hr-bulk-chips">
             {chosen.map((u) => (
               <button key={u.user_id} onClick={() =>
@@ -3695,10 +3703,24 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
       </>) : (<>
         <h4>Confirmation Preview</h4>
         <p><strong>{selected.length}</strong> employee(s) · {displayDate(start)} – {displayDate(end)}</p>
-        {allSelected ? <p>All {users.length} employees selected</p> : (
+        {everyoneMode ? <p>{selected.length} of {users.length} employees selected · {excluded.length} excluded</p> : (
           <div className="hr-bulk-chips">{chosen.map((u) =>
             <span key={u.user_id}>{u.full_name}</span>)}</div>
         )}
+        {everyoneMode && <div className="hr-preview-exclusions">
+          <label>Exclude anyone before confirming</label>
+          <input value={query} placeholder="Search employee to exclude or restore" onChange={e=>setQuery(e.target.value)}/>
+          {query.trim() && <div className="hr-preview-exclusion-results">
+            {users.filter(u=>u.full_name?.toLowerCase().includes(query.trim().toLowerCase())).slice(0,12).map(u=><label key={u.user_id}>
+              <input type="checkbox" checked={selected.includes(String(u.user_id))} onChange={e=>{
+                const id=String(u.user_id);
+                setSelected(prev=>e.target.checked?[...new Set([...prev,id])]:prev.filter(x=>x!==id));
+                setPreview(null);
+              }}/>{u.full_name}</label>)}
+          </div>}
+          {!!excluded.length && <small>Excluded: {excluded.map(u=>u.full_name).join(', ')}</small>}
+          {!preview && !busy && <button type="button" className="hr-button secondary" disabled={!selected.length} onClick={showBulkPreview}>Refresh Preview</button>}
+        </div>}
         <p><strong>Reason:</strong> {reason}</p>
         {description && <p><strong>Description:</strong> {description}</p>}
         {busy && <p>Checking eligible attendance records...</p>}
@@ -3732,6 +3754,7 @@ function AttendanceActivityLog({ onBack }) {
   const [detail, setDetail] = useState(null);
   const [offset, setOffset] = useState(0);
   const [confirmUndo, setConfirmUndo] = useState(false);
+  const [pendingEntry, setPendingEntry] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -3748,6 +3771,7 @@ function AttendanceActivityLog({ onBack }) {
 
   const openDetail = async (item, nextOffset = 0) => {
     setConfirmUndo(false);
+    setPendingEntry(null);
     setError("");
     setExpanded(item.id);
     if (!nextOffset) setDetail(null);
@@ -3770,6 +3794,16 @@ function AttendanceActivityLog({ onBack }) {
       await openDetail(item);
     } catch (e) { setError(e?.response?.data?.message || "Undo could not be completed safely"); }
     finally { setBusy(false); }
+  };
+  const revertEntry=async(item,change)=>{
+    if(!change.entry_id || busy)return;
+    setBusy(true);setError('');
+    try{
+      const {data}=await api.post(`/hr-attendance/activity-log/${item.id}/undo-item`,{entry_id:change.entry_id});
+      setMessage(data?.message||'Reverted');setPendingEntry(null);
+      await reload();await openDetail(item);
+    }catch(e){setError(e?.response?.data?.message||'Cannot safely revert this record');}
+    finally{setBusy(false);}
   };
   const labels = {
     bulk_mark_present: "Bulk Mark Present", add_attendance: "Add Attendance",
@@ -3809,14 +3843,23 @@ function AttendanceActivityLog({ onBack }) {
               {item.description && <p><strong>Description:</strong> {item.description}</p>}
               {item.file_name && <p><strong>File:</strong> {item.file_name}</p>}
               {detail?.items?.length > 0 && <div className="hr-activity-changes">
-                <div className="hr-activity-change hr-activity-change-head"><span>Employee</span><span>Date</span><span>Change</span><span>Result</span></div>
+                <div className="hr-activity-change hr-activity-change-head"><span>Employee</span><span>Date</span><span>Change</span><span>Result</span><span>Action</span></div>
                 {detail.items.map((change, index) => <div className="hr-activity-change" key={`${change.employee_name}-${change.date}-${index}`}>
                   <span>{change.employee_name}</span><span>{displayDate(change.date)}</span>
                   <span>{change.before_status} → {change.after_status}</span><span>{change.outcome || change.status}</span>
+                  <span className="hr-activity-item-action">
+                    {item.action==='bulk_mark_present' && change.can_undo && (
+                      pendingEntry===change.entry_id ? <span>
+                        <button className="hr-button danger" disabled={busy} onClick={()=>revertEntry(item,change)}>Confirm</button>
+                        <button className="hr-button secondary" disabled={busy} onClick={()=>setPendingEntry(null)}>Cancel</button>
+                      </span> : <button className="hr-button secondary" disabled={busy} onClick={()=>{setConfirmUndo(false);setPendingEntry(change.entry_id);}}>Revert</button>
+                    )}
+                    {change.status==='undone' && <small>Reverted</small>}
+                  </span>
                 </div>)}
               </div>}
               {detail?.has_more && <button className="hr-button secondary" disabled={busy} onClick={() => openDetail(item,offset + 200)}>Show more</button>}
-              {item.can_undo && !confirmUndo && <button className="hr-button danger" disabled={busy} onClick={() => setConfirmUndo(true)}>Undo Changes</button>}
+              {item.can_undo && !confirmUndo && !pendingEntry && <button className="hr-button danger" disabled={busy} onClick={() => setConfirmUndo(true)}>Undo Changes</button>}
               {confirmUndo && <div className="hr-activity-undo-confirm">
                 <span>Reverse this action? Records changed afterwards will be protected.</span>
                 <button className="hr-button danger" disabled={busy} onClick={() => undo(item)}>{busy ? "Reversing..." : "Confirm Undo"}</button>
