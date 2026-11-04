@@ -6318,23 +6318,23 @@ const activityDetail = async (req,res) => {
     const [countRows]=await db.query(`SELECT
       (SELECT COUNT(*) FROM hr_attendance_bulk_entries WHERE batch_id=?) +
       (SELECT COUNT(*) FROM hr_attendance_activity WHERE batch_id=? AND action='bulk_undo_item') total`,[a.batch_id,a.batch_id]);
-    const [rows]=await db.query(`SELECT x.employee_id,DATE_FORMAT(x.attendance_date,'%Y-%m-%d') date,
+    const [rows]=await db.query(`SELECT x.entry_id,x.employee_id,DATE_FORMAT(x.attendance_date,'%Y-%m-%d') date,
       x.item_status,x.outcome,u.full_name employee_name,
       (SELECT h.details FROM hr_attendance_activity h WHERE h.batch_id=?
        AND h.employee_id=x.employee_id AND h.from_date=x.attendance_date
        AND h.action IN ('bulk_applied','bulk_skipped') ORDER BY h.id DESC LIMIT 1) audit_details
       FROM (
-        SELECT employee_id,attendance_date,status item_status,outcome
+        SELECT id entry_id,employee_id,attendance_date,status item_status,outcome
         FROM hr_attendance_bulk_entries WHERE batch_id=?
         UNION ALL
-        SELECT employee_id,from_date attendance_date,'undone' item_status,
+        SELECT NULL entry_id,employee_id,from_date attendance_date,'undone' item_status,
           JSON_UNQUOTE(JSON_EXTRACT(details,'$.outcome')) outcome
         FROM hr_attendance_activity WHERE batch_id=? AND action='bulk_undo_item'
       ) x JOIN users u ON u.user_id=x.employee_id
       ORDER BY x.attendance_date,u.full_name LIMIT 200 OFFSET ?`,[a.batch_id,a.batch_id,a.batch_id,offset]);
     const items=rows.map(row=>{
       const d=parseDetails(row.audit_details),before=d.before||null;
-      return {employee_name:row.employee_name,date:row.date,status:row.item_status,
+      return {entry_id:row.entry_id==null?null:Number(row.entry_id),can_undo:row.entry_id!=null && ['applied','scheduled'].includes(row.item_status),employee_name:row.employee_name,date:row.date,status:row.item_status,
         before_status:before?.status||'No record',
         after_status:row.item_status==='applied'?'Present':row.item_status==='scheduled'?'Scheduled':
           row.item_status==='undone'?(before?.status||'No record'):'Unchanged',
@@ -6354,14 +6354,19 @@ const undoAttendanceActivity = async (req,res) => {
     conn=await db.getConnection();await conn.beginTransaction();
     const [[a]]=await conn.query(`SELECT *,DATE_FORMAT(from_date,'%Y-%m-%d') date_from FROM hr_attendance_activity WHERE id=? FOR UPDATE`,[id]);
     if(!a){await conn.rollback();return fail(res,'Activity not found',404);}
-    if(!['bulk_mark_present','add_attendance','edit_attendance'].includes(a.action)){
+    if(!['bulk_mark_present','add_attendance','edit_attendance'].includes(a.action) || (req.singleUndo && a.action!=='bulk_mark_present')){
       await conn.rollback();return fail(res,'Undo is unavailable for this activity',400);
     }
     let reversed=0,cancelled=0,cleared=0,conflicts=0;
+    const entryId=req.singleUndo?Number(req.body?.entry_id):null;
+    if(req.singleUndo && (!Number.isSafeInteger(entryId) || entryId<=0)){
+      await conn.rollback();return fail(res,'Invalid employee entry',400);
+    }
     if(a.action==='bulk_mark_present'){
       const [entries]=await conn.query(`SELECT id,employee_id,DATE_FORMAT(attendance_date,'%Y-%m-%d') date,
         status,reason,description FROM hr_attendance_bulk_entries
-        WHERE batch_id=? ORDER BY id FOR UPDATE`,[a.batch_id]);
+        WHERE batch_id=? ${entryId?'AND id=?':''} ORDER BY id FOR UPDATE`,
+        entryId?[a.batch_id,entryId]:[a.batch_id]);
       if(!entries.length){await conn.rollback();return fail(res,'This bulk action is already undone or has no remaining entries',409);}
       const [events]=await conn.query(`SELECT employee_id,DATE_FORMAT(from_date,'%Y-%m-%d') date,details
         FROM hr_attendance_activity WHERE batch_id=? AND action='bulk_applied'`,[a.batch_id]);
@@ -6370,11 +6375,36 @@ const undoAttendanceActivity = async (req,res) => {
         let outcome='Cancelled';
         if(entry.status==='applied'){
           const audit=auditMap.get(`${entry.employee_id}|${entry.date}`);
-          if(!audit || !audit.after){conflicts++;continue;}
+          if(!audit || !audit.after){
+            conflicts++;
+            if(req.singleUndo){
+              await conn.rollback();
+              return fail(res,'Original snapshot is unavailable for this employee. Nothing was changed.',409);
+            }
+            continue;
+          }
           const [current]=await conn.query(`SELECT attendance_id,status,check_in_time,check_out_time,total_minutes,remarks
             FROM attendance WHERE employee_id=? AND attendance_date=? FOR UPDATE`,[entry.employee_id,entry.date]);
           const existing=current[0],expected={...audit.after,remarks:bulkRemark(entry)};
-          if(current.length!==1 || !sameAttendance(existing,expected)) {conflicts++;continue;}
+          if(current.length!==1 || !sameAttendance(existing,expected)) {
+            conflicts++;
+            if(req.singleUndo){
+              let reason='The current record differs from the originally applied attendance';
+              if(!current.length)reason='The originally applied attendance record no longer exists';
+              else if(current.length>1)reason='Multiple records exist for the selected employee and date';
+              else if(String(existing.status||'').toLowerCase()!==String(expected.status||'').toLowerCase())
+                reason='The attendance status has changed';
+              else if(String(existing.check_in_time??'')!==String(expected.check_in_time??'') ||
+                String(existing.check_out_time??'')!==String(expected.check_out_time??'') ||
+                Number(existing.total_minutes||0)!==Number(expected.total_minutes||0))
+                reason='Biometric punches or working time have changed';
+              else if(String(existing.remarks??'')!==String(expected.remarks??''))
+                reason='The attendance remarks have changed';
+              await conn.rollback();
+              return fail(res,`Cannot revert ${entry.date}: ${reason}. No changes were made.`,409);
+            }
+            continue;
+          }
           if(audit.before){
             await conn.query(`UPDATE attendance SET status=?,remarks=? WHERE attendance_id=?`,
               [audit.before.status,audit.before.remarks||null,existing.attendance_id]);
@@ -6397,7 +6427,7 @@ const undoAttendanceActivity = async (req,res) => {
       await conn.query(`INSERT INTO hr_attendance_activity
         (actor_user_id,action,batch_id,from_date,to_date,reason,details)
         VALUES (?,'undo_bulk',?,?,?,'Undo bulk attendance',?)`,
-        [identity(req),a.batch_id,a.from_date,a.to_date,JSON.stringify({original_activity_id:id,restored:reversed,cancelled,cleared,conflicts})]);
+        [identity(req),a.batch_id,a.from_date,a.to_date,JSON.stringify({original_activity_id:id,entry_id:entryId,restored:reversed,cancelled,cleared,conflicts})]);
     }else{
       const d=parseDetails(a.details);
       if(!d.after){await conn.rollback();return fail(res,'The original record snapshot is unavailable; undo is not safe.',409);}
@@ -6431,6 +6461,10 @@ const undoAttendanceActivity = async (req,res) => {
     return res.json({success:true,message:`${reversed} restored, ${cancelled} future entries cancelled${cleared?`, ${cleared} skipped entries cleared`:''}${conflicts?`; ${conflicts} protected because records changed`:''}.`,undone_count:reversed,cancelled_count:cancelled,conflicts});
   }catch(e){if(conn)await conn.rollback();console.error('Attendance undo',e);fail(res,'Unable to undo attendance safely',500);}
   finally{if(conn)conn.release();}
+};
+const undoAttendanceActivityItem=(req,res)=>{
+  req.singleUndo=true;
+  return undoAttendanceActivity(req,res);
 };
 // Audit existing actions without changing their controllers or response behavior.
 const auditExisting = action => async (req,res,next) => {
@@ -6472,6 +6506,7 @@ module.exports = {
   getAttendanceActivity: activity,
   getAttendanceActivityDetail: activityDetail,
   undoAttendanceActivity,
+  undoAttendanceActivityItem,
   auditExisting,
   startBulkProcessor: startProcessor,
 

@@ -20,6 +20,7 @@ const {
   getAttendanceActivity,
   getAttendanceActivityDetail,
   undoAttendanceActivity,
+  undoAttendanceActivityItem,
   auditExisting,
   startBulkProcessor,
 } = require("../controllers/hrattendancecontroller");
@@ -158,6 +159,7 @@ router.get(
 
 router.get("/activity-log/:id", authMiddleware, onlyRathika, getAttendanceActivityDetail);
 router.post("/activity-log/:id/undo", authMiddleware, onlyRathika, undoAttendanceActivity);
+router.post("/activity-log/:id/undo-item", authMiddleware, onlyRathika, undoAttendanceActivityItem);
 
 router.get(
   "/",
