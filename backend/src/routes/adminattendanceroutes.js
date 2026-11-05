@@ -12,6 +12,13 @@ const {
 } = require("../controllers/adminattendancecontroller");
 
 const router = express.Router();
+// VALENCIA_PREMAL_FIELD_VISIT_V1
+const fieldReviewRole=(req,res,next)=>{
+ const role=String(req.user?.role_name||'').toLowerCase();
+ const email=String(req.user?.email||'').trim().toLowerCase();
+ if(role==='admin'||email==='premal.mehta@valencianutrition.com')return next();
+ return res.status(403).json({success:false,message:'Field Visit access denied.'});
+};
 
 router.get(
   "/field-visits/my",
@@ -54,7 +61,7 @@ router.get(
 router.get(
   "/field-visits",
   authMiddleware,
-  requireRole("admin"),
+  fieldReviewRole,
   getDepartmentFieldVisits
 );
 
@@ -68,7 +75,7 @@ router.get(
 router.post(
   "/field-visits/:visitId/review",
   authMiddleware,
-  requireRole("admin"),
+  fieldReviewRole,
   reviewFieldVisit
 );
 

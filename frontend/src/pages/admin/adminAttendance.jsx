@@ -1,3 +1,5 @@
+// VALENCIA_APPROVALS_V3_FIX: preserve Admin Approvals, add adjacent Employee Approvals.
+// VALENCIA_PREMAL_EMPLOYEE_APPROVALS_V2
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Bold, Highlighter, List } from "lucide-react";
 import api from "../../api/axios";
@@ -656,6 +658,7 @@ const isPremal =
   const [error, setError] = useState("");
   const [fieldVisitMode, setFieldVisitMode] = useState("team");
   const [teamVisits, setTeamVisits] = useState([]);
+  const [canApproveFieldVisits, setCanApproveFieldVisits] = useState(false);
   const [myVisits, setMyVisits] = useState([]);
   const [adminApprovalVisits,setAdminApprovalVisits] = useState([]);
   const [visitSearch, setVisitSearch] = useState("");
@@ -741,6 +744,7 @@ const isPremal =
         );
       }
       setTeamVisits(visits);
+      setCanApproveFieldVisits(response.data?.can_approve_field_visit === true);
     } catch (err) {
       console.error("Fetch team field visits error:", err);
       setVisitError(
@@ -994,7 +998,11 @@ const isPremal =
     try {
       setVisitError("");
       setVisitMessage("");
-      setReviewSaving(true);
+      if (!canApproveFieldVisits) {
+      setVisitError("Field Visit approval permission disabled.");
+      return false;
+    }
+    setReviewSaving(true);
       if (
   fieldVisitMode === "adminApprovals"
 ) {
@@ -1134,11 +1142,13 @@ const isPremal =
     return Array.isArray(monthlyMyAttendance?.records) ? monthlyMyAttendance.records : [];
   }, [monthlyMyAttendance]);
   const currentVisits =
-  fieldVisitMode === "team"
-    ? teamVisits
-    : fieldVisitMode === "adminApprovals"
-      ? adminApprovalVisits
-      : myVisits;
+    fieldVisitMode === "team"
+      ? teamVisits
+      : fieldVisitMode === "adminApprovals"
+        ? adminApprovalVisits
+        : fieldVisitMode === "employeeApprovals"
+          ? teamVisits.filter(visit => String(visit.applicant_role || "").toLowerCase() === "employee")
+          : myVisits;
   const visitSummary = useMemo(() => {
     return {
       total: currentVisits.length,
@@ -1227,23 +1237,12 @@ const isPremal =
     return Object.values(map);
   }, [teamVisits]);
  const pendingTeamVisits = useMemo(() => {
-  const source =
-    fieldVisitMode ===
-    "adminApprovals"
-      ? adminApprovalVisits
-      : teamVisits;
-  return source.filter(
-    (visit) =>
-      String(
-        visit.status || ""
-      ).toLowerCase() ===
-      "pending"
-  );
-}, [
-  teamVisits,
-  adminApprovalVisits,
-  fieldVisitMode,
-]);
+    const source = fieldVisitMode === "adminApprovals" ? adminApprovalVisits :
+      fieldVisitMode === "employeeApprovals"
+        ? teamVisits.filter(visit => String(visit.applicant_role || "").toLowerCase() === "employee")
+        : teamVisits;
+    return source.filter(visit => String(visit.status || "").toLowerCase() === "pending");
+  }, [teamVisits, adminApprovalVisits, fieldVisitMode]);
   useEffect(() => {
     if (!visitMessage) return;
     const timer = setTimeout(() => {
@@ -1525,6 +1524,23 @@ const isPremal =
     Admin Approvals
   </button>
 )}
+            {isPremal && (
+              <button
+                type="button"
+                style={{
+                  ...styles.visitSwitchButton,
+                  ...(fieldVisitMode === "employeeApprovals" ? styles.visitSwitchActive : {}),
+                }}
+                onClick={() => {
+                  setFieldVisitMode("employeeApprovals");
+                  setVisitSearch("");
+                  setVisitStatus("all");
+                  fetchTeamVisits();
+                }}
+              >
+                Employee Approvals
+              </button>
+            )}
           </div>
           {visitError && (
             <div style={styles.errorBox}>
@@ -1541,7 +1557,8 @@ const isPremal =
     ===================================================== */}
           {(
   fieldVisitMode === "team" ||
-  fieldVisitMode === "adminApprovals"
+  fieldVisitMode === "adminApprovals" ||
+  fieldVisitMode === "employeeApprovals"
 ) && (
             <>
               {/* 1. ACTION REQUIRED FIRST */}

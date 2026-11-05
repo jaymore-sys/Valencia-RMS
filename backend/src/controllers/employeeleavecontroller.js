@@ -986,18 +986,8 @@ if (
     });
 }
 
-if (
-  leaveType === "casual" &&
-  durationType === "half_day"
-) {
-  return res
-    .status(400)
-    .json({
-      success: false,
-
-      message:
-        "Casual Leave can only be applied as Full Day.",
-    });
+if (leaveType === "mandatory" && durationType === "half_day") {
+  return res.status(400).json({success:false,message:"Privileged Leave must be taken as a Full Day."});
 }
 
       

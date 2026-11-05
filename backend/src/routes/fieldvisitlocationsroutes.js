@@ -65,7 +65,9 @@ async function accessForStop(req, stopId) {
   const owner = Number(stop.employee_id) === Number(req.user?.user_id);
   const reviewer = role === "superadmin" || ((role === "admin" || role === "administrator") &&
     Number(req.user.department_id) > 0 && Number(stop.owner_department) === Number(req.user.department_id));
-  if (!owner && !reviewer) return {forbidden:true};
+  // Rathika may view/download Field Visit files but not upload, replace, or delete them.
+  const hrViewer=String(req.user?.email||'').trim().toLowerCase()==='rathika.haleangadi@valencianutrition.com';
+  if (!owner && !reviewer && !hrViewer) return {forbidden:true};
   return {...stop, canModify:owner};
 }
 async function accessForVisit(req, visitId) {

@@ -593,6 +593,40 @@ BUILD FINAL BALANCES
 ========================================================
 */
 
+// Leave policy helper, injected into leavepolicy.js immediately before buildLeaveBalances.
+// Applies a nine-day ceiling only to year-end carried accrued Privileged Leave.
+// Separate HR-granted extra leave remains outside that ceiling, consistent with prior policy.
+const MAX_PRIVILEGED_CARRY = 9;
+const getPrivilegedBalanceInYear = async (db, employeeId, year, excludeLeaveId = null) => {
+  const currentYear = Number(getIndiaToday().slice(0, 4));
+  const y = Number(year);
+  if (!Number.isInteger(y) || y < 2026) return { earned: 0, used: 0, pending: 0, carry_in: 0 };
+  const params = [employeeId, POLICY_START_DATE, `${y}-12-31`];
+  const exclusion = excludeLeaveId ? ' AND leave_id <> ? ' : '';
+  if (excludeLeaveId) params.push(excludeLeaveId);
+  const [rows] = await db.query(`SELECT YEAR(start_date) yr,
+    SUM(CASE WHEN status = 'approved' THEN total_days ELSE 0 END) used,
+    SUM(CASE WHEN status = 'pending' THEN total_days ELSE 0 END) pending
+    FROM leave_applications WHERE employee_id=? AND leave_type='mandatory'
+    AND start_date >= ? AND start_date <= ?
+    AND COALESCE(revert_status, 'none') <> 'approved' ${exclusion}
+    GROUP BY YEAR(start_date)`, params);
+  const map = new Map(rows.map(r => [Number(r.yr),r]));
+  let carry = 0, earned = 0, used = 0, pending = 0, carryIn = 0;
+  for(let yr = 2026; yr <= y; yr++) {
+    carryIn = Math.min(MAX_PRIVILEGED_CARRY, Math.max(0,carry));
+    const firstMonth = yr === 2026 ? 9 : 1;
+    const lastMonth = yr < currentYear ? 12 : yr === currentYear
+      ? Number(getIndiaToday().slice(5,7)) : 0;
+    const months = Math.max(0, lastMonth - firstMonth + 1);
+    earned = formatNumber(carryIn + months * MONTHLY_PRIVILEGED_CREDIT);
+    used = Number(map.get(yr)?.used || 0);
+    pending = Number(map.get(yr)?.pending || 0);
+    carry = Math.max(0, earned - used - pending);
+  }
+  return { earned, used, pending, carry_in: formatNumber(carryIn), carry_cap: MAX_PRIVILEGED_CARRY };
+};
+
 const buildLeaveBalances =
   async (
     db,
@@ -637,14 +671,11 @@ const buildLeaveBalances =
       );
 
     const privilegedUsage =
-      await getPrivilegedUsage(
-        db,
-        employeeId,
-        excludeLeaveId
+      await getPrivilegedBalanceInYear(
+        db, employeeId, year, excludeLeaveId
       );
 
-    const privilegedEarned =
-      getPrivilegedEarned();
+    const privilegedEarned = privilegedUsage.earned;
 
     const [
       sickExtra,
@@ -824,6 +855,8 @@ const buildLeaveBalances =
 
         carry_forward:
           true,
+        carry_forward_cap: MAX_PRIVILEGED_CARRY,
+        carry_forward_days: privilegedUsage.carry_in,
 
         earned:
           formatNumber(

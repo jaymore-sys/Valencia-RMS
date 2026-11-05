@@ -14,6 +14,7 @@ const {
 );
 
 const router = express.Router();
+const db = require("../config/db");
 
 /*
 ========================================================
@@ -127,22 +128,17 @@ const allowLeaveApprover = (
     email ===
     RATHIKA_LEAVE_EMAIL;
 
-  if (
-    !isAdmin &&
-    !isPremal &&
-    !isRathika
-  ) {
-    return res
-      .status(403)
-      .json({
-        success: false,
-
-        message:
-          "You are not authorized to review leave applications.",
-      });
+  if (!isAdmin && !isPremal && !isRathika) {
+    return res.status(403).json({success:false,message:"Leave approval denied."});
   }
-
-  next();
+  // VALENCIA_APPROVALS_V3_FIX: Premal uses his saved Admin switch. Rathika preserves existing HR authorization.
+  if (isRathika && !isPremal) return next();
+  db.query("SELECT can_approve_leave FROM users WHERE user_id=? AND status='active' LIMIT 1",[req.user.user_id])
+    .then(([rows])=>{
+      if (Number(rows[0]?.can_approve_leave) !== 1)
+        return res.status(403).json({success:false,message:"Leave approval permission disabled. Notifications remain active."});
+      next();
+    }).catch(e=>{console.error("Leave permission:",e);res.status(500).json({success:false,message:"Unable to verify approval permission."});});
 };
 
 /*
@@ -175,7 +171,11 @@ const allowDepartmentAdmin = (
       });
   }
 
-  next();
+  db.query("SELECT can_approve_leave FROM users WHERE user_id=? AND status='active' LIMIT 1",[req.user.user_id])
+    .then(([rows])=>{
+      if(Number(rows[0]?.can_approve_leave)!==1)return res.status(403).json({success:false,message:"Leave approval permission disabled."});
+      next();
+    }).catch(e=>{console.error("Further leave permission:",e);res.status(500).json({success:false,message:"Unable to verify approval permission."});});
 };
 
 /*

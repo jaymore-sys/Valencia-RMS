@@ -1245,7 +1245,8 @@ const buildHrAttendanceData = async (
         "visit_id";
     }
 
-    if (visitForeignKey) {
+    const memberKey = ['employee_id','user_id','member_id'].find(name => columnNames.includes(name));
+    if (visitForeignKey && memberKey) {
       const visitPlaceholders =
         visitIds
           .map(() => "?")
@@ -1258,7 +1259,7 @@ const buildHrAttendanceData = async (
             ${visitForeignKey}
               AS visit_id,
 
-            employee_id
+            ${memberKey} AS employee_id
 
           FROM field_visit_members
 
@@ -1272,6 +1273,21 @@ const buildHrAttendanceData = async (
         memberRows;
     }
   }
+
+  // HR_RECURRING_RULES_V4: Read-only overlay; never edits source biometric punches.
+  const [employeeRuleRows] = await db.query(`
+    SELECT id, employee_id, rule_type, arrangement_name, attendance_mode,
+      weekdays_mask, ignore_late, ignore_early, credit_mode,
+      DATE_FORMAT(effective_from,'%Y-%m-%d') start_date,
+      DATE_FORMAT(effective_to,'%Y-%m-%d') end_date,
+      shift_start,shift_end,grace_minutes,reason
+    FROM hr_employee_attendance_rules
+    WHERE is_active=1 AND employee_id IN (${placeholders})
+      AND effective_from<=? AND (effective_to IS NULL OR effective_to>=?)
+    ORDER BY effective_from DESC,id DESC
+  `,[...userIds,toDate,fromDate]);
+  const employeeRulesMap=new Map();
+  employeeRuleRows.forEach(r=>{const k=Number(r.employee_id);if(!employeeRulesMap.has(k))employeeRulesMap.set(k,[]);employeeRulesMap.get(k).push(r);});
 
   const attendanceMap = new Map();
 
@@ -1420,7 +1436,12 @@ const buildHrAttendanceData = async (
         !leave &&
         !fieldVisit &&
         !pendingLeave &&
-        !pendingFieldVisit
+        !pendingFieldVisit &&
+        !(employeeRulesMap.get(Number(user.user_id)) || []).some(r =>
+          (r.rule_type === 'wfh' || r.attendance_mode === 'present_wfh') &&
+          r.start_date <= currentDate && (!r.end_date || r.end_date >= currentDate) &&
+          ((Number(r.weekdays_mask) & (1 << new Date(`${currentDate}T00:00:00`).getDay())) !== 0)
+        )
       ) {
         currentDate = addOneDay(currentDate);
         continue;
@@ -1734,13 +1755,23 @@ const buildHrAttendanceData = async (
             "Field visit pending approval";
         }
       } else if (attendance) {
+        // HR-approved full-day correction does not synthesize punch times.
+        // The original biometric values and total minutes remain unchanged.
+        const hrFullDayOverride =
+          /^Bulk Present: /i.test(String(attendance.remarks || "")) &&
+          String(attendance.status || "").toLowerCase() === "present" &&
+          (!checkIn || !checkOut);
         const rawStatus = String(
           attendance.status || "present"
         )
           .trim()
           .toLowerCase();
 
-        if (
+        if (hrFullDayOverride) {
+          finalStatus = "Present";
+          isLateMark = false;
+          lateMarkReason = null;
+        } else if (
           rawStatus === "absent" &&
           !checkIn &&
           !checkOut
@@ -1838,6 +1869,59 @@ const buildHrAttendanceData = async (
         }
       }
 
+      // HR_RECURRING_RULES_V4: employee-specific overlay on existing status.
+      // Never modifies raw punch fields, LOP formulas, approved leave or Field Visit.
+      let appliedHrRule = null;
+      if (!sunday && !holidayName && !leave && !fieldVisit &&
+          !pendingLeave && !pendingFieldVisit && !conflictReason) {
+        const weekday = new Date(`${currentDate}T00:00:00`).getDay();
+        const rules = (employeeRulesMap.get(Number(user.user_id)) || []).filter(r =>
+          r.start_date <= currentDate && (!r.end_date || r.end_date >= currentDate) &&
+          (Number(r.weekdays_mask) & (1 << weekday)) !== 0
+        );
+        const wfh = rules.find(r => r.rule_type === 'wfh' || r.attendance_mode === 'present_wfh');
+        const scheduled = rules.find(r => ['part_time','flexible','custom'].includes(r.rule_type) &&
+          r.attendance_mode !== 'present_wfh' && r.shift_start && r.shift_end);
+        const exempt = rules.find(r => r.rule_type === 'late_exempt' || Number(r.ignore_late) === 1);
+        if (wfh && !checkIn && !checkOut) {
+          // The employee receives an approved day credit, not fabricated time.
+          finalStatus = 'Present'; source = 'hr_wfh';
+          detail = wfh.reason ? `WFH · ${wfh.reason}` : 'Work From Home';
+          isLateMark = false; lateMarkReason = null; needsAttention = false;
+          appliedHrRule = wfh;
+        } else if (scheduled && checkIn && checkOut) {
+          const minutes = t => {
+            const p = String(t || '').slice(0,5).split(':').map(Number);
+            return p.length === 2 && p.every(Number.isFinite) ? p[0]*60+p[1] : null;
+          };
+          const arrival=minutes(checkIn), departure=minutes(checkOut);
+          const start=minutes(scheduled.shift_start), end=minutes(scheduled.shift_end);
+          if ([arrival,departure,start,end].every(Number.isFinite)) {
+            const grace = Number(scheduled.grace_minutes || 0);
+            const late = arrival > start + grace;
+            const early = departure < end - grace;
+            if (early && !Number(scheduled.ignore_early)) {
+              finalStatus = 'Needs Review'; needsAttention = true;
+              detail = 'Departed before HR-approved end time';
+            } else if (late && !Number(scheduled.ignore_late) && !exempt) {
+              finalStatus = 'Late'; isLateMark = true;
+              lateMarkReason = 'Check-in after HR-approved start time';
+            } else {
+              finalStatus = 'Present'; isLateMark = false; lateMarkReason = null;
+              needsAttention = false;
+              detail = `${scheduled.arrangement_name || 'Approved working arrangement'} · ${scheduled.reason || 'HR approved'}`;
+            }
+            source = 'hr_schedule'; appliedHrRule = scheduled;
+          }
+        } else if (exempt && checkIn && checkOut &&
+          (finalStatus === 'Late' || (finalStatus === 'Half Day' &&
+           String(attendance?.status || '').toLowerCase() !== 'half_day' && isHalfDayCheckIn(checkIn)))) {
+          finalStatus = 'Present'; isLateMark = false; lateMarkReason = null;
+          source = 'hr_exception'; detail = exempt.reason || 'HR-approved arrival exemption';
+          appliedHrRule = exempt;
+        }
+      }
+
       records.push({
         user_id:
           user.user_id,
@@ -1923,6 +2007,11 @@ const buildHrAttendanceData = async (
 
         source,
         detail,
+        hr_rule_id: appliedHrRule?.id || null,
+        hr_arrangement: appliedHrRule?.arrangement_name || (source === 'hr_wfh' ? 'Work From Home' : null),
+        hr_attendance_label: source === 'hr_wfh' ? 'Present · WFH' : null,
+        approved_shift_start: appliedHrRule?.shift_start || null,
+        approved_shift_end: appliedHrRule?.shift_end || null,
 
         conflict_reason:
           conflictReason,
@@ -2264,11 +2353,32 @@ const buildHrAttendanceData = async (
         null,
     }));
 
-  const hrFieldVisits =
+  // Group visits: return the same visit once per participant for HR visibility.
+  const hrVisitIds = [...new Set(hrFieldVisitRows.map(v => Number(v.visit_id)).filter(Boolean))];
+  let hrVisitMembers = [];
+  if (hrVisitIds.length) {
+    const [memberCols] = await db.query('SHOW COLUMNS FROM field_visit_members');
+    const cols = memberCols.map(c => String(c.Field).toLowerCase());
+    const visitCol = cols.includes('field_visit_id') ? 'field_visit_id' : cols.includes('visit_id') ? 'visit_id' : null;
+    const personCol = ['employee_id','user_id','member_id'].find(c => cols.includes(c));
+    if (visitCol && personCol) {
+      const placeholders = hrVisitIds.map(() => '?').join(',');
+      [hrVisitMembers] = await db.query(`SELECT ${visitCol} visit_id, ${personCol} employee_id FROM field_visit_members WHERE ${visitCol} IN (${placeholders})`,hrVisitIds);
+    }
+  }
+  const hrMemberMap = new Map();
+  hrVisitMembers.forEach(m=>{
+    const id=Number(m.visit_id);
+    if (!hrMemberMap.has(id)) hrMemberMap.set(id, new Set());
+    hrMemberMap.get(id).add(Number(m.employee_id));
+  });
+
+  const hrFieldVisitsOriginal =
     hrFieldVisitRows.map(
       (visit) => ({
         visit_id:
           visit.visit_id,
+        participant_ids: [...new Set([Number(visit.employee_id), ...(hrMemberMap.get(Number(visit.visit_id)) || [])])],
 
         employee_id:
           visit.employee_id,
@@ -2345,6 +2455,19 @@ const buildHrAttendanceData = async (
           null,
       })
     );
+
+  const hrUserMap = new Map(users.map(u => [Number(u.user_id),u]));
+  const hrFieldVisits = hrFieldVisitsOriginal.flatMap(visit =>
+    visit.participant_ids.map(employeeId => {
+      const participant=hrUserMap.get(Number(employeeId));
+      if (!participant) return null;
+      return { ...visit, employee_id:employeeId, employee_name:participant.full_name,
+        employee_code:participant.employee_code,employee_email:participant.email,
+        designation:participant.designation,department_id:participant.department_id,
+        department_name:participant.department_name,role_name:participant.role_name,
+        submitted_by_name:visit.employee_name };
+    }).filter(Boolean)
+  );
 
   const fieldVisitSummary = {
     total:
@@ -3640,7 +3763,7 @@ const exportHrAttendance = async (
               );
 
             const latePenaltyDays =
-  Math.floor(totals.late / 6);
+  Math.floor(totals.late / 5);
 
 totals.lop +=
   latePenaltyDays;
@@ -4969,7 +5092,7 @@ const getHrEmployeeSummary = async (
         );
 
       const latePenaltyDays =
-  Math.floor(summary.late / 6);
+  Math.floor(summary.late / 5);
 
 summary.lop =
   summary.absent +
@@ -5993,10 +6116,11 @@ const clean = body => {
   const ids = [...new Set((Array.isArray(body.employee_ids)?body.employee_ids:[]).map(Number))];
   const start = String(body.start_date || ''), end = String(body.end_date || '');
   const reason = String(body.reason || '').trim(), description = String(body.description || '').trim();
+  const allowNoPunch = body.allow_no_punch === true;
   if (!ids.length || ids.length > 250 || ids.some(x=>!Number.isSafeInteger(x)||x<=0)) throw Error('Select valid employees (up to 250).');
   if (!validDate(start) || !validDate(end) || end < start || (Date.parse(end)-Date.parse(start))/86400000 > 366) throw Error('Select a valid date range of up to 366 days.');
   if (!reason || reason.length > 200 || description.length > 2000) throw Error('A reason (up to 200 characters) is required.');
-  return {ids:ids.sort((a,b)=>a-b),start,end,reason,description};
+  return {ids:ids.sort((a,b)=>a-b),start,end,reason,description,allowNoPunch};
 };
 let fieldVisitMemberKey;
 async function memberKey(conn) {
@@ -6007,7 +6131,7 @@ async function memberKey(conn) {
 }
 // Read the relevant rows once, including field-visit members, rather than
 // issuing a separate query for every employee and date in a bulk preview.
-async function inspectAttendance(conn, ids, start, end, checkScheduled = true) {
+async function inspectAttendance(conn, ids, start, end, checkScheduled = true, allowNoPunch = false) {
   const marks = ids.map(() => '?').join(',');
   const [people] = await conn.query(`
     SELECT u.user_id,u.full_name,DATE_FORMAT(ep.joining_date,'%Y-%m-%d') joining_date
@@ -6079,17 +6203,31 @@ async function inspectAttendance(conn, ids, start, end, checkScheduled = true) {
     if (user.joining_date && date < user.joining_date) return 'Before joining date';
     const key = `${id}|${date}`, previous = attendanceMap.get(key);
     if (duplicates.has(key)) return 'Multiple attendance records require review';
-    if (previous) {
-      if (previous.check_in_time != null || previous.check_out_time != null || Number(previous.total_minutes || 0) > 0)
-        return 'Existing biometric attendance protected';
-      if (String(previous.status || '').toLowerCase() !== 'absent')
-        return 'Existing attendance status protected';
-    }
+    // Leave and field visits must take priority over all attendance corrections.
     if (find(leaveMap.get(id),date,'approved')) return 'Approved leave protected';
     if (find(leaveMap.get(id),date,'pending')) return 'Pending leave protected';
     if (find(visitMap.get(id),date,'approved')) return 'Approved field visit protected';
     if (find(visitMap.get(id),date,'pending')) return 'Pending field visit protected';
     if (checkScheduled && scheduled.has(key)) return 'Already scheduled or applied';
+    if (previous) {
+      const hasIn = previous.check_in_time != null;
+      const hasOut = previous.check_out_time != null;
+      const st = String(previous.status||'').trim().toLowerCase();
+      // Full biometric evidence is left intact; this is for missing punches.
+      if (hasIn && hasOut) return 'Complete biometric attendance protected';
+      if (!['absent','half_day','late','present'].includes(st)) return 'Existing attendance status protected';
+      if (st === 'present' && /^Bulk Present: /i.test(String(previous.remarks||'')))
+        return 'Already corrected by HR';
+      if (st === 'present' && !hasIn && !hasOut)
+        return 'Already marked Present';
+      if (!hasIn && !hasOut && !allowNoPunch)
+        return 'No biometric punches: enable manual HR approval to include';
+      if (!hasIn && hasOut) return 'Missing punch-in requires individual review';
+      // With punch-in and missing punch-out, allow status correction.
+      // Original punch, duration and any biometric timestamps are untouched.
+    } else if (!allowNoPunch) {
+      return 'No biometric punches: enable manual HR approval to include';
+    }
     return null;
   };
   return {peopleMap,attendanceMap,why};
@@ -6098,7 +6236,7 @@ async function inspectAttendance(conn, ids, start, end, checkScheduled = true) {
 async function assess(body) {
   const p=clean(body), conn=await db.getConnection();
   try {
-    const data=await inspectAttendance(conn,p.ids,p.start,p.end);
+    const data=await inspectAttendance(conn,p.ids,p.start,p.end,true,p.allowNoPunch);
     const conflicts=[]; let eligible=0, scheduled=0, skipped=0;
     const today=todayIndia();
     for(const id of p.ids) for(let date=p.start;date<=p.end;date=nextDay(date)) {
@@ -6117,19 +6255,19 @@ const preview=async (req,res)=>{try {
 const commit=async (req,res)=>{
   let conn;try{
     const p=clean(req.body), signed=readPreview(req.body.preview_id);
-    if(!signed||signed.actor!==identity(req)||JSON.stringify(p)!==JSON.stringify({ids:signed.ids,start:signed.start,end:signed.end,reason:signed.reason,description:signed.description}))
+    if(!signed||signed.actor!==identity(req)||JSON.stringify(p)!==JSON.stringify({ids:signed.ids,start:signed.start,end:signed.end,reason:signed.reason,description:signed.description,allowNoPunch:signed.allowNoPunch}))
       return fail(res,'Preview expired or selection changed. Preview again.');
     conn=await db.getConnection();await conn.beginTransaction();
-    const data=await inspectAttendance(conn,p.ids,p.start,p.end);
+    const data=await inspectAttendance(conn,p.ids,p.start,p.end,true,p.allowNoPunch);
     const batch=randomUUID(), eligible=[];
     for(const id of p.ids) for(let date=p.start;date<=p.end;date=nextDay(date)) {
-      if(!data.why(id,date)) eligible.push([batch,id,date,p.reason,p.description,identity(req)]);
+      if(!data.why(id,date)) eligible.push([batch,id,date,p.reason,p.description,identity(req),p.allowNoPunch?1:0]);
     }
     if(!eligible.length){await conn.rollback();return fail(res,'No eligible attendance records remain.');}
     for(let i=0;i<eligible.length;i+=200){
       const chunk=eligible.slice(i,i+200);
       await conn.query(`INSERT INTO hr_attendance_bulk_entries
-        (batch_id,employee_id,attendance_date,reason,description,created_by) VALUES ${chunk.map(()=>'(?,?,?,?,?,?)').join(',')}`,
+        (batch_id,employee_id,attendance_date,reason,description,created_by,allow_no_punch) VALUES ${chunk.map(()=>'(?,?,?,?,?,?,?)').join(',')}`,
         chunk.flat());
     }
     await conn.query(`INSERT INTO hr_attendance_activity
@@ -6157,80 +6295,73 @@ async function processDue(batchId) {
   processingPromise=job;
   try { await job; } finally { if(processingPromise===job)processingPromise=null; }
 }
-async function processDueRows(batchId){
-  for(;;){
+async function processDueRows(batchId) {
+  for (;;) {
     let conn;
-    try{
-      conn=await db.getConnection();await conn.beginTransaction();
-      const params=[todayIndia(),...(batchId?[batchId]:[])];
-      const [due]=await conn.query(`
+    try {
+      conn = await db.getConnection();
+      await conn.beginTransaction();
+      const [due] = await conn.query(`
         SELECT id,employee_id,DATE_FORMAT(attendance_date,'%Y-%m-%d') attendance_date,
-               reason,description,created_by,batch_id
-        FROM hr_attendance_bulk_entries WHERE status='scheduled' AND attendance_date<=?
-        ${batchId?'AND batch_id=?':''} ORDER BY id LIMIT 250 FOR UPDATE
-      `,params);
-      if(!due.length){await conn.rollback();return;}
+          reason,description,created_by,batch_id,allow_no_punch
+        FROM hr_attendance_bulk_entries
+        WHERE status='scheduled' AND attendance_date<=?
+          ${batchId?'AND batch_id=?':''}
+        ORDER BY id LIMIT 200 FOR UPDATE
+      `, [todayIndia(),...(batchId?[batchId]:[])]);
+      if (!due.length) { await conn.rollback(); return; }
       const ids=[...new Set(due.map(x=>Number(x.employee_id)))].sort((a,b)=>a-b);
       const dates=due.map(x=>x.attendance_date).sort();
-      const data=await inspectAttendance(conn,ids,dates[0],dates[dates.length-1],false);
-      const applied=[], corrections=[], additions=[], skipped=[];
-      for(const row of due){
-        const why=data.why(Number(row.employee_id),row.attendance_date);
-        if(why) skipped.push({row,why});
-        else {
-          applied.push(row);
-          if(data.attendanceMap.has(`${row.employee_id}|${row.attendance_date}`))corrections.push(row);
-          else additions.push(row);
+      // Different rows may have different explicit no-punch approvals.
+      const common=await inspectAttendance(conn,ids,dates[0],dates[dates.length-1],false,true);
+      for (const row of due) {
+        const key=`${row.employee_id}|${row.attendance_date}`;
+        let why=common.why(Number(row.employee_id),row.attendance_date);
+        const old=common.attendanceMap.get(key)||null;
+        const hasIn=old?.check_in_time != null;
+        const hasOut=old?.check_out_time != null;
+        if (!why && !hasIn && !hasOut && !Number(row.allow_no_punch))
+          why='No punches: manual HR approval not authorized';
+        if (!why && !old && !Number(row.allow_no_punch))
+          why='No attendance: manual HR approval not authorized';
+        let after=null;
+        if (!why) {
+          const remarks=bulkRemark(row);
+          if (old) {
+            const [u]=await conn.query(`UPDATE attendance SET status='present',remarks=?
+               WHERE attendance_id=? AND employee_id=? AND attendance_date=?`,
+              [remarks,old.attendance_id,row.employee_id,row.attendance_date]);
+            if (u.affectedRows!==1) throw Error('Attendance changed during correction. Transaction rolled back.');
+            // Do not update check_in_time, check_out_time or total_minutes.
+            after={status:'present',check_in_time:old.check_in_time,check_out_time:old.check_out_time,
+              total_minutes:Number(old.total_minutes||0),remarks};
+          } else {
+            const [u]=await conn.query(`INSERT INTO attendance
+              (employee_id,attendance_date,check_in_time,check_out_time,total_minutes,status,remarks)
+              VALUES (?,?,NULL,NULL,0,'present',?)`,
+              [row.employee_id,row.attendance_date,remarks]);
+            if (u.affectedRows!==1) throw Error('Attendance insertion failed. Transaction rolled back.');
+            after={status:'present',check_in_time:null,check_out_time:null,total_minutes:0,remarks};
+          }
+          // Keep map current for any duplicate checks within the same worker batch.
+          common.attendanceMap.set(key,{...old,...after});
         }
-      }
-      if(corrections.length){
-        const marks=corrections.map(()=>'?').join(',');
-        const [updated]=await conn.query(`
-          UPDATE attendance a JOIN hr_attendance_bulk_entries b
-            ON b.employee_id=a.employee_id AND b.attendance_date=a.attendance_date
-          SET a.status='present',a.remarks=LEFT(CONCAT('Bulk Present: ',b.reason,
-            IF(b.description IS NULL OR b.description='', '',CONCAT(' | ',b.description))),240)
-          WHERE b.id IN (${marks}) AND LOWER(a.status)='absent'
-            AND a.check_in_time IS NULL AND a.check_out_time IS NULL AND COALESCE(a.total_minutes,0)=0
-        `,corrections.map(x=>x.id));
-        if(updated.affectedRows!==corrections.length) throw Error('Attendance changed during bulk processing; retrying later');
-      }
-      if(additions.length){
-        const marks=additions.map(()=>'?').join(',');
-        const [inserted]=await conn.query(`
-          INSERT INTO attendance (employee_id,attendance_date,check_in_time,check_out_time,total_minutes,status,remarks)
-          SELECT b.employee_id,b.attendance_date,NULL,NULL,0,'present',
-            LEFT(CONCAT('Bulk Present: ',b.reason,
-              IF(b.description IS NULL OR b.description='', '',CONCAT(' | ',b.description))),240)
-          FROM hr_attendance_bulk_entries b WHERE b.id IN (${marks})
-            AND NOT EXISTS (SELECT 1 FROM attendance a WHERE a.employee_id=b.employee_id AND a.attendance_date=b.attendance_date)
-        `,additions.map(x=>x.id));
-        if(inserted.affectedRows!==additions.length) throw Error('Attendance changed during bulk processing; retrying later');
-      }
-      if(applied.length){
-        await conn.query(`UPDATE hr_attendance_bulk_entries SET status='applied',outcome='Present applied',processed_at=NOW() WHERE id IN (${applied.map(()=>'?').join(',')})`,applied.map(x=>x.id));
-      }
-      if(skipped.length){
-        await conn.query(`UPDATE hr_attendance_bulk_entries SET status='skipped',processed_at=NOW(),
-          outcome=CASE id ${skipped.map(()=> 'WHEN ? THEN ?').join(' ')} END
-          WHERE id IN (${skipped.map(()=>'?').join(',')})`,
-          [...skipped.flatMap(({row,why})=>[row.id,why]),...skipped.map(x=>x.row.id)]);
-      }
-      const logs=[...applied.map(row=>({row,why:null})),...skipped];
-      if(logs.length){
+        await conn.query(`UPDATE hr_attendance_bulk_entries
+          SET status=?,outcome=?,processed_at=NOW() WHERE id=?`,
+          [why?'skipped':'applied',why||'Present applied',row.id]);
         await conn.query(`INSERT INTO hr_attendance_activity
           (actor_user_id,action,employee_id,batch_id,from_date,to_date,reason,description,details)
-          VALUES ${logs.map(()=>'(?,?,?,?,?,?,?,?,?)').join(',')}`,
-          logs.flatMap(({row,why})=>{
-            const before=data.attendanceMap.get(`${row.employee_id}|${row.attendance_date}`)||null;
-            return [row.created_by,why?'bulk_skipped':'bulk_applied',row.employee_id,row.batch_id,
-              row.attendance_date,row.attendance_date,row.reason,row.description,
-              JSON.stringify({before,after:why?null:{status:'present',check_in_time:null,check_out_time:null,total_minutes:0,remarks:bulkRemark(row)},outcome:why||'Present applied'})];
-          }));
+          VALUES (?,?,?,?,?,?,?,?,?)`,
+          [row.created_by,why?'bulk_skipped':'bulk_applied',row.employee_id,row.batch_id,
+            row.attendance_date,row.attendance_date,row.reason,row.description,
+            JSON.stringify({before:old,after,outcome:why||'Present applied',manual_no_punch:!!row.allow_no_punch})]);
       }
       await conn.commit();
-    }catch(e){if(conn)await conn.rollback();console.error('Bulk due processing',e);return;}
-    finally{if(conn)conn.release();}
+    } catch(e) {
+      if(conn) try{await conn.rollback();}catch{}
+      console.error('Bulk due processing',e);
+      return;
+    } finally { if(conn) conn.release(); }
   }
 }
 // Summaries only: one row per operation, never one row per employee-day.
@@ -6496,10 +6627,94 @@ const auditExisting = action => async (req,res,next) => {
   });
   next();
 };
-// Worker starts when the HR route is loaded. It never changes existing attendance rows.
+// Worker starts when HR route loads. Changes status/remarks only for HR-authorized corrections.
 const startProcessor=()=>{setInterval(processDue,60000).unref();processDue();};
 
+
+// HR_RECURRING_RULES_V4 routes - only the authorized HR account may edit.
+const hrRuleTypes = new Set(['wfh','part_time','flexible','late_exempt','custom']);
+const hrRuleModes = new Set(['present_wfh','shift','exception']);
+const hrRuleDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? s : null;
+const hrRuleClock = s => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(s || '')) ? `${s}:00` : null;
+const hrRuleError = (res,e) => {console.error('HR rules',e);return res.status(500).json({success:false,message:'HR rule operation failed.'});};
+const getHrRulesV4 = async (req,res) => {
+  if(!isAuthorizedHR(req)) return res.status(403).json({success:false,message:'HR only'});
+  try{
+    const [rows]=await db.query(`SELECT r.id,r.employee_id,u.full_name employee_name,r.rule_type,
+      r.arrangement_name,r.attendance_mode,r.weekdays_mask,r.ignore_late,r.ignore_early,r.credit_mode,
+      DATE_FORMAT(r.effective_from,'%Y-%m-%d') effective_from,
+      DATE_FORMAT(r.effective_to,'%Y-%m-%d') effective_to,
+      TIME_FORMAT(r.shift_start,'%H:%i') shift_start,TIME_FORMAT(r.shift_end,'%H:%i') shift_end,
+      r.grace_minutes,r.reason,r.is_active,r.created_by,r.created_at,r.deactivated_by,r.deactivated_at,deactivation_reason
+      FROM hr_employee_attendance_rules r JOIN users u ON u.user_id=r.employee_id
+      ORDER BY r.is_active DESC,r.id DESC LIMIT 1000`);
+    return res.json({success:true,rules:rows});
+  }catch(e){return hrRuleError(res,e);}
+};
+const saveHrRuleV4 = async(req,res) => {
+  if(!isAuthorizedHR(req)) return res.status(403).json({success:false,message:'HR only'});
+  try{
+    const b=req.body||{}, employeeId=Number(b.employee_id),type=String(b.rule_type||''),mode=String(b.attendance_mode||'shift');
+    const start=hrRuleDate(b.effective_from),end=b.effective_to?hrRuleDate(b.effective_to):null;
+    const mask=Number(b.weekdays_mask),grace=Number(b.grace_minutes||0);
+    const reason=String(b.reason||'').trim(),name=String(b.arrangement_name||'').trim();
+    if(!Number.isSafeInteger(employeeId)||employeeId<1||!hrRuleTypes.has(type)||!hrRuleModes.has(mode)||
+      !start||(b.effective_to&&!end)||(end&&end<start)||!Number.isInteger(mask)||mask<1||mask>127||
+      !Number.isInteger(grace)||grace<0||grace>180||!reason||reason.length>500||name.length>120)
+      return res.status(400).json({success:false,message:'Enter valid employee, arrangement, weekdays, dates and HR reason.'});
+    const startTime=b.shift_start?hrRuleClock(b.shift_start):null,endTime=b.shift_end?hrRuleClock(b.shift_end):null;
+    const needsTimes=type==='part_time'||type==='flexible'||(type==='custom'&&mode==='shift');
+    if(needsTimes && (!startTime||!endTime||startTime>=endTime))
+      return res.status(400).json({success:false,message:'Check-in must be earlier than check-out.'});
+    const [people]=await db.query("SELECT user_id FROM users WHERE user_id=? AND LOWER(COALESCE(status,'active'))='active' LIMIT 1",[employeeId]);
+    if(!people.length)return res.status(404).json({success:false,message:'Employee not found.'});
+    // Prevent new overlapping active schedules. Existing rows remain untouched.
+    const [overlaps]=await db.query(`SELECT id FROM hr_employee_attendance_rules
+      WHERE employee_id=? AND is_active=1 AND (weekdays_mask & ?) <> 0
+      AND (effective_to IS NULL OR effective_to >= ?)
+      AND (? IS NULL OR effective_from <= ?)
+      AND (rule_type=? OR (attendance_mode='shift' AND ?='shift')
+           OR (attendance_mode='present_wfh' AND ?='present_wfh'))
+      LIMIT 1`,[employeeId,mask,start,end,end,type,mode,mode]);
+    if(overlaps.length)return res.status(409).json({success:false,
+      message:'An active overlapping attendance rule already exists for these weekdays. Disable the obsolete rule before saving a replacement.'});
+    const ignoredLate=b.ignore_late?1:0,ignoredEarly=b.ignore_early?1:0;
+    const credit=['full','half'].includes(String(b.credit_mode)) ? b.credit_mode : 'full';
+    const params=[employeeId,type,name||null,mode,mask,ignoredLate,ignoredEarly,credit,start,end,
+      startTime,endTime,grace,reason,Number(req.user.user_id)];
+    const sql=`INSERT INTO hr_employee_attendance_rules
+      (employee_id,rule_type,arrangement_name,attendance_mode,weekdays_mask,ignore_late,ignore_early,credit_mode,
+      effective_from,effective_to,shift_start,shift_end,grace_minutes,reason,is_active,created_by)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,?)`;
+    const [result]=await db.query(sql,params);
+    return res.status(201).json({success:true,id:result.insertId,message:'HR rule saved.'});
+  }catch(e){return hrRuleError(res,e);}
+};
+const deactivateHrRuleV4 = async(req,res)=>{
+  if(!isAuthorizedHR(req))return res.status(403).json({success:false,message:'HR only'});
+  try{
+    const id=Number(req.params.id), reason=String(req.body?.reason||'').trim();
+    if(!Number.isSafeInteger(id)||id<1||!reason)return res.status(400).json({success:false,message:'Reason for disabling is required.'});
+    const [result]=await db.query(`UPDATE hr_employee_attendance_rules SET is_active=0,deactivated_by=?,deactivated_at=NOW(),deactivation_reason=?
+      WHERE id=? AND is_active=1`,[req.user.user_id,reason.slice(0,500),id]);
+    if(!result.affectedRows)return res.status(404).json({success:false,message:'Rule not active or not found.'});
+    return res.json({success:true,message:'Rule disabled; saved history retained.'});
+  }catch(e){return hrRuleError(res,e);}
+};
+const getHrVisitDocumentsV4=async(req,res)=>{
+  if(!isAuthorizedHR(req))return res.status(403).json({success:false,message:'HR only'});
+  const id=Number(req.params.id);if(!Number.isSafeInteger(id)||id<1)return res.status(400).json({success:false,message:'Invalid visit ID'});
+  try{
+    const [rows]=await db.query(`SELECT d.document_id,d.original_name,d.file_size,s.location,s.stop_id
+      FROM field_visit_stop_documents d JOIN field_visit_stops s ON s.stop_id=d.stop_id
+      JOIN employee_field_visits v ON v.visit_id=s.visit_id
+      WHERE v.visit_id=? AND d.deleted_at IS NULL ORDER BY s.sequence_no,d.created_at DESC`,[id]);
+    return res.json({success:true,documents:rows});
+  }catch(e){return hrRuleError(res,e);}
+};
+
 module.exports = {
+  getHrRulesV4, saveHrRuleV4, deactivateHrRuleV4, getHrVisitDocumentsV4,
   onlyRathika,
   previewBulkAttendance: preview,
   commitBulkAttendance: commit,

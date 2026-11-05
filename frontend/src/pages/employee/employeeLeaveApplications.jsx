@@ -209,14 +209,14 @@ const getDurationLabel = (
     application.half_day_session ===
     "first_half"
   ) {
-    return "Half Day · First Half";
+    return "Half Day Â· First Half";
   }
 
   if (
     application.half_day_session ===
     "second_half"
   ) {
-    return "Half Day · Second Half";
+    return "Half Day Â· Second Half";
   }
 
   return "Half Day";
@@ -412,7 +412,7 @@ const BalanceCard = ({
 
             {unpaidSickApprovedDays > 0 &&
               unpaidSickPendingDays > 0 &&
-              " · "}
+              " Â· "}
 
             {unpaidSickPendingDays > 0 && (
               <>
@@ -1419,15 +1419,8 @@ const isUnpaidSick =
       ========================================
       */
 
-      if (
-  selectedLeaveType === "casual" &&
-  form.duration_type === "half_day"
-) {
-  setError(
-    "Casual Leave can only be applied as Full Day."
-  );
-
-  return;
+      if (selectedLeaveType === "mandatory" && form.duration_type === "half_day") {
+  setError("Privileged Leave must be taken as a Full Day."); return;
 }
 
 if (
@@ -2071,8 +2064,7 @@ const casualAvailable = Number(
           reset every January.
           Privileged Leave earns
           1.5 days every month and
-          unused balance carries
-          forward. Pending Leave is
+          a maximum of 9 unused leave days can be carried forward to the next year. Pending Leave is
           reserved from the
           available balance.
         </div>
@@ -2185,11 +2177,11 @@ const casualAvailable = Number(
         {getLeaveLabel(
           revertLeave.leave_type
         )}
-        {" · "}
+        {" Â· "}
         {formatDisplayDate(
           revertLeave.start_date
         )}
-        {" → "}
+        {" â†’ "}
         {formatDisplayDate(
           revertLeave.end_date
         )}
@@ -2626,7 +2618,7 @@ const casualAvailable = Number(
                                 : "rotate(0deg)",
                           }}
                         >
-                          ▼
+                          â–¼
                         </span>
                       </button>
 
@@ -2864,7 +2856,7 @@ const casualAvailable = Number(
   value !== getTodayDate();
 
           const mustUseFullDay =
-            selectedLeaveType === "casual" ||
+            selectedLeaveType === "mandatory" ||
             sickFutureDate;
 
           const nextDuration =
@@ -2965,18 +2957,9 @@ const casualAvailable = Number(
     LEAVE DURATION
 ============================== */}
 
-{selectedLeaveType !== "casual" && (
-  <div
-    style={
-      styles.formSection
-    }
-  >
-    <span
-      style={
-        styles.formSectionLabel
-      }
-    >
-      Leave Duration
+{selectedLeaveType !== "festival" && (
+  <div style={styles.formSection}>
+    <span style={styles.formSectionLabel}>Leave Duration
     </span>
 
     <div
@@ -3007,7 +2990,7 @@ const casualAvailable = Number(
     "unpaid_sick"
 ) ||
 form.start_date === getTodayDate()
-      ) && (
+      ) && selectedLeaveType !== "mandatory" && (
         <button
           type="button"
           style={
@@ -3033,7 +3016,7 @@ form.start_date === getTodayDate()
 ============================== */}
 
 {form.duration_type === "half_day" &&
-  selectedLeaveType !== "casual" && (
+  selectedLeaveType !== "mandatory" && (
     <div
       style={
         styles.formSection

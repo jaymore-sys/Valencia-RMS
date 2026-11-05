@@ -1,3 +1,4 @@
+// VALENCIA_APPROVALS_V3_FIX: saved Admin approval permissions respected for Premal.
 const crypto = require("crypto");
 const db = require("../config/db");
 
@@ -50,7 +51,8 @@ const getLoggedInAdmin = async (userId) => {
       u.email,
       u.department_id,
       d.department_name,
-      r.role_name
+      r.role_name,
+      u.can_approve_leave
 
     FROM users u
 
@@ -143,8 +145,8 @@ if (
       isGlobalViewer,
 
     can_review_leave:
-  isGlobalApprover ||
-  isDepartmentAdmin,
+  (isGlobalApprover && !isDepartmentAdmin) ||
+  (isDepartmentAdmin && Number(admin.can_approve_leave) === 1),
   },
 };
 };
