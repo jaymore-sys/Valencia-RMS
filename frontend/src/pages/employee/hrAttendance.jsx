@@ -19,6 +19,7 @@ import {
 
 import api from "../../api/axios";
 import PhoneSelect from "../../components/PhoneSelect";
+import HrRulesPanel from "./HrRulesPanel";
 import "../../layouts/hrAttendance.css";
 
 /* =========================================================
@@ -222,6 +223,26 @@ const [
   });
 
   const [fieldVisits, setFieldVisits] = useState([]);
+  const [visitDocuments, setVisitDocuments] = useState(null);
+  const [visitDocumentsLoading, setVisitDocumentsLoading] = useState(false);
+  const openVisitDocuments = async (visit) => {
+    setVisitDocuments({visit,documents:[],error:null});
+    setVisitDocumentsLoading(true);
+    try {
+      const result=await api.get(`/hr-attendance/field-visits/${visit.visit_id}/documents`);
+      setVisitDocuments({visit,documents:result.data?.documents||[],error:null});
+    } catch(e) {
+      setVisitDocuments({visit,documents:[],error:e.response?.data?.message||'Unable to load documents.'});
+    } finally {setVisitDocumentsLoading(false);}
+  };
+  const downloadVisitDocument = async (doc) => {
+    try {
+      const r=await api.get(`/field-visit-locations/documents/${doc.document_id}/download`,{responseType:'blob'});
+      const url=URL.createObjectURL(new Blob([r.data]));
+      const link=document.createElement('a');link.href=url;link.download=doc.original_name;link.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1200);
+    } catch(e){ notify(e.response?.data?.message||'Download failed','error'); }
+  };
   const [fieldSummary, setFieldSummary] = useState({
     total: 0,
     pending: 0,
@@ -940,12 +961,20 @@ const leaveVisit = (record) =>
   record.pending_request_type ||
   (record.field_visit_id ? "Field Visit" : "-");
 
-const recordRemark = (record) =>
-  record.leave_reason ||
-  record.field_visit_reason ||
-  record.attendance_remarks ||
-  record.detail ||
-  "-";
+const isHrAttendanceCorrection = (record) => {
+  const remark = String(record.attendance_remarks || record.detail || "");
+  return /^\s*(?:Bulk Present:|\[HR FULL DAY OVERRIDE\])/i.test(remark);
+};
+
+const recordRemark = (record) => {
+  const original = record.leave_reason || record.field_visit_reason ||
+    record.attendance_remarks || record.detail || "-";
+  if (!isHrAttendanceCorrection(record)) return original;
+  return String(original)
+    .replace(/^\s*\[HR FULL DAY OVERRIDE\]\s*/i, "")
+    .replace(/^\s*Bulk Present:\s*/i, "")
+    .split(/\s*\|\s*/)[0].trim() || "-";
+};
 
 const employeeSummaryStatus = (record) => {
   if (
@@ -1756,9 +1785,11 @@ await fetchEmployeeSummary({
     label="Field Visits"
     onClick={() => setActiveTab("field")}
   />
+  <Tab active={activeTab === "rules"} icon={<UsersRound size={16} />} label="HR Rules" onClick={() => setActiveTab("rules")} />
 </div>)}
 
-      {activeTab !== "activity" && (<>
+      {activeTab === "rules" && !summaryOnly && <HrRulesPanel users={users}/>}
+      {activeTab !== "activity" && activeTab !== "rules" && (<>
       {/* DATE CONTROLS */}
 
       <div className="hr-date-bar">
@@ -1979,7 +2010,7 @@ await fetchEmployeeSummary({
 
                   <div>
                     <StatusBadge
-                      value={record.custom_status || record.final_status}
+                      value={record.custom_status || record.hr_attendance_label || record.final_status}
                     />
                   </div>
 
@@ -2228,6 +2259,11 @@ await fetchEmployeeSummary({
 
                     <span className="ellipsis" title={visit.comment || "-"}>
                       {visit.comment || "-"}
+                      <button type="button" className="hr-view-button" style={{marginLeft:8}} onClick={()=>openVisitDocuments(visit)}>
+                        <Download size={14}/> Documents
+                      </button>
+                      {Array.isArray(visit.participant_ids) && visit.participant_ids.length > 1 &&
+                        <small style={{display:'block'}}>Group visit · {visit.participant_ids.length} employees</small>}
                     </span>
 
                     <span
@@ -2351,6 +2387,21 @@ await fetchEmployeeSummary({
     </section>
   </>
 )}
+
+      {visitDocuments && <Modal title="Field Visit Documents"
+        subtitle={`${visitDocuments.visit.employee_name || 'Employee'} · ${displayDate(visitDocuments.visit.visit_date)}`}
+        onClose={()=>setVisitDocuments(null)}>
+        <div className="hr-doc-list" style={{padding:20}}>
+          {visitDocumentsLoading ? <p>Loading documents...</p> : visitDocuments.error ?
+           <p role="alert">{visitDocuments.error}</p> : visitDocuments.documents.length === 0 ?
+           <p>No documents uploaded for this visit.</p> : visitDocuments.documents.map(d=><div key={d.document_id}
+             style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 0',borderBottom:'1px solid #eee'}}>
+             <div><strong>{d.original_name}</strong><small style={{display:'block',color:'#667085'}}>{d.location||'Field Visit'} · {Math.round(Number(d.file_size||0)/1024)} KB</small></div>
+             <button type="button" className="hr-view-button" onClick={()=>downloadVisitDocument(d)}><Download size={14}/> Download</button>
+           </div>)}
+        </div>
+        <div className="hr-modal-footer"><button className="hr-button secondary" onClick={()=>setVisitDocuments(null)}>Close</button></div>
+      </Modal>}
 
       {/* MANAGE EMPLOYEE LEAVE */}
 
@@ -3501,6 +3552,12 @@ await fetchEmployeeSummary({
                 {recordRemark(record)}
               </span>
 
+              {isHrAttendanceCorrection(record) && (
+                <small style={{ display: "block" }}>
+                  Added by: HR
+                </small>
+              )}
+
               {record.approved_by_name && (
                 <small
                   style={{
@@ -3581,6 +3638,7 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
   const [end, setEnd] = useState(initialDate);
   const [reason, setReason] = useState("");
   const [description, setDescription] = useState("");
+  const [allowNoPunch, setAllowNoPunch] = useState(false);
   const [preview, setPreview] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -3601,6 +3659,7 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
     end_date: end,
     reason: reason.trim(),
     description: description.trim(),
+    allow_no_punch: allowNoPunch,
   };
 
   const showBulkPreview = async () => {
@@ -3696,7 +3755,8 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
         <label>Description (optional)</label>
         <textarea rows={3} value={description} maxLength={2000}
           placeholder="Additional details" onChange={(e) => setDescription(e.target.value)} />
-        <p className="hr-bulk-note">Sundays, holidays, approved leave and existing biometric records are protected. Future attendance takes effect only on its date.</p>
+        <label className="hr-bulk-select-all"><input type="checkbox" checked={allowNoPunch} onChange={e=>setAllowNoPunch(e.target.checked)} /> Allow Present without biometric punches (HR manual approval)</label>
+        <p className="hr-bulk-note">Missing punch-out can be corrected to Full Day. With no punches, manual approval must be enabled. Sundays, holidays, leave and field visits stay protected; original biometric times stay unchanged.</p>
         <button className="hr-button primary hr-bulk-submit"
           disabled={!selected.length || !start || !end || end < start || !reason.trim() || busy}
           onClick={showBulkPreview}>Preview &amp; Mark Present</button>
@@ -3722,6 +3782,7 @@ function BulkMarkPresent({ users, initialDate, notify, onSaved }) {
           {!preview && !busy && <button type="button" className="hr-button secondary" disabled={!selected.length} onClick={showBulkPreview}>Refresh Preview</button>}
         </div>}
         <p><strong>Reason:</strong> {reason}</p>
+        {allowNoPunch && <p><strong>Manual HR approval:</strong> Include employees without biometric punches</p>}
         {description && <p><strong>Description:</strong> {description}</p>}
         {busy && <p>Checking eligible attendance records...</p>}
         {preview && (<>

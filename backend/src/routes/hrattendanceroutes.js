@@ -25,6 +25,7 @@ const {
   startBulkProcessor,
 } = require("../controllers/hrattendancecontroller");
 
+const hrRules=require('../controllers/hremployeerulescontroller');
 const router = express.Router();
 
 const HR_EMAILS = [
@@ -76,6 +77,10 @@ const hrOrSuperadmin = (req, res, next) => {
 
   return onlyHR(req, res, next);
 };
+
+router.get('/rules',authMiddleware,onlyHR,hrRules.list);
+router.post('/rules',authMiddleware,onlyHR,hrRules.create);
+router.post('/rules/:id/deactivate',authMiddleware,onlyHR,hrRules.deactivate);
 
 router.get(
   "/employee-summary",
@@ -176,5 +181,11 @@ router.post(
   saveHrAttendance
 );
 
+// HR_RECURRING_RULES_V5 authorized HR-only routes.
+const {getHrRulesV4,saveHrRuleV4,deactivateHrRuleV4,getHrVisitDocumentsV4}=require('../controllers/hrattendancecontroller');
+router.get('/rules-v4',authMiddleware,onlyHR,getHrRulesV4);
+router.post('/rules-v4',authMiddleware,onlyHR,saveHrRuleV4);
+router.patch('/rules-v4/:id/disable',authMiddleware,onlyHR,deactivateHrRuleV4);
+router.get('/field-visits/:id/documents',authMiddleware,onlyHR,getHrVisitDocumentsV4);
 startBulkProcessor();
 module.exports = router;

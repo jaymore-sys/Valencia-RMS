@@ -4021,12 +4021,18 @@ const getSuperadminFieldVisits = async (req, res) => {
 
 
 const reviewSuperadminFieldVisit = async (req, res) => {
+  // VALENCIA_APPROVALS_V3_FIX: Premal may review Admin visits only when permitted.
 
   try {
 
     const { reviewer, error } = await getFieldVisitReviewer(req);
 
     if (error) return res.status(error.status).json({success: false, message: error.message});
+    if (String(reviewer.email || '').trim().toLowerCase() === 'premal.mehta@valencianutrition.com' && String(reviewer.role_name || '').trim().toLowerCase() === 'admin') {
+      const [permissionRows] = await db.query('SELECT can_approve_field_visit FROM users WHERE user_id=? LIMIT 1', [reviewer.user_id]);
+      if (Number(permissionRows[0]?.can_approve_field_visit) !== 1)
+        return res.status(403).json({success:false,message:'Field Visit approval permission disabled.'});
+    }
 
     const visitId = Number(req.params.visitId);
 

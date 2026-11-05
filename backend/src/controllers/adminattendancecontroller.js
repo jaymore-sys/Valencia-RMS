@@ -1,3 +1,4 @@
+// VALENCIA_APPROVALS_V3_FIX: saved Admin permission enforced; role for split tabs.
 const db = require("../config/db");
 
 const crypto = require("crypto");
@@ -561,6 +562,7 @@ const getLoggedInAdmin = async (
         u.full_name,
 
         u.email,
+        u.can_approve_field_visit,
 
         u.phone,
 
@@ -640,7 +642,8 @@ LEFT JOIN roles r
 
     .trim();
 
-  if (roleName !== "admin") {
+  const premalGlobal = String(admin.email||"").trim().toLowerCase() === "premal.mehta@valencianutrition.com";
+  if (roleName !== "admin" && !premalGlobal) {
 
     return {
 
@@ -658,7 +661,7 @@ LEFT JOIN roles r
 
   }
 
-  if (!admin.department_id) {
+  if (!admin.department_id && !premalGlobal) {
 
     return {
 
@@ -678,7 +681,7 @@ LEFT JOIN roles r
 
   return {
 
-    admin,
+    admin: {...admin, is_global_field_visit_approver: premalGlobal},
 
   };
 
@@ -2358,7 +2361,7 @@ async (req, res) => {
               AS full_name,
 
             creator.employee_code,
-
+            LOWER(creator_role.role_name) AS applicant_role,
             (
 
               SELECT GROUP_CONCAT(
@@ -2413,7 +2416,7 @@ async (req, res) => {
 
           WHERE
 
-          (
+          ( ? = 1 OR (
 
             EXISTS
 
@@ -2505,11 +2508,11 @@ async (req, res) => {
 
             creator.department_id = ?
 
-          )
+          ))
 
           AND
 
-          LOWER(
+          ( ? = 1 OR LOWER(
 
             COALESCE(
 
@@ -2519,7 +2522,7 @@ async (req, res) => {
 
             )
 
-          ) = 'employee'
+          ) = 'employee' )
 
           ORDER BY
 
@@ -2531,6 +2534,8 @@ async (req, res) => {
 
         [
 
+          admin.is_global_field_visit_approver ? 1 : 0,
+
           admin.user_id,
 
           admin.user_id,
@@ -2539,6 +2544,7 @@ async (req, res) => {
 
           admin.department_id,
 
+          admin.is_global_field_visit_approver ? 1 : 0,
         ]
 
       );
@@ -2636,14 +2642,10 @@ async (req, res) => {
     };
 
     return res.json({
-
       success: true,
-
+      can_approve_field_visit: Number(admin.can_approve_field_visit) === 1,
       summary,
-
-      visits:
-
-        visitsWithStops,
+      visits: visitsWithStops,
 
     });
 
@@ -2729,6 +2731,9 @@ async (
 
     }
 
+    if (Number(admin.can_approve_field_visit) !== 1) {
+      return res.status(403).json({success:false,message:"Field Visit approval permission disabled."});
+    }
     const visitId =
 
       Number(
@@ -2887,7 +2892,7 @@ async (
 
             AND
 
-            (
+            ( ? = 1 OR (
 
               EXISTS
 
@@ -2983,7 +2988,7 @@ async (
 
                 ?
 
-            )
+            ))
 
             AND
 
@@ -2991,7 +2996,7 @@ async (
 
             AND
 
-            LOWER(
+            ( ? = 1 OR LOWER(
 
               COALESCE(
 
@@ -3001,7 +3006,7 @@ async (
 
               )
 
-            ) = 'employee'
+            ) = 'employee' )
 
           LIMIT 1
 
@@ -3011,6 +3016,8 @@ async (
 
           visitId,
 
+          admin.is_global_field_visit_approver ? 1 : 0,
+
           admin.user_id,
 
           admin.user_id,
@@ -3021,6 +3028,7 @@ async (
 
           admin.user_id,
 
+          admin.is_global_field_visit_approver ? 1 : 0,
         ]
 
       );

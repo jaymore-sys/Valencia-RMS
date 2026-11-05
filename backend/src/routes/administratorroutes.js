@@ -52,6 +52,29 @@ updateAdministratorDivision,
 } = require("../controllers/administratorcontroller");
 
 const router = express.Router();
+// VALENCIA_ADMIN_APPROVAL_PERMISSIONS_V1
+const db = require("../config/db");
+const getApprovalSettings = async (req,res)=>{
+  try {
+    const id=Number(req.params.userId);
+    if(!Number.isSafeInteger(id)||id<=0)return res.status(400).json({success:false,message:"Invalid user."});
+    const [rows]=await db.query(`SELECT u.user_id,r.role_name,u.can_approve_leave,u.can_approve_field_visit FROM users u JOIN roles r ON r.role_id=u.role_id WHERE u.user_id=? LIMIT 1`,[id]);
+    if(!rows.length)return res.status(404).json({success:false,message:"User not found."});
+    if(String(rows[0].role_name).toLowerCase()!=="admin")return res.status(403).json({success:false,message:"Approval switches apply only to the admin role."});
+    return res.json({success:true,can_approve_leave:Boolean(rows[0].can_approve_leave),can_approve_field_visit:Boolean(rows[0].can_approve_field_visit)});
+  }catch(e){console.error("Approval settings read",e);res.status(500).json({success:false,message:"Could not load permissions."});}
+};
+const saveApprovalSettings = async (req,res)=>{
+  try{
+    const id=Number(req.params.userId);
+    if(!Number.isSafeInteger(id)||id<=0)return res.status(400).json({success:false,message:"Invalid user."});
+    if(typeof req.body?.can_approve_leave!=="boolean" || typeof req.body?.can_approve_field_visit!=="boolean")return res.status(400).json({success:false,message:"Both approval settings must be booleans."});
+    const [result]=await db.query(`UPDATE users u JOIN roles r ON r.role_id=u.role_id SET u.can_approve_leave=?,u.can_approve_field_visit=? WHERE u.user_id=? AND LOWER(r.role_name)='admin'`,[Number(req.body.can_approve_leave),Number(req.body.can_approve_field_visit),id]);
+    if(!result.affectedRows)return res.status(404).json({success:false,message:"Admin user not found."});
+    return res.json({success:true,message:"Approval permissions updated."});
+  }catch(e){console.error("Approval settings write",e);res.status(500).json({success:false,message:"Could not save permissions."});}
+};
+
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -372,5 +395,10 @@ router.get(
   requireJayAdministrator,
   exportAdministratorAttendanceCsv
 );
+
+
+// VALENCIA_ADMIN_APPROVAL_PERMISSIONS_V1_ENDPOINTS
+router.get("/users/:userId/approval-permissions",authMiddleware,requireJayAdministrator,getApprovalSettings);
+router.put("/users/:userId/approval-permissions",authMiddleware,requireJayAdministrator,saveApprovalSettings);
 
 module.exports = router;

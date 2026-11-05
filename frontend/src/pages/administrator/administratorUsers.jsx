@@ -79,6 +79,26 @@ const [roles, setRoles] = useState([]);
   const [message, setMessage] = useState("");
 
   const [selectedUser, setSelectedUser] = useState(null);
+  const [approvalPerms,setApprovalPerms] = useState({can_approve_leave:true,can_approve_field_visit:true});
+  const [savingApprovalPerms,setSavingApprovalPerms] = useState(false);
+  const [approvalError,setApprovalError] = useState("");
+  const fetchApprovalPerms = async (id) => {
+    try {
+      setApprovalError("");
+      const {data} = await api.get(`/administrator/users/${id}/approval-permissions`);
+      setApprovalPerms({can_approve_leave:!!data.can_approve_leave,can_approve_field_visit:!!data.can_approve_field_visit});
+    } catch (e) {setApprovalError(e.response?.data?.message||"Could not load approval permissions.");}
+  };
+  const saveApprovalPerms = async () => {
+    if(!selectedUser) return;
+    try {
+      setSavingApprovalPerms(true);setApprovalError("");
+      await api.put(`/administrator/users/${selectedUser.user_id}/approval-permissions`,approvalPerms);
+      setMessage("Approval permissions saved.");
+      await fetchUsers();
+    } catch(e) {setApprovalError(e.response?.data?.message||"Failed to save permissions.");}
+    finally {setSavingApprovalPerms(false);}
+  };
 
   const [selectedRole, setSelectedRole] = useState("");
   const [selectedEmail, setSelectedEmail] = useState("");
@@ -456,6 +476,8 @@ user.role_name?.toLowerCase().includes(value) ||
 
   const openUserDialog = (user) => {
     setSelectedUser(user);
+    setApprovalError("");
+    if(normalizeRole(user.role_name)==="admin") fetchApprovalPerms(user.user_id);
 
     setSelectedRole(
       user.role_name || "employee"
@@ -2590,6 +2612,29 @@ const toggleDivisionStatus = async (
                   </button>
                 </div>
               </section>
+
+              {normalizeRole(selectedRole) === "admin" && (
+                <section className="administrator-dialog-section">
+                  <div className="administrator-dialog-section-heading">
+                    <h3>Approval Permissions</h3>
+                    <p>Disable approval without stopping department notification emails.</p>
+                  </div>
+                  <label style={{display:"flex",gap:10,alignItems:"center",marginBottom:12}}>
+                    <input type="checkbox" checked={approvalPerms.can_approve_leave}
+                      onChange={e=>setApprovalPerms(p=>({...p,can_approve_leave:e.target.checked}))}/>
+                    Allow Leave and Leave Revert approval
+                  </label>
+                  <label style={{display:"flex",gap:10,alignItems:"center",marginBottom:12}}>
+                    <input type="checkbox" checked={approvalPerms.can_approve_field_visit}
+                      onChange={e=>setApprovalPerms(p=>({...p,can_approve_field_visit:e.target.checked}))}/>
+                    Allow Field Visit approval
+                  </label>
+                  {approvalError && <p role="alert" style={{color:"#b42318"}}>{approvalError}</p>}
+                  <button type="button" className="administrator-primary-btn" onClick={saveApprovalPerms} disabled={savingApprovalPerms}>
+                    <Save size={16}/>{savingApprovalPerms?"Saving...":"Save Approval Permissions"}
+                  </button>
+                </section>
+              )}
 
               <section className="administrator-dialog-section">
                 <div className="administrator-dialog-section-heading">

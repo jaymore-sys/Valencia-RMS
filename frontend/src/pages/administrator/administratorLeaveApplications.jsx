@@ -112,8 +112,8 @@ if (type === "unpaid") return "Unpaid Leave";
 const getDurationLabel = (application) => {
   if (application.leave_type === "festival") return "Full Day";
   if (application.duration_type !== "half_day") return "Full Day";
-  if (application.half_day_session === "first_half") return "Half Day · First Half";
-  if (application.half_day_session === "second_half") return "Half Day · Second Half";
+  if (application.half_day_session === "first_half") return "Half Day Â· First Half";
+  if (application.half_day_session === "second_half") return "Half Day Â· Second Half";
   return "Half Day";
 };
 
@@ -172,13 +172,13 @@ const BalanceCard = ({ leave, balance, onApply }) => {
       </p>
 
       {isPrivileged && (
-  <div style={styles.cardInfo}>
+  <div style={{...styles.cardInfo, minHeight: 94, paddingBottom: 14, boxSizing: "border-box", overflowWrap: "anywhere"}}>
     <span>
       <strong>1.5 days credited every month</strong>
     </span>
 
     <span>
-      Unused balance carries forward
+      A maximum of 9 unused leave days can be carried forward to the next year.
     </span>
   </div>
 )}
@@ -605,6 +605,7 @@ return workingDays;
 
   const handleApply = async () => {
     if (!selectedLeaveType) return;
+    if (selectedLeaveType === "mandatory" && form.duration_type === "half_day") {setError("Privileged Leave must be Full Day.");return;}
     const isUnpaid = selectedLeaveType === "unpaid";
 
     setError("");
@@ -867,7 +868,7 @@ if (isUnpaid && !form.subject.trim()) {
       <div style={styles.balanceInfo}>
   Sick and Casual Leave reset every January.
   Privileged Leave earns 1.5 days every month and
-  unused balance carries forward. Pending Leave is
+  A maximum of 9 unused leave days can be carried forward to the next year.. Pending Leave is
   reserved from the available balance.
 </div>
 
@@ -1243,7 +1244,7 @@ if (isUnpaid && !form.subject.trim()) {
                       Full Day
                     </button>
 
-                    <button
+                    {selectedLeaveType !== "mandatory" && <button
                       type="button"
                       style={
                         form.duration_type === "half_day"
@@ -1253,7 +1254,7 @@ if (isUnpaid && !form.subject.trim()) {
                       onClick={() => handleDurationChange("half_day")}
                     >
                       Half Day
-                    </button>
+                    </button>}
                   </div>
                 </div>
 
