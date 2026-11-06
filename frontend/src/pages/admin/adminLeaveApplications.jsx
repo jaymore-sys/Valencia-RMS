@@ -32,6 +32,8 @@ const AdminLeaveApplications = () => {
   const [leaveView, setLeaveView] =
     useState("department");
 
+    // VALENCIA_PREMAL_LEAVE_AUDIENCE_V1
+  const [audience, setAudience] = useState('all');
   const [filter, setFilter] =
     useState("all");
 
@@ -196,15 +198,9 @@ const AdminLeaveApplications = () => {
         );
 
     
-      setApplications(
-        Array.isArray(
-          response.data
-            ?.applications
-        )
-          ? response.data
-              .applications
-          : []
-      );
+            const nextApplications = Array.isArray(response.data?.applications)
+        ? response.data.applications : [];
+      setApplications(nextApplications);
 
       setSummary({
         total:
@@ -236,10 +232,8 @@ const AdminLeaveApplications = () => {
           ),
       });
 
-      setAdmin(
-        response.data?.admin ||
-          null
-      );
+            setAdmin(response.data?.admin || null);
+      return nextApplications;
     } catch (err) {
       console.error(
         "Fetch admin leaves error:",
@@ -264,23 +258,29 @@ const AdminLeaveApplications = () => {
     fetchLeaves();
   }, []);
 
+    const isPremal = String(admin?.email || '').trim().toLowerCase() === 'premal.mehta@valencianutrition.com';
+  const audienceMatches = (leave, choice = audience) => {
+    if (!isPremal || choice === 'all') return true;
+    const role = String(leave.applicant_role || '').toLowerCase();
+    if (choice === 'team') return Number(leave.is_in_my_team) === 1;
+    if (choice === 'admins') return role === 'admin';
+    if (choice === 'employees') return role === 'employee';
+    return true;
+  };
+  const isWaiting = (leave) =>
+    String(leave?.revert_status || '').toLowerCase() === 'pending' ||
+    String(leave?.status || '').toLowerCase() === 'pending';
+  const nextPending = (list, currentId) =>
+    list.find(item => String(item.leave_id) !== String(currentId) &&
+      audienceMatches(item) && isWaiting(item)) || null;
+
   const filteredApplications =
     useMemo(() => {
-      if (filter === "all") {
-        return applications;
-      }
-
-      return applications.filter(
-        (application) =>
-          String(
-            application.status ||
-              ""
-          ).toLowerCase() ===
-          filter
-      );
+            const visible = applications.filter(leave => audienceMatches(leave));
+      if (filter === "all") return visible;
+      return visible.filter(leave => String(leave.status || '').toLowerCase() === filter);
     }, [
-      applications,
-      filter,
+            applications, filter, audience, admin,
     ]);
 
   /*
@@ -569,11 +569,12 @@ if (
         : "Leave escalated successfully."
     )
 );
+                const reviewedId = selectedLeave.leave_id;
         setConfirmation(null);
-        setSelectedLeave(null);
         setReviewRemark("");
-
-        await fetchLeaves();
+        const latest = await fetchLeaves();
+        setSelectedLeave(Array.isArray(latest)
+          ? nextPending(latest, reviewedId) : null);
       } catch (err) {
         console.error(
           "Review leave error:",
@@ -630,10 +631,11 @@ if (
         "Revert request updated successfully."
     );
 
-    setSelectedLeave(null);
+        const reviewedId = selectedLeave.leave_id;
     setReviewRemark("");
-
-    await fetchLeaves();
+    const latest = await fetchLeaves();
+    setSelectedLeave(Array.isArray(latest)
+      ? nextPending(latest, reviewedId) : null);
   } catch (err) {
     setModalError(
       err?.response?.data?.message ||
@@ -788,8 +790,7 @@ return (
             Review and manage leave
             requests from{" "}
             <strong>
-              {admin?.department_name ||
-                "your department"}
+                            {isPremal ? 'all departments' : (admin?.department_name || 'your department')}
             </strong>
             .
           </p>
@@ -846,7 +847,18 @@ return (
         ))}
       </div>
 
-      <section style={styles.section}>
+            <section style={styles.section}>
+        {isPremal && (
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:18,paddingBottom:14,borderBottom:'1px solid #e5e7eb'}}>
+            {[['all','All'],['team','My Team'],['admins','Admins'],['employees','Employees']].map(([value,label]) => (
+              <button type="button" key={value}
+                onClick={() => {setAudience(value);setFilter('all');setSelectedLeave(null);}}
+                style={{...styles.filterBtn,...(audience===value ? styles.activeFilter : {}),minHeight:40}}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         <div style={styles.toolbar}>
           <div>
             <h2 style={styles.sectionTitle}>

@@ -341,9 +341,29 @@ DATE_FORMAT(
           employee.email
             AS employee_email,
 
-          employee.employee_code,
+                    employee.employee_code,
           employee.designation,
           employee.department_id,
+          LOWER(TRIM(employee_role.role_name)) AS applicant_role,
+          /* VALENCIA_PREMAL_LEAVE_AUDIENCE_V1 */
+          CASE
+            WHEN LOWER(TRIM(employee_role.role_name)) = 'administrator'
+              AND LOWER(TRIM(employee.email)) = 'jay.more@valencianutrition.com' THEN 1
+            WHEN employee.department_id = ? THEN 1
+            WHEN EXISTS (
+              SELECT 1 FROM user_departments eu
+              WHERE eu.user_id = employee.user_id
+                AND (eu.department_id = ? OR eu.department_id IN (
+                  SELECT pu.department_id FROM user_departments pu
+                  WHERE pu.user_id = ?
+                ))
+            ) THEN 1
+            WHEN employee.department_id IN (
+              SELECT pu.department_id FROM user_departments pu
+              WHERE pu.user_id = ?
+            ) THEN 1
+            ELSE 0
+          END AS is_in_my_team,
 
           d.department_name,
 
@@ -422,7 +442,7 @@ THEN 1
           la.applied_at DESC,
           la.leave_id DESC
         `,
-        values
+        [admin.department_id, admin.department_id, admin.user_id, admin.user_id, ...values]
       );
 
      const summaryWhereParts = [];

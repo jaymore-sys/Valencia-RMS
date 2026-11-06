@@ -1039,6 +1039,10 @@ const isPremal =
       } else {
         await fetchTeamVisits();
       }
+            // Advance to the next pending card automatically after any successful review.
+      window.requestAnimationFrame(() => {
+        document.getElementById('valencia-field-visit-queue')?.scrollIntoView({behavior:'smooth',block:'start'});
+      });
       return true;
     } catch (err) {
       setVisitError(
@@ -1428,8 +1432,24 @@ const isPremal =
           )}
         </section>
       )}
-      {fieldVisitsOnly && (
-  <section style={styles.contentBlock}>
+            {fieldVisitsOnly && (
+  <section className="valencia-premal-field-visits" style={styles.contentBlock}>
+    {/* VALENCIA_PREMAL_MOBILE_QUEUE_V1: phone-only field-visit layout */}
+    <style>{`
+      @media (max-width: 680px) {
+        .valencia-premal-field-visits {max-width:100%;min-width:0;overflow:hidden;}
+        .valencia-premal-field-visits .premal-visit-tabs {display:flex!important;max-width:100%;overflow-x:auto!important;gap:6px!important;scroll-snap-type:x proximity;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;padding-bottom:8px!important;}
+        .valencia-premal-field-visits .premal-visit-tabs > button {flex:0 0 auto!important;min-width:106px!important;white-space:normal!important;max-width:132px;line-height:1.25!important;text-align:center;scroll-snap-align:start;padding:10px 9px!important;}
+        .valencia-premal-field-visits .premal-visit-queue-table {display:block!important;min-width:0!important;width:100%!important;}
+        .valencia-premal-field-visits .premal-visit-queue-table colgroup,.valencia-premal-field-visits .premal-visit-queue-table thead {display:none!important;}
+        .valencia-premal-field-visits .premal-visit-queue-table tbody {display:block!important;width:100%!important;}
+        .valencia-premal-field-visits .premal-visit-queue-table tbody tr {display:block!important;margin:10px 0!important;padding:12px!important;border:1px solid #e2e8f0!important;border-radius:14px!important;background:white;}
+        .valencia-premal-field-visits .premal-visit-queue-table tbody td {display:block!important;width:100%!important;max-width:100%!important;box-sizing:border-box!important;white-space:normal!important;padding:9px 2px!important;border-top:0!important;overflow-wrap:anywhere;}
+        .valencia-premal-field-visits .premal-visit-queue-table tbody td+td {border-top:1px solid #f1f5f9!important;}
+        .valencia-premal-field-visits .premal-visit-queue-table tbody td[data-label]:before {content:attr(data-label);display:block;color:#64748b;font-weight:800;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+        .valencia-premal-field-visits .premal-visit-queue-table button {max-width:100%;}
+      }
+    `}</style>
           {/* HEADER */}
           <div style={styles.visitHeader}>
             <div>
@@ -1471,7 +1491,7 @@ const isPremal =
             </div>
           </div>
           {/* TEAM / MY */}
-          <div style={styles.visitSwitch}>
+          <div className="premal-visit-tabs" style={styles.visitSwitch}>
             <button
               type="button"
               style={{
@@ -1566,7 +1586,7 @@ const isPremal =
 ) && (
             <>
               {/* 1. ACTION REQUIRED FIRST */}
-              <div style={styles.actionSection}>
+              <div id="valencia-field-visit-queue" style={styles.actionSection}>
                 <div style={styles.actionSectionHeader}>
                   <div>
                     <h3 style={styles.actionSectionTitle}>
@@ -1590,7 +1610,7 @@ const isPremal =
                       No pending field visits. You're all caught up.
                     </div>
                   ) : (
-                    <table style={{...styles.table, minWidth: 920, tableLayout: "fixed"}}>
+                    <table className="premal-visit-queue-table" style={{...styles.table, minWidth: 920, tableLayout: "fixed"}}>
                       <colgroup><col style={{width:"23%"}}/><col style={{width:"17%"}}/><col style={{width:"40%"}}/><col style={{width:"20%"}}/></colgroup>
                       <thead>
                         <tr>
@@ -1603,7 +1623,7 @@ const isPremal =
                       <tbody>
                         {pendingTeamVisits.map((visit) => (
                           <tr key={visit.visit_id}>
-                            <td style={styles.td}>
+                            <td data-label="Employee" style={styles.td}>
                               <strong>
                                 {visit.all_people?.map((person, index) => (
                                   <div key={index}>
@@ -1621,12 +1641,12 @@ const isPremal =
                                 <div><strong>Department Admin:</strong> {visit.reporting_admin || "Not assigned"}</div>
                               </div>
                             </td>
-                            <td style={styles.td}>
+                            <td data-label="Date" style={styles.td}>
                               <strong>
                                 {formatVisitDate(visit.visit_date)}{visit.end_date && formatVisitDate(visit.end_date) !== formatVisitDate(visit.visit_date) ? ` – ${formatVisitDate(visit.end_date)}` : ""}
                               </strong>
                             </td>
-                            <td style={styles.visitDetailsTd}>
+                            <td data-label="Visit Details" style={styles.visitDetailsTd}>
                               <strong style={styles.visitTypeText}>
                                 {visit.visit_type || "-"}
                               </strong>
@@ -1692,7 +1712,7 @@ const isPremal =
                                 )
                               }
                             </td>
-                            <td style={{...styles.actionTd, width:"auto", textAlign:"left", verticalAlign:"top"}}>
+                            <td data-label="Actions" style={{...styles.actionTd, width:"auto", textAlign:"left", verticalAlign:"top"}}>
                               <div style={{...styles.visitActionButtons, flexWrap:"wrap", justifyContent:"flex-start", whiteSpace:"normal"}}>
                                 <button
                                   type="button"
