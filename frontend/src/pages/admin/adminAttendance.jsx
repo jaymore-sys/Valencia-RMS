@@ -1657,7 +1657,7 @@ const isPremal =
                                   </div>
                                 ))}
                               </div>
-                              {getVisitStops(visit).some(stop=>Number(stop.document_count||0)>0) && (
+                              {getVisitStops(visit).some(stop=>Number(stop.stop_id)>0) && (
 <button type="button" style={{border:"1px solid #dce3eb",padding:"6px 10px",borderRadius:7,background:"#fff",color:"#334155",cursor:"pointer",marginTop:8,fontWeight:750,whiteSpace:"nowrap"}}
                                 onClick={()=>setManageDocumentsVisit(visit)}>Documents ({getVisitStops(visit).reduce((sum,stop)=>sum+Number(stop.document_count||0),0)})</button>
 )}
@@ -1858,7 +1858,7 @@ const isPremal =
                                   </div>
                                 ))}
                               </div>
-                              {getVisitStops(visit).some(stop=>Number(stop.document_count||0)>0) && (
+                              {getVisitStops(visit).some(stop=>Number(stop.stop_id)>0) && (
 <button type="button" style={{border:"1px solid #dce3eb",padding:"6px 10px",borderRadius:7,background:"#fff",color:"#334155",cursor:"pointer",marginTop:8,fontWeight:750,whiteSpace:"nowrap"}}
                                 onClick={()=>setManageDocumentsVisit(visit)}>Documents ({getVisitStops(visit).reduce((sum,stop)=>sum+Number(stop.document_count||0),0)})</button>
 )}

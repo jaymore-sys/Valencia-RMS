@@ -67,7 +67,20 @@ async function accessForStop(req, stopId) {
     Number(req.user.department_id) > 0 && Number(stop.owner_department) === Number(req.user.department_id));
   // Rathika may view/download Field Visit files but not upload, replace, or delete them.
   const hrViewer=String(req.user?.email||'').trim().toLowerCase()==='rathika.haleangadi@valencianutrition.com';
-  if (!owner && !reviewer && !hrViewer) return {forbidden:true};
+  if (!owner && !reviewer && !hrViewer) {
+    const [premalRows] = await db.query(
+      `SELECT u.user_id
+       FROM users u
+       INNER JOIN roles r ON r.role_id = u.role_id
+       WHERE u.user_id = ?
+         AND LOWER(TRIM(u.email)) = ?
+         AND LOWER(TRIM(r.role_name)) = 'admin'
+         AND u.can_approve_field_visit = 1
+       LIMIT 1`,
+      [req.user?.user_id, "premal.mehta@valencianutrition.com"]
+    );
+    if (!premalRows.length) return {forbidden:true};
+}
   return {...stop, canModify:owner};
 }
 async function accessForVisit(req, visitId) {
