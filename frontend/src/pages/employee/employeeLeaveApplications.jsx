@@ -372,7 +372,7 @@ const BalanceCard = ({
           </span>
 
           <span>
-            Unused balance carries forward
+            A maximum of 9 unused leave days can be carried forward to the next year.
           </span>
         </div>
       )}
