@@ -253,19 +253,7 @@ const AdministratorLayout = () => {
             </span>
 
           </NavLink>
-          <NavLink 
-  to="/administrator/vendors" 
-  className={({ isActive }) => 
-    isActive ? "active" : "" 
-  } 
-  title="Vendor Management" 
-> 
-  <Building2 size={20} /> 
 
-  <span> 
-    Vendor Management 
-  </span> 
-</NavLink>
 
 
           <NavLink
