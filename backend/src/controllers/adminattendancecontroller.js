@@ -2345,6 +2345,11 @@ async (req, res) => {
         });
 
     }
+    // Premal can review employees outside his assigned departments;
+    // Team Visits must remain department-scoped even for Premal.
+    const outsideTeam = admin.is_global_field_visit_approver &&
+      String(req.query.scope || 'team').toLowerCase() === 'others';
+
 
     const [visits] =
 
@@ -2362,6 +2367,41 @@ async (req, res) => {
 
             creator.employee_code,
             LOWER(creator_role.role_name) AS applicant_role,
+            (
+              SELECT GROUP_CONCAT(DISTINCT dep.department_name ORDER BY dep.department_name SEPARATOR ', ')
+              FROM departments dep
+              WHERE dep.department_id = creator.department_id
+                 OR dep.department_id IN (
+                    SELECT cud.department_id FROM user_departments cud
+                    WHERE cud.user_id = creator.user_id
+                 )
+            ) AS department_name,
+            (
+              SELECT GROUP_CONCAT(DISTINCT manager.full_name ORDER BY manager.full_name SEPARATOR ', ')
+              FROM users manager
+              INNER JOIN roles manager_role ON manager_role.role_id = manager.role_id
+              WHERE LOWER(manager_role.role_name) = 'admin'
+                AND manager.user_id <> creator.user_id
+                AND (
+                  (manager.department_id IS NOT NULL AND manager.department_id = creator.department_id)
+                  OR EXISTS (
+                    SELECT 1 FROM user_departments manager_ud
+                    WHERE manager_ud.user_id = manager.user_id
+                      AND (
+                        manager_ud.department_id = creator.department_id
+                        OR manager_ud.department_id IN (
+                          SELECT employee_ud.department_id FROM user_departments employee_ud
+                          WHERE employee_ud.user_id = creator.user_id
+                        )
+                      )
+                  )
+                  OR EXISTS (
+                    SELECT 1 FROM user_departments employee_ud
+                    WHERE employee_ud.user_id = creator.user_id
+                      AND employee_ud.department_id = manager.department_id
+                  )
+                )
+            ) AS reporting_admin,
             (
 
               SELECT GROUP_CONCAT(
@@ -2512,17 +2552,26 @@ async (req, res) => {
 
           AND
 
-          ( ? = 1 OR LOWER(
-
-            COALESCE(
-
-              creator_role.role_name,
-
-              ''
-
+          ( LOWER(COALESCE(creator_role.role_name, '')) = 'employee' )
+          AND (
+            ? = 0
+            OR NOT (
+              COALESCE(creator.department_id = ?, 0)
+              OR COALESCE(creator.department_id IN (
+                SELECT dept.department_id FROM user_departments dept WHERE dept.user_id = ?
+              ), 0)
+              OR EXISTS (
+                SELECT 1 FROM user_departments employee_ud
+                WHERE employee_ud.user_id = creator.user_id
+                  AND (
+                    employee_ud.department_id = ?
+                    OR employee_ud.department_id IN (
+                      SELECT dept.department_id FROM user_departments dept WHERE dept.user_id = ?
+                    )
+                  )
+              )
             )
-
-          ) = 'employee' )
+          )
 
           ORDER BY
 
@@ -2533,18 +2582,16 @@ async (req, res) => {
         `,
 
         [
-
-          admin.is_global_field_visit_approver ? 1 : 0,
-
+          outsideTeam ? 1 : 0,
           admin.user_id,
-
           admin.user_id,
-
           admin.department_id,
-
           admin.department_id,
-
-          admin.is_global_field_visit_approver ? 1 : 0,
+          outsideTeam ? 1 : 0,
+          admin.department_id,
+          admin.user_id,
+          admin.department_id,
+          admin.user_id,
         ]
 
       );

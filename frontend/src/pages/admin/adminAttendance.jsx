@@ -658,6 +658,7 @@ const isPremal =
   const [error, setError] = useState("");
   const [fieldVisitMode, setFieldVisitMode] = useState("team");
   const [teamVisits, setTeamVisits] = useState([]);
+  const [otherEmployeeVisits, setOtherEmployeeVisits] = useState([]);
   const [canApproveFieldVisits, setCanApproveFieldVisits] = useState(false);
   const [myVisits, setMyVisits] = useState([]);
   const [adminApprovalVisits,setAdminApprovalVisits] = useState([]);
@@ -726,13 +727,11 @@ const isPremal =
       setLoading(false);
     }
   };
-  const fetchTeamVisits = async () => {
+  const fetchTeamVisits = async (scope = "team") => {
     try {
       setVisitLoading(true);
       setVisitError("");
-      const response = await api.get(
-        "/admin-attendance/field-visits"
-      );
+      const response = await api.get("/admin-attendance/field-visits", { params: { scope } });
       let visits = Array.isArray(response.data?.visits)
         ? response.data.visits
         : [];
@@ -743,8 +742,12 @@ const isPremal =
           (visit) => Number(visit.employee_id) !== adminId
         );
       }
-      setTeamVisits(visits);
-      setCanApproveFieldVisits(response.data?.can_approve_field_visit === true);
+      if (scope === "others") {
+        setOtherEmployeeVisits(visits);
+      } else {
+        setTeamVisits(visits);
+        setCanApproveFieldVisits(response.data?.can_approve_field_visit === true);
+      }
     } catch (err) {
       console.error("Fetch team field visits error:", err);
       setVisitError(
@@ -1029,14 +1032,13 @@ const isPremal =
           ? "Field visit approved successfully."
           : status === "changes_requested" ? "Review remark sent for corrections." : "Field visit rejected."
       );
-      if (
-  fieldVisitMode ===
-  "adminApprovals"
-) {
-  await fetchAdminApprovalVisits();
-} else {
-  await fetchTeamVisits();
-}
+      if (fieldVisitMode === "adminApprovals") {
+        await fetchAdminApprovalVisits();
+      } else if (fieldVisitMode === "employeeApprovals") {
+        await fetchTeamVisits("others");
+      } else {
+        await fetchTeamVisits();
+      }
       return true;
     } catch (err) {
       setVisitError(
@@ -1147,7 +1149,7 @@ const isPremal =
       : fieldVisitMode === "adminApprovals"
         ? adminApprovalVisits
         : fieldVisitMode === "employeeApprovals"
-          ? teamVisits.filter(visit => String(visit.applicant_role || "").toLowerCase() === "employee")
+        ? otherEmployeeVisits
           : myVisits;
   const visitSummary = useMemo(() => {
     return {
@@ -1239,10 +1241,10 @@ const isPremal =
  const pendingTeamVisits = useMemo(() => {
     const source = fieldVisitMode === "adminApprovals" ? adminApprovalVisits :
       fieldVisitMode === "employeeApprovals"
-        ? teamVisits.filter(visit => String(visit.applicant_role || "").toLowerCase() === "employee")
+        ? otherEmployeeVisits
         : teamVisits;
     return source.filter(visit => String(visit.status || "").toLowerCase() === "pending");
-  }, [teamVisits, adminApprovalVisits, fieldVisitMode]);
+  }, [teamVisits, otherEmployeeVisits, adminApprovalVisits, fieldVisitMode]);
   useEffect(() => {
     if (!visitMessage) return;
     const timer = setTimeout(() => {
@@ -1457,6 +1459,8 @@ const isPremal =
                 onClick={() => {
   if (fieldVisitMode === "adminApprovals") {
     fetchAdminApprovalVisits();
+  } else if (fieldVisitMode === "employeeApprovals") {
+    fetchTeamVisits("others");
   } else {
     fetchFieldVisits();
   }
@@ -1535,7 +1539,7 @@ const isPremal =
                   setFieldVisitMode("employeeApprovals");
                   setVisitSearch("");
                   setVisitStatus("all");
-                  fetchTeamVisits();
+                  fetchTeamVisits("others");
                 }}
               >
                 Employee Approvals
@@ -1586,7 +1590,8 @@ const isPremal =
                       No pending field visits. You're all caught up.
                     </div>
                   ) : (
-                    <table style={{...styles.table,minWidth:1100,tableLayout:"fixed"}}>
+                    <table style={{...styles.table, minWidth: 920, tableLayout: "fixed"}}>
+                      <colgroup><col style={{width:"23%"}}/><col style={{width:"17%"}}/><col style={{width:"40%"}}/><col style={{width:"20%"}}/></colgroup>
                       <thead>
                         <tr>
                           <th style={styles.th}>Employee</th>
@@ -1611,6 +1616,10 @@ const isPremal =
                                   Code: {visit.employee_code}
                                 </div>
                               )}
+                              <div style={{marginTop:7,fontSize:12,lineHeight:1.55,whiteSpace:"normal",color:"#475569",fontWeight:600}}>
+                                <div><strong>Department:</strong> {visit.department_name || "Not assigned"}</div>
+                                <div><strong>Department Admin:</strong> {visit.reporting_admin || "Not assigned"}</div>
+                              </div>
                             </td>
                             <td style={styles.td}>
                               <strong>
@@ -1683,8 +1692,8 @@ const isPremal =
                                 )
                               }
                             </td>
-                            <td style={styles.actionTd}>
-                              <div style={styles.visitActionButtons}>
+                            <td style={{...styles.actionTd, width:"auto", textAlign:"left", verticalAlign:"top"}}>
+                              <div style={{...styles.visitActionButtons, flexWrap:"wrap", justifyContent:"flex-start", whiteSpace:"normal"}}>
                                 <button
                                   type="button"
                                   style={styles.approveVisitButton}
@@ -1808,6 +1817,10 @@ const isPremal =
                                   Code: {visit.employee_code}
                                 </div>
                               )}
+                              <div style={{marginTop:7,fontSize:12,lineHeight:1.55,whiteSpace:"normal",color:"#475569",fontWeight:600}}>
+                                <div><strong>Department:</strong> {visit.department_name || "Not assigned"}</div>
+                                <div><strong>Department Admin:</strong> {visit.reporting_admin || "Not assigned"}</div>
+                              </div>
                             </td>
                             <td style={styles.td}>
                               <strong>
@@ -3600,8 +3613,14 @@ const styles = {
     display: "grid",
     gap: "7px",
     marginTop: "7px",
+    maxHeight: "190px",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
+    minWidth: 0,
   },
   visitStopCompact: {
+    overflowWrap: "anywhere",
+    whiteSpace: "normal",
     padding: "7px 9px",
     borderRadius: "9px",
     background: "#f8fafc",
@@ -3700,10 +3719,11 @@ const styles = {
   },
   visitDetailsTd: {
     borderTop: "1px solid #eef2f7",
-    padding: "16px",
+    padding: "12px",
     color: "#111827",
-    verticalAlign: "middle",
-    width: "48%",
+    verticalAlign: "top",
+    width: "40%",
+    overflowWrap: "anywhere",
   },
   visitTypeText: {
     display: "block",
