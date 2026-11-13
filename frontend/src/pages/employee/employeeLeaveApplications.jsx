@@ -209,14 +209,14 @@ const getDurationLabel = (
     application.half_day_session ===
     "first_half"
   ) {
-    return "Half Day Â· First Half";
+    return "Half Day  -  First Half";
   }
 
   if (
     application.half_day_session ===
     "second_half"
   ) {
-    return "Half Day Â· Second Half";
+    return "Half Day  -  Second Half";
   }
 
   return "Half Day";
@@ -366,12 +366,6 @@ const BalanceCard = ({
       {isPrivileged && (
         <div style={styles.cardInfo}>
           <span>
-            <strong>
-              1.5 days credited every month
-            </strong>
-          </span>
-
-          <span>
             A maximum of 9 unused leave days can be carried forward to the next year.
           </span>
         </div>
@@ -412,7 +406,7 @@ const BalanceCard = ({
 
             {unpaidSickApprovedDays > 0 &&
               unpaidSickPendingDays > 0 &&
-              " Â· "}
+              "  -  "}
 
             {unpaidSickPendingDays > 0 && (
               <>
@@ -853,7 +847,7 @@ const [revertReason, setRevertReason] =
     const selectedMinimumLeaveDate =
       selectedLeaveType === "sick" ||
       selectedLeaveType === "unpaid_sick" ||
-      (selectedLeaveType === "mandatory" && form.duration_type === "half_day")
+      ((selectedLeaveType === "mandatory" || selectedLeaveType === "casual") && form.duration_type === "half_day")
         ? getTodayDate() > POLICY_START_DATE
           ? getTodayDate()
           : POLICY_START_DATE
@@ -1422,6 +1416,10 @@ const isUnpaidSick =
       if (selectedLeaveType === "mandatory" && form.duration_type === "half_day") {
   setError("Privileged Leave must be taken as a Full Day."); return;
 }
+  if (selectedLeaveType === "casual" && form.start_date === getTodayDate() && form.duration_type !== "half_day") {
+    setError("Casual Leave for today is available only as a Half Day.");
+    return;
+  }
 
 if (
   (
@@ -1568,7 +1566,7 @@ if (
         calculateDays <= 0
       ) {
         setError(
-          "Unable to calculate leave days."
+          (form.start_date && new Date(`${form.start_date}T00:00:00`).getDay() === 0) ? "Sunday is a weekly off. Please select a working day." : "Unable to calculate leave days. Please check the selected dates."
         );
 
         return;
@@ -2060,13 +2058,7 @@ const casualAvailable = Number(
             styles.balanceInfo
           }
         >
-          Sick and Casual Leave
-          reset every January.
-          Privileged Leave earns
-          1.5 days every month and
-          a maximum of 9 unused leave days can be carried forward to the next year. Pending Leave is
-          reserved from the
-          available balance.
+          Sick and Casual Leave reset every January. Privileged Leave earns 1.5 days every month and a maximum of 9 unused leave days can be carried forward to the next year. Pending Leave is reserved from the available balance.
         </div>
 
         <section
@@ -2177,7 +2169,7 @@ const casualAvailable = Number(
         {getLeaveLabel(
           revertLeave.leave_type
         )}
-        {" Â· "}
+        {"  -  "}
         {formatDisplayDate(
           revertLeave.start_date
         )}

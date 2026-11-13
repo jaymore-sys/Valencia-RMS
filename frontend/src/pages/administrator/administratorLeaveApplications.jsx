@@ -112,8 +112,8 @@ if (type === "unpaid") return "Unpaid Leave";
 const getDurationLabel = (application) => {
   if (application.leave_type === "festival") return "Full Day";
   if (application.duration_type !== "half_day") return "Full Day";
-  if (application.half_day_session === "first_half") return "Half Day Â· First Half";
-  if (application.half_day_session === "second_half") return "Half Day Â· Second Half";
+  if (application.half_day_session === "first_half") return "Half Day  -  First Half";
+  if (application.half_day_session === "second_half") return "Half Day  -  Second Half";
   return "Half Day";
 };
 
@@ -320,7 +320,7 @@ const AdministratorLeaveApplications = () => {
       : POLICY_START_DATE;
 
 const selectedMinimumLeaveDate =
-  selectedLeaveType === "sick"
+  (selectedLeaveType === "sick" || (selectedLeaveType === "casual" && form.duration_type === "half_day"))
     ? getTodayDate() > POLICY_START_DATE
       ? getTodayDate()
       : POLICY_START_DATE
@@ -337,9 +337,9 @@ const selectedMinimumLeaveDate =
     if (
       form.duration_type === "half_day"
     ) {
-      return form.start_date
-        ? 0.5
-        : 0;
+      if (!form.start_date) return 0;
+      if (new Date(`${form.start_date}T00:00:00`).getDay() === 0) return 0;
+      return 0.5;
     }
 
     if (
@@ -670,8 +670,12 @@ if (isUnpaid && !form.subject.trim()) {
 }
     }
 
+    if (selectedLeaveType === "casual" && form.start_date === getTodayDate() && form.duration_type !== "half_day") {
+      setError("Casual Leave for today is available only as a Half Day.");
+      return;
+    }
     if (calculateDays <= 0) {
-      setError("Unable to calculate leave days.");
+      setError((form.start_date && new Date(`${form.start_date}T00:00:00`).getDay() === 0) ? "Sunday is a weekly off. Please select a working day." : "Unable to calculate leave days. Please check the selected dates.");
       return;
     }
 
@@ -866,11 +870,8 @@ if (isUnpaid && !form.subject.trim()) {
       </div>
 
       <div style={styles.balanceInfo}>
-  Sick and Casual Leave reset every January.
-  Privileged Leave earns 1.5 days every month and
-  A maximum of 9 unused leave days can be carried forward to the next year.. Pending Leave is
-  reserved from the available balance.
-</div>
+          Sick and Casual Leave reset every January. Privileged Leave earns 1.5 days every month and a maximum of 9 unused leave days can be carried forward to the next year. Pending Leave is reserved from the available balance.
+        </div>
 
       <section style={styles.historyCard}>
         <div style={styles.historyHeader}>
