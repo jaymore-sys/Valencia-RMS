@@ -5543,23 +5543,27 @@ const addHrEmployeeExtraLeave = async (req, res) => {
     const columns = new Set(
       adjustmentColumns.map((row) => String(row.Field))
     );
-    const insertColumns = [
-  "employee_id",
-  "leave_type",
-  "adjustment_type",
-  "adjustment_days",
-  "adjusted_by",
-  "created_by",
-];
-
-const insertValues = [
-  userId,
-  leaveType,
-  "add",
-  adjustmentDays,
-  hrUserId,
-  hrUserId,
-];
+    // Only write optional columns which actually exist in this deployment.
+    // Core columns are necessary for the leave-policy SUM(adjustment_days).
+    for (const requiredColumn of ["employee_id", "leave_type", "adjustment_days"]) {
+      if (!columns.has(requiredColumn)) {
+        throw new Error(`employee_leave_adjustments is missing required column: ${requiredColumn}`);
+      }
+    }
+    const insertColumns = ["employee_id", "leave_type", "adjustment_days"];
+    const insertValues = [userId, leaveType, adjustmentDays];
+    if (columns.has("adjustment_type")) {
+      insertColumns.push("adjustment_type");
+      insertValues.push("add");
+    }
+    if (columns.has("adjusted_by")) {
+      insertColumns.push("adjusted_by");
+      insertValues.push(hrUserId);
+    }
+    if (columns.has("created_by")) {
+      insertColumns.push("created_by");
+      insertValues.push(hrUserId);
+    }
     const noteColumn = columns.has("reason")
       ? "reason"
       : columns.has("remark")
@@ -6082,7 +6086,7 @@ const todayIndia = () => {
   return `${parts.year}-${parts.month}-${parts.day}`;
 };
 const fixedHolidays = new Set(Object.keys(FIXED_HOLIDAYS));
-const additionalExcludedDates = new Set(['2026-11-10','2027-01-01']); // Requested future holidays; verify with HR calendar before production.
+const additionalExcludedDates = new Set(); // No unverified date-specific exclusions in bulk HR approval; Sundays and FIXED_HOLIDAYS remain protected.
 const validDate = s => /^\d{4}-\d{2}-\d{2}$/.test(s) && !Number.isNaN(Date.parse(`${s}T00:00:00Z`)) && new Date(`${s}T00:00:00Z`).toISOString().slice(0,10) === s;
 const nextDay = s => new Date(Date.parse(`${s}T00:00:00Z`) + 86400000).toISOString().slice(0,10);
 const isOff = s => new Date(`${s}T00:00:00Z`).getUTCDay() === 0 || fixedHolidays.has(s.slice(5)) || additionalExcludedDates.has(s);
