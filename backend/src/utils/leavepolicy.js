@@ -174,8 +174,9 @@ const getPrivilegedEarned = (
     (year - 2026) * 12 +
     (month - 9);
 
-  const creditedMonths =
-    monthsSinceStart + 1;
+  const lastCalendarDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const dayOfMonth = Number(String(asOfDate).slice(8, 10));
+  const creditedMonths = monthsSinceStart + (dayOfMonth >= lastCalendarDay ? 1 : 0);
 
   return formatNumber(
     Math.max(
@@ -598,7 +599,12 @@ BUILD FINAL BALANCES
 // Separate HR-granted extra leave remains outside that ceiling, consistent with prior policy.
 const MAX_PRIVILEGED_CARRY = 9;
 const getPrivilegedBalanceInYear = async (db, employeeId, year, excludeLeaveId = null) => {
-  const currentYear = Number(getIndiaToday().slice(0, 4));
+  const indiaToday = getIndiaToday();
+  const currentYear = Number(indiaToday.slice(0, 4));
+  const currentMonth = Number(indiaToday.slice(5, 7));
+  const currentDay = Number(indiaToday.slice(8, 10));
+  const lastCalendarDayOfCurrentMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
+  const lastCreditedMonth = currentMonth - (currentDay >= lastCalendarDayOfCurrentMonth ? 0 : 1);
   const y = Number(year);
   if (!Number.isInteger(y) || y < 2026) return { earned: 0, used: 0, pending: 0, carry_in: 0 };
   const params = [employeeId, POLICY_START_DATE, `${y}-12-31`];
@@ -616,8 +622,7 @@ const getPrivilegedBalanceInYear = async (db, employeeId, year, excludeLeaveId =
   for(let yr = 2026; yr <= y; yr++) {
     carryIn = Math.min(MAX_PRIVILEGED_CARRY, Math.max(0,carry));
     const firstMonth = yr === 2026 ? 9 : 1;
-    const lastMonth = yr < currentYear ? 12 : yr === currentYear
-      ? Number(getIndiaToday().slice(5,7)) : 0;
+    const lastMonth = yr < currentYear ? 12 : yr === currentYear ? lastCreditedMonth : 0;
     const months = Math.max(0, lastMonth - firstMonth + 1);
     earned = formatNumber(carryIn + months * MONTHLY_PRIVILEGED_CREDIT);
     used = Number(map.get(yr)?.used || 0);
