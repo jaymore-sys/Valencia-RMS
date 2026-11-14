@@ -176,7 +176,11 @@ const getPrivilegedEarned = (
 
   const lastCalendarDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   const dayOfMonth = Number(String(asOfDate).slice(8, 10));
-  const creditedMonths = monthsSinceStart + (dayOfMonth >= lastCalendarDay ? 1 : 0);
+  // Historical September-November 2026 entitlement was already granted.
+// Never claw it back; start month-end crediting with December 2026.
+const creditedMonths = asOfDate < "2026-12-01"
+  ? monthsSinceStart + 1
+  : monthsSinceStart + (dayOfMonth >= lastCalendarDay ? 1 : 0);
 
   return formatNumber(
     Math.max(
@@ -604,7 +608,11 @@ const getPrivilegedBalanceInYear = async (db, employeeId, year, excludeLeaveId =
   const currentMonth = Number(indiaToday.slice(5, 7));
   const currentDay = Number(indiaToday.slice(8, 10));
   const lastCalendarDayOfCurrentMonth = new Date(Date.UTC(currentYear, currentMonth, 0)).getUTCDate();
-  const lastCreditedMonth = currentMonth - (currentDay >= lastCalendarDayOfCurrentMonth ? 0 : 1);
+  // Existing Sep-Nov 2026 credits (4.5 days) remain intact for everyone.
+// December 2026 and all following months accrue at calendar month-end only.
+const lastCreditedMonth = currentYear === 2026 && indiaToday < "2026-12-01"
+  ? 11
+  : currentMonth - (currentDay >= lastCalendarDayOfCurrentMonth ? 0 : 1);
   const y = Number(year);
   if (!Number.isInteger(y) || y < 2026) return { earned: 0, used: 0, pending: 0, carry_in: 0 };
   const params = [employeeId, POLICY_START_DATE, `${y}-12-31`];
