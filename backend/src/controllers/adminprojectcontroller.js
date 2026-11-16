@@ -469,6 +469,24 @@ t.status, t.priority, COALESCE( t.progress, 0 ) AS progress, COALESCE( t.is_chec
 CREATE PROJECT
 ========================================================
 */
+const insertAdminProject = async (connection, {
+    adminUserId, adminDepartmentId, resolvedDivision, projectTitle,
+    projectDescription, priority, startDate, dueDate,
+}) => {
+    const [result] = await connection.query(`INSERT INTO projects ( created_by_user_id, department_id, division_id, division, project_title, project_description, priority, status, start_date, due_date, overall_progress, created_at, updated_at ) VALUES ( ?, ?, ?, ?, ?, ?, ?, 'not_started', ?, ?, 0, NOW(), NOW() )`, [
+        adminUserId,
+        adminDepartmentId,
+        resolvedDivision.division_id,
+        resolvedDivision.division_name,
+        String(projectTitle).trim(),
+        String(projectDescription).trim(),
+        priority,
+        startDate,
+        dueDate,
+    ]);
+    return result.insertId;
+};
+
 const createAdminProject = async (req, res) => {
     const connection = await db.getConnection();
     try {
@@ -552,18 +570,10 @@ const createAdminProject = async (req, res) => {
             });
         }
         await connection.beginTransaction();
-        const [result] = await connection.query(`INSERT INTO projects ( created_by_user_id, department_id, division_id, division, project_title, project_description, priority, status, start_date, due_date, overall_progress, created_at, updated_at ) VALUES ( ?, ?, ?, ?, ?, ?, ?, 'not_started', ?, ?, 0, NOW(), NOW() )`, [
-            adminUserId,
-            adminDepartmentId,
-            resolvedDivision.division_id,
-            resolvedDivision.division_name,
-            String(projectTitle).trim(),
-            String(projectDescription).trim(),
-            priority,
-            startDate,
-            dueDate,
-        ]);
-        const projectId = result.insertId;
+        const projectId = await insertAdminProject(connection, {
+            adminUserId, adminDepartmentId, resolvedDivision, projectTitle,
+            projectDescription, priority, startDate, dueDate,
+        });
         await syncProjectAssignments(connection, projectId, assigneeIds, adminUserId);
         await connection.commit();
         let emailSummary = null;
@@ -1688,7 +1698,8 @@ const createInterdepartmentRequest = async (req, res) => {
             });
         }
         const adminDepartmentIds = await getUserDepartmentIds(connection, adminUserId, getLoggedInDepartmentId(req));
-        const projectId = Number(req.body.project_id || 0);
+        let projectId = Number(req.body.project_id || 0);
+        const newProject = req.body.project;
         const requestedDepartmentId = Number(req.body.requested_department_id ||
             req.body.department_id ||
             0);
@@ -1703,7 +1714,7 @@ const createInterdepartmentRequest = async (req, res) => {
         const requestedEndDate = formatDateOnly(req.body.requested_end_date ||
             req.body.end_date ||
             req.body.due_date);
-        if (!projectId || !requestedDepartmentId || !requestedDivisionId) {
+        if ((!projectId && !newProject) || !requestedDepartmentId || !requestedDivisionId) {
             return res.status(400).json({
                 success: false,
                 message: "Project, requested department and requested division are required.",
@@ -1733,19 +1744,59 @@ const createInterdepartmentRequest = async (req, res) => {
                 message: "This department is already assigned to you. Use normal project assignment instead.",
             });
         }
-        const [projectRows] = await connection.query(`SELECT p.project_id, p.project_title, p.project_description, p.created_by_user_id, p.department_id, DATE_FORMAT( p.start_date, '%Y-%m-%d' ) AS start_date, DATE_FORMAT( p.due_date, '%Y-%m-%d' ) AS due_date, d.department_name AS requesting_department_name FROM projects p LEFT JOIN departments d ON d.department_id = p.department_id WHERE p.project_id = ? LIMIT 1`, [projectId]);
-        if (!projectRows.length) {
-            return res.status(404).json({
-                success: false,
-                message: "Project not found.",
-            });
-        }
-        const project = projectRows[0];
-        if (!canAdminManageProjectRow(project, adminUserId, adminDepartmentIds)) {
-            return res.status(403).json({
-                success: false,
-                message: "You are not allowed to request work for this project.",
-            });
+        let project;
+        let projectDivision;
+        if (projectId) {
+            const [projectRows] = await connection.query(`SELECT p.project_id, p.project_title, p.project_description, p.created_by_user_id, p.department_id, DATE_FORMAT( p.start_date, '%Y-%m-%d' ) AS start_date, DATE_FORMAT( p.due_date, '%Y-%m-%d' ) AS due_date, d.department_name AS requesting_department_name FROM projects p LEFT JOIN departments d ON d.department_id = p.department_id WHERE p.project_id = ? LIMIT 1`, [projectId]);
+            if (!projectRows.length) {
+                return res.status(404).json({
+                    success: false,
+                    message: "Project not found.",
+                });
+            }
+            project = projectRows[0];
+            if (!canAdminManageProjectRow(project, adminUserId, adminDepartmentIds)) {
+                return res.status(403).json({
+                    success: false,
+                    message: "You are not allowed to request work for this project.",
+                });
+            }
+        } else {
+            if (!adminDepartmentIds.length) {
+                return res.status(400).json({
+                    success: false,
+                    message: "No department or division is assigned to this Admin.",
+                });
+            }
+            const projectTitle = String(newProject.project_title || "").trim();
+            const startDate = formatDateOnly(newProject.start_date);
+            const dueDate = formatDateOnly(newProject.due_date);
+            if (!projectTitle || !startDate || !dueDate || startDate > dueDate) {
+                return res.status(400).json({
+                    success: false,
+                    message: "A project title and valid project timeline are required.",
+                });
+            }
+            projectDivision = await resolveProjectDivision(connection, newProject.division_id, newProject.division);
+            if (!projectDivision) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please select a valid Division.",
+                });
+            }
+            const departmentId = getLoggedInDepartmentId(req) || adminDepartmentIds[0];
+            const [[department]] = await connection.query(
+                "SELECT department_name FROM departments WHERE department_id = ?",
+                [departmentId]
+            );
+            project = {
+                department_id: departmentId,
+                requesting_department_name: department?.department_name,
+                project_title: projectTitle,
+                project_description: String(newProject.project_description || "").trim(),
+                start_date: startDate,
+                due_date: dueDate,
+            };
         }
         if (project.start_date &&
             requestedStartDate < project.start_date) {
@@ -1800,18 +1851,32 @@ const createInterdepartmentRequest = async (req, res) => {
     `Interdepartment request: no active Admin currently mapped to department ${requestedDepartmentId}. Request will still be created.`
   );
 } 
-        const [pendingRows] = await connection.query(`SELECT request_id FROM interdepartment_project_requests WHERE project_id = ? AND requested_department_id = ? AND requested_division_id = ? AND LOWER(COALESCE(status, 'pending')) = 'pending' LIMIT 1`, [
-            projectId,
-            requestedDepartmentId,
-            requestedDivisionId,
-        ]);
-        if (pendingRows.length) {
-            return res.status(409).json({
-                success: false,
-                message: "A pending Interdepartment Work Request already exists for this department and division.",
-            });
+        if (projectId) {
+            const [pendingRows] = await connection.query(`SELECT request_id FROM interdepartment_project_requests WHERE project_id = ? AND requested_department_id = ? AND requested_division_id = ? AND LOWER(COALESCE(status, 'pending')) = 'pending' LIMIT 1`, [
+                projectId,
+                requestedDepartmentId,
+                requestedDivisionId,
+            ]);
+            if (pendingRows.length) {
+                return res.status(409).json({
+                    success: false,
+                    message: "A pending Interdepartment Work Request already exists for this department and division.",
+                });
+            }
         }
         await connection.beginTransaction();
+        if (!projectId) {
+            projectId = await insertAdminProject(connection, {
+                adminUserId,
+                adminDepartmentId: project.department_id,
+                resolvedDivision: projectDivision,
+                projectTitle: project.project_title,
+                projectDescription: project.project_description,
+                priority: "medium",
+                startDate: project.start_date,
+                dueDate: project.due_date,
+            });
+        }
         const [result] = await connection.query(`INSERT INTO interdepartment_project_requests ( project_id, requested_by_admin_id, requesting_department_id, requested_department_id, requested_division_id, work_description, requested_start_date, requested_end_date, status, created_at, updated_at ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW() )`, [
             projectId,
             adminUserId,

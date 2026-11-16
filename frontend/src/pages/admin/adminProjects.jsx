@@ -827,7 +827,7 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
     });
   };
 
-  const validateNewProject = () => {
+  const validateNewProject = ({ requireAssignee = true } = {}) => {
   if (!newProject.project_title.trim()) {
     return "Project title is required.";
   }
@@ -844,7 +844,7 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
     return "Project start date cannot be after project deadline.";
   }
 
-  if (!newProject.assignee_ids.length) {
+  if (requireAssignee && !newProject.assignee_ids.length) {
     return "Select at least one project assignee.";
   }
 
@@ -1277,7 +1277,7 @@ const openInterdepartmentRequestModal = async () => {
   setError("");
   setSuccessMessage("");
 
-  const validationError = validateNewProject();
+  const validationError = validateNewProject({ requireAssignee: false });
 
   if (validationError) {
     setError(validationError);
@@ -1388,12 +1388,9 @@ const sendInterdepartmentRequest = async () => {
   let projectId = interdepartmentProjectId;
 
   try {
-    /*
-    First create the normal Project only once.
-    If the request API fails afterward, projectId stays
-    stored so retrying does not create a duplicate Project.
-    */
-    if (!projectId) {
+    // Keep the existing assignment flow and reuse its project on retry.
+    // With no assignees, the request API saves the project and request together.
+    if (!projectId && newProject.assignee_ids.length) {
       const created = await createProjectRecord();
 
       projectId = created.projectId;
@@ -1403,7 +1400,7 @@ const sendInterdepartmentRequest = async () => {
     const response = await api.post(
       "/admin-projects/interdepartment/requests",
       {
-        project_id: projectId,
+        ...(projectId ? { project_id: projectId } : { project: getNewProjectPayload() }),
         requested_department_id: Number(
           interdepartmentForm.requested_department_id
         ),
@@ -2408,68 +2405,145 @@ const submitInterdepartmentReview = async (action) => {
       )}
 
       {showInterdepartmentRequestsModal && (
-  <div style={styles.editProjectOverlay}>
-    <div style={styles.editProjectModal}>
-      <div style={styles.floatingCloseLayer}>
-        <button
-          type="button"
-          style={styles.projectModalCloseButton}
-          onClick={() => setShowInterdepartmentRequestsModal(false)}
-        >
-          <X size={22} />
-        </button>
-      </div>
-
-      <div style={styles.editProjectNormalHeader}>
+  <div style={{ ...styles.editProjectOverlay, padding: "12px" }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="interdepartment-requests-title"
+      style={styles.interdepartmentRequestsDialog}
+    >
+      <div style={styles.interdepartmentRequestsHeader}>
         <div>
-          <h2 style={styles.modalTitle}>
+          <h2 id="interdepartment-requests-title" style={styles.interdepartmentRequestsTitle}>
             Interdepartment Requests
           </h2>
 
-          <p style={styles.modalSubtitle}>
+          <p style={styles.interdepartmentRequestsSubtitle}>
             Review incoming work requests and track requests you sent.
           </p>
         </div>
+
+        <button
+          type="button"
+          aria-label="Close Interdepartment Requests"
+          style={styles.interdepartmentRequestsClose}
+          onClick={() => setShowInterdepartmentRequestsModal(false)}
+        >
+          <X size={18} />
+        </button>
       </div>
 
-      <section style={styles.editSection}>
-        <h3 style={styles.modalSectionTitle}>
-          Incoming Requests
-        </h3>
+      <div style={styles.interdepartmentRequestsBody}>
+        <section style={styles.interdepartmentRequestsSection}>
+          <h3 style={styles.interdepartmentRequestsSectionTitle}>
+            Incoming Requests
+          </h3>
 
-        {interdepartmentRequests.incoming.length === 0 ? (
-          <div style={styles.emptyColumn}>
-            No incoming Interdepartment requests.
-          </div>
-        ) : (
-          <div style={styles.mainTaskList}>
-            {interdepartmentRequests.incoming.map((request) => {
-              const status = String(
-                request.status || "pending"
-              ).toLowerCase();
+          {interdepartmentRequests.incoming.length === 0 ? (
+            <div style={styles.interdepartmentRequestsEmpty}>
+              No incoming Interdepartment requests.
+            </div>
+          ) : (
+            <div style={styles.mainTaskList}>
+              {interdepartmentRequests.incoming.map((request) => {
+                const status = String(
+                  request.status || "pending"
+                ).toLowerCase();
 
-              return (
+                return (
+                  <div
+                    key={request.request_id}
+                    style={styles.mainTaskCard}
+                  >
+                    <div style={styles.interdepartmentRequestCardRow}>
+                      <div style={styles.mainTaskTextBlock}>
+                        <h4>{request.project_title}</h4>
+
+                        <p>
+                          <strong>From Department: </strong>
+                          {request.requesting_department_name || "-"}
+                        </p>
+
+                        <p>
+                          <strong>Requested Division: </strong>
+                          {request.requested_division_name || "-"}
+                        </p>
+
+                        <p>
+                          <strong>Project Description: </strong>
+                          {request.project_description || "-"}
+                        </p>
+
+                        <p>
+                          <strong>Work Required: </strong>
+                          {request.work_description || "-"}
+                        </p>
+
+                        <div style={styles.mainTaskDateLine}>
+                          <span>
+                            Start: {request.requested_start_date || "-"}
+                          </span>
+
+                          <span>
+                            End: {request.requested_end_date || "-"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={styles.mainTaskActions}>
+                        <span style={styles.taskStatusBadge}>
+                          {status.replace(/_/g, " ")}
+                        </span>
+
+                        {status === "pending" && (
+                          <button
+                            type="button"
+                            style={styles.smallEditButton}
+                            onClick={() =>
+                              openInterdepartmentReviewModal(request)
+                            }
+                          >
+                            <Eye size={16} />
+                            Review
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section style={styles.interdepartmentRequestsSection}>
+          <h3 style={styles.interdepartmentRequestsSectionTitle}>
+            Requests Sent
+          </h3>
+
+          {interdepartmentRequests.outgoing.length === 0 ? (
+            <div style={styles.interdepartmentRequestsEmpty}>
+              No Interdepartment requests sent.
+            </div>
+          ) : (
+            <div style={styles.mainTaskList}>
+              {interdepartmentRequests.outgoing.map((request) => (
                 <div
                   key={request.request_id}
                   style={styles.mainTaskCard}
                 >
-                  <div style={styles.mainTaskTop}>
+                  <div style={styles.interdepartmentRequestCardRow}>
                     <div style={styles.mainTaskTextBlock}>
                       <h4>{request.project_title}</h4>
 
                       <p>
-                        <strong>From Department: </strong>
-                        {request.requesting_department_name || "-"}
+                        <strong>Department: </strong>
+                        {request.requested_department_name || "-"}
                       </p>
 
                       <p>
-                        <strong>Requested Division: </strong>
+                        <strong>Division: </strong>
                         {request.requested_division_name || "-"}
-                      </p>
-
-                      <p>
-                        <strong>Project Description: </strong>
-                        {request.project_description || "-"}
                       </p>
 
                       <p>
@@ -2479,131 +2553,60 @@ const submitInterdepartmentReview = async (action) => {
 
                       <div style={styles.mainTaskDateLine}>
                         <span>
-                          Start: {request.requested_start_date || "-"}
-                        </span>
-
-                        <span>
-                          End: {request.requested_end_date || "-"}
+                          Requested:{" "}
+                          {request.requested_start_date || "-"} to{" "}
+                          {request.requested_end_date || "-"}
                         </span>
                       </div>
-                    </div>
 
-                    <div style={styles.mainTaskActions}>
-                      <span style={styles.taskStatusBadge}>
-                        {status.replace(/_/g, " ")}
-                      </span>
+                      {request.approved_start_date && (
+                        <div style={styles.mainTaskDateLine}>
+                          <span>
+                            Approved: {request.approved_start_date} to{" "}
+                            {request.approved_end_date || "-"}
+                          </span>
+                        </div>
+                      )}
 
-                      {status === "pending" && (
-                        <button
-                          type="button"
-                          style={styles.smallEditButton}
-                          onClick={() =>
-                            openInterdepartmentReviewModal(request)
-                          }
-                        >
-                          <Eye size={16} />
-                          Review
-                        </button>
+                      {request.review_note && (
+                        <p>
+                          <strong>Review Note: </strong>
+                          {request.review_note}
+                        </p>
+                      )}
+
+                      {asArray(request.assignments).length > 0 && (
+                        <div style={styles.taskChips}>
+                          {request.assignments.map((employee) => (
+                            <span
+                              style={styles.chip}
+                              key={employee.assignment_id || employee.employee_id}
+                            >
+                              {employee.full_name}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
+
+                    <span style={styles.taskStatusBadge}>
+                      {String(request.status || "pending").replace(
+                        /_/g,
+                        " "
+                      )}
+                    </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
-      <section style={styles.editSection}>
-        <h3 style={styles.modalSectionTitle}>
-          Requests Sent
-        </h3>
-
-        {interdepartmentRequests.outgoing.length === 0 ? (
-          <div style={styles.emptyColumn}>
-            No Interdepartment requests sent.
-          </div>
-        ) : (
-          <div style={styles.mainTaskList}>
-            {interdepartmentRequests.outgoing.map((request) => (
-              <div
-                key={request.request_id}
-                style={styles.mainTaskCard}
-              >
-                <div style={styles.mainTaskTop}>
-                  <div style={styles.mainTaskTextBlock}>
-                    <h4>{request.project_title}</h4>
-
-                    <p>
-                      <strong>Department: </strong>
-                      {request.requested_department_name || "-"}
-                    </p>
-
-                    <p>
-                      <strong>Division: </strong>
-                      {request.requested_division_name || "-"}
-                    </p>
-
-                    <p>
-                      <strong>Work Required: </strong>
-                      {request.work_description || "-"}
-                    </p>
-
-                    <div style={styles.mainTaskDateLine}>
-                      <span>
-                        Requested:{" "}
-                        {request.requested_start_date || "-"} to{" "}
-                        {request.requested_end_date || "-"}
-                      </span>
-                    </div>
-
-                    {request.approved_start_date && (
-                      <div style={styles.mainTaskDateLine}>
-                        <span>
-                          Approved: {request.approved_start_date} to{" "}
-                          {request.approved_end_date || "-"}
-                        </span>
-                      </div>
-                    )}
-
-                    {request.review_note && (
-                      <p>
-                        <strong>Review Note: </strong>
-                        {request.review_note}
-                      </p>
-                    )}
-
-                    {asArray(request.assignments).length > 0 && (
-                      <div style={styles.taskChips}>
-                        {request.assignments.map((employee) => (
-                          <span
-                            style={styles.chip}
-                            key={employee.assignment_id || employee.employee_id}
-                          >
-                            {employee.full_name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <span style={styles.taskStatusBadge}>
-                    {String(request.status || "pending").replace(
-                      /_/g,
-                      " "
-                    )}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <div style={styles.modalFooter}>
+      <div style={styles.interdepartmentRequestsFooter}>
         <button
           type="button"
-          style={styles.cancelModalButton}
+          style={{ ...styles.cancelModalButton, height: "38px", padding: "0 18px", borderRadius: "10px" }}
           onClick={() => setShowInterdepartmentRequestsModal(false)}
         >
           Close
@@ -4339,6 +4342,97 @@ const styles = {
     borderRadius: "26px",
     padding: "34px",
     boxShadow: "0 26px 70px rgba(15, 23, 42, 0.34)",
+  },
+
+  interdepartmentRequestsDialog: {
+    boxSizing: "border-box",
+    width: "min(640px, 100%)",
+    maxHeight: "calc(100dvh - 24px)",
+    display: "flex",
+    flexDirection: "column",
+    overflow: "hidden",
+    background: "#ffffff",
+    borderRadius: "18px",
+    boxShadow: "0 20px 56px rgba(15, 23, 42, 0.28)",
+  },
+
+  interdepartmentRequestsHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: "12px",
+    padding: "18px 20px 14px",
+    borderBottom: "1px solid #e5e7eb",
+  },
+
+  interdepartmentRequestsTitle: {
+    margin: 0,
+    color: "#111827",
+    fontSize: "22px",
+    lineHeight: 1.2,
+  },
+
+  interdepartmentRequestsSubtitle: {
+    margin: "6px 0 0",
+    color: "#475569",
+    fontSize: "13px",
+  },
+
+  interdepartmentRequestsClose: {
+    width: "36px",
+    height: "36px",
+    flexShrink: 0,
+    display: "grid",
+    placeItems: "center",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
+    background: "#f8fafc",
+    color: "#111827",
+    cursor: "pointer",
+  },
+
+  interdepartmentRequestsBody: {
+    display: "grid",
+    gap: "12px",
+    overflowY: "auto",
+    minHeight: 0,
+    padding: "14px 20px",
+  },
+
+  interdepartmentRequestsSection: {
+    minWidth: 0,
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: "12px",
+    padding: "12px",
+  },
+
+  interdepartmentRequestsSectionTitle: {
+    margin: "0 0 8px",
+    color: "#111827",
+    fontSize: "15px",
+  },
+
+  interdepartmentRequestsEmpty: {
+    padding: "8px 0",
+    color: "#475569",
+    fontSize: "13px",
+  },
+
+  interdepartmentRequestCardRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: "8px",
+    overflowWrap: "anywhere",
+  },
+
+  interdepartmentRequestsFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    padding: "12px 20px",
+    borderTop: "1px solid #e5e7eb",
   },
 
   editProjectNormalHeader: {
