@@ -847,7 +847,8 @@ const [revertReason, setRevertReason] =
     const selectedMinimumLeaveDate =
       selectedLeaveType === "sick" ||
       selectedLeaveType === "unpaid_sick" ||
-      ((selectedLeaveType === "mandatory" || selectedLeaveType === "casual") && form.duration_type === "half_day")
+      selectedLeaveType === "casual" ||
+      (selectedLeaveType === "mandatory" && form.duration_type === "half_day")
         ? getTodayDate() > POLICY_START_DATE
           ? getTodayDate()
           : POLICY_START_DATE
@@ -1416,10 +1417,6 @@ const isUnpaidSick =
       if (selectedLeaveType === "mandatory" && form.duration_type === "half_day") {
   setError("Privileged Leave must be taken as a Full Day."); return;
 }
-  if (selectedLeaveType === "casual" && form.start_date === getTodayDate() && form.duration_type !== "half_day") {
-    setError("Casual Leave for today is available only as a Half Day.");
-    return;
-  }
 
 if (
   (
@@ -1460,7 +1457,9 @@ if (
             : selectedLeaveType === "mandatory" &&
               form.duration_type === "half_day"
               ? "Half-day Privileged Leave can be applied from today onwards."
-              : "Leave must be applied for at least 1 day in advance."
+              : selectedLeaveType === "casual"
+                ? "Casual Leave can be applied from today onwards."
+                : "Leave must be applied for at least 1 day in advance."
         );
 
         return;

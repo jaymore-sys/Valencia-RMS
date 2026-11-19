@@ -320,7 +320,7 @@ const AdministratorLeaveApplications = () => {
       : POLICY_START_DATE;
 
 const selectedMinimumLeaveDate =
-  (selectedLeaveType === "sick" || (selectedLeaveType === "casual" && form.duration_type === "half_day"))
+  (selectedLeaveType === "sick" || selectedLeaveType === "casual")
     ? getTodayDate() > POLICY_START_DATE
       ? getTodayDate()
       : POLICY_START_DATE
@@ -624,7 +624,9 @@ return workingDays;
   setError(
     selectedLeaveType === "sick"
       ? "Sick Leave can be applied from today onwards."
-      : "Leave must be applied for at least 1 day in advance."
+      : selectedLeaveType === "casual"
+        ? "Casual Leave can be applied from today onwards."
+        : "Leave must be applied for at least 1 day in advance."
   );
   return;
 }
@@ -670,10 +672,6 @@ if (isUnpaid && !form.subject.trim()) {
 }
     }
 
-    if (selectedLeaveType === "casual" && form.start_date === getTodayDate() && form.duration_type !== "half_day") {
-      setError("Casual Leave for today is available only as a Half Day.");
-      return;
-    }
     if (calculateDays <= 0) {
       setError((form.start_date && new Date(`${form.start_date}T00:00:00`).getDay() === 0) ? "Sunday is a weekly off. Please select a working day." : "Unable to calculate leave days. Please check the selected dates.");
       return;
