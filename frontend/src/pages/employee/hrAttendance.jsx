@@ -3952,6 +3952,16 @@ const REPORT_LEAVE_TYPES = [
   ["festival", "Holiday Leave"],
 ];
 
+function formatReportAdjustments(adjustments) {
+  return [...REPORT_LEAVE_TYPES, ["other", "Other leave"]].flatMap(([type, label]) => {
+    const { added = 0, reduced = 0 } = adjustments?.[type] || {};
+    return [
+      added > 0 && `+${added} ${label} added`,
+      reduced > 0 && `−${reduced} ${label} reduced`,
+    ].filter(Boolean);
+  }).join(" · ");
+}
+
 function HrLeaveReport({ revision, paused }) {
   const currentMonth = new Intl.DateTimeFormat("sv-SE", {
     timeZone: "Asia/Kolkata",
@@ -3992,10 +4002,21 @@ function HrLeaveReport({ revision, paused }) {
   const employees = report?.employees || [];
   const departments = [...new Set(employees.map((row) => row.department_name).filter(Boolean))].sort();
   const search = name.trim().toLowerCase();
-  const rows = employees.filter((row) =>
+  const filteredRows = employees.filter((row) =>
     (!department || row.department_name === department) &&
     [row.full_name, row.employee_code].some((value) => String(value || "").toLowerCase().includes(search))
   );
+  const adjustedRows = filteredRows.filter((row) =>
+    Object.values(row.adjustments || {}).some(({ added, reduced }) => added > 0 || reduced > 0)
+  );
+  const adjustedIds = new Set(adjustedRows.map((row) => row.user_id));
+  const rows = [...adjustedRows, ...filteredRows.filter((row) => !adjustedIds.has(row.user_id))];
+  const receivedExtra = adjustedRows.filter((row) =>
+    Object.values(row.adjustments).some(({ added }) => added > 0)
+  ).length;
+  const hadReduction = adjustedRows.filter((row) =>
+    Object.values(row.adjustments).some(({ reduced }) => reduced > 0)
+  ).length;
   const totalTaken = rows.reduce((sum, row) => sum + row.total_taken, 0);
 
   return (
@@ -4042,8 +4063,12 @@ function HrLeaveReport({ revision, paused }) {
         <>
           <div className="hr-report-summary">
             <p>Leave taken from {displayDate(report.from_date)} to {displayDate(report.through_date)}</p>
-            <p>Balances as of {displayDate(report.balance_date)}</p>
-            <p><strong>{rows.length}</strong> employees · <strong>{totalTaken}</strong> leave days taken</p>
+            <p>Available as of {displayDate(report.balance_date)}</p>
+            <p><strong>{rows.length}</strong> employees · <strong>{rows.filter((row) => row.total_taken > 0).length}</strong> took leave · <strong>{totalTaken}</strong> leave days taken</p>
+            <p>
+              {report.adjustment_credits_dated !== false && <><strong>{receivedExtra}</strong> received extra leave · </>}
+              <strong>{hadReduction}</strong> had leave reduced
+            </p>
             <p>Fixed company holidays in this period · <strong>{report.company_holidays.elapsed}</strong> elapsed · <strong>{report.company_holidays.remaining}</strong> remaining</p>
           </div>
 
@@ -4056,13 +4081,14 @@ function HrLeaveReport({ revision, paused }) {
                   {REPORT_LEAVE_TYPES.map(([type, label]) => (
                     <th scope="colgroup" colSpan={2} key={type}>{label}</th>
                   ))}
+                  <th scope="col" rowSpan={2}>Unpaid leave<br />taken</th>
                   <th scope="col" rowSpan={2}>Other leave<br />taken</th>
                   <th scope="col" rowSpan={2}>Total leave<br />taken</th>
                 </tr>
                 <tr>
                   {REPORT_LEAVE_TYPES.flatMap(([type]) => [
-                    <th scope="col" key={`${type}-used`}>Taken</th>,
                     <th scope="col" key={`${type}-available`}>Available</th>,
+                    <th scope="col" key={`${type}-used`}>Taken</th>,
                   ])}
                 </tr>
               </thead>
@@ -4072,24 +4098,29 @@ function HrLeaveReport({ revision, paused }) {
                     <th scope="row">
                       {row.full_name}
                       {row.employee_code && <small>{row.employee_code}</small>}
+                      {adjustedIds.has(row.user_id) && <small>{formatReportAdjustments(row.adjustments)}</small>}
                     </th>
                     <td>{row.department_name || "—"}</td>
                     {REPORT_LEAVE_TYPES.flatMap(([type]) => [
-                      <td key={`${type}-used`}>{row.used[type] || 0}</td>,
                       <td key={`${type}-available`} className="hr-report-available">
                         {row.available?.[type] ?? <span title="Balance unavailable">—</span>}
                       </td>,
+                      <td key={`${type}-used`}>{row.used[type] || 0}</td>,
                     ])}
+                    <td>{row.used.unpaid || 0}</td>
                     <td>{row.used.other || 0}</td>
                     <td><strong>{row.total_taken}</strong></td>
                   </tr>
                 ))}
                 {!rows.length && (
-                  <tr><td colSpan={12}><Empty text="No employees match these filters." /></td></tr>
+                  <tr><td colSpan={REPORT_LEAVE_TYPES.length * 2 + 5}><Empty text="No employees match these filters." /></td></tr>
                 )}
               </tbody>
             </table>
           </div>
+          {report.adjustment_credits_dated === false && (
+            <p className="hr-report-note">Extra leave credits have no recorded dates for period reporting.</p>
+          )}
           {rows.some((row) => !row.available) && (
             <p className="hr-report-note" role="status">Some balances could not be loaded. Refresh to try again.</p>
           )}
