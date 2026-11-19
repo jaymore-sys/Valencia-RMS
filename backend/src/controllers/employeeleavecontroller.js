@@ -954,30 +954,22 @@ if (isUnpaidSick) {
 const today =
   getIndiaToday();
 
-// VALENCIA_CASUAL_SAME_DAY_HALF_ONLY_20261113
-// Self-service Casual Leave may start today only when it is a half day.
-// Keep existing future-date, HR-managed, sick and privileged rules unchanged.
 if (
   leaveType === "casual" &&
-  startDate === today &&
-  durationType !== "half_day" &&
+  startDate < today &&
   !hrManagedApplication
 ) {
   return res.status(400).json({
     success: false,
-    message: "Casual Leave for today is available only as a Half Day.",
+    message: "Casual Leave can be applied from today onwards.",
   });
 }
 
 /*
 ======================================================
-SICK / CASUAL HALF DAY RULES
+SICK LEAVE HALF DAY RULE
 
-Sick Leave:
-- Half Day allowed only for today
-
-Casual Leave:
-- Half Day not allowed
+Half Day allowed only for today
 ======================================================
 */
 

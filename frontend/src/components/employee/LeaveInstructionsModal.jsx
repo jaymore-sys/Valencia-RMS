@@ -44,8 +44,7 @@ const LeaveInstructionsModal = ({
             </strong>
 
             <span>
-              Apply at least 7 days in
-              advance.
+              Apply for today or a future date, for a full day or half day.
             </span>
           </div>
 
@@ -80,9 +79,8 @@ const LeaveInstructionsModal = ({
             </strong>
 
             <span>
-              Apply at least 1 day in
-              advance except in
-              emergencies.
+              For leave types other than Casual Leave, apply at least 1 day in
+              advance except in emergencies.
             </span>
           </div>
 
