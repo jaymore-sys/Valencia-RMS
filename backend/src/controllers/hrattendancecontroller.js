@@ -8,27 +8,13 @@ const {
   applyEmployeeLeave,
 } = require("./employeeleavecontroller");
 
-const HR_EMAILS = [
-  "rathika.haleangadi@valencianutrition.com",
-];
+const { HR_EMAILS, isAuthorizedHR } = require("../utils/hrattendanceaccess");
 
 const FIXED_HOLIDAYS = {
   "01-26": "Republic Day",
   "05-01": "Maharashtra Day",
   "08-15": "Independence Day",
   "10-02": "Gandhi Jayanti",
-};
-
-/* =========================================================
-   AUTH
-========================================================= */
-
-const isAuthorizedHR = (req) => {
-  const email = String(req.user?.email || "")
-    .trim()
-    .toLowerCase();
-
-  return HR_EMAILS.includes(email);
 };
 
 /* =========================================================
@@ -6298,14 +6284,12 @@ const readPreview = token => {
   } catch { return null; }
 };
 const identity = req => Number(req.user?.user_id || 0);
-const onlyRathika = async (req,res,next) => {
-  try {
-    const id = identity(req);
-    if (!id) return fail(res,'Unauthorized',403);
-    const [rows] = await db.query('SELECT user_id FROM users WHERE user_id=? AND LOWER(TRIM(email))=? AND LOWER(COALESCE(status,\'active\'))=\'active\' LIMIT 1',[id,'rathika.haleangadi@valencianutrition.com']);
-    if (!rows.length) return fail(res,'Attendance modification not permitted',403);
-    next();
-  } catch(e) { console.error('Attendance authorization',e); return fail(res,'Authorization check failed',500); }
+const onlyActiveHR = (req, res, next) => {
+  if (!identity(req) || !isAuthorizedHR(req) ||
+      String(req.user.status ?? "active").toLowerCase() !== "active") {
+    return fail(res, "Attendance modification not permitted", 403);
+  }
+  return next();
 };
 const clean = body => {
   const ids = [...new Set((Array.isArray(body.employee_ids)?body.employee_ids:[]).map(Number))];
@@ -6910,7 +6894,7 @@ const getHrVisitDocumentsV4=async(req,res)=>{
 
 module.exports = {
   getHrRulesV4, saveHrRuleV4, deactivateHrRuleV4, getHrVisitDocumentsV4,
-  onlyRathika,
+  onlyActiveHR,
   previewBulkAttendance: preview,
   commitBulkAttendance: commit,
   getAttendanceActivity: activity,

@@ -1,11 +1,11 @@
 // Copy to backend/src/controllers/hremployeerulescontroller.js
 const db = require('../config/db');
-const authorized = req => String(req.user?.email||'').trim().toLowerCase() === 'rathika.haleangadi@valencianutrition.com';
+const { isAuthorizedHR } = require('../utils/hrattendanceaccess');
 const fail = (res, message, code=400) => res.status(code).json({success:false,message});
 const date = value => /^\d{4}-\d{2}-\d{2}$/.test(String(value||'')) && !Number.isNaN(Date.parse(value+'T00:00:00Z'));
 const time = value => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value||''));
 exports.list = async (req,res) => {
-  if(!authorized(req)) return fail(res,'Forbidden',403);
+  if(!isAuthorizedHR(req)) return fail(res,'Forbidden',403);
   try {
     const [rules] = await db.query(`SELECT r.*,DATE_FORMAT(r.effective_from,'%Y-%m-%d') start_date,
       DATE_FORMAT(r.effective_to,'%Y-%m-%d') end_date,u.full_name employee_name,
@@ -17,7 +17,7 @@ exports.list = async (req,res) => {
   }catch(e){console.error('HR rules read',e);return fail(res,'Unable to load HR rules',500)}
 };
 exports.create = async (req,res) => {
-  if(!authorized(req)) return fail(res,'Forbidden',403);
+  if(!isAuthorizedHR(req)) return fail(res,'Forbidden',403);
   const b=req.body||{}, employeeId=Number(b.employee_id),actor=Number(req.user?.user_id);
   const kind=String(b.rule_type||''), start=String(b.effective_from||''),end=String(b.effective_to||'');
   const reason=String(b.reason||'').trim(),grace=Number(b.grace_minutes||0);
@@ -45,7 +45,7 @@ exports.create = async (req,res) => {
   finally{if(conn)conn.release()}
 };
 exports.deactivate = async (req,res) => {
-  if(!authorized(req))return fail(res,'Forbidden',403);
+  if(!isAuthorizedHR(req))return fail(res,'Forbidden',403);
   const id=Number(req.params.id),actor=Number(req.user?.user_id);
   if(!Number.isInteger(id)||id<1)return fail(res,'Invalid rule ID');
   try{const [r]=await db.query(`UPDATE hr_employee_attendance_rules

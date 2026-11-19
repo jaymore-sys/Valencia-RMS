@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from "react";
+import { canOpenHrAttendance } from "../utils/hrAttendanceAccess";
 import MobileNavControls from "../components/MobileNavControls";
 import {
   useMobileShell,
@@ -360,6 +361,17 @@ const SuperadminLayout = () => {
             </span>
 
           </NavLink>
+
+          {canOpenHrAttendance(user) && (
+            <NavLink
+              to="/superadmin/hr-attendance"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              title="HR Attendance"
+            >
+              <CalendarCheck size={20} />
+              <span>HR Attendance</span>
+            </NavLink>
+          )}
 
 
 

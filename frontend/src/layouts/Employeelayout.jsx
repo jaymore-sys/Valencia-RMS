@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from "react";
+import { canOpenHrAttendance } from "../utils/hrAttendanceAccess";
 import MobileNavControls from "../components/MobileNavControls";
 import { useMobileShell, useTableLabels } from "../hooks/useMobileShell";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -35,18 +36,10 @@ const EmployeeLayout = () => {
   useTableLabels(".employee-main");
 
   const user = JSON.parse(
-    sessionStorage.getItem("user") || "{}"
+    sessionStorage.getItem("user") || localStorage.getItem("user") || "{}"
   );
 
-  const HR_EMAILS = [
-  "rathika.haleangadi@valencianutrition.com",
-];
-
-const isHR = HR_EMAILS.includes(
-  String(user?.email || "")
-    .trim()
-    .toLowerCase()
-);
+  const isHR = canOpenHrAttendance(user);
 
   const logout = () => {
   sessionStorage.clear();
