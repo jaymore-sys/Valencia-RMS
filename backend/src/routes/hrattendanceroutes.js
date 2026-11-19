@@ -10,6 +10,7 @@ const {
   importHrAttendance,
   exportHrAttendance,
   getHrLeaveManagement,
+  getHrLeaveReport,
   addHrEmployeeExtraLeave,
   reduceHrEmployeeLeave,
   applyHrEmployeeLeave,
@@ -88,6 +89,8 @@ router.get(
   hrOrSuperadmin,
   getHrEmployeeSummary
 );
+
+router.get("/leave-report", authMiddleware, onlyHR, getHrLeaveReport);
 
 router.get(
   "/leave-management/:userId",

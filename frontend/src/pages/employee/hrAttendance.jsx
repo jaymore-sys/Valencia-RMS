@@ -191,6 +191,8 @@ export default function HrAttendance({ summaryOnly = false }) {
     summaryOnly ? "employee-summary" : "attendance"
   );
 
+  const [reportRevision, setReportRevision] = useState(0);
+
   const [selectedDate, setSelectedDate] = useState(today);
   const [rangeMode, setRangeMode] = useState("day");
   const [fromDate, setFromDate] = useState(today);
@@ -1665,6 +1667,11 @@ await fetchEmployeeSummary({
           <button
   className="hr-button secondary"
   onClick={() => {
+    if (activeTab === "report") {
+      setReportRevision((revision) => revision + 1);
+      return;
+    }
+
     if (activeTab === "employee-summary") {
       fetchEmployeeSummary({
         startDate: fromDate,
@@ -1695,7 +1702,7 @@ await fetchEmployeeSummary({
             {importing ? "Importing..." : "Import"}
           </button>
 
-          <div className="hr-export">
+          {activeTab !== "report" && <div className="hr-export">
             <button
               className="hr-button secondary"
               onClick={() => setShowExport((current) => !current)}
@@ -1718,7 +1725,7 @@ await fetchEmployeeSummary({
                 </button>
               </div>
             )}
-          </div>
+          </div>}
 
           <button
             className="hr-button secondary"
@@ -1744,7 +1751,7 @@ await fetchEmployeeSummary({
         </div>
       </header>
 
-      {error && <div className="hr-error">{error}</div>}
+      {error && activeTab !== "report" && <div className="hr-error">{error}</div>}
 
     {/* TABS */}
 
@@ -1786,10 +1793,14 @@ await fetchEmployeeSummary({
     onClick={() => setActiveTab("field")}
   />
   <Tab active={activeTab === "rules"} icon={<UsersRound size={16} />} label="HR Rules" onClick={() => setActiveTab("rules")} />
+  <Tab active={activeTab === "report"} icon={<FileSpreadsheet size={16} />} label="Report" onClick={() => setActiveTab("report")} />
 </div>)}
 
       {activeTab === "rules" && !summaryOnly && <HrRulesPanel users={users}/>}
-      {activeTab !== "activity" && activeTab !== "rules" && (<>
+      {activeTab === "report" && !summaryOnly && (
+        <HrLeaveReport revision={reportRevision} paused={showLeaveManagement} />
+      )}
+      {!["activity", "rules", "report"].includes(activeTab) && (<>
       {/* DATE CONTROLS */}
 
       <div className="hr-date-bar">
@@ -3930,6 +3941,160 @@ function AttendanceActivityLog({ onBack }) {
                 <p className="hr-activity-hint">This is a reference record; there is no attendance change to undo here.</p>}
             </div>}
           </div>))}
+    </section>
+  );
+}
+
+const REPORT_LEAVE_TYPES = [
+  ["sick", "Sick"],
+  ["casual", "Casual"],
+  ["mandatory", "Privileged"],
+  ["festival", "Holiday Leave"],
+];
+
+function HrLeaveReport({ revision, paused }) {
+  const currentMonth = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+  }).format(new Date());
+  const [month, setMonth] = useState(currentMonth);
+  const [months, setMonths] = useState("1");
+  const [name, setName] = useState("");
+  const [department, setDepartment] = useState("");
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (paused) return;
+
+    const controller = new AbortController();
+    setLoading(true);
+    setError("");
+    api.get("/hr-attendance/leave-report", {
+      params: { month, months },
+      signal: controller.signal,
+    }).then(({ data }) => {
+      if (!controller.signal.aborted) setReport(data);
+    }).catch((requestError) => {
+      if (!controller.signal.aborted) {
+        setReport(null);
+        setError(requestError.response?.data?.message || "Failed to load the leave report.");
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+
+    return () => controller.abort();
+  }, [month, months, revision, paused]);
+
+  const employees = report?.employees || [];
+  const departments = [...new Set(employees.map((row) => row.department_name).filter(Boolean))].sort();
+  const search = name.trim().toLowerCase();
+  const rows = employees.filter((row) =>
+    (!department || row.department_name === department) &&
+    [row.full_name, row.employee_code].some((value) => String(value || "").toLowerCase().includes(search))
+  );
+  const totalTaken = rows.reduce((sum, row) => sum + row.total_taken, 0);
+
+  return (
+    <section className="hr-card hr-leave-report" aria-label="Leave and Holiday Report" aria-busy={loading}>
+      <div className="hr-card-header">
+        <div>
+          <h2>Leave and Holiday Report</h2>
+          <p>Leave days taken in the selected period and current balances for active employees.</p>
+        </div>
+      </div>
+
+      <div className="hr-report-filters">
+        <label>
+          Period
+          <select value={months} onChange={(event) => setMonths(event.target.value)}>
+            <option value="1">Month-wise</option>
+            <option value="6">6 months</option>
+            <option value="12">1 year</option>
+          </select>
+        </label>
+        <label>
+          {months === "1" ? "Month" : "Ending month"}
+          <input type="month" min="2000-01" max={currentMonth} value={month}
+            onChange={(event) => event.target.value && setMonth(event.target.value)} />
+        </label>
+        <label>
+          Employee
+          <input type="search" placeholder="Search by name or code" value={name}
+            onChange={(event) => setName(event.target.value)} />
+        </label>
+        <label>
+          Department
+          <select value={department} onChange={(event) => setDepartment(event.target.value)}>
+            <option value="">All departments</option>
+            {departments.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {error && <div className="hr-error" role="alert">{error}</div>}
+      {loading && <div role="status"><Empty text="Loading leave report…" /></div>}
+
+      {!loading && report && (
+        <>
+          <div className="hr-report-summary">
+            <p>Leave taken from {displayDate(report.from_date)} to {displayDate(report.through_date)}</p>
+            <p>Balances as of {displayDate(report.balance_date)}</p>
+            <p><strong>{rows.length}</strong> employees · <strong>{totalTaken}</strong> leave days taken</p>
+            <p>Fixed company holidays in this period · <strong>{report.company_holidays.elapsed}</strong> elapsed · <strong>{report.company_holidays.remaining}</strong> remaining</p>
+          </div>
+
+          <div className="hr-report-table-wrap" tabIndex={0} role="region" aria-label="Employee leave totals and balances">
+            <table className="hr-report-table">
+              <thead>
+                <tr>
+                  <th scope="col" rowSpan={2}>Employee</th>
+                  <th scope="col" rowSpan={2}>Department</th>
+                  {REPORT_LEAVE_TYPES.map(([type, label]) => (
+                    <th scope="colgroup" colSpan={2} key={type}>{label}</th>
+                  ))}
+                  <th scope="col" rowSpan={2}>Other leave<br />taken</th>
+                  <th scope="col" rowSpan={2}>Total leave<br />taken</th>
+                </tr>
+                <tr>
+                  {REPORT_LEAVE_TYPES.flatMap(([type]) => [
+                    <th scope="col" key={`${type}-used`}>Taken</th>,
+                    <th scope="col" key={`${type}-available`}>Available</th>,
+                  ])}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.user_id}>
+                    <th scope="row">
+                      {row.full_name}
+                      {row.employee_code && <small>{row.employee_code}</small>}
+                    </th>
+                    <td>{row.department_name || "—"}</td>
+                    {REPORT_LEAVE_TYPES.flatMap(([type]) => [
+                      <td key={`${type}-used`}>{row.used[type] || 0}</td>,
+                      <td key={`${type}-available`} className="hr-report-available">
+                        {row.available?.[type] ?? <span title="Balance unavailable">—</span>}
+                      </td>,
+                    ])}
+                    <td>{row.used.other || 0}</td>
+                    <td><strong>{row.total_taken}</strong></td>
+                  </tr>
+                ))}
+                {!rows.length && (
+                  <tr><td colSpan={12}><Empty text="No employees match these filters." /></td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          {rows.some((row) => !row.available) && (
+            <p className="hr-report-note" role="status">Some balances could not be loaded. Refresh to try again.</p>
+          )}
+        </>
+      )}
     </section>
   );
 }

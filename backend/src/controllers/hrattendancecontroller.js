@@ -627,10 +627,7 @@ const findAttendanceUser = async ({
    MASTER HR REGISTER BUILDER
 ========================================================= */
 
-const buildHrAttendanceData = async (
-  fromDate,
-  toDate
-) => {
+const getActiveHrUsers = async () => {
   const [users] = await db.query(
     `
     SELECT
@@ -672,6 +669,14 @@ const buildHrAttendanceData = async (
       u.full_name ASC
     `
   );
+  return users;
+};
+
+const buildHrAttendanceData = async (
+  fromDate,
+  toDate
+) => {
+  const users = await getActiveHrUsers();
 
   if (!users.length) {
     return {
@@ -5340,6 +5345,125 @@ const calculateHrManagedLeaveDays = (startDate, endDate) => {
   return Math.floor((end - start) / 86400000) + 1;
 };
 
+const REPORT_LEAVE_TYPES = ["sick", "casual", "mandatory", "festival"];
+
+const getReportLeaveDays = (leave, fromDate, toDate) => {
+  const start = leave.start_date < fromDate ? fromDate : leave.start_date;
+  const end = leave.end_date > toDate ? toDate : leave.end_date;
+  if (start > end) return 0;
+
+  const recordedDays = Number(leave.total_days);
+  if (start === leave.start_date && end === leave.end_date) return recordedDays;
+
+  // HR-entered ranges can include Sundays. Employee applications exclude them.
+  const includesSundays = recordedDays === calculateHrManagedLeaveDays(
+    leave.start_date,
+    leave.end_date
+  );
+  if (includesSundays) return calculateHrManagedLeaveDays(start, end);
+
+  let days = 0;
+  for (let date = start; date <= end; date = addOneDay(date)) {
+    if (new Date(`${date}T00:00:00Z`).getUTCDay() !== 0) days += 1;
+  }
+  return Math.min(days, recordedDays);
+};
+
+const getHrLeaveReport = async (req, res) => {
+  const today = getIndiaTodayForHrLeave();
+  const month = req.query.month ?? today.slice(0, 7);
+  const months = Number(req.query.months ?? 1);
+  if (
+    typeof month !== "string" ||
+    !/^20[0-9]{2}-(0[1-9]|1[0-2])$/.test(month) ||
+    month > today.slice(0, 7) ||
+    ![1, 6, 12].includes(months)
+  ) {
+    return res.status(400).json({ success: false, message: "Select a valid report period." });
+  }
+
+  const [year, monthNumber] = month.split("-").map(Number);
+  const fromDate = new Date(Date.UTC(year, monthNumber - months, 1)).toISOString().slice(0, 10);
+  const toDate = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+  const throughDate = toDate < today ? toDate : today;
+  const balanceYear = Number(today.slice(0, 4));
+
+  try {
+    const users = await getActiveHrUsers();
+    const usedByEmployee = new Map();
+    if (users.length) {
+      const userIds = users.map((user) => user.user_id);
+      const [leaves] = await db.query(
+        `
+        SELECT employee_id, LOWER(TRIM(leave_type)) AS leave_type, total_days,
+          DATE_FORMAT(start_date, '%Y-%m-%d') AS start_date,
+          DATE_FORMAT(end_date, '%Y-%m-%d') AS end_date
+        FROM leave_applications
+        WHERE employee_id IN (${userIds.map(() => "?").join(", ")})
+          AND status = 'approved'
+          AND COALESCE(revert_status, 'none') <> 'approved'
+          AND start_date <= ?
+          AND end_date >= ?
+        `,
+        [...userIds, throughDate, fromDate]
+      );
+
+      for (const leave of leaves) {
+        const used = usedByEmployee.get(leave.employee_id) || {};
+        const type = REPORT_LEAVE_TYPES.includes(leave.leave_type) ? leave.leave_type : "other";
+        used[type] = (used[type] || 0) + getReportLeaveDays(leave, fromDate, throughDate);
+        usedByEmployee.set(leave.employee_id, used);
+      }
+    }
+
+    const employees = [];
+    // Limit concurrent balance calculations against the shared MySQL pool.
+    for (let index = 0; index < users.length; index += 5) {
+      const batch = await Promise.all(users.slice(index, index + 5).map(async (user) => {
+        let available = null;
+        try {
+          const balances = await buildLeaveBalances(db, user.user_id, balanceYear);
+          available = Object.fromEntries(REPORT_LEAVE_TYPES.map((type) => [type, balances[type].available]));
+        } catch (error) {
+          console.error(`HR report balance error for user ${user.user_id}:`, error.message);
+        }
+
+        const used = usedByEmployee.get(user.user_id) || {};
+        return {
+          user_id: user.user_id,
+          employee_code: user.employee_code,
+          full_name: user.full_name,
+          department_name: user.department_name,
+          used,
+          available,
+          total_taken: Object.values(used).reduce((total, days) => total + days, 0),
+        };
+      }));
+      employees.push(...batch);
+    }
+
+    const companyHolidays = { elapsed: 0, remaining: 0 };
+    for (let date = fromDate; date <= toDate; date = addOneDay(date)) {
+      if (getHolidayName(date)) {
+        companyHolidays[date <= today ? "elapsed" : "remaining"] += 1;
+      }
+    }
+
+    return res.json({
+      success: true,
+      from_date: fromDate,
+      to_date: toDate,
+      through_date: throughDate,
+      balance_date: today,
+      company_holidays: companyHolidays,
+      employees,
+    });
+  } catch (error) {
+    console.error("HR leave report error:", error);
+    return res.status(500).json({ success: false, message: "Failed to load the leave report." });
+  }
+};
+
 const getHrLeaveManagement = async (req, res) => {
   try {
     if (!isAuthorizedHR(req)) {
@@ -6736,6 +6860,7 @@ module.exports = {
   exportHrAttendance,
   approveHrLeaveApplication,
   getHrLeaveManagement,
+  getHrLeaveReport,
   addHrEmployeeExtraLeave,
   reduceHrEmployeeLeave,
   applyHrEmployeeLeave,
