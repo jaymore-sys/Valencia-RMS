@@ -1,3 +1,4 @@
+import DesignRequests, { DesignRequestForm, RequestsDialog } from "../admin/DesignRequests";
 import React, { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, Search, X } from "lucide-react";
 import api from "../../api/axios";
@@ -328,6 +329,8 @@ const normalizeProjectsResponse = (data) => {
 };
 
 const AdministratorProjects = () => {
+  const [showDesignRequests, setShowDesignRequests] = useState(false);
+  const [showDesignRequestForm, setShowDesignRequestForm] = useState(false);
   const [activeTab, setActiveTab] = useState("my");
 
   const [myProjects, setMyProjects] = useState([]);
@@ -1069,6 +1072,13 @@ const AdministratorProjects = () => {
         </div>
       </div>
 
+      {showDesignRequests && <DesignRequests onClose={() => setShowDesignRequests(false)} />}
+      {showDesignRequestForm && (
+        <RequestsDialog title="Request Design" onClose={() => setShowDesignRequestForm(false)}>
+          <DesignRequestForm onClose={() => setShowDesignRequestForm(false)} />
+        </RequestsDialog>
+      )}
+
       <div style={styles.toolbar}>
         <div style={styles.searchContainer}>
           <Search size={19} style={styles.searchIcon} />
@@ -1082,6 +1092,12 @@ const AdministratorProjects = () => {
           />
         </div>
 
+        <button type="button" style={styles.tab} onClick={() => setShowDesignRequests(true)}>
+          Design Requests
+        </button>
+        <button type="button" style={styles.tab} onClick={() => setShowDesignRequestForm(true)}>
+          + Request Design
+        </button>
         <button
           type="button"
           style={

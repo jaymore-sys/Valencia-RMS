@@ -1,3 +1,4 @@
+import { DesignRequestForm, DesignRequestRows, DesignRequestsContent, loadDesignDepartment, loadDesignRequests } from "./DesignRequests";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -327,6 +328,11 @@ const tryDelete = async (urls) => {
 };
 
 const AdminProjects = () => {
+  const [designQueue, setDesignQueue] = useState(null);
+  const [designQueueError, setDesignQueueError] = useState("");
+  const [sentDesignRequestId, setSentDesignRequestId] = useState(null);
+  const sentDesignRequests = designQueue?.requests.filter(request => request.access.requester) || [];
+  const [designDepartmentId, setDesignDepartmentId] = useState(null);
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [divisions, setDivisions] = useState([]);
@@ -1277,19 +1283,14 @@ const openInterdepartmentRequestModal = async () => {
   setError("");
   setSuccessMessage("");
 
-  const validationError = validateNewProject({ requireAssignee: false });
-
-  if (validationError) {
-    setError(validationError);
-    return;
-  }
-
   setInterdepartmentLoading(true);
 
   try {
-    const response = await api.get(
-      "/admin-projects/interdepartment/departments"
-    );
+    const [response, designId] = await Promise.all([
+      api.get("/admin-projects/interdepartment/departments"),
+      loadDesignDepartment().catch(() => null),
+    ]);
+    setDesignDepartmentId(designId);
 
     const data = getApiData(response);
 
@@ -1341,6 +1342,12 @@ const closeInterdepartmentRequestModal = () => {
 const sendInterdepartmentRequest = async () => {
   setError("");
   setSuccessMessage("");
+
+  const validationError = validateNewProject({ requireAssignee: false });
+  if (validationError) {
+    setError(validationError);
+    return;
+  }
 
   if (!interdepartmentForm.requested_department_id) {
     setError("Select the requested Department.");
@@ -1441,12 +1448,25 @@ const sendInterdepartmentRequest = async () => {
   }
 };
 
+const refreshDesignInbox = async () => {
+  setDesignQueueError("");
+  try {
+    const queue = await loadDesignRequests();
+    setDesignQueue(queue);
+  } catch (err) {
+    setDesignQueue(null);
+    const detail = err.response?.data?.message;
+    setDesignQueueError(typeof detail === "string" && detail ? detail : "Sent design requests could not load. Try again.");
+  }
+};
+
 const openInterdepartmentRequestsModal = async () => {
   setError("");
+  setSentDesignRequestId(null);
   setInterdepartmentLoading(true);
 
   try {
-    await fetchInterdepartmentRequests();
+    await Promise.all([refreshDesignInbox(), fetchInterdepartmentRequests()]);
     setShowInterdepartmentRequestsModal(true);
   } finally {
     setInterdepartmentLoading(false);
@@ -2417,10 +2437,9 @@ const submitInterdepartmentReview = async (action) => {
           <h2 id="interdepartment-requests-title" style={styles.interdepartmentRequestsTitle}>
             Interdepartment Requests
           </h2>
-
-          <p style={styles.interdepartmentRequestsSubtitle}>
+          {!sentDesignRequestId && <p style={styles.interdepartmentRequestsSubtitle}>
             Review incoming work requests and track requests you sent.
-          </p>
+          </p>}
         </div>
 
         <button
@@ -2434,6 +2453,20 @@ const submitInterdepartmentReview = async (action) => {
       </div>
 
       <div style={styles.interdepartmentRequestsBody}>
+        {designQueueError && <div className="design-requests">
+          <p role="alert" className="dr-error">{designQueueError}</p>
+          <div>
+            <button type="button" onClick={refreshDesignInbox}>Retry sent design requests</button>
+          </div>
+        </div>}
+        {sentDesignRequestId ? (
+          <DesignRequestsContent key={sentDesignRequestId} mode="sent" initialRequestId={sentDesignRequestId}
+            initialQueue={designQueue} onBack={async () => {
+              setSentDesignRequestId(null);
+              const queue = await loadDesignRequests().catch(() => null);
+              if (queue) setDesignQueue(queue);
+            }} />
+        ) : <>
         <section style={styles.interdepartmentRequestsSection}>
           <h3 style={styles.interdepartmentRequestsSectionTitle}>
             Incoming Requests
@@ -2521,9 +2554,13 @@ const submitInterdepartmentReview = async (action) => {
             Requests Sent
           </h3>
 
+          {sentDesignRequests.length > 0 && (
+            <DesignRequestRows requests={sentDesignRequests} onOpen={setSentDesignRequestId} />
+          )}
+
           {interdepartmentRequests.outgoing.length === 0 ? (
-            <div style={styles.interdepartmentRequestsEmpty}>
-              No Interdepartment requests sent.
+            sentDesignRequests.length === 0 && <div style={styles.interdepartmentRequestsEmpty}>
+              No requests sent yet.
             </div>
           ) : (
             <div style={styles.mainTaskList}>
@@ -2601,6 +2638,7 @@ const submitInterdepartmentReview = async (action) => {
             </div>
           )}
         </section>
+        </>}
       </div>
 
       <div style={styles.interdepartmentRequestsFooter}>
@@ -2719,6 +2757,12 @@ const submitInterdepartmentReview = async (action) => {
           </select>
         </label>
 
+      </div>
+
+      {designDepartmentId && Number(interdepartmentForm.requested_department_id) === Number(designDepartmentId) ? (
+        <DesignRequestForm project={newProject} onClose={closeInterdepartmentRequestModal} />
+      ) : <>
+      <div style={styles.formGrid}>
         <label style={styles.field}>
           <span>Requested Division</span>
 
@@ -2825,6 +2869,7 @@ const submitInterdepartmentReview = async (action) => {
           Cancel
         </button>
       </div>
+      </>}
     </div>
   </div>
 )}
@@ -4346,8 +4391,8 @@ const styles = {
 
   interdepartmentRequestsDialog: {
     boxSizing: "border-box",
-    width: "min(640px, 100%)",
-    maxHeight: "calc(100dvh - 24px)",
+    width: "min(680px, 100%)",
+    maxHeight: "min(760px, calc(100dvh - 32px))",
     display: "flex",
     flexDirection: "column",
     overflow: "hidden",
@@ -4401,14 +4446,16 @@ const styles = {
 
   interdepartmentRequestsSection: {
     minWidth: 0,
-    background: "#f8fafc",
-    border: "1px solid #e5e7eb",
+    display: "grid",
+    gap: "8px",
+    background: "#f7f9fc",
+    border: "1px solid #e3e8f0",
     borderRadius: "12px",
     padding: "12px",
   },
 
   interdepartmentRequestsSectionTitle: {
-    margin: "0 0 8px",
+    margin: 0,
     color: "#111827",
     fontSize: "15px",
   },
