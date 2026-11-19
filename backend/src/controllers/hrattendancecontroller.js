@@ -5370,6 +5370,63 @@ const getReportLeaveDays = (leave, fromDate, toDate) => {
   return Math.min(days, recordedDays);
 };
 
+const HR_REDUCTION_REMARK = "Leave reduced by HR";
+const HR_REDUCTION_DEFAULT_REASON = "Leave recorded by HR";
+
+const getReportAdjustments = async (userIds, fromDate, endExclusive) => {
+  const placeholders = userIds.map(() => "?").join(", ");
+  const [columns] = await db.query("SHOW COLUMNS FROM employee_leave_adjustments");
+  const names = columns.map(({ Field }) => Field);
+  const timeColumn = ["created_at", "adjusted_at"].find((name) => names.includes(name));
+
+  const [[credits], [reductions]] = await Promise.all([
+    timeColumn ? db.query(
+      `
+      SELECT employee_id, LOWER(TRIM(leave_type)) AS leave_type,
+        SUM(CASE WHEN adjustment_days > 0 THEN adjustment_days ELSE 0 END) AS added,
+        SUM(CASE WHEN adjustment_days < 0 THEN -adjustment_days ELSE 0 END) AS reduced
+      FROM employee_leave_adjustments
+      WHERE employee_id IN (${placeholders})
+        AND ${timeColumn} >= ? AND ${timeColumn} < ?
+      GROUP BY employee_id, LOWER(TRIM(leave_type))
+      `,
+      [...userIds, fromDate, endExclusive]
+    ) : Promise.resolve([[]]),
+    db.query(
+      `
+      SELECT la.employee_id, LOWER(TRIM(la.leave_type)) AS leave_type,
+        0 AS added, SUM(la.total_days) AS reduced
+      FROM leave_applications la
+      LEFT JOIN users reviewer ON reviewer.user_id = la.reviewed_by
+      WHERE la.employee_id IN (${placeholders})
+        AND la.status = 'approved'
+        AND COALESCE(la.revert_status, 'none') <> 'approved'
+        AND la.reviewed_at >= ? AND la.reviewed_at < ?
+        AND (
+          la.review_remark = ?
+          OR (NULLIF(TRIM(la.review_remark), '') IS NULL
+            AND la.reason = ?
+            AND LOWER(TRIM(reviewer.email)) IN (${HR_EMAILS.map(() => "?").join(", ")}))
+        )
+      GROUP BY la.employee_id, LOWER(TRIM(la.leave_type))
+      `,
+      [...userIds, fromDate, endExclusive, HR_REDUCTION_REMARK, HR_REDUCTION_DEFAULT_REASON, ...HR_EMAILS]
+    ),
+  ]);
+
+  const byEmployee = new Map();
+  for (const { employee_id, leave_type, added, reduced } of [...credits, ...reductions]) {
+    const byType = byEmployee.get(employee_id) || {};
+    const type = REPORT_BALANCE_TYPES.includes(leave_type) ? leave_type : "other";
+    const amounts = byType[type] || { added: 0, reduced: 0 };
+    amounts.added += Number(added);
+    amounts.reduced += Number(reduced);
+    byType[type] = amounts;
+    byEmployee.set(employee_id, byType);
+  }
+  return { byEmployee, creditsDated: Boolean(timeColumn) };
+};
+
 const getHrLeaveReport = async (req, res) => {
   const today = getIndiaTodayForHrLeave();
   const month = req.query.month ?? today.slice(0, 7);
@@ -5392,6 +5449,7 @@ const getHrLeaveReport = async (req, res) => {
   try {
     const users = await getActiveHrUsers();
     const usedByEmployee = new Map();
+    let adjustments = { byEmployee: new Map(), creditsDated: true };
     if (users.length) {
       const userIds = users.map((user) => user.user_id);
       const [leaves] = await db.query(
@@ -5408,6 +5466,8 @@ const getHrLeaveReport = async (req, res) => {
         `,
         [...userIds, throughDate, fromDate]
       );
+
+      adjustments = await getReportAdjustments(userIds, fromDate, addOneDay(throughDate));
 
       for (const leave of leaves) {
         const used = usedByEmployee.get(leave.employee_id) || {};
@@ -5437,6 +5497,7 @@ const getHrLeaveReport = async (req, res) => {
           department_name: user.department_name,
           used,
           available,
+          adjustments: adjustments.byEmployee.get(user.user_id) || {},
           total_taken: Object.values(used).reduce((total, days) => total + days, 0),
         };
       }));
@@ -5456,6 +5517,7 @@ const getHrLeaveReport = async (req, res) => {
       to_date: toDate,
       through_date: throughDate,
       balance_date: today,
+      adjustment_credits_dated: adjustments.creditsDated,
       company_holidays: companyHolidays,
       employees,
     });
@@ -5767,7 +5829,7 @@ const reduceHrEmployeeLeave = async (req, res) => {
     let endDate = String(req.body.end_date || "").trim();
     const reason =
       String(req.body.reason || "").trim() ||
-      "Leave recorded by HR";
+      HR_REDUCTION_DEFAULT_REASON;
     const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
     if (!Number.isInteger(userId) || userId <= 0) {
@@ -5924,6 +5986,10 @@ const reduceHrEmployeeLeave = async (req, res) => {
       insertValues.push(
         durationType === "half_day" ? halfDaySession : null
       );
+    }
+    if (columns.has("review_remark")) {
+      insertColumns.push("review_remark");
+      insertValues.push(HR_REDUCTION_REMARK);
     }
     if (columns.has("reviewed_by")) {
       insertColumns.push("reviewed_by");
