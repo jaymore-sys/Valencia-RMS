@@ -46,6 +46,7 @@ const AdminLayout = lazy(() => import("./layouts/Adminlayout"));
 
 const AdminOverview = lazy(() => import("./pages/admin/adminOverview"));
 const AdminProjects = lazy(() => import("./pages/admin/adminProjects"));
+const DesignInbox = lazy(() => import("./pages/admin/DesignRequests").then(module => ({ default: module.DesignInboxPage })));
 const AdminTasks = lazy(() => import("./pages/admin/adminTasks"));
 const AdminCalendar = lazy(() => import("./pages/admin/adminCalendar"));
 const AdminReports = lazy(() => import("./pages/admin/adminReports"));
@@ -463,6 +464,7 @@ const App = () => {
             <AdministratorProjects />
           }
         />
+        <Route path="design-requests" element={<Navigate to="../projects" replace />} />
 
 
         <Route
@@ -698,6 +700,7 @@ const App = () => {
             <AdminProjects />
           }
         />
+        <Route path="design-requests" element={<DesignInbox />} />
 
 
         <Route
@@ -827,6 +830,7 @@ const App = () => {
             <SuperadminProjects />
           }
         />
+        <Route path="design-requests" element={<Navigate to="../projects" replace />} />
 
 
         {/* TASKS */}

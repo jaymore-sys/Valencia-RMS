@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import MobileNavControls from "../components/MobileNavControls";
 import {
   useMobileShell,
@@ -31,6 +31,7 @@ import {
 
 import valenciaLogo from "../assets/VNL_logo.webp";
 import "./Adminlayout.css";
+import api from "../api/axios";
 
 import { CHAT_UI_ENABLED } from "../config/chatRelease";
 
@@ -53,6 +54,7 @@ const PAGE_TITLES = {
   overview: "Overview",
   chat: "Chat",
   projects: "Projects",
+  "design-requests": "Design Inbox",
   tasks: "Tasks",
   calendar: "Calendar",
   reports: "Reports",
@@ -78,6 +80,18 @@ const AdminLayout = () => {
   useHideDuplicateTitle(".admin-main", pageTitle);
 
   const user = getStoredUser();
+  const [canReviewDesign, setCanReviewDesign] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api.get("/design-requests/department").then(({ data }) => {
+      if (active) setCanReviewDesign(data.can_review === true);
+    }).catch(() => {
+      if (active) setCanReviewDesign(false);
+    });
+    return () => { active = false; };
+  }, [user?.id, user?.user_id]);
+
 
   const logout = () => {
     sessionStorage.removeItem("token");
@@ -172,6 +186,13 @@ const AdminLayout = () => {
             <FolderKanban size={20} />
             <span>Projects</span>
           </NavLink>
+
+          {canReviewDesign && (
+            <NavLink to="/admin/design-requests" className={({ isActive }) => isActive ? "active" : ""} title="Design Inbox">
+              <ClipboardList size={20} />
+              <span>Design Inbox</span>
+            </NavLink>
+          )}
 
           <NavLink
             to="/admin/tasks"

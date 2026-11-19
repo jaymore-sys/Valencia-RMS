@@ -1,3 +1,4 @@
+import DesignRequests, { DesignRequestForm, loadDesignDepartment } from "../admin/DesignRequests";
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
@@ -391,6 +392,15 @@ const isProjectOverdue = (
 ========================================================= */
 
 const SuperadminProjects = () => {
+  const [showDesignRequests, setShowDesignRequests] = useState(false);
+  const [designDepartmentId, setDesignDepartmentId] = useState(null);
+  useEffect(() => {
+    let active = true;
+    loadDesignDepartment().then(id => {
+      if (active) setDesignDepartmentId(id);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
   const [projects, setProjects] =
     useState([]);
 
@@ -1856,6 +1866,8 @@ const SuperadminProjects = () => {
 
       {/* NEW PROJECT */}
 
+      {showDesignRequests && <DesignRequests onClose={() => setShowDesignRequests(false)} />}
+
       {showAssignProjectModal && (
         <AssignProjectModal
           project={newProject}
@@ -1881,6 +1893,11 @@ const SuperadminProjects = () => {
           onSave={
             createProject
           }
+          designDepartmentId={designDepartmentId}
+          onTrackDesign={() => {
+            setShowAssignProjectModal(false);
+            setShowDesignRequests(true);
+          }}
           onClose={() => {
             if (
               !actionLoading
@@ -2785,6 +2802,8 @@ const AssignProjectModal = ({
   setSearch,
   onToggleAssignee,
   onSave,
+  designDepartmentId,
+  onTrackDesign,
   onClose,
   loading,
 }) => {
@@ -2895,6 +2914,12 @@ const AssignProjectModal = ({
             </select>
           </label>
 
+        </div>
+
+        {designDepartmentId && Number(project.department_id) === Number(designDepartmentId) ? (
+          <DesignRequestForm project={project} onClose={onClose} />
+        ) : <>
+        <div className="sa-project-assignment-form-grid">
           {/* DIVISION */}
 
           <label className="sa-project-field">
@@ -3153,6 +3178,9 @@ const AssignProjectModal = ({
         </div>
 
         <div className="sa-project-assignment-footer">
+          <button type="button" className="sa-project-assignment-cancel" onClick={onTrackDesign} disabled={loading}>
+            Requests Sent
+          </button>
           <button
             type="button"
             className="sa-project-assignment-cancel"
@@ -3174,6 +3202,7 @@ const AssignProjectModal = ({
               : "Assign Project"}
           </button>
         </div>
+        </>}
       </div>
     </div>
   );

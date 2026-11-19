@@ -14,6 +14,7 @@ const adminRoutes = require("./routes/adminroutes");
 const administratorLeaveRoutes = require(
   "./routes/administratorleaveroutes"
 );
+const designRequestRoutes = require("./routes/designrequestroutes");
 const adminProjectRoutes = require("./routes/adminprojectroutes");
 const administratorProjectRoutes = require("./routes/administratorprojectroutes");
 
@@ -272,6 +273,8 @@ adminRoutes
 );
 
 
+
+app.use("/api/design-requests", designRequestRoutes);
 
 app.use(
 "/api/admin-projects",
