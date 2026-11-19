@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { canOpenHrAttendance } from "../utils/hrAttendanceAccess";
 import { NavLink, Outlet, useNavigate, useLocation } from "react-router-dom";
 import {
   BarChart3,
@@ -311,6 +312,17 @@ const AdministratorLayout = () => {
             </span>
 
           </NavLink>
+
+          {canOpenHrAttendance(user) && (
+            <NavLink
+              to="/administrator/hr-attendance"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              title="HR Attendance"
+            >
+              <CalendarCheck size={20} />
+              <span>HR Attendance</span>
+            </NavLink>
+          )}
 
 
 

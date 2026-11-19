@@ -2,6 +2,7 @@ const express = require("express");
 const multer = require("multer");
 
 const authMiddleware = require("../middleware/authmiddleware");
+const { isAuthorizedHR } = require("../utils/hrattendanceaccess");
 
 const {
   getHrAttendance,
@@ -15,7 +16,7 @@ const {
   reduceHrEmployeeLeave,
   applyHrEmployeeLeave,
   revertHrEmployeeLeave,
-  onlyRathika,
+  onlyActiveHR,
   previewBulkAttendance,
   commitBulkAttendance,
   getAttendanceActivity,
@@ -28,10 +29,6 @@ const {
 
 const hrRules=require('../controllers/hremployeerulescontroller');
 const router = express.Router();
-
-const HR_EMAILS = [
-  "rathika.haleangadi@valencianutrition.com",
-];
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -56,11 +53,7 @@ const upload = multer({
 });
 
 const onlyHR = (req, res, next) => {
-  const email = String(req.user?.email || "")
-    .trim()
-    .toLowerCase();
-
-  if (!HR_EMAILS.includes(email)) {
+  if (!isAuthorizedHR(req)) {
     return res.status(403).json({
       success: false,
       message: "HR Attendance access denied.",
@@ -147,27 +140,27 @@ router.post(
 router.post(
   "/bulk/preview",
   authMiddleware,
-  onlyRathika,
+  onlyActiveHR,
   previewBulkAttendance
 );
 
 router.post(
   "/bulk",
   authMiddleware,
-  onlyRathika,
+  onlyActiveHR,
   commitBulkAttendance
 );
 
 router.get(
   "/activity-log",
   authMiddleware,
-  onlyRathika,
+  onlyActiveHR,
   getAttendanceActivity
 );
 
-router.get("/activity-log/:id", authMiddleware, onlyRathika, getAttendanceActivityDetail);
-router.post("/activity-log/:id/undo", authMiddleware, onlyRathika, undoAttendanceActivity);
-router.post("/activity-log/:id/undo-item", authMiddleware, onlyRathika, undoAttendanceActivityItem);
+router.get("/activity-log/:id", authMiddleware, onlyActiveHR, getAttendanceActivityDetail);
+router.post("/activity-log/:id/undo", authMiddleware, onlyActiveHR, undoAttendanceActivity);
+router.post("/activity-log/:id/undo-item", authMiddleware, onlyActiveHR, undoAttendanceActivityItem);
 
 router.get(
   "/",

@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
+import { canOpenHrAttendance } from "./utils/hrAttendanceAccess";
 import "./allStyles.js";
 const LeaveReview = lazy(() => import("./pages/LeaveReview"));
 
@@ -238,34 +239,11 @@ const ProtectedRoute = ({
    HR PROTECTED ROUTE
 ======================================================== */
 
-const HR_EMAILS = [
-  "rathika.haleangadi@valencianutrition.com",
-];
+const HrProtectedRoute = ({ children }) => {
+  const user = getStoredUser();
 
-const HrProtectedRoute = ({
-  children,
-}) => {
-  const user =
-    getStoredUser();
-
-  const email =
-    String(
-      user?.email || ""
-    )
-      .trim()
-      .toLowerCase();
-
-  if (
-    !HR_EMAILS.includes(
-      email
-    )
-  ) {
-    return (
-      <Navigate
-        to="/employee/overview"
-        replace
-      />
-    );
+  if (!canOpenHrAttendance(user)) {
+    return <Navigate to={getDefaultRouteByRole(user?.role_name)} replace />;
   }
 
   return children;
@@ -532,6 +510,15 @@ const App = () => {
           }
         />
 
+        <Route
+          path="hr-attendance"
+          element={
+            <HrProtectedRoute>
+              <HrAttendance />
+            </HrProtectedRoute>
+          }
+        />
+
       </Route>
 
 
@@ -761,6 +748,15 @@ const App = () => {
           }
         />
 
+        <Route
+          path="hr-attendance"
+          element={
+            <HrProtectedRoute>
+              <HrAttendance />
+            </HrProtectedRoute>
+          }
+        />
+
 
         <Route
           path="field-visits"
@@ -880,6 +876,15 @@ const App = () => {
           path="attendance"
           element={
             <SuperadminAttendance />
+          }
+        />
+
+        <Route
+          path="hr-attendance"
+          element={
+            <HrProtectedRoute>
+              <HrAttendance />
+            </HrProtectedRoute>
           }
         />
 
