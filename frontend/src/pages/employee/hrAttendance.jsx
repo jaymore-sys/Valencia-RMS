@@ -4056,13 +4056,14 @@ function HrLeaveReport({ revision, paused }) {
                   {REPORT_LEAVE_TYPES.map(([type, label]) => (
                     <th scope="colgroup" colSpan={2} key={type}>{label}</th>
                   ))}
+                  <th scope="col" rowSpan={2}>Unpaid leave<br />taken</th>
                   <th scope="col" rowSpan={2}>Other leave<br />taken</th>
                   <th scope="col" rowSpan={2}>Total leave<br />taken</th>
                 </tr>
                 <tr>
                   {REPORT_LEAVE_TYPES.flatMap(([type]) => [
-                    <th scope="col" key={`${type}-used`}>Taken</th>,
                     <th scope="col" key={`${type}-available`}>Available</th>,
+                    <th scope="col" key={`${type}-used`}>Taken</th>,
                   ])}
                 </tr>
               </thead>
@@ -4075,17 +4076,18 @@ function HrLeaveReport({ revision, paused }) {
                     </th>
                     <td>{row.department_name || "—"}</td>
                     {REPORT_LEAVE_TYPES.flatMap(([type]) => [
-                      <td key={`${type}-used`}>{row.used[type] || 0}</td>,
                       <td key={`${type}-available`} className="hr-report-available">
                         {row.available?.[type] ?? <span title="Balance unavailable">—</span>}
                       </td>,
+                      <td key={`${type}-used`}>{row.used[type] || 0}</td>,
                     ])}
+                    <td>{row.used.unpaid || 0}</td>
                     <td>{row.used.other || 0}</td>
                     <td><strong>{row.total_taken}</strong></td>
                   </tr>
                 ))}
                 {!rows.length && (
-                  <tr><td colSpan={12}><Empty text="No employees match these filters." /></td></tr>
+                  <tr><td colSpan={REPORT_LEAVE_TYPES.length * 2 + 5}><Empty text="No employees match these filters." /></td></tr>
                 )}
               </tbody>
             </table>

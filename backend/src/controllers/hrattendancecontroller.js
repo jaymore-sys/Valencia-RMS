@@ -5345,7 +5345,8 @@ const calculateHrManagedLeaveDays = (startDate, endDate) => {
   return Math.floor((end - start) / 86400000) + 1;
 };
 
-const REPORT_LEAVE_TYPES = ["sick", "casual", "mandatory", "festival"];
+const REPORT_BALANCE_TYPES = ["sick", "casual", "mandatory", "festival"];
+const REPORT_LEAVE_TYPES = [...REPORT_BALANCE_TYPES, "unpaid"];
 
 const getReportLeaveDays = (leave, fromDate, toDate) => {
   const start = leave.start_date < fromDate ? fromDate : leave.start_date;
@@ -5423,7 +5424,7 @@ const getHrLeaveReport = async (req, res) => {
         let available = null;
         try {
           const balances = await buildLeaveBalances(db, user.user_id, balanceYear);
-          available = Object.fromEntries(REPORT_LEAVE_TYPES.map((type) => [type, balances[type].available]));
+          available = Object.fromEntries(REPORT_BALANCE_TYPES.map((type) => [type, balances[type].available]));
         } catch (error) {
           console.error(`HR report balance error for user ${user.user_id}:`, error.message);
         }
