@@ -1,5 +1,8 @@
 import { DesignRequestForm, DesignRequestRows, DesignRequestsContent, loadDesignDepartment, loadDesignRequests } from "./DesignRequests";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
+import EmployeeProjects from "../employee/employeeProjects";
+import "./adminProjectViews.css";
 
 import {
   CalendarDays,
@@ -327,7 +330,7 @@ const tryDelete = async (urls) => {
   throw lastError;
 };
 
-const AdminProjects = () => {
+const AdminProjectBoard = ({ projectViewSwitch }) => {
   const [designQueue, setDesignQueue] = useState(null);
   const [designQueueError, setDesignQueueError] = useState("");
   const [sentDesignRequestId, setSentDesignRequestId] = useState(null);
@@ -2033,6 +2036,7 @@ const submitInterdepartmentReview = async (action) => {
   return (
     <div style={styles.page}>
       <div style={styles.topActions}>
+        {projectViewSwitch}
         <button
           type="button"
           style={styles.refreshButton}
@@ -3957,6 +3961,7 @@ const styles = {
   topActions: {
     width: "100%",
     display: "flex",
+    flexWrap: "wrap",
     justifyContent: "flex-end",
     alignItems: "center",
     gap: "14px",
@@ -5095,4 +5100,28 @@ const styles = {
   },
 };
 
-export default AdminProjects;
+export default function AdminProjects() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const view = searchParams.get("view") === "personal" ? "personal" : "admin";
+  const projectViewSwitch = (
+    <div className="admin-project-view-switch" role="group" aria-label="Project view">
+      {["admin", "personal"].map(mode => (
+        <button key={mode} type="button" aria-pressed={view === mode} onClick={() => {
+          if (view === mode) return;
+          setSearchParams(current => {
+            const next = new URLSearchParams(current);
+            if (mode === "personal") next.set("view", "personal");
+            else next.delete("view");
+            return next;
+          });
+        }}>
+          {mode === "admin" ? "Admin" : "Personal"}
+        </button>
+      ))}
+    </div>
+  );
+
+  return view === "personal"
+    ? <EmployeeProjects projectViewSwitch={projectViewSwitch} />
+    : <AdminProjectBoard projectViewSwitch={projectViewSwitch} />;
+}

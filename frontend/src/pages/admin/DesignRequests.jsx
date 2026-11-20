@@ -289,7 +289,7 @@ function InboxActivity({ view, requests, events, followFilter, onFollowFilterCha
 export function DesignInboxPage() {
   const [access, setAccess] = useState("loading");
   const [activity, setActivity] = useState(null);
-  const [activityError, setActivityError] = useState(false);
+  const [activityError, setActivityError] = useState("");
   const [view, setView] = useState("requests");
   const [followFilter, setFollowFilter] = useState("all");
   const [selected, setSelected] = useState(null);
@@ -304,11 +304,16 @@ export function DesignInboxPage() {
       const { data } = await api.get("/design-requests/inbox/activity");
       if (number !== requestNumber.current) return;
       setActivity(data.events);
-      setActivityError(false);
+      setActivityError("");
     } catch (err) {
       if (number !== requestNumber.current) return;
-      setAccess(current => err.response?.status === 403 ? "denied" : typeof current === "object" ? current : "error");
-      setActivityError(true);
+      const { status, data } = err.response || {};
+      setAccess(current => status === 403 ? "denied" : typeof current === "object" ? current : "error");
+      setActivityError(status === 503
+        ? data?.message === "The design requests database migration has not been applied."
+          ? "The production database is missing the Design Requests tables. Run backend/sql/design_requests.sql, then retry."
+          : "The Design Requests service is temporarily unavailable. Try again shortly."
+        : "Design Inbox could not load. Try again.");
     }
   }
 
@@ -343,7 +348,7 @@ export function DesignInboxPage() {
       <h1>Design Inbox</h1>
       {access === "loading" && <p role="status">Loading design requests…</p>}
       {access === "error" && <div role="alert">
-        <p>Design Inbox could not load.</p>
+        <p>{activityError}</p>
         <button type="button" onClick={checkAccess}>Retry</button>
       </div>}
       {typeof access === "object" && <>
@@ -362,7 +367,7 @@ export function DesignInboxPage() {
             onBack={() => { setSelected(null); checkAccess(); }} />
           : <>
             {activityError && <div role="alert" className="dr-error">
-              <p>Design Inbox activity could not refresh.</p>
+              <p>{activityError}</p>
               <button type="button" onClick={checkAccess}>Retry</button>
             </div>}
             {!activity && !activityError && view !== "work" && <p role="status">Loading activity…</p>}

@@ -1,0 +1,29 @@
+.admin-main .admin-project-view-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.admin-main .admin-project-view-switch > button[type="button"] {
+  min-width: 82px;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.admin-main .admin-project-view-switch > button[type="button"][aria-pressed="true"],
+.admin-main .admin-project-view-switch > button[type="button"]:hover {
+  background: #fff0eb;
+  color: #ad351c;
+}
+
+.admin-main .admin-personal-projects-column {
+  min-width: min(260px, 100%);
+}
