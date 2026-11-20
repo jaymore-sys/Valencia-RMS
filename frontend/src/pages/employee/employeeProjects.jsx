@@ -332,7 +332,7 @@ const normalizeProjectsResponse = (data) => {
   };
 };
 
-const EmployeeProjects = () => {
+const EmployeeProjects = ({ projectViewSwitch }) => {
   const [activeTab, setActiveTab] = useState("my");
 
   const [myProjects, setMyProjects] = useState([]);
@@ -1055,10 +1055,9 @@ const handleSaveSubtask = async (event) => {
 
           <span style={styles.statusPill}>
             {getStatusLabel(
-              selectedMainTask?.status ||
-              selectedProject?.status_group ||
-              selectedProject?.status ||
-              selectedProject?.project_status
+              project.status_group ||
+              project.status ||
+              project.project_status
             )}
           </span>
         </div>
@@ -1069,12 +1068,12 @@ const handleSaveSubtask = async (event) => {
         </p>
 
         <p style={styles.projectDate}>
-          {formatDisplayDate(getProjectStartDate(project))} →{" "}
-          {formatDisplayDate(getProjectEndDate(project))}
+          <span style={styles.projectDateValue}>{formatDisplayDate(getProjectStartDate(project))}</span>
+          <span style={styles.projectDateValue}>→ {formatDisplayDate(getProjectEndDate(project))}</span>
         </p>
 
         <span style={styles.clickHint}>
-          Click to view Project and Main Tasks
+          View project
         </span>
       </button>
     );
@@ -1143,7 +1142,7 @@ const handleSaveSubtask = async (event) => {
 
   return (
     <div style={styles.page}>
-      <div style={styles.toolbar}>
+      <div style={projectViewSwitch ? { ...styles.toolbar, flexWrap: "wrap" } : styles.toolbar}>
         <div style={styles.searchContainer}>
           <Search size={19} style={styles.searchIcon} />
 
@@ -1156,6 +1155,8 @@ const handleSaveSubtask = async (event) => {
           />
         </div>
 
+        {projectViewSwitch}
+
         <button
           type="button"
           style={
@@ -1165,7 +1166,7 @@ const handleSaveSubtask = async (event) => {
           }
           onClick={() => setActiveTab("my")}
         >
-          My Projects {myProjects.length}
+          {projectViewSwitch ? "Projects" : "My Projects"} {myProjects.length}
         </button>
 
         <button
@@ -1214,6 +1215,7 @@ const handleSaveSubtask = async (event) => {
           {statusColumns.map((column) => (
             <div
               style={styles.stageColumn}
+              className={projectViewSwitch ? "admin-personal-projects-column" : undefined}
               key={column.key}
             >
               <div style={styles.stageHeader}>
@@ -2081,6 +2083,7 @@ const styles = {
   },
 
   projectTile: {
+    display: "block",
     width: "100%",
     boxSizing: "border-box",
     textAlign: "left",
@@ -2094,6 +2097,7 @@ const styles = {
 
   projectTileTop: {
     display: "flex",
+    flexWrap: "wrap",
     justifyContent: "space-between",
     gap: "12px",
     alignItems: "flex-start",
@@ -2106,6 +2110,9 @@ const styles = {
     fontSize: "18px",
     lineHeight: 1.2,
     fontWeight: 900,
+    flex: "1 1 140px",
+    minWidth: 0,
+    overflowWrap: "anywhere",
   },
 
   projectTileMeta: {
@@ -2120,6 +2127,13 @@ const styles = {
     color: "#475569",
     fontSize: "12px",
     fontWeight: 800,
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "3px 5px",
+  },
+
+  projectDateValue: {
+    whiteSpace: "nowrap",
   },
 
   statusPill: {
@@ -2178,11 +2192,13 @@ const styles = {
 
   specialGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))",
     gap: "18px",
   },
 
   rejectedProjectTile: {
+    display: "block",
+    minWidth: 0,
     textAlign: "left",
     border: "1px solid #fecaca",
     background: "#fff7f7",
@@ -2192,6 +2208,8 @@ const styles = {
   },
 
   holdTile: {
+    display: "block",
+    minWidth: 0,
     textAlign: "left",
     border: "1px solid #fde68a",
     background: "#fffbeb",

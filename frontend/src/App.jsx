@@ -701,7 +701,7 @@ const App = () => {
           }
         />
         <Route path="design-requests" element={<DesignInbox />} />
-        <Route path="my-projects" element={<EmployeeProjects />} />
+        <Route path="my-projects" element={<Navigate to="/admin/projects?view=personal" replace />} />
 
 
         <Route
