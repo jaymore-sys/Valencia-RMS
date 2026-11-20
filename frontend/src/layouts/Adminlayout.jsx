@@ -54,6 +54,7 @@ const PAGE_TITLES = {
   overview: "Overview",
   chat: "Chat",
   projects: "Projects",
+  "my-projects": "My Projects",
   "design-requests": "Design Inbox",
   tasks: "Tasks",
   calendar: "Calendar",
@@ -185,6 +186,11 @@ const AdminLayout = () => {
           >
             <FolderKanban size={20} />
             <span>Projects</span>
+          </NavLink>
+
+          <NavLink to="/admin/my-projects" className={({ isActive }) => isActive ? "active" : ""} title="My Projects">
+            <FolderKanban size={20} />
+            <span>My Projects</span>
           </NavLink>
 
           {canReviewDesign && (
