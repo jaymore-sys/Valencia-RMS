@@ -701,6 +701,7 @@ const App = () => {
           }
         />
         <Route path="design-requests" element={<DesignInbox />} />
+        <Route path="my-projects" element={<EmployeeProjects />} />
 
 
         <Route
