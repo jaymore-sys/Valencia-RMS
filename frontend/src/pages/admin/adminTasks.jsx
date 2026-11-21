@@ -1,3 +1,5 @@
+import DesignBriefDescription from "./DesignBriefDescription";
+import { Link } from "react-router-dom";
 import EmployeeTasks from "../employee/employeeTasks";
 import React, { useEffect, useMemo, useState } from "react";
 import {
@@ -216,12 +218,11 @@ const navigate =
 
 const requestedTaskId =
   Number(
-    location.state?.openTaskId ||
-      0
+    location.state?.openTaskId || new URLSearchParams(location.search).get("taskId") || 0
   );
   const [tasks, setTasks] = useState([]);
   const [admin, setAdmin] = useState(null);
-  const [taskView, setTaskView] = useState("admin");
+  const [taskView, setTaskView] = useState(() => new URLSearchParams(location.search).get("view") === "personal" ? "personal" : "admin");
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -567,7 +568,7 @@ OPEN EXACT MAIN TASK FROM ADMIN OVERVIEW
 
 useEffect(() => {
   if (
-    !requestedTaskId ||
+    taskView !== "admin" || !requestedTaskId ||
     loading
   ) {
     return;
@@ -606,6 +607,7 @@ useEffect(() => {
   );
 }, [
   requestedTaskId,
+  taskView,
   loading,
   groupedMainTasks,
   navigate,
@@ -784,6 +786,7 @@ const taskModeSwitch = (
    {taskView === "personal" ? (
   <EmployeeTasks
     mode="admin-personal"
+    requestedTaskId={requestedTaskId}
     taskModeSwitch={taskModeSwitch}
   />
 ) : (
@@ -1204,14 +1207,8 @@ const taskModeSwitch = (
                   Project Description
                 </span>
 
-                <p>
-                  <ReadMoreText
-                    text={
-                      selectedTask.project_description ||
-                      "-"
-                    }
-                  />
-                </p>
+                <DesignBriefDescription text={selectedTask.project_description}
+                  fallback={<p><ReadMoreText text={selectedTask.project_description || "–"} /></p>} />
               </div>
 
               <div
@@ -1298,7 +1295,7 @@ const taskModeSwitch = (
               selectedTask.status_group ||
                 selectedTask.status
             ) ===
-              "under_review" && (
+              "under_review" && Number(selectedTask.can_review ?? 1) === 1 && (
               <section
                 style={
                   styles.reviewSection
@@ -2543,4 +2540,7 @@ cancelModalButton: {
 },
 };
 
-export default AdminTasks;
+export default function AdminTasksPage() {
+  const { search } = useLocation();
+  return <AdminTasks key={new URLSearchParams(search).get("view") || "admin"} />;
+}

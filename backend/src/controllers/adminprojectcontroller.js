@@ -1,3 +1,4 @@
+const { projectDesignTaskIds } = require("../utils/designrequestprojects");
 const db = require("../config/db");
 const { sendProjectAssignmentEmails, sendProjectUpdateEmails, sendMainTaskAssignmentEmails, } = require("../utils/projectemailnotifications");
 const { sendMail } = require("../utils/emailservice");
@@ -1465,6 +1466,13 @@ const updateMainTask = async (req, res) => {
         }
         const existingTask = taskRows[0];
         const projectId = Number(existingTask.project_id);
+        if ((await projectDesignTaskIds(connection, projectId)).has(taskId)) {
+            await connection.rollback();
+            return res.status(403).json({
+                success: false,
+                message: "Design Main Tasks are assigned in Design Inbox under Who’s doing what.",
+            });
+        }
         const taskStartDate = formatDateOnly(req.body.start_date ||
             req.body.startDate) ||
             existingTask.start_date;

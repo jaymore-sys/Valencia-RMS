@@ -1,3 +1,4 @@
+const { sourceProjectDesignTaskIds } = require("../utils/designrequestprojects");
 const db = require("../config/db");
 
 /*
@@ -592,7 +593,7 @@ const recalculateProject = async (
       projectRows[0].status
     );
 
-  const [mainTasks] =
+  const [projectTasks] =
     await connection.query(
       `
       SELECT
@@ -615,6 +616,10 @@ const recalculateProject = async (
       `,
       [projectId]
     );
+
+  const designTasks = await sourceProjectDesignTaskIds(connection, projectId);
+  const mainTasks = projectTasks.filter(task => !designTasks.has(Number(task.task_id)));
+  if (designTasks.size && !mainTasks.length) return;
 
   if (!mainTasks.length) {
     await connection.query(

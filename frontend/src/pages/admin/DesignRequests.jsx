@@ -1,4 +1,6 @@
-import { Navigate } from "react-router-dom";
+import { readBriefAnswers } from "./DesignBriefDescription";
+import { DesignWorkAssignments, designProjectHref } from "./DesignProjectWork";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
 import api from "../../api/axios";
 import { buildDesignRequestPayload, designRequestQuestionnaires, designRequestTypeLabel, designRequestTypes, targetMarkets } from "./designRequestQuestionnaires";
@@ -274,7 +276,7 @@ function AdditionalDesignAttachments({ files, onChange, busy }) {
   </section>;
 }
 
-export function DesignRequestForm({ project, onClose }) {
+export function DesignRequestForm({ project, projectDraft, onClose, onSent }) {
   const [category, setCategory] = useState("");
   const [requestType, setRequestType] = useState("");
   const [additionalFiles, setAdditionalFiles] = useState([]);
@@ -290,6 +292,9 @@ export function DesignRequestForm({ project, onClose }) {
     let payload;
     try {
       payload = buildDesignRequestPayload(new FormData(event.currentTarget), additionalFiles);
+      const projectId = project?.project_id || project?.id;
+      if (projectId) payload.append("project_id", String(projectId));
+      else if (projectDraft) payload.append("project_draft", JSON.stringify(projectDraft));
     } catch (err) {
       setError(err.message);
       return;
@@ -300,6 +305,7 @@ export function DesignRequestForm({ project, onClose }) {
     try {
       const { data } = await api.post("/design-requests", payload);
       setSentId(data.id);
+      onSent?.(data);
     } catch (err) {
       setError(err.response?.data?.message || "Could not send the design request. Please try again.");
     } finally {
@@ -417,12 +423,7 @@ function InboxActivity({ view, requests, events, followFilter, onFollowFilterCha
     rows = [...scheduledRows, ...nextRows]
       .filter(row => followFilter === "all" || ["Overdue", "Due today"].includes(row.status))
       .sort((a, b) => a.day.localeCompare(b.day));
-  } else {
-    rows = requests.filter(request => nextOwner[request.stage]).map(request => ({
-      key: request.id, request, title: request.title, details: `Next action · ${responsibleParty(request)}`,
-      body: request.follow_up_note || "Review the submitted brief and set the next step.",
-      day: request.follow_up_date, status: statuses[request.status],
-    }));
+
   }
 
   return <>
@@ -445,12 +446,22 @@ function InboxActivity({ view, requests, events, followFilter, onFollowFilterCha
           {row.day && <small>{date(row.day)}</small>}
         </span>
       </button>)}
-      {!rows.length && <p>{view === "messages" ? "No messages yet." : view === "work" ? "No active requests." : "No follow-ups match this view."}</p>}
+      {!rows.length && <p>{view === "messages" ? "No messages yet." : "No follow-ups match this view."}</p>}
     </div>
   </>;
 }
 
 export function DesignInboxPage() {
+  const [params, setParams] = useSearchParams();
+  const requestId = params.get("requestId");
+  const [workRevision, setWorkRevision] = useState(0);
+  function clearRequest() {
+    setParams(current => {
+      const next = new URLSearchParams(current);
+      next.delete("requestId");
+      return next;
+    });
+  }
   const [access, setAccess] = useState("loading");
   const [activity, setActivity] = useState(null);
   const [activityError, setActivityError] = useState("");
@@ -497,6 +508,7 @@ export function DesignInboxPage() {
 
   async function refreshInbox() {
     setRefreshing(true);
+    setWorkRevision(value => value + 1);
     try {
       await Promise.all([checkAccess(), refreshOpenRequest.current?.()]);
     } finally {
@@ -518,6 +530,9 @@ export function DesignInboxPage() {
     return event.action === "request_update";
   }).length;
 
+  const linkedRequest = (access.requests || []).find(request => String(request.id) === requestId);
+  const currentView = requestId ? (["accepted", "in_progress", "completed"].includes(linkedRequest?.status) ? "accepted" : "requests") : view;
+
   return (
     <section className="design-requests dr-inbox-page">
       <h1>Design Inbox</h1>
@@ -530,8 +545,8 @@ export function DesignInboxPage() {
         <div className="dr-inbox-toolbar">
           <nav className="dr-inbox-views" aria-label="Design Inbox views">
             {inboxViews.map(([key, label]) => <button type="button" key={key}
-              aria-current={view === key ? "page" : undefined} className={view === key ? "dr-primary" : ""}
-              onClick={() => { setView(key); setSelected(null); checkAccess(); }}>
+              aria-current={currentView === key ? "page" : undefined} className={currentView === key ? "dr-primary" : ""}
+              onClick={() => { setView(key); setSelected(null); if (requestId) clearRequest(); checkAccess(); }}>
               {label}{key === "messages" && awaitingReply > 0 && <span className="dr-tab-count"
                 aria-label={`${awaitingReply} conversations awaiting a reply`}>{awaitingReply}</span>}
             </button>)}
@@ -541,15 +556,19 @@ export function DesignInboxPage() {
           </button>
         </div>
         {activityError && <p role="alert" className="dr-error">{activityError}</p>}
-        {["requests", "accepted"].includes(view) ? <DesignRequestsContent key={view} mode="inbox"
+        {requestId ? <DesignRequestsContent key={requestId} mode="inbox" initialRequestId={requestId}
+          initialQueue={access} onActivityChange={checkAccess} refreshOpenRequest={refreshOpenRequest}
+          onBack={() => { setView(currentView); clearRequest(); }} />
+          : view === "work" ? <DesignWorkAssignments revision={workRevision} />
+          : ["requests", "accepted"].includes(view) ? <DesignRequestsContent key={view} mode="inbox"
           workView={view} initialQueue={access} onActivityChange={checkAccess} refreshOpenRequest={refreshOpenRequest} />
           : selected ? <DesignRequestsContent key={selected.requestId} mode="inbox"
             initialRequestId={selected.requestId} initialFollowUpId={selected.followUpId}
             initialQueue={access} onActivityChange={checkAccess} refreshOpenRequest={refreshOpenRequest}
             onBack={() => { setSelected(null); checkAccess(); }} />
           : <>
-            {!activity && !activityError && view !== "work" && <p role="status">Loading activity…</p>}
-            {(activity || view === "work") && <InboxActivity view={view} requests={access.requests}
+            {!activity && !activityError && <p role="status">Loading activity…</p>}
+            {activity && <InboxActivity view={view} requests={access.requests}
               events={activity || []} followFilter={followFilter} onFollowFilterChange={setFollowFilter}
               onOpen={setSelected} />}
           </>}
@@ -809,30 +828,6 @@ function downloadBlob(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-function readBriefAnswers(request) {
-  const questionnaire = designRequestQuestionnaires[request.category];
-  const labels = new Set([designRequestTypeLabel, "Additional brief", "Additional attachments", "Labelling documents", "What is the target audience?", "Target audience comments", "Target audience comments (optional)"]);
-  for (const field of questionnaire?.fields || []) {
-    for (const label of [field.label, field.note?.label, field.upload].filter(Boolean)) {
-      labels.add(label);
-      labels.add(`${label} (optional)`);
-    }
-  }
-  const answers = [];
-  for (const block of (request.brief || "").split("\n\n").filter(Boolean)) {
-    const lineEnd = block.indexOf("\n");
-    const label = block.slice(0, lineEnd);
-    if (lineEnd > 0 && labels.has(label)) {
-      answers.push({ label, value: block.slice(lineEnd + 1) });
-    } else if (answers.length) {
-      answers[answers.length - 1].value += `\n\n${block}`;
-    } else {
-      answers.push({ value: block });
-    }
-  }
-  return answers;
-}
-
 function attachmentSections(request, answers) {
   const submit = request.events.find(event => event.action === "submit");
   const submittedFiles = request.files.filter(file => submit && String(file.event_id) === String(submit.id))
@@ -945,7 +940,7 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
       } catch {
         setFeedback("Saved. Use Refresh to load the latest details.");
       }
-      onActivityChange?.();
+      onActivityChange?.(action);
     });
   }
 
@@ -1111,10 +1106,12 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
 
       {request && <article className="dr-card dr-request-detail" ref={detailsRef} tabIndex={-1} aria-label={request.title}>
         <header className="dr-header">
-          <div><button type="button" disabled={busy} onClick={onBack || (() => { setRequest(null); setForm(""); })}>← {detailOnly ? backLabel : "Back to requests"}</button>
+          <div>{mode !== "project" && <button type="button" disabled={busy} onClick={onBack || (() => { setRequest(null); setForm(""); })}>← {detailOnly ? backLabel : "Back to requests"}</button>}
             <h2>{request.title}</h2><p>{categories[request.category]} · {request.requester_name} · {request.requester_department || "Department unassigned"}</p></div>
           <div className="dr-buttons"><span className="dr-badge" data-status={request.status}>{statuses[request.status]}</span>
             {request.access?.design && <button type="button" disabled={busy} onClick={exportBrief}>Download brief PDF</button>}
+            {mode !== "project" && request.access?.design && request.project_id && ["accepted", "in_progress", "completed"].includes(request.status) &&
+              <Link to={designProjectHref(request.id)}>Open project</Link>}
             {!refreshOpenRequest && <button type="button" disabled={busy} onClick={refresh}>Refresh</button>}</div>
         </header>
         {latestIncoming && <section className="dr-new-update" aria-label="Latest design update">
