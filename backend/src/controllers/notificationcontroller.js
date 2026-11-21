@@ -1578,6 +1578,37 @@ const buildMeetingNotifications =
    UPSERT / DEACTIVATE
 ========================================================= */
 
+async function buildDesignUpdateNotifications(user, events) {
+  let updates;
+  try {
+    [updates] = await db.query(
+      `SELECT e.id, e.actor_id, q.id AS request_id, q.title
+       FROM design_request_events e
+       JOIN design_requests q ON q.id = e.request_id
+       WHERE q.requester_id = ? AND e.action = 'respond_update'
+       ORDER BY e.id DESC LIMIT 100`,
+      [user.user_id]
+    );
+  } catch (error) {
+    if (error.code === "ER_NO_SUCH_TABLE") return;
+    throw error;
+  }
+
+  const projectsPath = user.role_name === "superadmin" ? "/superadmin/projects" : "/admin/projects";
+  for (const update of updates) {
+    addEvent(events, {
+      actor_user_id: update.actor_id,
+      event_key: `design_update:${update.id}`,
+      reference_type: "design_request",
+      reference_id: update.request_id,
+      notification_type: "design_update",
+      title: "Design Team update",
+      message: `The Design Team sent an update on “${update.title}”. Open Requests Sent in Projects to read it.`,
+      target_url: projectsPath,
+    });
+  }
+}
+
 const syncUserNotifications =
   async (
     user
@@ -1610,6 +1641,8 @@ const syncUserNotifications =
     user,
     events
   );
+
+  await buildDesignUpdateNotifications(user, events);
 
 
   for (

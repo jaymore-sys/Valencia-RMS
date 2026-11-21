@@ -1,4 +1,4 @@
-const categories = ["packaging", "label", "logo", "rd_tables", "other"];
+const categories = ["packaging", "label", "logo", "trademark", "rd_tables", "other"];
 
 const activeStages = ["review", "info", "ready", "working", "draft", "changes", "revise", "approved"];
 const followUpLogActions = ["follow_update", "follow_done", "follow_reschedule"];
@@ -7,7 +7,7 @@ const updateMessageActions = ["request_update", "respond_update"];
 const actions = {
     ask: { role: "design", stages: ["review"], status: "pending", stage: "info", note: true, follow: true },
     reply: { role: "requester", stages: ["info"], stage: "review", note: true, follow: true, files: true },
-    accept: { role: "design", stages: ["review"], status: "accepted", stage: "ready", delivery: true, follow: true },
+    accept: { role: "design", stages: ["review", "info"], status: "accepted", stage: "ready", delivery: true, follow: true },
     reject: { role: "design", stages: ["review"], status: "rejected", stage: "closed", note: true },
     start: { role: "design", stages: ["ready"], status: "in_progress", stage: "working", preserveFollow: true },
     share: { role: "design", stages: ["working", "revise"], stage: "draft", follow: true, files: true },

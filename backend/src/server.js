@@ -53,6 +53,7 @@ const fieldVisitLocationsRoutes = require("./routes/fieldvisitlocationsroutes");
 const {
   startDeadlineEmailJob
 } = require("./jobs/deadlineemailjob");
+const { startDesignRequestEmailJob } = require("./jobs/designrequestemailjob");
 
 const {
   startMiniTaskTimerJob
@@ -498,6 +499,7 @@ console.log(
 
 
 startDeadlineEmailJob();
+startDesignRequestEmailJob();
 startMiniTaskTimerJob();
 
 
