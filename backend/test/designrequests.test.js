@@ -28,6 +28,20 @@ test("missing information moves to Pending and keeps the same request on reply",
     assert.ok(allowedActions({ ...row, stage: reply.stage }, design).includes("accept"));
 });
 
+test("Design Team can accept a request while it is waiting for information", () => {
+    const pending = { ...row, stage: "info", status: "pending" };
+    const dates = { ...follow, delivery_due: "2026-11-24" };
+    assert.ok(allowedActions(pending, design).includes("accept"));
+    assert.ok(allowedActions(pending, requester).includes("reply"));
+    assert.throws(() => transition(pending, requester, "accept", dates, []), { status: 409 });
+    assert.throws(() => transition(pending, design, "accept", follow, []), { status: 400 });
+    const accepted = transition(pending, design, "accept", dates, []);
+    assert.equal(accepted.status, "accepted");
+    assert.equal(accepted.stage, "ready");
+    assert.equal(accepted.deliveryDue, dates.delivery_due);
+    assert.ok(allowedActions(accepted, design).includes("timeline"));
+});
+
 test("each revision needs a dated next action and a newly shared draft", () => {
     assert.throws(() => transition(draft, requester, "changes", { note: "Move logo" }, []), { status: 400 });
     const changes = transition(draft, requester, "changes", { ...follow, note: "Move logo" }, [file]);

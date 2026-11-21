@@ -8,6 +8,8 @@ const {
     updateMessageActions, makeUpdateMessageLog,
 } = require("../utils/designrequestworkflow");
 
+const { queueDesignMail } = require("../jobs/designrequestemailjob");
+
 const router = express.Router();
 const uploads = multer({
     storage: multer.memoryStorage(),
@@ -90,6 +92,7 @@ async function addEvent(connection, requestId, userId, action, event, files) {
         await connection.query("INSERT INTO design_request_files (event_id, name, content) VALUES (?, ?, ?)",
             [result.insertId, file.originalname.slice(0, 255), file.buffer]);
     }
+    return result.insertId;
 }
 
 async function getDesignAccess(user) {
@@ -116,9 +119,16 @@ async function listRequests(req, res, inboxOnly) {
     const [rows] = await db.query(`SELECT ${requestColumns}, DATE_FORMAT((
         SELECT MIN(e.follow_up_date) FROM design_request_events e
         WHERE e.request_id = q.id AND ${openScheduledFollowUps}
-    ), '%Y-%m-%d') AS scheduled_follow_up_date
-        ${requestFrom} WHERE ${scope}
-        ORDER BY q.created_at DESC, q.id DESC`, scopeValues);
+    ), '%Y-%m-%d') AS scheduled_follow_up_date,
+        latest_update.follow_up_note AS latest_design_update,
+        latest_update.created_at AS latest_design_update_at
+        ${requestFrom}
+        LEFT JOIN design_request_events latest_update ON q.requester_id = ? AND latest_update.id = (
+            SELECT MAX(e.id) FROM design_request_events e
+            WHERE e.request_id = q.id AND e.action = 'respond_update'
+        )
+        WHERE ${scope}
+        ORDER BY q.created_at DESC, q.id DESC`, [req.user.user_id, ...scopeValues]);
     const requests = rows.map(row => ({ ...row, access: accessTo(row, req.user, departments) }));
     res.json({
         requests,
@@ -150,6 +160,19 @@ router.post("/", uploads, handle(async (req, res) => {
     const brief = readText(body.brief, "Design brief", 8000, true);
     const neededBy = readDate(body.needed_by, "needed-by date");
     if (!categories.includes(body.category)) throw new DesignRequestError(400, "Select a design category.");
+    const files = req.files || [];
+    let attachmentLabels = [];
+    if (body.file_labels !== undefined) {
+        try {
+            attachmentLabels = JSON.parse(body.file_labels);
+            if (!Array.isArray(attachmentLabels) || attachmentLabels.length !== files.length ||
+                attachmentLabels.some(label => typeof label !== "string" || !label.trim() || label.length > 200)) {
+                throw new Error("Invalid attachment labels");
+            }
+        } catch {
+            throw new DesignRequestError(400, "The attachment labels could not be read. Choose the files again.");
+        }
+    }
 
     const id = await inTransaction(async connection => {
         const owner = await defaultDepartment(connection);
@@ -161,8 +184,13 @@ router.post("/", uploads, handle(async (req, res) => {
             [req.user.user_id, departments[0] || null, owner, body.category, title, brief, neededBy]
         );
         await addEvent(connection, result.insertId, req.user.user_id, "submit", {
-            note: null, deliveryDue: null, followDate: null, followNote: null, draftVersion: 0,
-        }, req.files || []);
+            note: null, deliveryDue: null, followDate: null,
+            followNote: attachmentLabels.length ? JSON.stringify({ attachmentLabels }) : null, draftVersion: 0,
+        }, files);
+        await queueDesignMail(connection, {
+            id: result.insertId, requester_id: req.user.user_id, owner_department_id: owner, title,
+        }, `submitted:${result.insertId}`, "design", "New design request",
+        [neededBy && `Needed by: ${neededBy}`, brief].filter(Boolean).join("\n\n"));
         return result.insertId;
     });
     res.status(201).json({ id });
@@ -207,12 +235,16 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
         const row = await readRequest(connection, req.params.id, true);
         const access = row && accessTo(row, req.user, departments);
         if (!access || (!access.design && !access.requester)) throw new DesignRequestError(404, "Request not found.");
-        if (Number(body.version) !== row.version) throw new DesignRequestError(409, "This request changed. Refresh before trying again.");
+        if (Number(body.version) !== Number(row.version)) {
+            throw new DesignRequestError(409, "This request changed. Review the latest details before saving again.");
+        }
         const files = req.files || [];
         const event = transition(row, access, body.action, body, files);
         let log = event;
+        let followUpContext;
         if (followUpLogActions.includes(body.action)) {
             const scheduled = await readOpenFollowUp(connection, row.id, Number(body.follow_up_id));
+            followUpContext = scheduled.follow_up_date;
             const currentDate = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
             log = makeFollowUpLog(event, scheduled, body.action, files, currentDate);
             if (body.action === "follow_reschedule") {
@@ -223,6 +255,7 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
             const scheduled = body.follow_up_id === undefined ? null
                 : await readOpenFollowUp(connection, row.id, Number(body.follow_up_id));
             log = makeUpdateMessageLog(event, scheduled);
+            followUpContext = scheduled?.follow_up_date;
         }
 
         for (const change of event.scheduledDateChanges) {
@@ -230,7 +263,9 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
             if (scheduled.follow_up_date === change.date) continue;
             const changeLog = makeFollowUpLog({ ...event, rescheduledDate: change.date }, scheduled, "follow_reschedule", [], null);
             await updateScheduledDate(connection, row.id, scheduled.id, change.date);
-            await addEvent(connection, row.id, req.user.user_id, "follow_reschedule", changeLog, []);
+            const changeId = await addEvent(connection, row.id, req.user.user_id, "follow_reschedule", changeLog, []);
+            await queueDesignMail(connection, row, `scheduled-change:${changeId}`, "both",
+                "Design follow-up rescheduled", `Previous date: ${scheduled.follow_up_date}\nNew date: ${change.date}\n${event.note || ""}`);
         }
         await connection.query(
             `UPDATE design_requests SET status = ?, stage = ?, delivery_due = ?, follow_up_date = ?,
@@ -239,11 +274,38 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
         );
         if (event.scheduled.length) {
             for (const followUp of event.scheduled) {
-                await addEvent(connection, row.id, req.user.user_id, "follow_scheduled",
+                const eventId = await addEvent(connection, row.id, req.user.user_id, "follow_scheduled",
                     { ...event, ...followUp }, []);
+                await queueDesignMail(connection, row, `scheduled:${eventId}`, "both", "Design follow-up scheduled",
+                    [`Follow-up date: ${followUp.followDate}`, followUp.note, followUp.followNote].filter(Boolean).join("\n"));
             }
         } else {
-            await addEvent(connection, row.id, req.user.user_id, body.action, log, files);
+            const eventId = await addEvent(connection, row.id, req.user.user_id, body.action, log, files);
+            const messages = {
+                respond_update: ["requester", "Design Team update"],
+                request_update: ["design", "Requester asked for an update"],
+                reply: ["design", "New information for a design request"],
+                ask: ["requester", "More information requested"],
+                changes: ["design", "Design changes requested"],
+                follow_update: ["requester", "New information added to a design follow-up"],
+                follow_done: ["requester", "Design follow-up completed"],
+                share: ["requester", "Design draft shared"],
+                complete: ["requester", "Design request completed"],
+            };
+            if (Object.hasOwn(messages, body.action)) {
+                const [audience, heading] = messages[body.action];
+                await queueDesignMail(connection, row, `message:${eventId}`, audience, heading,
+                    [event.completion ? [event.completion.description, `Done: ${event.completion.done}`, `Left: ${event.completion.left}`].join("\n") : event.note, followUpContext && `Follow-up date: ${followUpContext}`, files.length && `${files.length} file(s) added in RMS.`]
+                        .filter(Boolean).join("\n\n"));
+            }
+            if (body.action === "follow_reschedule") {
+                await queueDesignMail(connection, row, `scheduled-change:${eventId}`, "both", "Design follow-up rescheduled",
+                    [`New date: ${event.rescheduledDate}`, event.note].filter(Boolean).join("\n"));
+            }
+            if (event.followDate && event.followDate !== row.follow_up_date) {
+                await queueDesignMail(connection, row, `next-date:${eventId}`, "both", "Design follow-up date",
+                    [`Follow-up date: ${event.followDate}`, event.followNote].filter(Boolean).join("\n"));
+            }
         }
         const changes = getChangedRequestDates(row, event);
         if (changes.length) {
@@ -274,7 +336,12 @@ router.get("/:id/files/:fileId", handle(async (req, res) => {
 router.use((error, req, res, next) => {
     if (error instanceof DesignRequestError) return res.status(error.status).json({ message: error.message });
     if (error instanceof multer.MulterError) return res.status(400).json({ message: "Uploads support up to 5 files, 10 MB per file." });
-    if (error.code === "ER_NO_SUCH_TABLE") return res.status(503).json({ message: "The design requests database migration has not been applied." });
+    if (error.code === "ER_NO_SUCH_TABLE") {
+        if (error.message?.includes("design_request_email_outbox")) {
+            return res.status(503).json({ message: "Apply the Design Request email migration, then try again." });
+        }
+        return res.status(503).json({ message: "The design requests database migration has not been applied." });
+    }
     return next(error);
 });
 

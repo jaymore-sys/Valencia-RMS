@@ -1,10 +1,11 @@
 import { Navigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import api from "../../api/axios";
+import { buildDesignRequestPayload, designRequestQuestionnaires, designRequestTypeLabel, designRequestTypes, targetMarkets } from "./designRequestQuestionnaires";
 import "./designRequests.css";
 
 const categories = {
-  packaging: "Packaging Design", label: "Label Design", logo: "Logo Design",
+  ...Object.fromEntries(Object.entries(designRequestQuestionnaires).map(([key, item]) => [key, item.label])),
   rd_tables: "R&D Tables", other: "Other Design Requests",
 };
 const statuses = {
@@ -103,7 +104,7 @@ function ActionForm({ action, request, onSave, onCancel, busy }) {
         <input type="file" name="files" multiple required={action === "share"} />
       </label>}
       <div className="dr-buttons">
-        <button className="dr-primary" disabled={busy}>{message ? "Send" : action === "start" ? "Start Work" : "Save"}</button>
+        <button className="dr-primary" disabled={busy}>{busy ? "Saving…" : message ? "Send" : action === "start" ? "Start Work" : "Save"}</button>
         <button type="button" onClick={onCancel} disabled={busy}>Cancel</button>
       </div>
     </form>
@@ -139,23 +140,170 @@ export async function loadDesignDepartment() {
   return data.department_id;
 }
 
+function RepeatableAudienceInputs({ addLabel, removeLabel, renderRow }) {
+  const [rows, setRows] = useState([0]);
+  const nextId = useRef(1);
+
+  return <div className="dr-audience-rows">
+    {rows.map((id, index) => <div className="dr-audience-row" key={id}>
+      {renderRow(index)}
+      {rows.length > 1 && <button type="button" aria-label={`Remove ${removeLabel} ${index + 1}`}
+        onClick={() => setRows(current => current.filter(row => row !== id))}>Remove</button>}
+    </div>)}
+    <button type="button" onClick={() => {
+      const id = nextId.current++;
+      setRows(current => [...current, id]);
+    }}>{addLabel}</button>
+  </div>;
+}
+
+function TargetMarketFields() {
+  const [market, setMarket] = useState("");
+  const locationLabel = market === "Domestic" ? "State or union territory" : "Country or territory";
+
+  return <div className="dr-question">
+    <label><span>Region <span className="dr-required" aria-hidden="true">*</span></span>
+      <select name="audience_region" required value={market} onChange={event => setMarket(event.target.value)}>
+        <option value="" disabled>Select a market</option>
+        {Object.keys(targetMarkets).map(option => <option key={option}>{option}</option>)}
+      </select>
+    </label>
+    {market && <>
+      <RepeatableAudienceInputs key={market} addLabel="Add another location" removeLabel="location"
+        renderRow={index => <label>{`${locationLabel} ${index + 1}`}
+          <select name="audience_location" defaultValue="" required>
+            <option value="" disabled>Select a location</option>
+            {targetMarkets[market].map(location => <option key={location}>{location}</option>)}
+          </select>
+        </label>} />
+      <label>Cities or local markets (optional)
+        <input key={market} name="audience_region_details" maxLength={300} placeholder="e.g. Mumbai and Pune" />
+      </label>
+    </>}
+  </div>;
+}
+
+function TargetAgeRanges() {
+  return <fieldset className="dr-age-ranges">
+    <legend>Age Group <span className="dr-required" aria-hidden="true">*</span></legend>
+    <RepeatableAudienceInputs addLabel="Add another age range" removeLabel="age range"
+      renderRow={index => <div className="dr-age-pair">
+        <label>From (years)<input type="number" name="audience_age_from" aria-label={`Age range ${index + 1} from (years)`}
+          min="0" step="1" placeholder="18" required /></label>
+        <label>To (years)<input type="number" name="audience_age_to" aria-label={`Age range ${index + 1} to (years)`}
+          min="0" step="1" placeholder="25" required /></label>
+      </div>} />
+  </fieldset>;
+}
+
+function DesignQuestionField({ field }) {
+  const [answer, setAnswer] = useState("");
+  const showNote = field.note && (!field.note.when || field.note.when.includes(answer));
+
+  if (field.type === "markets") return <TargetMarketFields />;
+  if (field.type === "ageRanges") return <TargetAgeRanges />;
+  return <div className="dr-question">
+    <label><span>{field.label} <span className="dr-required" aria-hidden="true">*</span></span>
+      {field.options ? <select name={field.name} value={answer} required onChange={event => setAnswer(event.target.value)}>
+        <option value="" disabled>Select an option</option>
+        {field.options.map(option => <option key={option} value={option}>{option}</option>)}
+      </select> : field.type === "textarea"
+        ? <textarea name={field.name} maxLength={1000} required />
+        : <input type="number" name={field.name} min="0" max="999999999.99" step="0.01" required />}
+    </label>
+    {showNote && <label><span>{field.note.label} <span className="dr-required" aria-hidden="true">*</span></span>
+      <textarea name={`${field.name}_note`} maxLength={600} required />
+    </label>}
+    {field.upload && <label>Attach {field.upload} (optional)
+      <input type="file" name={`${field.name}_files`} multiple />
+    </label>}
+  </div>;
+}
+
+function DesignQuestionnaire({ questionnaire }) {
+  return <fieldset className="dr-follow-edit dr-questionnaire">
+    <legend>{questionnaire.label} details</legend>
+    <div className="dr-question-grid">
+      {questionnaire.fields.map((field, index, fields) => {
+        if (!field.group) return <DesignQuestionField key={field.name} field={field} />;
+        if (fields[index - 1]?.group === field.group) return null;
+        return <fieldset className="dr-audience" key={field.group}>
+          <legend>{field.group}</legend>
+          <div className="dr-question-grid">{fields.filter(answer => answer.group === field.group)
+            .map(answer => <DesignQuestionField key={answer.name} field={answer} />)}</div>
+        </fieldset>;
+      })}
+    </div>
+    {questionnaire.upload && <label>{questionnaire.upload.label}
+      <small>{questionnaire.upload.help}</small>
+      <input type="file" name={`${questionnaire.upload.name}_files`} multiple />
+    </label>}
+  </fieldset>;
+}
+
+function AdditionalDesignAttachments({ files, onChange, busy }) {
+  const helpId = useId();
+
+  function chooseFiles(event) {
+    const selected = Array.from(event.currentTarget.files);
+    onChange(current => [...current, ...selected]);
+    event.currentTarget.value = "";
+  }
+
+  return <section className="dr-additional-attachments" aria-label="Additional attachments">
+    <div className="dr-attachment-heading">
+      <div>
+        <h3>Additional attachments <span>(optional)</span></h3>
+        <small id={helpId}>Up to 5 files total per request, 10 MB each.</small>
+      </div>
+      <label className="dr-attachment-select">
+        <input type="file" multiple disabled={busy} aria-describedby={helpId} onChange={chooseFiles} />
+        <span>Choose files</span>
+      </label>
+    </div>
+    <span className="dr-attachment-count" role="status">
+      {files.length > 0 ? `${files.length} ${files.length === 1 ? "file" : "files"} selected` : ""}
+    </span>
+    {files.length > 0 && <ul className="dr-attachment-list">
+      {files.map((file, index) => <li key={index}>
+        <span>{file.name}</span>
+        <button type="button" aria-label={`Remove ${file.name}`} disabled={busy}
+          onClick={() => onChange(current => current.filter((_, position) => position !== index))}>Remove</button>
+      </li>)}
+    </ul>}
+  </section>;
+}
+
 export function DesignRequestForm({ project, onClose }) {
+  const [category, setCategory] = useState("");
+  const [requestType, setRequestType] = useState("");
+  const [additionalFiles, setAdditionalFiles] = useState([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [sentId, setSentId] = useState(null);
+  const sending = useRef(false);
   const [tracking, setTracking] = useState(false);
 
   async function submit(event) {
     event.preventDefault();
-    if (busy || sentId) return;
+    if (sending.current || sentId) return;
+    let payload;
+    try {
+      payload = buildDesignRequestPayload(new FormData(event.currentTarget), additionalFiles);
+    } catch (err) {
+      setError(err.message);
+      return;
+    }
+    sending.current = true;
     setBusy(true);
     setError("");
     try {
-      const { data } = await api.post("/design-requests", new FormData(event.currentTarget));
+      const { data } = await api.post("/design-requests", payload);
       setSentId(data.id);
     } catch (err) {
       setError(err.response?.data?.message || "Could not send the design request. Please try again.");
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
@@ -175,14 +323,31 @@ export function DesignRequestForm({ project, onClose }) {
         </div>
       </> :
         <form className="dr-form" onSubmit={submit}>
-          <label>Category<select name="category" required defaultValue="">
+          <p className="dr-required-help">Fields marked with an asterisk (*) are required.</p>
+          <label><span>{designRequestTypeLabel} <span className="dr-required" aria-hidden="true">*</span></span>
+            <select name="design_request_type" required value={requestType} onChange={event => {
+              setRequestType(event.target.value);
+              setError("");
+            }}>
+              <option value="" disabled>Select a design request type</option>
+              {designRequestTypes.map(type => <option key={type}>{type}</option>)}
+            </select>
+          </label>
+          <label><span>Category <span className="dr-required" aria-hidden="true">*</span></span><select name="category" required disabled={!requestType} value={category} onChange={event => {
+            setCategory(event.target.value);
+            setError("");
+          }}>
             <option value="" disabled>Select a category</option>
-            {Object.entries(categories).map(([key, title]) => <option key={key} value={key}>{title}</option>)}
+            {Object.entries(designRequestQuestionnaires).map(([key, item]) => <option key={key} value={key}>{item.label}</option>)}
           </select></label>
-          <label>Request title<input name="title" defaultValue={project?.project_title} maxLength={160} required /></label>
-          <label>Design brief<textarea name="brief" defaultValue={project?.project_description} maxLength={8000} required /></label>
-          <label>Needed by (optional)<input type="date" name="needed_by" defaultValue={project?.end_date || project?.due_date} /></label>
-          <label>Reference files (optional)<input type="file" name="files" multiple /></label>
+          {designRequestQuestionnaires[category]?.instructions && <p className="dr-label-guidance">{designRequestQuestionnaires[category].instructions}</p>}
+          <label><span>Request title <span className="dr-required" aria-hidden="true">*</span></span><input name="title" defaultValue={project?.project_title} maxLength={160} required /></label>
+          {category && <DesignQuestionnaire key={category} questionnaire={designRequestQuestionnaires[category]} />}
+          <label>Additional brief (optional)<textarea name="brief" defaultValue={project?.project_description} maxLength={8000} /></label>
+          {category && <AdditionalDesignAttachments files={additionalFiles} onChange={setAdditionalFiles} busy={busy} />}
+          <label><span>Needed by <span className="dr-required" aria-hidden="true">*</span></span>
+            <input type="date" name="needed_by" defaultValue={(project?.end_date || project?.due_date || "").slice(0, 10)} required />
+          </label>
           <div className="dr-buttons">
             <button className="dr-primary" disabled={busy}>{busy ? "Sending…" : "Send to Design Team"}</button>
           </div>
@@ -196,7 +361,7 @@ export async function loadDesignRequests(mode = "sent") {
 }
 
 const inboxViews = [
-  ["requests", "Requests"], ["messages", "Messages"], ["follow-ups", "Follow-ups"], ["work", "Who’s doing what"],
+  ["requests", "New Requests"], ["accepted", "Accepted Work"], ["messages", "Messages"], ["follow-ups", "Follow-ups"], ["work", "Who’s doing what"],
 ];
 
 function isClosed(request) {
@@ -216,7 +381,7 @@ function responsibleParty(request) {
     : request.requester_name || "Requesting Admin";
 }
 
-function InboxActivity({ view, requests, events, followFilter, onFollowFilterChange, onOpen, onRefresh }) {
+function InboxActivity({ view, requests, events, followFilter, onFollowFilterChange, onOpen }) {
   const byId = new Map(requests.map(request => [String(request.id), request]));
   const scheduled = events.filter(event => event.action === "follow_scheduled");
   const scheduleById = new Map(scheduled.map(event => [String(event.id), event]));
@@ -261,15 +426,14 @@ function InboxActivity({ view, requests, events, followFilter, onFollowFilterCha
   }
 
   return <>
-    <div className="dr-buttons dr-activity-controls">
-      {view === "follow-ups" && <label className="dr-filter">Show
+    {view === "follow-ups" && <div className="dr-buttons dr-activity-controls">
+      <label className="dr-filter">Show
         <select value={followFilter} onChange={event => onFollowFilterChange(event.target.value)}>
           <option value="all">All follow-ups</option>
           <option value="due">Due and overdue</option>
         </select>
-      </label>}
-      <button type="button" onClick={onRefresh}>Refresh</button>
-    </div>
+      </label>
+    </div>}
     <div className="dr-list">
       {rows.map(row => <button type="button" className="dr-item" key={row.key}
         onClick={() => onOpen({ requestId: row.request.id, followUpId: row.followUpId })}>
@@ -293,6 +457,8 @@ export function DesignInboxPage() {
   const [view, setView] = useState("requests");
   const [followFilter, setFollowFilter] = useState("all");
   const [selected, setSelected] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshOpenRequest = useRef(null);
   const requestNumber = useRef(0);
 
   async function checkAccess() {
@@ -329,6 +495,15 @@ export function DesignInboxPage() {
     };
   }, []);
 
+  async function refreshInbox() {
+    setRefreshing(true);
+    try {
+      await Promise.all([checkAccess(), refreshOpenRequest.current?.()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   if (access === "denied") return <Navigate to="/admin/projects" replace />;
 
   const seenThreads = new Set();
@@ -352,28 +527,31 @@ export function DesignInboxPage() {
         <button type="button" onClick={checkAccess}>Retry</button>
       </div>}
       {typeof access === "object" && <>
-        <nav className="dr-inbox-views" aria-label="Design Inbox views">
-          {inboxViews.map(([key, label]) => <button type="button" key={key}
-            aria-current={view === key ? "page" : undefined} className={view === key ? "dr-primary" : ""}
-            onClick={() => { setView(key); setSelected(null); checkAccess(); }}>
-            {label}{key === "messages" && awaitingReply > 0 && <span className="dr-tab-count"
-              aria-label={`${awaitingReply} conversations awaiting a reply`}>{awaitingReply}</span>}
-          </button>)}
-        </nav>
-        {view === "requests" ? <DesignRequestsContent mode="inbox" initialQueue={access} onActivityChange={checkAccess} />
+        <div className="dr-inbox-toolbar">
+          <nav className="dr-inbox-views" aria-label="Design Inbox views">
+            {inboxViews.map(([key, label]) => <button type="button" key={key}
+              aria-current={view === key ? "page" : undefined} className={view === key ? "dr-primary" : ""}
+              onClick={() => { setView(key); setSelected(null); checkAccess(); }}>
+              {label}{key === "messages" && awaitingReply > 0 && <span className="dr-tab-count"
+                aria-label={`${awaitingReply} conversations awaiting a reply`}>{awaitingReply}</span>}
+            </button>)}
+          </nav>
+          <button type="button" className="dr-inbox-refresh" disabled={refreshing} onClick={refreshInbox}>
+            {refreshing ? "Refreshing…" : "Refresh"}
+          </button>
+        </div>
+        {activityError && <p role="alert" className="dr-error">{activityError}</p>}
+        {["requests", "accepted"].includes(view) ? <DesignRequestsContent key={view} mode="inbox"
+          workView={view} initialQueue={access} onActivityChange={checkAccess} refreshOpenRequest={refreshOpenRequest} />
           : selected ? <DesignRequestsContent key={selected.requestId} mode="inbox"
             initialRequestId={selected.requestId} initialFollowUpId={selected.followUpId}
-            onActivityChange={checkAccess}
+            initialQueue={access} onActivityChange={checkAccess} refreshOpenRequest={refreshOpenRequest}
             onBack={() => { setSelected(null); checkAccess(); }} />
           : <>
-            {activityError && <div role="alert" className="dr-error">
-              <p>{activityError}</p>
-              <button type="button" onClick={checkAccess}>Retry</button>
-            </div>}
             {!activity && !activityError && view !== "work" && <p role="status">Loading activity…</p>}
             {(activity || view === "work") && <InboxActivity view={view} requests={access.requests}
               events={activity || []} followFilter={followFilter} onFollowFilterChange={setFollowFilter}
-              onOpen={setSelected} onRefresh={checkAccess} />}
+              onOpen={setSelected} />}
           </>}
       </>}
     </section>
@@ -390,10 +568,13 @@ export function DesignRequestRows({ requests, onOpen, disabled }) {
   return (
     <div className="design-requests dr-list">
       {requests.map(item => (
-        <button type="button" className="dr-item" key={item.id} disabled={disabled} onClick={() => onOpen(item.id)}>
+        <button type="button" className={item.access.requester && item.latest_design_update ? "dr-item dr-item-updated" : "dr-item"} key={item.id} disabled={disabled} onClick={() => onOpen(item.id)}>
           <span>
             <strong>{item.title}</strong>
             <small>{categories[item.category]} · {item.access.design ? item.requester_department || "Requesting department" : item.owner_department || "Design Team"}</small>
+            {item.access.requester && item.latest_design_update && <small className="dr-update-preview">
+              <strong>Design update · {date(item.latest_design_update_at)}</strong> {item.latest_design_update}
+            </small>}
           </span>
           <span className="dr-item-meta">
             <span className="dr-badge" data-status={item.status}>{statuses[item.status]}</span>
@@ -404,6 +585,42 @@ export function DesignRequestRows({ requests, onOpen, disabled }) {
       ))}
     </div>
   );
+}
+
+function DesignRequestsByDate({ requests, onOpen, disabled }) {
+  const dates = new Map();
+  for (const item of requests) {
+    const day = date(item.created_at);
+    if (!dates.has(day)) dates.set(day, []);
+    dates.get(day).push(item);
+  }
+  return <div className="dr-category-groups">
+    {Array.from(dates, ([day, items]) => <section className="dr-date-group" key={day}>
+      <h2>{day === "—" ? "Submission date unavailable" : day}</h2>
+      <DesignRequestCategoryGroups requests={items} onOpen={onOpen} disabled={disabled} />
+    </section>)}
+  </div>;
+}
+
+function DesignRequestCategoryGroups({ requests, onOpen, disabled }) {
+  const groups = new Map();
+  for (const request of requests) {
+    const category = Object.hasOwn(categories, request.category) ? request.category : "other";
+    if (!groups.has(category)) groups.set(category, []);
+    groups.get(category).push(request);
+  }
+
+  return <div className="dr-category-groups">
+    {Array.from(groups, ([category, items]) => items.length > 0 && (
+      <section className="dr-category-group" key={category} aria-label={categories[category]}>
+        <div className="dr-category-header">
+          <h2>{categories[category]}</h2>
+          <span className="dr-badge">{items.length} {items.length === 1 ? "request" : "requests"}</span>
+        </div>
+        <DesignRequestRows requests={items} onOpen={onOpen} disabled={disabled} />
+      </section>
+    ))}
+  </div>;
 }
 
 function FollowUpResult({ note }) {
@@ -470,10 +687,10 @@ function followUpName(entry) {
   return entry.note || entry.follow_up_note || "Follow-up";
 }
 
-function UpdateMessage({ event, files, busy, onDownload }) {
+function UpdateMessage({ event, files, busy, onDownload, context }) {
   return <div className="dr-follow-log">
     <strong>{updateMessages[event.action].event}</strong>
-    <small>{event.actor_name || "Admin"} · {date(event.created_at)}</small>
+    <small>{[context, event.actor_name || "Admin", date(event.created_at)].filter(Boolean).join(" · ")}</small>
     <p className="dr-note">{event.follow_up_note}</p>
     {files.length > 0 && <div className="dr-buttons">{files.map(file => (
       <button type="button" key={file.id} disabled={busy} onClick={() => onDownload(file)}>{file.name}</button>
@@ -583,30 +800,96 @@ function ScheduledFollowUp({ entry, request, closed, busy, currentDay, onSave, o
   );
 }
 
-export function DesignRequestsContent({ mode, initialRequestId, initialQueue, onBack, initialFollowUpId, onActivityChange }) {
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function readBriefAnswers(request) {
+  const questionnaire = designRequestQuestionnaires[request.category];
+  const labels = new Set([designRequestTypeLabel, "Additional brief", "Additional attachments", "Labelling documents", "What is the target audience?", "Target audience comments", "Target audience comments (optional)"]);
+  for (const field of questionnaire?.fields || []) {
+    for (const label of [field.label, field.note?.label, field.upload].filter(Boolean)) {
+      labels.add(label);
+      labels.add(`${label} (optional)`);
+    }
+  }
+  const answers = [];
+  for (const block of (request.brief || "").split("\n\n").filter(Boolean)) {
+    const lineEnd = block.indexOf("\n");
+    const label = block.slice(0, lineEnd);
+    if (lineEnd > 0 && labels.has(label)) {
+      answers.push({ label, value: block.slice(lineEnd + 1) });
+    } else if (answers.length) {
+      answers[answers.length - 1].value += `\n\n${block}`;
+    } else {
+      answers.push({ value: block });
+    }
+  }
+  return answers;
+}
+
+function attachmentSections(request, answers) {
+  const submit = request.events.find(event => event.action === "submit");
+  const submittedFiles = request.files.filter(file => submit && String(file.event_id) === String(submit.id))
+    .sort((a, b) => Number(a.id) - Number(b.id));
+  let labels;
+  try {
+    labels = JSON.parse(submit?.follow_up_note || "null")?.attachmentLabels;
+  } catch {
+    labels = null;
+  }
+
+  const uploadToQuestion = new Map([
+    ["Labelling documents", "Labelling documents"],
+    ["Additional attachments", "Additional attachments"],
+    ...(designRequestQuestionnaires[request.category]?.fields || [])
+      .filter(field => field.upload).map(field => [field.upload, field.label]),
+  ]);
+  return new Map(submittedFiles.map((file, index) => {
+    if (Array.isArray(labels) && labels.length === submittedFiles.length) return [file.id, labels[index]];
+    const matches = answers.filter(answer => uploadToQuestion.has(answer.label) &&
+      answer.value.split(", ").includes(file.name));
+    return [file.id, matches.length === 1 ? uploadToQuestion.get(matches[0].label) : undefined];
+  }));
+}
+
+export function DesignRequestsContent({ mode, initialRequestId, initialQueue, onBack, initialFollowUpId, onActivityChange, workView, refreshOpenRequest }) {
   const [queue, setQueue] = useState(initialQueue || null);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [feedback, setFeedback] = useState("");
   const [request, setRequest] = useState(null);
   const detailsRef = useRef(null);
+  const running = useRef(false);
   const [form, setForm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     let stale = false;
-    const detail = initialRequestId ? api.get(`/design-requests/${initialRequestId}`) : null;
     Promise.resolve(initialQueue || loadDesignRequests(mode)).then(data => {
       if (!stale) setQueue(data);
     }).catch(err => {
       if (!stale) setError(err.response?.data?.message || "Could not load design requests.");
     });
-    detail?.then(result => {
+    return () => { stale = true; };
+  }, [initialQueue, mode]);
+
+  useEffect(() => {
+    if (!initialRequestId) return;
+    let stale = false;
+    api.get(`/design-requests/${initialRequestId}`).then(result => {
       if (!stale) setRequest(result.data);
     }).catch(err => {
       if (!stale) setError(err.response?.data?.message || "Could not load the submitted request.");
     });
     return () => { stale = true; };
-  }, [initialQueue, initialRequestId, mode]);
+  }, [initialRequestId]);
 
   useEffect(() => {
     if (!request?.id || initialFollowUpId) return;
@@ -615,7 +898,8 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
   }, [request?.id, initialFollowUpId]);
 
   async function run(operation) {
-    if (busy) return;
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError("");
     try {
@@ -624,6 +908,7 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
     } catch (err) {
       setError(err.response?.data?.message || "The operation failed. Please try again.");
     } finally {
+      running.current = false;
       setBusy(false);
     }
   }
@@ -632,6 +917,7 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
 
   function openRequest(id) {
     return run(async () => {
+      setFeedback("");
       setRequest(await readRequest(id));
       setForm("");
     });
@@ -641,11 +927,24 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
     return run(async () => {
       data.set("action", action);
       data.set("version", request.version);
-      await api.post(`/design-requests/${request.id}/actions`, data);
+      try {
+        await api.post(`/design-requests/${request.id}/actions`, data);
+      } catch (err) {
+        if (err.response?.status === 409) {
+          const latest = await readRequest(request.id).catch(() => null);
+          if (latest) setRequest(latest);
+        }
+        throw err;
+      }
       setForm("");
-      const updated = await readRequest(request.id);
-      setRequest(updated);
-      setQueue(await loadDesignRequests(mode));
+      setFeedback(Object.hasOwn(updateMessages, action) ? "Update sent." : "Changes saved.");
+      try {
+        const [updated, nextQueue] = await Promise.all([readRequest(request.id), loadDesignRequests(mode)]);
+        setRequest(updated);
+        setQueue(nextQueue);
+      } catch {
+        setFeedback("Saved. Use Refresh to load the latest details.");
+      }
       onActivityChange?.();
     });
   }
@@ -677,26 +976,61 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
   function download(file) {
     return run(async () => {
       const result = await api.get(`/design-requests/${request.id}/files/${file.id}`, { responseType: "blob" });
-      const url = URL.createObjectURL(result.data);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = file.name;
-      link.click();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      downloadBlob(result.data, file.name);
+    });
+  }
+
+  function exportBrief() {
+    return run(async () => {
+      const { createDesignRequestPdf } = await import("./designRequestPdf");
+      const answers = readBriefAnswers(request);
+      const sections = attachmentSections(request, answers);
+      const attachments = [];
+      for (const file of [...request.files].sort((a, b) => Number(a.id) - Number(b.id))) {
+        const { data } = await api.get(`/design-requests/${request.id}/files/${file.id}`, { responseType: "arraybuffer" });
+        attachments.push({ name: file.name, label: sections.get(file.id), content: new Uint8Array(data) });
+      }
+
+      const brief = {
+        id: request.id,
+        title: request.title,
+        category: categories[request.category] || "Design request",
+        fields: [
+          ["Requested by", [request.requester_name, request.requester_department].filter(Boolean).join(" · ")],
+          ["Submitted", date(request.created_at)],
+          ["Needed by", date(request.needed_by)],
+          ...(request.delivery_due ? [["Committed delivery", date(request.delivery_due)]] : []),
+        ],
+        answers,
+        replies: [...request.events].reverse().filter(event => event.action === "reply" || Object.hasOwn(updateMessages, event.action))
+          .map(event => ({
+            label: [updateMessages[event.action]?.event || "Requester supplied information", event.actor_name, date(event.created_at)].filter(Boolean).join(" · "),
+            value: event.action === "reply" ? event.note : event.follow_up_note,
+          })),
+      };
+      const bytes = await createDesignRequestPdf(brief, attachments);
+      downloadBlob(new Blob([bytes], { type: "application/pdf" }), `Valencia-design-brief-${request.id}.pdf`);
     });
   }
 
   const detailOnly = Boolean(onBack);
   const currentDay = today();
+  const searchTerm = search.trim().toLowerCase();
   const visible = (queue?.requests || []).filter(item => {
+    if (searchTerm && ![item.title, categories[item.category], item.requester_name, item.requester_department]
+      .some(value => value?.toLowerCase().includes(searchTerm))) return false;
     if (mode === "sent") return item.access.requester;
     if (!item.access.design) return false;
+    if (workView === "requests" && !["new", "pending", "rejected"].includes(item.status)) return false;
+    if (workView === "requests" && item.status === "rejected" && filter !== "rejected") return false;
+    if (workView === "accepted" && !["accepted", "in_progress", "completed"].includes(item.status)) return false;
     if (filter === "due") {
       return Boolean(nextOwner[item.stage] && [item.follow_up_date, item.scheduled_follow_up_date]
         .some(value => value && value <= currentDay));
     }
     return filter === "all" || item.status === filter;
-  });
+  }).sort((a, b) =>
+    (new Date(b.created_at || 0) - new Date(a.created_at || 0)) || Number(b.id) - Number(a.id));
   const activeDates = request?.follow_up_date;
   const revision = request?.stage === "changes";
   const dateChanges = readDateChanges(request?.events || []);
@@ -711,7 +1045,15 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
     .sort((a, b) => a.follow_up_date.localeCompare(b.follow_up_date));
   const reviewActions = (request?.actions || []).filter(action => action !== "follow" &&
     (!Object.hasOwn(followUpActions, action) || Object.hasOwn(updateMessages, action)));
-  const requestMessages = (request?.events || []).filter(event => !event.note && Object.hasOwn(updateMessages, event.action));
+  const orderedActions = reviewActions.includes("accept")
+    ? ["accept", ...reviewActions.filter(action => action !== "accept")]
+    : reviewActions;
+  const requestMessages = (request?.events || []).filter(event => Object.hasOwn(updateMessages, event.action));
+  const latestIncoming = request?.access?.requester
+    ? requestMessages.find(event => event.action === "respond_update")
+    : null;
+  const scheduledById = new Map(scheduled.map(entry => [String(entry.id), entry]));
+  const briefAnswers = request ? readBriefAnswers(request) : [];
 
   function refresh() {
     return run(async () => {
@@ -724,6 +1066,15 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
     });
   }
 
+  useEffect(() => {
+    const id = request?.id || initialRequestId;
+    if (!refreshOpenRequest || !id) return;
+    refreshOpenRequest.current = () => run(async () => {
+      setRequest(await readRequest(id));
+    });
+    return () => { refreshOpenRequest.current = null; };
+  });
+
   return (
     <section className="design-requests" aria-label={mode === "inbox" ? "Design inbox" : "Requests sent"}>
       {!request && detailOnly && <div className="dr-buttons">
@@ -731,36 +1082,49 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
       </div>}
       {!request && !detailOnly && <div className="dr-header dr-list-header">
         <div className="dr-buttons">
-          {mode !== "inbox" && <h3>Requests sent</h3>}
+          {mode === "inbox" ? <label className="dr-filter dr-search">Search
+            <input type="search" placeholder="Title, category or requester" value={search} onChange={event => setSearch(event.target.value)} />
+          </label> : <h3>Requests sent</h3>}
         </div>
         <div className="dr-buttons">
           {mode === "inbox" && <label className="dr-filter">Status
             <select value={filter} onChange={event => setFilter(event.target.value)}>
               <option value="all">All requests</option>
-              {Object.entries(statuses).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+              {Object.entries(statuses).filter(([key]) => workView === "requests"
+                ? ["new", "pending", "rejected"].includes(key)
+                : !workView || ["accepted", "in_progress", "completed"].includes(key)).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
               <option value="due">Due follow-ups</option>
             </select>
           </label>}
-          <button type="button" disabled={busy} onClick={refresh}>Refresh</button>
+          {!refreshOpenRequest && <button type="button" disabled={busy} onClick={refresh}>Refresh</button>}
         </div>
       </div>}
       {error && <p role="alert" className="dr-error">{error}</p>}
+      {feedback && request && <p role="status" className="dr-success">{feedback}</p>}
       {(!queue || (detailOnly && !request)) && !error && <p role="status">Loading request…</p>}
 
       {!request && queue && !detailOnly && (visible.length
-        ? <DesignRequestRows requests={visible} onOpen={openRequest} disabled={busy} />
+        ? mode === "inbox"
+          ? <DesignRequestsByDate requests={visible} onOpen={openRequest} disabled={busy} />
+          : <DesignRequestRows requests={visible} onOpen={openRequest} disabled={busy} />
         : <p>No requests in this view.</p>)}
 
-      {request && <article className="dr-card" ref={detailsRef} tabIndex={-1} aria-label={request.title}>
+      {request && <article className="dr-card dr-request-detail" ref={detailsRef} tabIndex={-1} aria-label={request.title}>
         <header className="dr-header">
           <div><button type="button" disabled={busy} onClick={onBack || (() => { setRequest(null); setForm(""); })}>← {detailOnly ? backLabel : "Back to requests"}</button>
             <h2>{request.title}</h2><p>{categories[request.category]} · {request.requester_name} · {request.requester_department || "Department unassigned"}</p></div>
           <div className="dr-buttons"><span className="dr-badge" data-status={request.status}>{statuses[request.status]}</span>
-            <button type="button" disabled={busy} onClick={refresh}>Refresh</button></div>
+            {request.access?.design && <button type="button" disabled={busy} onClick={exportBrief}>Download brief PDF</button>}
+            {!refreshOpenRequest && <button type="button" disabled={busy} onClick={refresh}>Refresh</button>}</div>
         </header>
+        {latestIncoming && <section className="dr-new-update" aria-label="Latest design update">
+          <h3>Latest design update</h3>
+          <UpdateMessage event={latestIncoming} busy={busy} onDownload={download}
+            files={request.files.filter(file => String(file.event_id) === String(latestIncoming.id))} />
+        </section>}
         {form ? <ActionForm key={form} action={form} request={request} onSave={save} onCancel={() => setForm("")} busy={busy} /> :
-          reviewActions.length > 0 && <div className="dr-buttons">{reviewActions.map((action, index) => (
-            <button type="button" key={action} className={(action === "accept" || (index === 0 && !reviewActions.includes("accept"))) ? "dr-primary" : ""} disabled={busy}
+          orderedActions.length > 0 && <div className="dr-buttons">{orderedActions.map((action, index) => (
+            <button type="button" key={action} className={index === 0 ? "dr-primary" : ""} disabled={busy}
               onClick={() => { setForm(action); setError(""); }}>{updateMessages[action]?.button || actions[action]}</button>
           ))}</div>}
         {!form && <>
@@ -772,19 +1136,14 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
           </dl>
           <div><span>What to share or do</span><p>{request.follow_up_note || "Review the submitted brief and set the next step."}</p></div>
         </section>}
-        {requestMessages.length > 0 && <section className="dr-section dr-follow-history">
-          <h3>Questions and updates</h3>
-          {requestMessages.map(event => <UpdateMessage key={event.id} event={event} busy={busy} onDownload={download}
-            files={request.files.filter(file => file.event_id === event.id)} />)}
-        </section>}
         {closed && <section className="dr-next" data-status={request.status}>
           <h3>{request.status === "rejected" ? "Request rejected" : "Request completed"}</h3>
           {request.status === "rejected" && <p className="dr-note">{request.events.find(entry => entry.action === "reject")?.note || "No reason recorded."}</p>}
           {lastFollow && <p>Last action follow-up · {date(lastFollow.follow_up_date)}{lastFollow.follow_up_note && ` · ${lastFollow.follow_up_note}`}</p>}
         </section>}
-        {(scheduled.length > 0 || request.actions.includes("follow")) && <section className="dr-section dr-follow-plan">
-          <div className="dr-header">
-            <h3>Scheduled follow-ups</h3>
+        {(scheduled.length > 0 || request.actions.includes("follow")) && <details className="dr-section dr-follow-plan" open>
+          <summary>Scheduled follow-ups · {scheduled.length}</summary>
+          <div className="dr-follow-toolbar">
             {request.actions.includes("follow") && <button type="button" disabled={busy}
               onClick={() => { setForm("follow"); setError(""); }}>+ Add follow-ups</button>}
           </div>
@@ -793,21 +1152,35 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
               focused={String(initialFollowUpId) === String(entry.id)}
               currentDay={currentDay} onSave={saveAction} onDownload={download} />
           ))}</ul> : <p>No additional follow-ups scheduled.</p>}
-        </section>}
+        </details>}
         <dl className="dr-meta">
           <div><dt>Submitted</dt><dd>{date(request.created_at)}</dd></div>
           <div><dt>Needed by</dt><dd>{date(request.needed_by)}</dd></div>
           <div><dt>Committed delivery</dt><dd>{date(request.delivery_due)}<DateChange change={latestDateChange("delivery_due", request.delivery_due)} /></dd></div>
         </dl>
-        <details open><summary>Request brief</summary><p className="dr-note">{request.brief}</p></details>
-        {request.files.length > 0 && <section className="dr-section">
-          <h3>Shared files</h3>
-          <ul>{request.files.map(file => {
-            const source = request.events.find(entry => entry.id === file.event_id);
-            return <li key={file.id}><button type="button" disabled={busy} onClick={() => download(file)}>{file.name}</button>
-              <small>{source?.action === "share" ? `Draft v${source.draft_version}` : followUpActions[source?.action]?.event || actions[source?.action]} · {source?.actor_name}</small></li>;
-          })}</ul>
+        {requestMessages.some(event => event !== latestIncoming) && <section className="dr-section dr-follow-history">
+          <h3>Questions and updates</h3>
+          {requestMessages.filter(event => event !== latestIncoming).map(event => <UpdateMessage key={event.id} event={event} busy={busy} onDownload={download}
+            context={event.note && scheduledById.has(String(event.note)) ? followUpName(scheduledById.get(String(event.note))) : null}
+            files={request.files.filter(file => String(file.event_id) === String(event.id))} />)}
         </section>}
+        <div className="dr-detail-grid">
+          <section className="dr-detail-panel">
+            <h3>Request brief</h3>
+            <div className="dr-answers">{briefAnswers.map((entry, index) => <div key={index}>
+              {entry.label && <strong>{entry.label}</strong>}
+              <p className="dr-note">{entry.value}</p>
+            </div>)}</div>
+          </section>
+          <section className="dr-detail-panel dr-files">
+            <h3>Shared files <span className="dr-badge">{request.files.length}</span></h3>
+            {request.files.length ? <ul>{request.files.map(file => {
+              const source = request.events.find(entry => String(entry.id) === String(file.event_id));
+              return <li key={file.id}><button type="button" disabled={busy} onClick={() => download(file)}>{file.name}</button>
+                <small>{source?.action === "share" ? `Draft v${source.draft_version}` : followUpActions[source?.action]?.event || actions[source?.action]} · {source?.actor_name}</small></li>;
+            })}</ul> : <p>No files attached.</p>}
+          </section>
+        </div>
         <details className="dr-section">
           <summary>Activity</summary>
           {dateChanges.length > 0 && <ul aria-label="Date changes">{dateChanges.map((change, index) => (
