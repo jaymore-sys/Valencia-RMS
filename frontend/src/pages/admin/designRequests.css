@@ -346,3 +346,84 @@
 .design-requests .dr-age-ranges { min-width: 0; margin: 0; padding: 0; border: 0; }
 .design-requests .dr-age-ranges legend { padding: 0; margin-bottom: 4px; }
 .design-requests .dr-age-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+
+.dr-linked-work { margin: 1rem 0; }
+.dr-work-form { display: grid; gap: 0.75rem; padding: 0.75rem; }
+.dr-work-form label { display: grid; gap: 0.3rem; }
+.dr-work-dates { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 0.75rem; }
+.dr-work-task, .dr-work-owner { display: block; }
+.dr-work-owner-task { margin-inline-start: 1rem; }
+.dr-work-task .dr-header, .dr-work-owner .dr-header { align-items: center; }
+.dr-work-owner small { display: block; }
+
+.dr-brief-description {
+  display: grid;
+  gap: 0;
+  margin: .6rem 0 0;
+  min-width: 0;
+}
+.dr-brief-description > div {
+  display: grid;
+  gap: .2rem;
+  padding-block: .65rem;
+  border-bottom: 1px solid #dce4ed;
+}
+.dr-brief-description > div:last-child { border-bottom: 0; }
+.dr-brief-description dt { font-size: .875em; font-weight: 700; color: #172139; }
+.dr-brief-description dd { margin: 0; color: #4f5d72; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.design-requests .dr-ownership-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #dde3eb;
+  border-radius: 14px;
+  background: #fff;
+}
+.design-requests .dr-ownership-table {
+  width: 100%;
+  min-width: 580px;
+  border-collapse: collapse;
+  text-align: left;
+}
+.design-requests .dr-ownership-table th,
+.design-requests .dr-ownership-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid #e4eaf2;
+  vertical-align: middle;
+}
+.design-requests .dr-ownership-table thead th {
+  color: #4f5d72;
+  font-size: .85rem;
+  white-space: nowrap;
+}
+.design-requests .dr-ownership-table thead th:first-child { width: 42%; }
+.design-requests .dr-ownership-table .dr-ownership-project { background: #f4f6fa; }
+.design-requests .dr-ownership-table .dr-ownership-task th { padding-inline-start: 32px; }
+.design-requests .dr-ownership-table tbody:last-child tr:last-child > * { border-bottom: 0; }
+.design-requests .dr-ownership-table a {
+  color: #172139;
+  text-decoration: none;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.design-requests .dr-ownership-table a:hover, .design-requests .dr-ownership-table a:focus-visible {
+  color: #98381f;
+  text-decoration: underline;
+}
+.design-requests .dr-ownership-table time,
+.design-requests .dr-ownership-table .dr-badge { display: inline-block; white-space: nowrap; }
+.design-requests .dr-ownership-table .dr-badge[data-status="under_review"] {
+  background: #ede9fe;
+  color: #53348e;
+}
+.dr-brief-summary > details {
+  margin-top: .4rem;
+  border-top: 1px solid #dce4ed;
+  padding-top: .55rem;
+}
+.dr-brief-summary > details > summary {
+  width: fit-content;
+  cursor: pointer;
+  color: #98381f;
+  font-size: .9em;
+  font-weight: 700;
+}

@@ -44,23 +44,25 @@ async function queueDesignMail(connection, request, key, audience, heading, deta
 }
 
 async function queueDueFollowUps(connection, date) {
-    const [due] = await connection.query(`
+    const [nextFollowUps] = await connection.query(`
+        SELECT id, title, requester_id, owner_department_id,
+               'next' AS follow_key, NULL AS follow_name, follow_up_note AS follow_note
+        FROM design_requests
+        WHERE follow_up_date = ? AND status NOT IN ('completed', 'rejected')
+    `, [date]);
+    const [scheduledFollowUps] = await connection.query(`
         SELECT q.id, q.title, q.requester_id, q.owner_department_id,
-               'next' AS follow_key, NULL AS follow_name, q.follow_up_note AS follow_note
-        FROM design_requests q
-        WHERE q.follow_up_date = ? AND q.status NOT IN ('completed', 'rejected')
-        UNION ALL
-        SELECT q.id, q.title, q.requester_id, q.owner_department_id,
-               CAST(e.id AS CHAR), e.note, e.follow_up_note
+               e.id AS follow_key, e.note AS follow_name, e.follow_up_note AS follow_note
         FROM design_requests q JOIN design_request_events e ON e.request_id = q.id
         WHERE e.follow_up_date = ? AND e.action = 'follow_scheduled'
         AND q.status NOT IN ('completed', 'rejected')
         AND NOT EXISTS (
             SELECT 1 FROM design_request_events d
             WHERE d.request_id = q.id AND d.action = 'follow_done'
-            AND d.note = CAST(e.id AS CHAR)
-        )`, [date, date]);
-    for (const request of due) {
+            AND CAST(d.note AS BINARY) = CAST(e.id AS BINARY)
+        )
+    `, [date]);
+    for (const request of [...nextFollowUps, ...scheduledFollowUps]) {
         const details = [`Follow-up date: ${date}`, request.follow_name, request.follow_note].filter(Boolean).join("\n");
         await queueDesignMail(connection, request, `due:${request.id}:${request.follow_key}:${date}`,
             "both", "Design follow-up scheduled today", details);
@@ -77,7 +79,14 @@ async function processDesignRequestEmails() {
 
         const now = new Date();
         const hour = Number(new Intl.DateTimeFormat("en-GB", { timeZone: zone, hour: "2-digit", hourCycle: "h23" }).format(now));
-        if (hour >= 9) await queueDueFollowUps(connection, indiaDate.format(now));
+        let reminderError;
+        if (hour >= 9) {
+            try {
+                await queueDueFollowUps(connection, indiaDate.format(now));
+            } catch (error) {
+                reminderError = error;
+            }
+        }
 
         const [entries] = await connection.query(`
             SELECT delivery_key, recipient_email, subject, message FROM design_request_email_outbox
@@ -107,6 +116,7 @@ async function processDesignRequestEmails() {
                     WHERE delivery_key = ?`, [entry.delivery_key]);
             }
         }
+        if (reminderError) throw reminderError;
     } finally {
         try {
             if (locked) await connection.query("SELECT RELEASE_LOCK('valencia_rms_design_email_v1')");

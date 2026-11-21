@@ -1,5 +1,6 @@
+import { DesignProjectPanel, DesignTaskExtras, combineDesignProjects, useDesignProjects } from "./DesignProjectWork";
 import { DesignRequestForm, DesignRequestRows, DesignRequestsContent, loadDesignDepartment, loadDesignRequests } from "./DesignRequests";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import EmployeeProjects from "../employee/employeeProjects";
 import "./adminProjectViews.css";
@@ -184,6 +185,7 @@ const normalizeProject = (project) => {
     return {
       ...task,
       task_id: task.task_id || task.main_task_id || task.id,
+      design_request_id: task.design_request_id || project.design_request_id,
       task_title:
         task.task_title || task.main_task_title || task.title || "Main Task",
       task_description:
@@ -204,15 +206,15 @@ const normalizeProject = (project) => {
       ),
       assignees: dedupeUsers(taskAssignees),
       completed_subtasks:
-        task.completed_subtasks ||
+        task.subtasks?.filter(child => normalizeStatus(child.status) === "done").length ?? (task.completed_subtasks ||
         task.completedSubtasks ||
         task.done_subtasks ||
-        0,
+        0),
       total_subtasks:
-        task.total_subtasks ||
+        task.subtasks?.length ?? (task.total_subtasks ||
         task.totalSubtasks ||
         task.subtask_count ||
-        0,
+        0),
     };
   });
 
@@ -330,13 +332,23 @@ const tryDelete = async (urls) => {
   throw lastError;
 };
 
-const AdminProjectBoard = ({ projectViewSwitch }) => {
+const AdminProjectBoard = ({ projectViewSwitch, requestId, clearRequest, personal }) => {
+  const design = useDesignProjects("admin");
+  const linkedProjects = design.result?.projects;
   const [designQueue, setDesignQueue] = useState(null);
   const [designQueueError, setDesignQueueError] = useState("");
+  const [incomingDesignRequestId, setIncomingDesignRequestId] = useState(null);
+  const [existingDesignProject, setExistingDesignProject] = useState(null);
   const [sentDesignRequestId, setSentDesignRequestId] = useState(null);
+  const incomingDesignRequests = designQueue?.requests.filter(request => request.access.design && ["new", "pending", "accepted", "in_progress"].includes(request.status)) || [];
   const sentDesignRequests = designQueue?.requests.filter(request => request.access.requester) || [];
   const [designDepartmentId, setDesignDepartmentId] = useState(null);
-  const [projects, setProjects] = useState([]);
+  const [nativeProjects, setProjects] = useState([]);
+  const projects = useMemo(() => {
+    const designProjects = linkedProjects?.filter(project => Number(project.owner_department_id) === Number(design.result.design_department_id)
+      || (project.generated_project && Number(project.requester_id) === Number(design.result.user_id)));
+    return combineDesignProjects(nativeProjects, designProjects, normalizeProject);
+  }, [nativeProjects, linkedProjects, design.result?.design_department_id, design.result?.user_id]);
   const [users, setUsers] = useState([]);
   const [divisions, setDivisions] = useState([]);
 
@@ -350,6 +362,24 @@ const AdminProjectBoard = ({ projectViewSwitch }) => {
 
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [teamPicker, setTeamPicker] = useState(null);
+  const [teamIds, setTeamIds] = useState([]);
+  const designRequestId = selectedProject?.design_request_id;
+  const canManageDesign = designRequestId && !personal
+    && Number(selectedProject.owner_department_id) === Number(design.result?.design_department_id)
+    && ["accepted", "in_progress"].includes(selectedProject.request_status);
+  const sourceDesignWork = (linkedProjects || []).filter(project =>
+    !project.generated_project && String(project.project_id) === String(selectedProject?.project_id));
+  const sourceDesignTasks = sourceDesignWork.flatMap(project =>
+    project.tasks.map(task => ({ ...task, design_request_id: project.request_id })));
+  const sentDesignWork = linkedProjects?.find(project => String(project.request_id) === String(sentDesignRequestId));
+  const selectedTasks = designRequestId ? selectedProject.main_tasks : normalizeProject({
+    main_tasks: [...new Map([
+      ...(selectedProject?.main_tasks || []).map(task => [String(task.task_id), task]),
+      ...sourceDesignTasks.map(task => [String(task.task_id), task]),
+    ]).values()],
+  }).main_tasks;
+
   const [showEditProjectModal, setShowEditProjectModal] = useState(false);
 
   const [assignSearch, setAssignSearch] = useState("");
@@ -433,6 +463,7 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
 });
 
   const fetchProjects = async () => {
+    design.reload();
     setLoading(true);
     setError("");
 
@@ -621,8 +652,8 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
   }, [editProjectUserPool, editAssigneeSearch]);
 
   const currentProjectAssignees = useMemo(() => {
-    return dedupeUsers(selectedProject?.assignees || []);
-  }, [selectedProject]);
+    return dedupeUsers((designRequestId ? selectedProject?.design_team : selectedProject?.assignees) || []);
+  }, [selectedProject, designRequestId]);
 
   const selectedEditProjectAssignees = useMemo(() => {
     const selectedIds = new Set(editProject.assignee_ids.map(String));
@@ -644,6 +675,9 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
   };
 
   const openProjectDetails = (project) => {
+    setTeamPicker(null);
+    setTeamIds([]);
+    setExistingDesignProject(null);
     const normalizedProject = normalizeProject(project);
     const assigneeIds = normalizedProject.assignees
       .map((user) => getUserId(user))
@@ -697,7 +731,28 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
     setEditAssigneeSearch("");
   };
 
+  const openedRequestId = useRef(null);
+  useEffect(() => {
+    if (!requestId) {
+      openedRequestId.current = null;
+      return;
+    }
+    if (openedRequestId.current === requestId) return;
+    const requested = projects.find(project => String(project.design_request_id) === requestId);
+    if (!requested) return;
+    openedRequestId.current = requestId;
+    openProjectDetails(requested);
+    if (!personal) clearRequest();
+  }, [requestId, projects, personal]);
+
+  useEffect(() => {
+    if (!designRequestId) return;
+    const updated = projects.find(project => project.design_request_id === designRequestId);
+    if (updated) setSelectedProject(updated);
+  }, [projects, designRequestId]);
+
   const closeProjectDetails = () => {
+    clearRequest();
     setSelectedProject(null);
     setShowEditProjectModal(false);
     setReviewRemark("");
@@ -713,6 +768,51 @@ const [interdepartmentReview, setInterdepartmentReview] = useState({
     });
 
     cancelEditMainTask();
+  };
+
+  const openDesignTeamPicker = async () => {
+    setError("");
+    setActionLoading(true);
+    try {
+      const { data } = await api.get(`/design-requests/${designRequestId}/work?people=1`);
+      const added = new Set((data.project?.assignees || []).map(user => String(user.user_id)));
+      setTeamPicker(data.people.filter(user => !added.has(String(user.user_id))));
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not load the Design Team.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const saveDesignTeam = async () => {
+    setError("");
+    setActionLoading(true);
+    try {
+      await api.post(`/design-requests/${designRequestId}/work/team`, { assignee_ids: teamIds });
+      setTeamPicker(null);
+      setTeamIds([]);
+      design.reload();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not add employees.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const startDesignWork = async () => {
+    setError("");
+    setActionLoading(true);
+    try {
+      const form = new FormData();
+      form.set("action", "start");
+      form.set("version", selectedProject.version);
+      await api.post(`/design-requests/${designRequestId}/actions`, form);
+      design.reload();
+    } catch (err) {
+      setError(err.response?.data?.message || "Could not start Design work.");
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const resetAssignForm = () => {
@@ -1115,7 +1215,9 @@ const createProject = async () => {
         assignees: newMainTask.assignee_ids,
       };
 
-      const response = await tryPost(
+      const response = designRequestId
+        ? await api.post(`/design-requests/${designRequestId}/work/tasks`, payload)
+        : await tryPost(
         [
           `/admin-projects/${projectId}/tasks`,
           `/admin-projects/projects/${projectId}/tasks`,
@@ -1137,7 +1239,8 @@ const createProject = async () => {
         assignee_ids: [],
       });
 
-      await refreshSelectedProject(projectId);
+      if (designRequestId) design.reload();
+      else await refreshSelectedProject(projectId);
     } catch (err) {
       setError(
         err.response?.data?.message ||
@@ -1466,6 +1569,7 @@ const refreshDesignInbox = async () => {
 const openInterdepartmentRequestsModal = async () => {
   setError("");
   setSentDesignRequestId(null);
+  setIncomingDesignRequestId(null);
   setInterdepartmentLoading(true);
 
   try {
@@ -2097,6 +2201,7 @@ const submitInterdepartmentReview = async (action) => {
             : "Export Data"}
         </button>
       </div>
+      {design.error && <div style={styles.errorBox} role="alert">{design.error}</div>}
 
       {error && <div style={styles.errorBox}>{error}</div>}
       {successMessage && <div style={styles.successBox}>{successMessage}</div>}
@@ -2190,7 +2295,7 @@ const submitInterdepartmentReview = async (action) => {
                         <button
                           type="button"
                           style={styles.projectTile}
-                          key={project.project_id}
+                          key={project.design_request_id ? `design:${project.design_request_id}` : project.project_id}
                           onClick={() => openProjectDetails(project)}
                         >
                           <span style={styles.projectTileTitle}>
@@ -2460,24 +2565,40 @@ const submitInterdepartmentReview = async (action) => {
         {designQueueError && <div className="design-requests">
           <p role="alert" className="dr-error">{designQueueError}</p>
           <div>
-            <button type="button" onClick={refreshDesignInbox}>Retry sent design requests</button>
+            <button type="button" onClick={refreshDesignInbox}>Retry design requests</button>
           </div>
         </div>}
-        {sentDesignRequestId ? (
-          <DesignRequestsContent key={sentDesignRequestId} mode="sent" initialRequestId={sentDesignRequestId}
-            initialQueue={designQueue} onBack={async () => {
-              setSentDesignRequestId(null);
-              const queue = await loadDesignRequests().catch(() => null);
-              if (queue) setDesignQueue(queue);
+        {incomingDesignRequestId ? (
+          <DesignRequestsContent key={incomingDesignRequestId} mode="incoming" initialRequestId={incomingDesignRequestId}
+            initialQueue={designQueue} onBack={() => setIncomingDesignRequestId(null)} onActivityChange={action => {
+              refreshDesignInbox();
+              if (action === "accept") {
+                setShowInterdepartmentRequestsModal(false);
+                setIncomingDesignRequestId(null);
+                fetchProjects();
+              }
             }} />
+        ) : sentDesignRequestId ? (
+          <>
+          {sentDesignWork && <DesignProjectPanel key={`work:${sentDesignRequestId}`}
+            requestId={sentDesignRequestId} />}
+          <DesignRequestsContent key={sentDesignRequestId} mode="sent" initialRequestId={sentDesignRequestId}
+            initialQueue={designQueue} onBack={() => {
+              setSentDesignRequestId(null);
+              refreshDesignInbox();
+            }} />
+          </>
         ) : <>
         <section style={styles.interdepartmentRequestsSection}>
           <h3 style={styles.interdepartmentRequestsSectionTitle}>
             Incoming Requests
           </h3>
 
+          {!!incomingDesignRequests.length && <div className="design-requests">
+            <DesignRequestRows requests={incomingDesignRequests} onOpen={setIncomingDesignRequestId} />
+          </div>}
           {interdepartmentRequests.incoming.length === 0 ? (
-            <div style={styles.interdepartmentRequestsEmpty}>
+            !incomingDesignRequests.length && !designQueueError && <div style={styles.interdepartmentRequestsEmpty}>
               No incoming Interdepartment requests.
             </div>
           ) : (
@@ -2764,7 +2885,8 @@ const submitInterdepartmentReview = async (action) => {
       </div>
 
       {designDepartmentId && Number(interdepartmentForm.requested_department_id) === Number(designDepartmentId) ? (
-        <DesignRequestForm project={newProject} onClose={closeInterdepartmentRequestModal} />
+        <DesignRequestForm project={newProject} projectDraft={getNewProjectPayload()}
+          onSent={({ project_id }) => setInterdepartmentProjectId(project_id)} onClose={closeInterdepartmentRequestModal} />
       ) : <>
       <div style={styles.formGrid}>
         <label style={styles.field}>
@@ -2899,14 +3021,16 @@ const submitInterdepartmentReview = async (action) => {
                 </p>
               </div>
 
-              <button
-                type="button"
-                style={styles.projectModalEditButton}
-                onClick={() => setShowEditProjectModal(true)}
-              >
-                <Edit size={18} />
-                Edit Project
-              </button>
+              {designRequestId ? canManageDesign && <div style={styles.drProjectHeaderActions}>
+                {selectedProject.request_status === "accepted" && selectedProject.status === "to_do" && <button type="button" style={styles.projectModalEditButton}
+                  disabled={actionLoading} onClick={startDesignWork}>Start Work</button>}
+                {!selectedProject.design_team.length && !teamPicker && <button type="button"
+                  style={styles.projectModalEditButton} disabled={actionLoading}
+                  onClick={openDesignTeamPicker}><Plus size={18} /> Add Employees</button>}
+              </div> : <button type="button" style={styles.projectModalEditButton}
+                onClick={() => setShowEditProjectModal(true)}>
+                <Edit size={18} /> Edit Project
+              </button>}
             </div>
 
             {error && (
@@ -2920,6 +3044,10 @@ const submitInterdepartmentReview = async (action) => {
     {successMessage}
   </div>
 )}
+
+            {!designRequestId && (existingDesignProject === selectedProject.project_id
+              ? <DesignRequestForm project={selectedProject} onClose={() => setExistingDesignProject(null)} onSent={fetchProjects} />
+              : <button type="button" onClick={() => setExistingDesignProject(selectedProject.project_id)}>Request Design work</button>)}
 
             <div style={styles.detailsGrid}>
               <div style={styles.detailBox}>
@@ -2980,7 +3108,46 @@ const submitInterdepartmentReview = async (action) => {
               </div>
             </div>
 
-            {["under_review", "on_hold"].includes(
+            {!designRequestId && !!sourceDesignWork.length && <section style={styles.editSection}>
+              <h3 style={styles.modalSectionTitle}>Design Team</h3>
+              {sourceDesignWork.map(work => <div key={work.request_id} style={styles.mainTaskCard}>
+                <strong>{work.request_title}</strong>
+                <div style={styles.taskChips}>
+                  {work.assignees?.length ? work.assignees.map(user =>
+                    <span key={user.user_id} style={styles.chip}>{user.full_name}</span>
+                  ) : <span>{work.assignee_name || "Awaiting Design Team assignment"}</span>}
+                </div>
+              </div>)}
+            </section>}
+
+            {designRequestId && <section style={styles.editSection}>
+              <h3 style={styles.modalSectionTitle}>Project Employees</h3>
+              <div style={styles.taskChips}>
+                {currentProjectAssignees.length ? currentProjectAssignees.map(user =>
+                  <span key={user.user_id} style={styles.chip}>{user.full_name}</span>
+                ) : <span>No employees added yet.</span>}
+              </div>
+              {teamPicker && <div style={styles.taskAssigneeList}>
+                {teamPicker.length ? teamPicker.map(user => {
+                  const id = String(user.user_id);
+                  return <label key={id} style={styles.taskAssigneeRow}>
+                    <input type="checkbox" checked={teamIds.includes(id)} onChange={event => {
+                      const checked = event.target.checked;
+                      setTeamIds(ids => checked ? [...ids, id] : ids.filter(value => value !== id));
+                    }} />
+                    <strong>{user.full_name}</strong>
+                  </label>;
+                }) : <p>All active Design Team members are already on the project.</p>}
+                <div style={styles.editTaskButtonsRow}>
+                  <button type="button" style={styles.cancelEditTaskButton} disabled={actionLoading}
+                    onClick={() => { setTeamPicker(null); setTeamIds([]); }}>Cancel</button>
+                  <button type="button" style={styles.saveEditTaskButton} disabled={actionLoading || !teamIds.length}
+                    onClick={saveDesignTeam}>Add selected employees</button>
+                </div>
+              </div>}
+            </section>}
+
+            {!designRequestId && ["under_review", "on_hold"].includes(
               normalizeStatus(selectedProject.status)
             ) && (
                 <section style={styles.reviewActionSection}>
@@ -3068,7 +3235,7 @@ const submitInterdepartmentReview = async (action) => {
                 </section>
               )}
 
-            {canEditMainTasks(selectedProject.status) && (
+            {(designRequestId ? canManageDesign : canEditMainTasks(selectedProject.status)) && (
               <section style={styles.editSection}>
                 <h3 style={styles.modalSectionTitle}>
                   <Plus size={21} color="#ff5733" />
@@ -3191,14 +3358,14 @@ const submitInterdepartmentReview = async (action) => {
             <section>
               <h3 style={styles.modalSectionTitle}>Main Tasks</h3>
 
-              {selectedProject.main_tasks.length === 0 ? (
+              {selectedTasks.length === 0 ? (
                 <div style={styles.emptyColumn}>No main tasks added yet.</div>
               ) : (
                 <div style={styles.mainTaskList}>
-                  {selectedProject.main_tasks.map((task) => {
+                  {selectedTasks.map((task) => {
                     const isEditing =
                       String(editingMainTaskId) === String(task.task_id);
-                    const projectAllowsEditing = canEditMainTasks(
+                    const projectAllowsEditing = !task.design_request_id && canEditMainTasks(
                       selectedProject.status
                     );
 
@@ -3309,6 +3476,9 @@ const submitInterdepartmentReview = async (action) => {
                                 ))
                               )}
                             </div>
+                            {task.design_request_id && <DesignTaskExtras task={task}
+                              canManage={Boolean(canManageDesign)} people={currentProjectAssignees}
+                              project={selectedProject} onChange={design.reload} />}
                           </>
                         ) : (
                           <div style={styles.mainTaskEditBox}>
@@ -4325,6 +4495,7 @@ const styles = {
     lineHeight: 1.5,
   },
 
+  drProjectHeaderActions: { display: "flex", flexWrap: "wrap", gap: "12px" },
   projectModalNormalHeader: {
     background: "#ffffff",
     display: "flex",
@@ -5121,7 +5292,17 @@ export default function AdminProjects() {
     </div>
   );
 
-  return view === "personal"
+  const requestId = searchParams.get("designRequestId");
+  const clearRequest = () => {
+    if (!requestId) return;
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      next.delete("designRequestId");
+      return next;
+    }, { replace: true });
+  };
+  return view === "personal" && !requestId
     ? <EmployeeProjects projectViewSwitch={projectViewSwitch} />
-    : <AdminProjectBoard projectViewSwitch={projectViewSwitch} />;
+    : <AdminProjectBoard projectViewSwitch={projectViewSwitch} requestId={requestId}
+        clearRequest={clearRequest} personal={view === "personal"} />;
 }

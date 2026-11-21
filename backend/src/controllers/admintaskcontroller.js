@@ -1,3 +1,4 @@
+const { sourceProjectDesignTaskIds } = require("../utils/designrequestprojects");
 const db = require("../config/db");
 
 /*
@@ -290,7 +291,7 @@ const recalculateProject = async (
       projectRows[0].status
     );
 
-  const [mainTasks] =
+  const [projectTasks] =
     await connection.query(
       `
       SELECT
@@ -314,6 +315,10 @@ const recalculateProject = async (
       `,
       [projectId]
     );
+
+  const linked = await sourceProjectDesignTaskIds(connection, projectId);
+  const mainTasks = projectTasks.filter(task => !linked.has(Number(task.task_id)));
+  if (linked.size && !mainTasks.length) return { status: currentProjectStatus };
 
   if (!mainTasks.length) {
     await connection.query(
@@ -495,11 +500,31 @@ const getDepartmentTasks = async (
     are loaded separately through task_assignments.
     */
 
+    const [[designLinks]] = await db.query(`
+      SELECT 1 AS available FROM information_schema.tables
+      WHERE table_schema = DATABASE() AND table_name = 'design_request_task_links'
+    `);
+    const designJoins = designLinks ? `
+      LEFT JOIN design_request_task_links design_task ON design_task.task_id = mt.task_id
+      LEFT JOIN design_requests design_request ON design_request.id = design_task.request_id
+    ` : "";
+    const designManagerScope = `(design_request.owner_department_id = ? OR EXISTS (
+      SELECT 1 FROM user_departments ud
+      WHERE ud.user_id = ? AND ud.department_id = design_request.owner_department_id
+    ))`;
+    const departmentScope = designLinks ? `(
+      (design_task.task_id IS NULL AND p.department_id = ?) OR
+      (design_task.task_id IS NOT NULL AND (${designManagerScope} OR design_request.requester_id = ?))
+    )` : "p.department_id = ?";
+    const reviewAccess = designLinks
+      ? `CASE WHEN design_task.task_id IS NULL OR ${designManagerScope} THEN 1 ELSE 0 END AS can_review`
+      : "1 AS can_review";
     const [mainTaskRows] =
       await db.query(
         `
         SELECT
           mt.task_id,
+          ${reviewAccess},
           mt.project_id,
           mt.parent_task_id,
 
@@ -573,8 +598,10 @@ const getDepartmentTasks = async (
           ON creator.user_id =
              mt.created_by_user_id
 
+        ${designJoins}
+
         WHERE
-          p.department_id = ?
+          ${departmentScope}
 
           AND (
             mt.parent_task_id IS NULL
@@ -584,9 +611,9 @@ const getDepartmentTasks = async (
         ORDER BY
           mt.task_id DESC
         `,
-        [
-          admin.department_id,
-        ]
+        designLinks
+          ? [admin.department_id, admin.user_id, admin.department_id, admin.department_id, admin.user_id, admin.user_id]
+          : [admin.department_id]
       );
 
     if (!mainTaskRows.length) {
@@ -1428,16 +1455,23 @@ const reviewDepartmentTask = async (
       });
     }
 
-    const unauthorizedTask =
-      taskRows.find(
-        (task) =>
-          Number(
-            task.department_id
-          ) !==
-          Number(
-            admin.department_id
-          )
-      );
+    const [designOwners] = await connection.query(`
+      SELECT d.task_id, q.owner_department_id
+      FROM design_request_task_links d JOIN design_requests q ON q.id = d.request_id
+      WHERE d.task_id IN (?)
+    `, [taskIds]).catch(error => {
+      if (error.code === "ER_NO_SUCH_TABLE") return [[]];
+      throw error;
+    });
+    const ownerByTask = new Map(designOwners.map(task => [Number(task.task_id), Number(task.owner_department_id)]));
+    const [additionalDepartments] = designOwners.length
+      ? await connection.query("SELECT department_id FROM user_departments WHERE user_id = ?", [admin.user_id])
+      : [[]];
+    const designDepartments = new Set([admin.department_id, ...additionalDepartments.map(row => row.department_id)].map(Number));
+    const unauthorizedTask = taskRows.find(task => {
+      const designOwner = ownerByTask.get(Number(task.task_id));
+      return designOwner ? !designDepartments.has(designOwner) : Number(task.department_id) !== Number(admin.department_id);
+    });
 
     if (unauthorizedTask) {
       return res.status(403).json({
@@ -1612,6 +1646,11 @@ const reviewDepartmentTask = async (
       const projectId
       of projectIds
     ) {
+      const reviewedTasks = taskRows.filter(task => Number(task.project_id) === projectId);
+      if (reviewedTasks.every(task => ownerByTask.has(Number(task.task_id)))) {
+        const sourceDesignTasks = await sourceProjectDesignTaskIds(connection, projectId);
+        if (reviewedTasks.every(task => sourceDesignTasks.has(Number(task.task_id)))) continue;
+      }
       const result =
         await recalculateProject(
           connection,

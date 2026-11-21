@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import DesignBriefDescription from "../admin/DesignBriefDescription";
+import { useEffect, useMemo, useRef, useState } from "react";
 import EmployeeMiniTasks from "../../components/MiniTasks/EmployeeMiniTasks";
 import {
   ArrowUpDown,
@@ -384,6 +385,7 @@ const STATUS_SORT_RANK = {
 const EmployeeTasks = ({
   mode = "employee",
   taskModeSwitch = null,
+  requestedTaskId = 0,
 }) => {
   const isAdminPersonal = mode === "admin-personal";
   const [tasks, setTasks] = useState([]);
@@ -563,6 +565,19 @@ const [editSubtaskForm, setEditSubtaskForm] = useState({
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  const openedTaskLink = useRef(0);
+  useEffect(() => {
+    if (!requestedTaskId) {
+      openedTaskLink.current = 0;
+      return;
+    }
+    if (requestedTaskId === openedTaskLink.current) return;
+    const task = mainTasks.find(item => Number(getTaskId(item)) === requestedTaskId);
+    if (!task) return;
+    openedTaskLink.current = requestedTaskId;
+    fetchTaskDetails(task);
+  }, [mainTasks, requestedTaskId]);
 
   const filterCounts = useMemo(() => {
     return mainTasks.reduce(
@@ -1670,7 +1685,7 @@ if (selectedTask) {
             <div style={styles.descriptionGrid}>
               <div style={styles.descriptionBox}>
                 <span>Project Description</span>
-                <p>{selectedTask.project_description || "-"}</p>
+                <DesignBriefDescription text={selectedTask.project_description} />
               </div>
 
               <div style={styles.descriptionBox}>

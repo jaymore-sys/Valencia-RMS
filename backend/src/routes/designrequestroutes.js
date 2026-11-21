@@ -10,13 +10,18 @@ const {
 
 const { queueDesignMail } = require("../jobs/designrequestemailjob");
 
+const {
+    acceptedStatuses, designProjectLink, validateProject, createSourceProject, linkProject, registerDesignProject,
+    listDesignPeople, listDesignProjectAssignees, listWork, createWorkTask, readLinkedTask, addTaskAssignee, assignWorkTask, reviewWorkTask, requireDesignManager,
+} = require("../utils/designrequestprojects");
+
 const router = express.Router();
 const uploads = multer({
     storage: multer.memoryStorage(),
     limits: { files: 5, fileSize: 10 * 1024 * 1024, fields: 12, fieldSize: 16000, parts: 17 },
 }).array("files", 5);
 
-router.use(authenticate, requireRole("admin", "administrator", "superadmin"));
+router.use(authenticate);
 
 const requestColumns = `q.id, q.requester_id, q.requester_department_id, q.owner_department_id,
     q.category, q.title, q.brief, q.status, q.stage, q.follow_up_note, q.draft_version, q.version, q.created_at,
@@ -137,6 +142,50 @@ async function listRequests(req, res, inboxOnly) {
     });
 }
 
+async function recoverDesignProjects(owner, actorId) {
+    const [missing] = await db.query(`
+        SELECT q.id FROM design_requests q LEFT JOIN design_request_project_links l ON l.request_id = q.id
+        WHERE q.owner_department_id = ? AND q.status IN (?) AND l.request_id IS NULL ORDER BY q.id
+    `, [owner, acceptedStatuses]);
+    for (const { id } of missing) {
+        await inTransaction(async connection => {
+            const request = await readRequest(connection, id, true);
+            if (request?.owner_department_id && Number(request.owner_department_id) === owner &&
+                acceptedStatuses.includes(request.status)) {
+                await registerDesignProject(connection, request, actorId);
+            }
+        });
+    }
+}
+
+router.get("/projects", requireRole("admin", "administrator", "superadmin"), handle(async (req, res) => {
+    const { canReview, owner, departments } = await getDesignAccess(req.user);
+    const personal = req.query.view === "personal";
+    const designOnly = req.query.view === "design";
+    if (canReview && !personal && !designOnly) await recoverDesignProjects(owner, req.user.user_id);
+    let projects;
+    if (designOnly) {
+        projects = canReview ? await listWork(db, "q.owner_department_id = ?", [owner]) : [];
+    } else if (personal) {
+        projects = departments.includes(owner) ? await listWork(db, "q.owner_department_id = ?", [owner], req.user.user_id) : [];
+    } else {
+        projects = await listWork(db, canReview
+            ? "q.owner_department_id = ? OR q.requester_id = ?" : "q.requester_id = ?",
+        canReview ? [owner, req.user.user_id] : [req.user.user_id]);
+    }
+    res.json({ projects, user_id: req.user.user_id, can_assign: canReview, design_department_id: canReview ? owner : null });
+}));
+
+router.get("/:id/work", requireRole("admin", "administrator", "superadmin"), handle(async (req, res) => {
+    const { request, access } = await withWorkRequest(db, req);
+    const [project] = await listWork(db, "q.id = ?", [request.id]);
+    const [people] = project && access.design && req.query.people === "1"
+        ? await listDesignPeople(db, request.owner_department_id) : [[]];
+    res.json({ project: project || null, people, access, user_id: req.user.user_id, status: request.status });
+}));
+
+router.use(requireRole("admin", "administrator", "superadmin"));
+
 router.get("/", handle((req, res) => listRequests(req, res, false)));
 router.get("/inbox", handle((req, res) => listRequests(req, res, true)));
 router.get("/inbox/activity", handle(async (req, res) => {
@@ -174,15 +223,35 @@ router.post("/", uploads, handle(async (req, res) => {
         }
     }
 
-    const id = await inTransaction(async connection => {
+    let projectDraft;
+    if (body.project_draft !== undefined && body.project_id !== undefined) {
+        throw new DesignRequestError(400, "Choose one originating project.");
+    }
+    if (body.project_draft !== undefined) {
+        try {
+            projectDraft = JSON.parse(body.project_draft);
+            if (!projectDraft || typeof projectDraft !== "object" || Array.isArray(projectDraft)) throw new Error();
+        } catch {
+            throw new DesignRequestError(400, "The project details could not be read.");
+        }
+    }
+    const created = await inTransaction(async connection => {
         const owner = await defaultDepartment(connection);
         if (!owner) throw new DesignRequestError(503, "The Design Team inbox has not been configured.");
         const departments = await getDepartments(connection, req.user);
+        let projectId = null;
+        if (body.project_id !== undefined) {
+            projectId = Number(body.project_id);
+            await validateProject(connection, projectId, req.user.user_id, departments);
+        } else if (projectDraft) {
+            projectId = await createSourceProject(connection, projectDraft, req.user.user_id, departments);
+        }
         const [result] = await connection.query(
             `INSERT INTO design_requests (requester_id, requester_department_id, owner_department_id,
             category, title, brief, needed_by) VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [req.user.user_id, departments[0] || null, owner, body.category, title, brief, neededBy]
         );
+        if (projectId) await linkProject(connection, result.insertId, projectId);
         await addEvent(connection, result.insertId, req.user.user_id, "submit", {
             note: null, deliveryDue: null, followDate: null,
             followNote: attachmentLabels.length ? JSON.stringify({ attachmentLabels }) : null, draftVersion: 0,
@@ -191,9 +260,152 @@ router.post("/", uploads, handle(async (req, res) => {
             id: result.insertId, requester_id: req.user.user_id, owner_department_id: owner, title,
         }, `submitted:${result.insertId}`, "design", "New design request",
         [neededBy && `Needed by: ${neededBy}`, brief].filter(Boolean).join("\n\n"));
-        return result.insertId;
+        return { id: result.insertId, project_id: projectId };
     });
-    res.status(201).json({ id });
+    res.status(201).json(created);
+}));
+
+
+async function withWorkRequest(connection, req, lock = false) {
+    const departments = await getDepartments(connection, req.user);
+    const request = await readRequest(connection, req.params.id, lock);
+    const access = request && accessTo(request, req.user, departments);
+    if (!access || (!access.design && !access.requester)) throw new DesignRequestError(404, "Design request not found.");
+    return { request, access };
+}
+
+
+router.post("/:id/work/tasks", handle(async (req, res) => {
+    const taskId = await inTransaction(async connection => {
+        const { request, access } = await withWorkRequest(connection, req, true);
+        requireDesignManager(request, access);
+        const link = await designProjectLink(connection, request.id);
+        if (!link) throw new DesignRequestError(409, "Design work is unavailable. Reopen the Projects board and try again.");
+        const parent = req.body?.parent_id
+            ? await readLinkedTask(connection, request.id, Number(req.body.parent_id)) : null;
+        const actorId = req.user.user_id;
+        const body = req.body || {};
+        const assigneeIds = body.assignee_ids !== undefined
+            ? readAssigneeIds(body.assignee_ids)
+            : body.assignee_id ? readAssigneeIds([body.assignee_id]) : [];
+        if (assigneeIds.length) await requireDesignAssignees(connection, request, assigneeIds);
+        if (parent && assigneeIds.length > 1) {
+            throw new DesignRequestError(400, "Choose one assignee for the Subtask.");
+        }
+        if (!parent) {
+            if (!assigneeIds.length) throw new DesignRequestError(400, "Select an assignee for the Main Task.");
+            if (body.assignee_ids !== undefined) {
+                const [[memberCount]] = await connection.query(`
+                    SELECT COUNT(DISTINCT employee_id) AS total FROM project_assignments
+                    WHERE project_id = ? AND employee_id IN (?) AND COALESCE(assignment_status, 'assigned') <> 'removed'
+                `, [link.project_id, assigneeIds]);
+                if (Number(memberCount.total) !== assigneeIds.length) {
+                    throw new DesignRequestError(400, "Add these employees to the project first.");
+                }
+            }
+        }
+        const primaryAssigneeId = assigneeIds[0] || parent?.assigned_to_user_id;
+        if (!primaryAssigneeId) throw new DesignRequestError(400, "Select an assignee for the Subtask.");
+        const taskId = await createWorkTask(connection, request, link, actorId, body, parent, primaryAssigneeId);
+        for (const id of assigneeIds) {
+            await addTaskAssignee(connection, parent?.task_id || taskId, id, actorId);
+        }
+        return taskId;
+    });
+    res.status(201).json({ task_id: taskId });
+}));
+
+function readAssigneeIds(value) {
+    const ids = Array.isArray(value) ? [...new Set(value.map(Number))] : [];
+    if (!ids.length || ids.some(id => !Number.isSafeInteger(id) || id < 1)) {
+        throw new DesignRequestError(400, "Select at least one Design Team member.");
+    }
+    return ids;
+}
+
+async function requireDesignAssignees(connection, request, ids) {
+    const [people] = await listDesignPeople(connection, request.owner_department_id);
+    const available = new Set(people.map(person => Number(person.user_id)));
+    if (ids.some(id => !available.has(id))) {
+        throw new DesignRequestError(400, "Choose active members of the Design Team.");
+    }
+}
+
+router.post("/:id/work/team", handle(async (req, res) => {
+    const ids = readAssigneeIds(req.body?.assignee_ids);
+    await inTransaction(async connection => {
+        const { request, access } = await withWorkRequest(connection, req, true);
+        requireDesignManager(request, access);
+        const link = await designProjectLink(connection, request.id);
+        if (!link) throw new DesignRequestError(409, "Design work is unavailable.");
+        await requireDesignAssignees(connection, request, ids);
+        // Serialize team updates when separate requests link to the same project.
+        const [[project]] = await connection.query("SELECT project_id FROM projects WHERE project_id = ? FOR UPDATE", [link.project_id]);
+        if (!project) throw new DesignRequestError(404, "Project not found.");
+        const [savedTeam] = await listDesignProjectAssignees(connection, [request.id], true);
+        if (savedTeam.length) {
+            const savedIds = new Set(savedTeam.map(user => Number(user.user_id)));
+            if (ids.every(id => savedIds.has(id)) && ids.length === savedIds.size) return;
+            throw new DesignRequestError(409, "The Design Team has already been assigned to this project.");
+        }
+        const [existing] = await connection.query(`
+            SELECT employee_id, assignment_status FROM project_assignments WHERE project_id = ? AND employee_id IN (?)
+        `, [link.project_id, ids]);
+        for (const id of ids) {
+            const matches = existing.filter(row => Number(row.employee_id) === id);
+            if (matches.some(row => row.assignment_status !== "removed")) continue;
+            if (matches.length) {
+                await connection.query(`
+                    UPDATE project_assignments SET assignment_status = 'assigned', assigned_by_user_id = ?, assigned_at = NOW()
+                    WHERE project_id = ? AND employee_id = ? AND assignment_status = 'removed'
+                `, [req.user.user_id, link.project_id, id]);
+            } else {
+                await connection.query(`
+                    INSERT INTO project_assignments (project_id, employee_id, assigned_by_user_id, assignment_status, employee_progress, assigned_at)
+                    VALUES (?, ?, ?, 'assigned', 0, NOW())
+                `, [link.project_id, id, req.user.user_id]);
+            }
+        }
+    });
+    res.json({ success: true });
+}));
+
+router.put("/:id/work/tasks/:taskId/review", handle(async (req, res) => {
+    await inTransaction(async connection => {
+        const { request, access } = await withWorkRequest(connection, req, true);
+        requireDesignManager(request, access);
+        await reviewWorkTask(connection, request.id, Number(req.params.taskId), req.user.user_id, req.body || {});
+    });
+    res.json({ success: true });
+}));
+
+router.put("/:id/work/assignment", handle(async (req, res) => {
+    await inTransaction(async connection => {
+        const { request, access } = await withWorkRequest(connection, req, true);
+        requireDesignManager(request, access);
+        const link = await designProjectLink(connection, request.id);
+        if (!link) throw new DesignRequestError(409, "Design work is unavailable. Reopen the Projects board and try again.");
+        const userId = Number(req.body?.assignee_id);
+        await requireDesignAssignees(connection, request, [userId]);
+        if (req.body?.task_id) {
+            const task = await readLinkedTask(connection, request.id, Number(req.body.task_id));
+            const subtaskId = Number(req.body.subtask_id);
+            if (req.body.subtask_id !== undefined) {
+                const [[subtask]] = await connection.query(
+                    "SELECT status FROM tasks WHERE task_id = ? AND parent_task_id = ? FOR UPDATE",
+                    [subtaskId || 0, task.task_id]
+                );
+                if (!subtask) throw new DesignRequestError(404, "Subtask not found on this Main Task.");
+                if (subtask.status !== "not_started" || !["not_started", "ongoing"].includes(task.status)) {
+                    throw new DesignRequestError(409, "Only unstarted subtasks on open Main Tasks can be reassigned.");
+                }
+            }
+            await assignWorkTask(connection, task, userId, req.user.user_id, subtaskId);
+        } else {
+            throw new DesignRequestError(400, "Use the project’s one-time Design Team selection.");
+        }
+    });
+    res.json({ success: true });
 }));
 
 router.get("/:id", handle(async (req, res) => {
@@ -208,7 +420,11 @@ router.get("/:id", handle(async (req, res) => {
         WHERE e.request_id = ? ORDER BY e.id DESC`, [row.id]);
     const [files] = await db.query(`SELECT f.id, f.event_id, f.name FROM design_request_files f
         JOIN design_request_events e ON e.id = f.event_id WHERE e.request_id = ? ORDER BY f.id DESC`, [row.id]);
-    res.json({ ...row, access, actions: allowedActions(row, access), events, files });
+    const link = await designProjectLink(db, row.id).catch(error => {
+        if (error.code === "ER_NO_SUCH_TABLE") return null;
+        throw error;
+    });
+    res.json({ ...row, ...link, access, actions: allowedActions(row, access), events, files });
 }));
 
 async function readOpenFollowUp(connection, requestId, id) {
@@ -228,6 +444,35 @@ function updateScheduledDate(connection, requestId, id, date) {
     );
 }
 
+function timelineDate(current, previous) {
+    if (!current) return "Not set";
+    return previous && previous !== current ? `${current} (was ${previous})` : current;
+}
+
+async function queueTimelineMail(connection, request, event, eventId, action, rescheduled) {
+    const [openFollowUps] = await connection.query(`
+        SELECT e.id, e.note AS name,
+            DATE_FORMAT(e.follow_up_date, '%Y-%m-%d') AS date
+        FROM design_request_events e
+        WHERE e.request_id = ? AND ${openScheduledFollowUps}
+        ORDER BY e.follow_up_date, e.id
+    `, [request.id]);
+    const scheduled = openFollowUps.map(followUp =>
+        `- ${timelineDate(followUp.date, rescheduled.get(String(followUp.id)))}${followUp.name ? ` · ${followUp.name}` : ""}`);
+    const details = [
+        `Committed delivery: ${timelineDate(event.deliveryDue, request.delivery_due)}`,
+        `Next follow-up: ${timelineDate(event.followDate, request.follow_up_date)}`,
+        event.followNote && `Next follow-up details: ${event.followNote}`,
+        scheduled.length ? ["Scheduled follow-ups:", ...scheduled].join("\n") : "Scheduled follow-ups: None",
+        event.note && `Note: ${event.note}`,
+    ].filter(Boolean).join("\n");
+    const datesChanged = rescheduled.size || event.deliveryDue !== request.delivery_due ||
+        event.followDate !== request.follow_up_date;
+    const heading = action === "accept" ? "Design request accepted"
+        : datesChanged ? "Design timeline revised" : "Design timeline confirmed";
+    await queueDesignMail(connection, request, `timeline:${eventId}`, "both", heading, details);
+}
+
 router.post("/:id/actions", uploads, handle(async (req, res) => {
     const body = req.body || {};
     await inTransaction(async connection => {
@@ -240,6 +485,19 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
         }
         const files = req.files || [];
         const event = transition(row, access, body.action, body, files);
+        if (["accept", "start", "timeline", "complete"].includes(body.action) && acceptedStatuses.includes(event.status)) {
+            const link = await registerDesignProject(connection, { ...row, status: event.status }, req.user.user_id, event.deliveryDue);
+            if (link.generated_project && body.action !== "accept") {
+                const status = { accepted: "not_started", in_progress: "ongoing", completed: "completed" }[event.status];
+                await connection.query(`
+                    UPDATE projects SET status = ?, due_date = COALESCE(?, due_date),
+                    start_date = LEAST(start_date, COALESCE(?, due_date)),
+                    completed_at = IF(? = 'completed', COALESCE(completed_at, NOW()), NULL),
+                    overall_progress = IF(? = 'completed', 100, overall_progress), updated_at = NOW()
+                    WHERE project_id = ?
+                `, [status, event.deliveryDue, event.deliveryDue, status, status, link.project_id]);
+            }
+        }
         let log = event;
         let followUpContext;
         if (followUpLogActions.includes(body.action)) {
@@ -258,14 +516,14 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
             followUpContext = scheduled?.follow_up_date;
         }
 
+        const rescheduled = new Map();
         for (const change of event.scheduledDateChanges) {
             const scheduled = await readOpenFollowUp(connection, row.id, change.id);
             if (scheduled.follow_up_date === change.date) continue;
             const changeLog = makeFollowUpLog({ ...event, rescheduledDate: change.date }, scheduled, "follow_reschedule", [], null);
             await updateScheduledDate(connection, row.id, scheduled.id, change.date);
-            const changeId = await addEvent(connection, row.id, req.user.user_id, "follow_reschedule", changeLog, []);
-            await queueDesignMail(connection, row, `scheduled-change:${changeId}`, "both",
-                "Design follow-up rescheduled", `Previous date: ${scheduled.follow_up_date}\nNew date: ${change.date}\n${event.note || ""}`);
+            await addEvent(connection, row.id, req.user.user_id, "follow_reschedule", changeLog, []);
+            rescheduled.set(String(change.id), scheduled.follow_up_date);
         }
         await connection.query(
             `UPDATE design_requests SET status = ?, stage = ?, delivery_due = ?, follow_up_date = ?,
@@ -300,9 +558,11 @@ router.post("/:id/actions", uploads, handle(async (req, res) => {
             }
             if (body.action === "follow_reschedule") {
                 await queueDesignMail(connection, row, `scheduled-change:${eventId}`, "both", "Design follow-up rescheduled",
-                    [`New date: ${event.rescheduledDate}`, event.note].filter(Boolean).join("\n"));
+                    [`Previous date: ${followUpContext}`, `New date: ${event.rescheduledDate}`, event.note].filter(Boolean).join("\n"));
             }
-            if (event.followDate && event.followDate !== row.follow_up_date) {
+            if (body.action === "accept" || body.action === "timeline") {
+                await queueTimelineMail(connection, row, event, eventId, body.action, rescheduled);
+            } else if (event.followDate && event.followDate !== row.follow_up_date) {
                 await queueDesignMail(connection, row, `next-date:${eventId}`, "both", "Design follow-up date",
                     [`Follow-up date: ${event.followDate}`, event.followNote].filter(Boolean).join("\n"));
             }
@@ -337,10 +597,16 @@ router.use((error, req, res, next) => {
     if (error instanceof DesignRequestError) return res.status(error.status).json({ message: error.message });
     if (error instanceof multer.MulterError) return res.status(400).json({ message: "Uploads support up to 5 files, 10 MB per file." });
     if (error.code === "ER_NO_SUCH_TABLE") {
+        if (/design_request_(project|task)_links/.test(error.message || "")) {
+            return res.status(503).json({ message: "Apply the Design Request project links migration, then try again." });
+        }
         if (error.message?.includes("design_request_email_outbox")) {
             return res.status(503).json({ message: "Apply the Design Request email migration, then try again." });
         }
         return res.status(503).json({ message: "The design requests database migration has not been applied." });
+    }
+    if (error.code === "ER_BAD_FIELD_ERROR" && error.message?.includes("generated_project")) {
+        return res.status(503).json({ message: "Apply backend/sql/design_request_generated_projects.sql to the preview database." });
     }
     return next(error);
 });

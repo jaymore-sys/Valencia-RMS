@@ -1,3 +1,4 @@
+const { sourceProjectDesignTaskIds } = require("../utils/designrequestprojects");
 const db = require("../config/db");
 
 /*
@@ -965,7 +966,7 @@ const recalculateProject = async (
       projectRows[0].status
     );
 
-  const [mainTasks] =
+  const [projectTasks] =
     await connection.query(
       `
       SELECT
@@ -989,6 +990,10 @@ const recalculateProject = async (
       `,
       [projectId]
     );
+
+  const designTasks = await sourceProjectDesignTaskIds(connection, projectId);
+  const mainTasks = projectTasks.filter(task => !designTasks.has(Number(task.task_id)));
+  if (designTasks.size && !mainTasks.length) return { status: currentProjectStatus };
 
   if (!mainTasks.length) {
     await connection.query(
@@ -2486,7 +2491,7 @@ if (
     if (
       isProjectLocked(
         subtask.project_status
-      )
+      ) && !(await sourceProjectDesignTaskIds(connection, subtask.project_id)).has(Number(subtask.parent_task_id))
     ) {
       await connection.rollback();
 
@@ -2655,7 +2660,7 @@ const startEmployeeTask = async (
     if (
       isProjectLocked(
         task.project_status
-      )
+      ) && !(await sourceProjectDesignTaskIds(connection, task.project_id)).has(taskId)
     ) {
       return res.status(400).json({
         success: false,
@@ -2751,11 +2756,9 @@ const startEmployeeTask = async (
       [taskId]
     );
 
-    const projectResult =
-      await recalculateProject(
-        connection,
-        task.project_id
-      );
+    const projectResult = (await sourceProjectDesignTaskIds(connection, task.project_id)).has(taskId)
+      ? { status: task.project_status }
+      : await recalculateProject(connection, task.project_id);
 
     await connection.commit();
 
@@ -2982,7 +2985,7 @@ const resumeEmployeeTask = async (
     if (
       isProjectLocked(
         task.project_status
-      )
+      ) && !(await sourceProjectDesignTaskIds(db, task.project_id)).has(taskId)
     ) {
       return res.status(400).json({
         success: false,
@@ -3288,11 +3291,9 @@ const submitEmployeeTaskForReview = async (
       [taskId]
     );
 
-    const projectResult =
-      await recalculateProject(
-        connection,
-        task.project_id
-      );
+    const projectResult = (await sourceProjectDesignTaskIds(connection, task.project_id)).has(taskId)
+      ? { status: task.project_status }
+      : await recalculateProject(connection, task.project_id);
 
     await connection.commit();
 
