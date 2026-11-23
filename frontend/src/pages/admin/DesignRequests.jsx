@@ -1,6 +1,6 @@
 import { readBriefAnswers } from "./DesignBriefDescription";
 import { DesignWorkAssignments, designProjectHref } from "./DesignProjectWork";
-import { Link, Navigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams, useParams } from "react-router-dom";
 import { useEffect, useId, useRef, useState } from "react";
 import api from "../../api/axios";
 import { buildDesignRequestPayload, designRequestQuestionnaires, designRequestTypeLabel, designRequestTypes, targetMarkets } from "./designRequestQuestionnaires";
@@ -451,6 +451,33 @@ function InboxActivity({ view, requests, events, followFilter, onFollowFilterCha
   </>;
 }
 
+// Shared authenticated detail page used by the email link for requesters and Design admins.
+export function DesignRequestEmailPage() {
+  const { id } = useParams();
+  const [params] = useSearchParams();
+  const fileId = params.get('fileId');
+  const attemptedDownload = useRef(null);
+  const [downloadError, setDownloadError] = useState('');
+  useEffect(() => {
+    if (!fileId || !/^\d+$/.test(fileId) || !/^\d+$/.test(id || '')) return;
+    const key = `${id}:${fileId}`;
+    if (attemptedDownload.current === key) return;
+    attemptedDownload.current = key;
+    // The backend checks request membership before serving any file.
+    api.get(`/design-requests/${id}`).then(async ({ data }) => {
+      const file = data.files?.find(item => String(item.id) === fileId);
+      if (!file) throw new Error('File not found');
+      const response = await api.get(`/design-requests/${id}/files/${fileId}`, { responseType: 'blob' });
+      downloadBlob(response.data, file.name);
+    }).catch(() => setDownloadError('This file is unavailable or you do not have permission to download it.'));
+  }, [id, fileId]);
+  return <section className="design-requests" style={{ padding: '20px' }}>
+    <h1>Design Request #{id}</h1>
+    {downloadError && <p role="alert" className="dr-error">{downloadError}</p>}
+    <DesignRequestsContent mode="sent" initialRequestId={id} />
+  </section>;
+}
+
 export function DesignInboxPage() {
   const [params, setParams] = useSearchParams();
   const requestId = params.get("requestId");
@@ -864,6 +891,16 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
   const [form, setForm] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [briefPreviewUrl, setBriefPreviewUrl] = useState(null);
+  const briefPreviewRef = useRef(null);
+  function closeBriefPreview() {
+    if (briefPreviewRef.current) URL.revokeObjectURL(briefPreviewRef.current);
+    briefPreviewRef.current = null;
+    setBriefPreviewUrl(null);
+  }
+  useEffect(() => () => {
+    if (briefPreviewRef.current) URL.revokeObjectURL(briefPreviewRef.current);
+  }, []);
 
   useEffect(() => {
     let stale = false;
@@ -975,7 +1012,7 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
     });
   }
 
-  function exportBrief() {
+  function previewBrief() {
     return run(async () => {
       const { createDesignRequestPdf } = await import("./designRequestPdf");
       const answers = readBriefAnswers(request);
@@ -1004,7 +1041,10 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
           })),
       };
       const bytes = await createDesignRequestPdf(brief, attachments);
-      downloadBlob(new Blob([bytes], { type: "application/pdf" }), `Valencia-design-brief-${request.id}.pdf`);
+      const url = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
+      if (briefPreviewRef.current) URL.revokeObjectURL(briefPreviewRef.current);
+      briefPreviewRef.current = url;
+      setBriefPreviewUrl(url);
     });
   }
 
@@ -1109,11 +1149,17 @@ export function DesignRequestsContent({ mode, initialRequestId, initialQueue, on
           <div>{mode !== "project" && <button type="button" disabled={busy} onClick={onBack || (() => { setRequest(null); setForm(""); })}>← {detailOnly ? backLabel : "Back to requests"}</button>}
             <h2>{request.title}</h2><p>{categories[request.category]} · {request.requester_name} · {request.requester_department || "Department unassigned"}</p></div>
           <div className="dr-buttons"><span className="dr-badge" data-status={request.status}>{statuses[request.status]}</span>
-            {request.access?.design && <button type="button" disabled={busy} onClick={exportBrief}>Download brief PDF</button>}
+            {request.access?.design && <button type="button" className="dr-preview-button" disabled={busy} onClick={previewBrief}>Preview brief</button>}
             {mode !== "project" && request.access?.design && request.project_id && ["accepted", "in_progress", "completed"].includes(request.status) &&
-              <Link to={designProjectHref(request.id)}>Open project</Link>}
+              <Link className="dr-open-project" to={designProjectHref(request.id)}>Open project</Link>}
             {!refreshOpenRequest && <button type="button" disabled={busy} onClick={refresh}>Refresh</button>}</div>
         </header>
+        {briefPreviewUrl && <div className="dr-pdf-preview" role="dialog" aria-modal="true" aria-label="Design brief preview">
+          <div className="dr-pdf-preview-header"><strong>Design brief preview · #{request.id}</strong>
+            <button type="button" onClick={closeBriefPreview}>Close preview</button>
+          </div>
+          <iframe title={`Design brief #${request.id}`} src={briefPreviewUrl} />
+        </div>}
         {latestIncoming && <section className="dr-new-update" aria-label="Latest design update">
           <h3>Latest design update</h3>
           <UpdateMessage event={latestIncoming} busy={busy} onDownload={download}

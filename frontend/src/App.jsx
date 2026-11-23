@@ -1,4 +1,4 @@
-﻿import { lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
 import {
   Navigate,
   Route,
@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
+import { useParams, useLocation } from "react-router-dom";
 import { canOpenHrAttendance } from "./utils/hrAttendanceAccess";
 import "./allStyles.js";
 const LeaveReview = lazy(() => import("./pages/LeaveReview"));
@@ -48,6 +49,7 @@ const AdminLayout = lazy(() => import("./layouts/Adminlayout"));
 const AdminOverview = lazy(() => import("./pages/admin/adminOverview"));
 const AdminProjects = lazy(() => import("./pages/admin/adminProjects"));
 const DesignInbox = lazy(() => import("./pages/admin/DesignRequests").then(module => ({ default: module.DesignInboxPage })));
+const DesignRequestEmailPage = lazy(() => import("./pages/admin/DesignRequests").then(module => ({ default: module.DesignRequestEmailPage })));
 const AdminTasks = lazy(() => import("./pages/admin/adminTasks"));
 const AdminCalendar = lazy(() => import("./pages/admin/adminCalendar"));
 const AdminReports = lazy(() => import("./pages/admin/adminReports"));
@@ -143,6 +145,20 @@ function FieldVisitReviewRedirect() {
 }
 
 
+
+/* Email links reopen an exact Design Request, preserving it across login. */
+function DesignRequestEmailRedirect() {
+  const { id } = useParams();
+  const { search } = useLocation();
+  if (!/^\d+$/.test(id || '')) return <Navigate to="/login" replace />;
+  const target = `/admin/design-request/${id}${search}`;
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+  if (!token) {
+    localStorage.setItem('redirectAfterLogin', target);
+    return <Navigate to="/login" replace />;
+  }
+  return <Navigate to={target} replace />;
+}
 
 /* ========================================================
    DEFAULT ROUTE BY ROLE
@@ -395,6 +411,7 @@ const App = () => {
           <LoginPage />
         }
       />
+      <Route path="/design-request/:id" element={<DesignRequestEmailRedirect />} />
 
 
 
@@ -688,6 +705,7 @@ const App = () => {
           }
         />
         <Route path="design-requests" element={<DesignInbox />} />
+        <Route path="design-request/:id" element={<DesignRequestEmailPage />} />
         <Route path="my-projects" element={<Navigate to="/admin/projects?view=personal" replace />} />
 
 

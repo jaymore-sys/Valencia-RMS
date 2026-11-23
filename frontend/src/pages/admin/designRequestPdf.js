@@ -107,8 +107,23 @@ export async function createDesignRequestPdf(brief, attachments) {
   async function showFiles(files) {
     for (const file of files) {
       await pdf.attach(file.content, file.embeddedName, { mimeType: "application/octet-stream", description: file.name });
+      if (/\.(png|jpe?g)$/i.test(file.name)) {
+        try {
+          const picture = /\.png$/i.test(file.name)
+            ? await pdf.embedPng(file.content) : await pdf.embedJpg(file.content);
+          const size = picture.scaleToFit(contentWidth, height - 160);
+          reserve(size.height + 38);
+          await text(`Reference: ${file.name}`, { size: 10, strong: true, color: muted });
+          reserve(size.height + 10);
+          page.drawImage(picture, { x: margin, y: y - size.height, width: size.width, height: size.height });
+          y -= size.height + 12;
+        } catch {
+          await text(`${file.name} (attached; image preview unavailable)`, { size: 10, color: muted });
+        }
+        continue;
+      }
       if (!/\.pdf$/i.test(file.name)) {
-        await text(`${file.name} (embedded file)`, { size: 10, color: muted });
+        await text(`${file.name} (attached for download; inline preview not supported)`, { size: 10, color: muted });
         continue;
       }
       try {

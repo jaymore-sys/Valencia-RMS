@@ -33,17 +33,38 @@ test("Design reminders start at 9 a.m. IST and a reminder query failure does not
             if (sql.includes("SELECT u.user_id, u.email")) return [[{ user_id: 7, email: "design@example.invalid" }]];
             if (sql.includes("INSERT INTO design_request_email_outbox")) {
                 for (let i = 0; i < args.length; i += 5) {
-                    const [delivery_key, , recipient_email, subject, message] = args.slice(i, i + 5);
-                    if (!outbox.has(delivery_key)) outbox.set(delivery_key, { delivery_key, recipient_email, subject, message });
+                    const [delivery_key, request_id, recipient_email, subject, message] = args.slice(i, i + 5);
+                    if (!outbox.has(delivery_key)) outbox.set(delivery_key, { delivery_key, request_id, recipient_email, subject, message });
                 }
                 return [{}];
+            }
+            if (sql.includes("FROM design_requests q")) {
+                assert.deepEqual(args, [12]);
+                return [[{
+                    ...request,
+                    category: "branding",
+                    status: "in_progress",
+                    needed_by: "30 Nov 2026",
+                    delivery_due: "30 Nov 2026",
+                    follow_up_date: "21 Nov 2026",
+                    requester_name: "Test Requester",
+                    requester_department: "Marketing",
+                }]];
+            }
+            if (sql.includes("FROM design_request_files f")) {
+                assert.deepEqual(args, [12]);
+                return [[{
+                    id: 5,
+                    name: "design-reference.pdf",
+                    action: "submit",
+                }]];
             }
             if (sql.includes("SELECT delivery_key")) return [[...outbox.values()].filter(entry => !entry.sent)];
             if (sql.includes("SET sent_at_utc")) {
                 outbox.get(args[0]).sent = true;
                 return [{}];
             }
-            throw new Error("Unexpected SQL in test");
+            throw new Error("Unexpected SQL in test: " + sql);
         },
     };
     t.mock.method(db, "getConnection", async () => connection);
@@ -59,7 +80,7 @@ test("Design reminders start at 9 a.m. IST and a reminder query failure does not
     assert.equal(sent.length, 4);
 
     outbox.set("acceptance", {
-        delivery_key: "acceptance", recipient_email: "requester@example.invalid",
+        delivery_key: "acceptance", request_id: 12, recipient_email: "requester@example.invalid",
         subject: "Design request accepted", message: "Already queued",
     });
     failReminders = true;
