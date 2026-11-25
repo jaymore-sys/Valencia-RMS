@@ -1,5 +1,6 @@
 // VALENCIA_APPROVALS_V3_FIX: saved Admin permission enforced; role for split tabs.
 const db = require("../config/db");
+const { getScopedHrAttendanceRecords } = require("./hrattendancecontroller");
 
 const crypto = require("crypto");
 
@@ -695,6 +696,8 @@ const buildUserAttendanceSummary = ({
 
   workingDates,
 
+  hrRecords = new Map(),
+
 }) => {
 
   const recordMap = new Map();
@@ -742,6 +745,29 @@ const buildUserAttendanceSummary = ({
       const record =
 
         recordMap.get(date);
+
+      // Correct only approved leave and HR WFH. Keep all other existing rules.
+      const hr = hrRecords.get(`${Number(user.user_id)}|${date}`);
+      if (hr && (hr.source === "rms_leave" || hr.source === "hr_wfh")) {
+        const isLeave = hr.source === "rms_leave";
+        if (isLeave) leave += 1;
+        else present += 1;
+        return {
+          attendance_id: hr.attendance_id ?? null,
+          employee_id: user.user_id,
+          attendance_date: date,
+          status: isLeave ? hr.final_status : "Present",
+          check_in_time: hr.check_in_time || "-",
+          check_out_time: hr.check_out_time || "-",
+          total_minutes: Number(hr.total_minutes || 0),
+          working_hours: hr.working_hours || "-",
+          remarks: isLeave ? (hr.leave_type || "Approved Leave") : "Work From Home (HR approved)",
+          is_missing_date: false,
+          is_late: false,
+          office_start_time: "11:00:00",
+          office_end_time: "19:30:00",
+        };
+      }
 
       if (!record) {
 
@@ -977,11 +1003,9 @@ const buildUserAttendanceSummary = ({
 
       );
 
-  const latestAttendance =
-
-    sortedActualRecords[0]
-
-      ?.attendance_date || "-";
+  const latestAttendance = completedRecords.filter(row => !row.is_missing_date)
+    .map(row => row.attendance_date).sort().pop() ||
+    sortedActualRecords[0]?.attendance_date || "-";
 
   return {
 
@@ -1505,6 +1529,11 @@ const getDepartmentAttendance = async (
 
     */
 
+    const hrUsers = users.some(u => Number(u.user_id) === Number(admin.user_id))
+      ? users : [...users, admin];
+    const hrRows = await getScopedHrAttendanceRecords(hrUsers, startDate, endDate);
+    const hrRecords = new Map(hrRows.map(row => [`${Number(row.user_id)}|${row.attendance_date}`, row]));
+
     const summaries =
 
       users.map(
@@ -1641,6 +1670,8 @@ const getDepartmentAttendance = async (
 
                 records,
 
+                hrRecords,
+
                 workingDates:
 
                   userWorkingDates,
@@ -1716,6 +1747,8 @@ const getDepartmentAttendance = async (
           user: admin,
 
           records: [],
+
+          hrRecords,
 
           workingDates:
 

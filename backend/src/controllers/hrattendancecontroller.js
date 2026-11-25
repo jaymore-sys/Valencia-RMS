@@ -660,9 +660,11 @@ const getActiveHrUsers = async () => {
 
 const buildHrAttendanceData = async (
   fromDate,
-  toDate
+  toDate,
+  scopedUsers = null
 ) => {
-  const users = await getActiveHrUsers();
+  // Internal read-only caller supplies users already authorized by its route.
+  const users = scopedUsers === null ? await getActiveHrUsers() : scopedUsers;
 
   if (!users.length) {
     return {
@@ -1184,7 +1186,15 @@ const buildHrAttendanceData = async (
       }
     });
 
-  const pendingFieldVisitRows = hrFieldVisitRows.filter((visit) =>
+  const pendingVisitInputs = scopedUsers === null ? hrFieldVisitRows : (await db.query(`
+    SELECT visit_id, employee_id, visit_type, duration_type, half_day_session,
+      location, comment, status, DATE_FORMAT(visit_date,'%Y-%m-%d') AS visit_date,
+      DATE_FORMAT(COALESCE(end_date,visit_date),'%Y-%m-%d') AS end_date
+    FROM employee_field_visits
+    WHERE LOWER(TRIM(status))='pending' AND visit_date<=?
+      AND COALESCE(end_date,visit_date)>=?
+  `,[toDate,fromDate]))[0];
+  const pendingFieldVisitRows = pendingVisitInputs.filter((visit) =>
     String(visit.status || "").trim().toLowerCase() === "pending" &&
     visit.visit_date <= toDate &&
     (visit.end_date || visit.visit_date) >= fromDate
@@ -2094,6 +2104,9 @@ const buildHrAttendanceData = async (
       )
     );
   });
+
+  // Scoped callers need only resolved rows, not HR reports or approval data.
+  if (scopedUsers !== null) return { records };
 
   const summary = {
     employees:
@@ -6893,6 +6906,12 @@ const getHrVisitDocumentsV4=async(req,res)=>{
 };
 
 module.exports = {
+  // Internal server helper; not registered as an HTTP route.
+  getScopedHrAttendanceRecords: async (users, fromDate, toDate) => {
+    if (!Array.isArray(users) || !users.length || !fromDate || !toDate) return [];
+    const result = await buildHrAttendanceData(fromDate, toDate, users);
+    return result.records;
+  },
   getHrRulesV4, saveHrRuleV4, deactivateHrRuleV4, getHrVisitDocumentsV4,
   onlyActiveHR,
   previewBulkAttendance: preview,

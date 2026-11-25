@@ -579,7 +579,7 @@ const getStatusBadgeStyle = (status) => {
   if (value === "present") return { ...styles.statusBadge, ...styles.presentBadge };
   if (value === "absent") return { ...styles.statusBadge, ...styles.absentBadge };
   if (value === "late") return { ...styles.statusBadge, ...styles.lateBadge };
-  if (value === "leave") return { ...styles.statusBadge, ...styles.leaveBadge };
+  if (value === "leave" || value.endsWith(" leave")) return { ...styles.statusBadge, ...styles.leaveBadge };
   return styles.statusBadge;
 };
 const SummaryBox = ({ label, value, compact = false }) => {
@@ -612,7 +612,7 @@ const monthlyAttendance = (person, selectedMonth) => {
     if (status === "late") { totals.present += 1; totals.late += 1; }
     else if (status === "present") totals.present += 1;
     else if (status === "absent") totals.absent += 1;
-    else if (status === "leave") totals.leave += 1;
+    else if (status === "leave" || status.endsWith("_leave")) totals.leave += 1;
     else if (status === "half_day") totals.half_day += 1;
     else if (status === "holiday") totals.holiday += 1;
   });
