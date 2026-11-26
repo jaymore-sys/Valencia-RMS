@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const privilegedLedger = require("../utils/privilegedledger");
 const { parse } = require("csv-parse/sync");
 const XLSX = require("xlsx");
 const {
@@ -4457,6 +4458,7 @@ const approveHrLeaveApplication = async (
   res
 ) => {
   let connection;
+  let plLock;
 
   try {
     if (!isAuthorizedHR(req)) {
@@ -4507,6 +4509,8 @@ const approveHrLeaveApplication = async (
       await db
         .getConnection();
 
+    const [plOwner] = await connection.query("SELECT employee_id, leave_type FROM leave_applications WHERE leave_id = ?", [leaveId]);
+    if (plOwner[0]?.leave_type === 'mandatory') plLock = await privilegedLedger.lock(connection, plOwner[0].employee_id);
     await connection
       .beginTransaction();
 
@@ -4598,6 +4602,13 @@ const approveHrLeaveApplication = async (
       });
     }
 
+    if (plLock) {
+      const [plRows] = await connection.query("SELECT employee_id, leave_type, DATE_FORMAT(start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date, total_days FROM leave_applications WHERE leave_id = ?", [leaveId]);
+      const pl = plRows[0];
+      if (!pl || pl.leave_type !== 'mandatory') throw new Error('PL application changed during review');
+      const check = await privilegedLedger.load(connection, pl.employee_id, leaveId, require("../utils/leavepolicy").getIndiaToday(), Number(pl.start_date.slice(0,4)), pl);
+      if (!check.allowed) { await connection.rollback(); return res.status(400).json({success:false,message:"Insufficient earned Privileged Leave after accounting for existing reservations and carry-forward. Contact HR if existing commitments exceed entitlement."}); }
+    }
     await connection.query(
       `
       UPDATE leave_applications
@@ -4657,9 +4668,8 @@ const approveHrLeaveApplication = async (
         null,
     });
   } finally {
-    if (connection) {
-      connection.release();
-    }
+    if (connection) { if (plLock) { try { await privilegedLedger.unlock(connection, plLock); } catch (error) { console.error('PL lock release:', error.message); } }
+ connection.release(); }
   }
 };
 
@@ -5672,6 +5682,7 @@ const getHrLeaveManagement = async (req, res) => {
 
 const addHrEmployeeExtraLeave = async (req, res) => {
   let connection;
+  let plLock;
 
   try {
     if (!isAuthorizedHR(req)) {
@@ -5711,6 +5722,7 @@ const addHrEmployeeExtraLeave = async (req, res) => {
     }
 
     connection = await db.getConnection();
+    if (leaveType === 'mandatory') plLock = await privilegedLedger.lock(connection, userId);
     await connection.beginTransaction();
 
     const user = await getHrManagedUser(connection, userId);
@@ -5800,12 +5812,13 @@ const addHrEmployeeExtraLeave = async (req, res) => {
       sqlMessage: error.sqlMessage || null,
     });
   } finally {
-    if (connection) connection.release();
+    if (connection) { if (plLock) { try { await privilegedLedger.unlock(connection, plLock); } catch (error) { console.error('PL lock release:', error.message); } } connection.release(); }
   }
 };
 
 const reduceHrEmployeeLeave = async (req, res) => {
   let connection;
+  let plLock;
 
   try {
     if (!isAuthorizedHR(req)) {
@@ -5907,6 +5920,7 @@ const reduceHrEmployeeLeave = async (req, res) => {
     }
 
     connection = await db.getConnection();
+    if (leaveType === 'mandatory') plLock = await privilegedLedger.lock(connection, userId);
     await connection.beginTransaction();
 
     const user = await getHrManagedUser(connection, userId);
@@ -6000,6 +6014,10 @@ const reduceHrEmployeeLeave = async (req, res) => {
     }
 
     const placeholders = insertColumns.map(() => "?").join(", ");
+    if (plLock) {
+      const check = await privilegedLedger.load(connection,userId,null,require("../utils/leavepolicy").getIndiaToday(),leaveYear,{start_date:startDate,end_date:endDate,total_days:totalDays});
+      if (!check.allowed) { await connection.rollback(); return res.status(400).json({success:false,message:"Insufficient earned Privileged Leave after accounting for existing reservations and carry-forward. Contact HR if existing commitments exceed entitlement."}); }
+    }
     const [result] = await connection.query(
       `
       INSERT INTO leave_applications
@@ -6039,7 +6057,7 @@ const reduceHrEmployeeLeave = async (req, res) => {
       sqlMessage: error.sqlMessage || null,
     });
   } finally {
-    if (connection) connection.release();
+    if (connection) { if (plLock) { try { await privilegedLedger.unlock(connection, plLock); } catch (error) { console.error('PL lock release:', error.message); } } connection.release(); }
   }
 };
 

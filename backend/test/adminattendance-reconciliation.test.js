@@ -56,7 +56,7 @@ function setup({pendingVisits = [], members = [], extraAttendance = []} = {}) {
     return mod.exports;
   };
   const hr = load('hrattendancecontroller.js', {
-    '../config/db':db, 'csv-parse/sync':{}, xlsx:{}, '../utils/leavepolicy':{}, './employeeleavecontroller':{}, '../utils/hrattendanceaccess':{},
+    '../config/db':db, 'csv-parse/sync':{}, xlsx:{}, '../utils/leavepolicy':{}, '../utils/privilegedledger':require('../src/utils/privilegedledger'), './employeeleavecontroller':{}, '../utils/hrattendanceaccess':{},
   });
   const controller = load('adminattendancecontroller.js', {'../config/db':db,'../utils/emailservice':{},'./hrattendancecontroller':hr});
   return {controller,hr};

@@ -1,6 +1,7 @@
 // VALENCIA_APPROVALS_V3_FIX: saved Admin approval permissions respected for Premal.
 const crypto = require("crypto");
 const db = require("../config/db");
+const privilegedLedger = require("../utils/privilegedledger");
 
 const { sendMail } = require("../utils/emailservice");
 const {
@@ -642,6 +643,7 @@ const reviewLeaveApplication = async (
   res
 ) => {
   let connection;
+  let plLock;
 
   try {
     connection =
@@ -753,6 +755,8 @@ const reviewLeaveApplication = async (
     });
 }
 
+    const [plOwner] = await connection.query("SELECT employee_id, leave_type FROM leave_applications WHERE leave_id = ?", [leaveId]);
+    if (plOwner[0]?.leave_type === 'mandatory') plLock = await privilegedLedger.lock(connection, plOwner[0].employee_id);
     await connection
       .beginTransaction();
 
@@ -1092,6 +1096,14 @@ if (
     UPDATE LEAVE APPLICATION
     ====================================================
     */
+    if (status === 'approved') { if (plLock) {
+      const [plRows] = await connection.query("SELECT employee_id, leave_type, DATE_FORMAT(start_date,'%Y-%m-%d') AS start_date, DATE_FORMAT(end_date,'%Y-%m-%d') AS end_date, total_days FROM leave_applications WHERE leave_id = ?", [leaveId]);
+      const pl = plRows[0];
+      if (!pl || pl.leave_type !== 'mandatory') throw new Error('PL application changed during review');
+      const check = await privilegedLedger.load(connection, pl.employee_id, leaveId, require("../utils/leavepolicy").getIndiaToday(), Number(pl.start_date.slice(0,4)), pl);
+      if (!check.allowed) { await connection.rollback(); return res.status(400).json({success:false,message:"Insufficient earned Privileged Leave after accounting for existing reservations and carry-forward. Contact HR if existing commitments exceed entitlement."}); }
+    }
+     }
     await connection.query(
       `
       UPDATE leave_applications
@@ -1362,9 +1374,8 @@ Valencia RMS
           null,
       });
   } finally {
-    if (connection) {
-      connection.release();
-    }
+    if (connection) { if (plLock) { try { await privilegedLedger.unlock(connection, plLock); } catch (error) { console.error('PL lock release:', error.message); } }
+ connection.release(); }
   }
 };
 

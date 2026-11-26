@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const db = require("../config/db");
+const privilegedLedger = require("../utils/privilegedledger");
 const { sendMail } = require("../utils/emailservice");
 
 const {
@@ -1591,8 +1592,15 @@ if (
       ------------------------------
       */
 
-      const [result] =
-        await db.query(
+      let result;
+      if (leaveType === 'mandatory') {
+        const plConnection = await db.getConnection();
+        let plLock;
+        try {
+          plLock = await privilegedLedger.lock(plConnection,employeeId);
+          const check = await privilegedLedger.load(plConnection,employeeId,null,require("../utils/leavepolicy").getIndiaToday(),leaveYear,{start_date:startDate,end_date:endDate,total_days:totalDays});
+          if (!check.allowed) { return res.status(400).json({success:false,message:"Insufficient earned Privileged Leave after accounting for existing reservations and carry-forward. Contact HR if existing commitments exceed entitlement."}); }
+          [result] = await plConnection.query(
           `
           INSERT INTO leave_applications (
             ${insertColumns.join(
@@ -1606,6 +1614,25 @@ if (
           `,
           insertValues
         );
+        } finally {
+          if (plLock) { try { await privilegedLedger.unlock(plConnection,plLock); } catch(error) { console.error('PL lock release:',error.message); } }
+          plConnection.release();
+        }
+      } else { [result] =
+        await db.query(
+          `
+          INSERT INTO leave_applications (
+            ${insertColumns.join(
+              ", "
+            )}
+          )
+
+          VALUES (
+            ${placeholders}
+          )
+          `,
+          insertValues
+        ); }
 
       /*
       ------------------------------
