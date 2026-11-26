@@ -234,8 +234,8 @@ const requestedTaskId =
   const [reviewRemark, setReviewRemark] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
-  
-   
+
+
   const fetchTasks = async () => {
     try {
       setLoading(true);
@@ -781,7 +781,7 @@ const taskModeSwitch = (
   return (
   <div style={styles.page}>
 
-    
+
 
    {taskView === "personal" ? (
   <EmployeeTasks
@@ -813,7 +813,7 @@ const taskModeSwitch = (
     {loading ? "Refreshing..." : "Refresh"}
   </button>
 </div>
-        
+
 
       {error && (
         <div style={styles.errorBox}>
@@ -821,7 +821,7 @@ const taskModeSwitch = (
         </div>
       )}
 
-    
+
 
       <section style={styles.kanbanSection}>
         <div style={styles.kanbanHeader}>
@@ -1291,11 +1291,7 @@ const taskModeSwitch = (
               </p>
             </div>
 
-            {normalizeStatus(
-              selectedTask.status_group ||
-                selectedTask.status
-            ) ===
-              "under_review" && Number(selectedTask.can_review ?? 1) === 1 && (
+            {["under_review", "on_hold"].includes(normalizeStatus(selectedTask.status_group || selectedTask.status)) && Number(selectedTask.can_review ?? 1) === 1 && (
               <section
                 style={
                   styles.reviewSection
@@ -1367,6 +1363,18 @@ const taskModeSwitch = (
     styles.reviewButtons
   }
 >
+{normalizeStatus(selectedTask.status_group || selectedTask.status) === "on_hold" ? (
+  <button
+    type="button"
+    style={styles.approveButton}
+    disabled={reviewLoading}
+    onClick={() => reviewSelectedTask("in_progress")}
+  >
+    {reviewLoading ? "Processing..." : "Resume"}
+  </button>
+) : (
+  <>
+
   <button
     type="button"
     style={
@@ -1419,6 +1427,9 @@ const taskModeSwitch = (
   >
     Reject
   </button>
+
+  </>
+)}
 </div>
               </section>
             )}

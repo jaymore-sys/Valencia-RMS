@@ -403,7 +403,7 @@ if (
         `,
         [
           ...employeeIds,
-          
+
         ]
       );
 
@@ -777,6 +777,7 @@ const getAdminCalendar = async (
         `
         SELECT
           t.task_id AS id,
+          t.assigned_to_user_id,
           t.project_id,
           t.task_title AS title,
           t.task_description AS description,
@@ -975,14 +976,46 @@ GROUP_CONCAT(
         [deptId, deptId]
       );
 
-    return res.json({
-      success: true,
-
-      projects,
-tasks,
-meetings: formattedMeetings,
-mini_tasks: miniTasks,
-    });
+    // RMS_CALENDAR_EMPLOYEE_MAPPING: only assignments for already-authorized events.
+    const projectIds = projects.map(p => p.id);
+    const taskIds = tasks.map(t => t.id);
+    const projectMembers = new Map(projectIds.map(id => [String(id), new Set()]));
+    const taskMembers = new Map(taskIds.map(id => [String(id), new Set()]));
+    if (projectIds.length) {
+      const [rows] = await db.query("SELECT project_id, employee_id FROM project_assignments WHERE project_id IN (?) AND COALESCE(assignment_status, 'assigned') <> 'removed'", [projectIds]);
+      for (const row of rows) projectMembers.get(String(row.project_id))?.add(Number(row.employee_id));
+    }
+    if (taskIds.length) {
+      const [rows] = await db.query("SELECT task_id, employee_id FROM task_assignments WHERE task_id IN (?)", [taskIds]);
+      for (const row of rows) taskMembers.get(String(row.task_id))?.add(Number(row.employee_id));
+    }
+    for (const task of tasks) {
+      const members = taskMembers.get(String(task.id));
+      if (task.assigned_to_user_id) members.add(Number(task.assigned_to_user_id));
+      task.employee_ids = [...members];
+      for (const id of members) projectMembers.get(String(task.project_id))?.add(id);
+    }
+    for (const project of projects) project.employee_ids = [...projectMembers.get(String(project.id))];
+    // Only employees belonging to the Admin's own primary/assigned departments are selectable.
+    const [departmentEmployees] = await db.query(`
+      SELECT DISTINCT u.user_id, u.full_name
+      FROM users u JOIN roles r ON r.role_id = u.role_id
+      WHERE LOWER(r.role_name) = 'employee'
+        AND LOWER(COALESCE(u.status, 'active')) = 'active'
+        AND (? = 1 OR EXISTS (
+          SELECT 1 FROM departments d
+          WHERE (d.department_id = ? OR EXISTS (
+            SELECT 1 FROM user_departments ad WHERE ad.user_id = ? AND ad.department_id = d.department_id
+          )) AND (d.department_id = u.department_id OR EXISTS (
+            SELECT 1 FROM user_departments ed WHERE ed.user_id = u.user_id AND ed.department_id = d.department_id
+          ))
+        ))
+      ORDER BY u.full_name
+    `, [isAdministrator ? 1 : 0, user.department_id, user.user_id]);
+    const allowedCalendarIds = new Set(departmentEmployees.map(e => Number(e.user_id)));
+    for (const project of projects) project.employee_ids = project.employee_ids.filter(id => allowedCalendarIds.has(Number(id)));
+    for (const task of tasks) task.employee_ids = task.employee_ids.filter(id => allowedCalendarIds.has(Number(id)));
+    return res.json({success:true, projects, tasks, meetings: formattedMeetings, mini_tasks: miniTasks, department_employees: departmentEmployees});
   } catch (error) {
     console.error(
       "Get admin calendar error:",
@@ -1506,7 +1539,7 @@ const updateMeeting = async (
 
     const meetingId =
       Number(req.params.meetingId);
-    
+
 
     if (!meetingId) {
       connection.release();
@@ -1659,7 +1692,7 @@ WHERE id = ?
     `,
     [
       ...employeeIds,
-      
+
     ]
   );
 
@@ -2458,7 +2491,7 @@ GROUP_CONCAT(
   DISTINCT employee.user_id
   ORDER BY employee.user_id
   SEPARATOR ','
-) AS employee_ids 
+) AS employee_ids
 
         FROM meetings m
 

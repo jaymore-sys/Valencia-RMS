@@ -1,3 +1,4 @@
+import "./adminRemainingPolish.css";
 // VALENCIA_APPROVALS_V3_FIX: preserve Admin Approvals, add adjacent Employee Approvals.
 // VALENCIA_PREMAL_EMPLOYEE_APPROVALS_V2
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -654,6 +655,7 @@ const isPremal =
   const [dateRange, setDateRange] = useState(null);
   const [selectedMonth, setSelectedMonth] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+const [employeeView, setEmployeeView] = useState("grid");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [fieldVisitMode, setFieldVisitMode] = useState("team");
@@ -1147,6 +1149,19 @@ const isPremal =
   const myRecords = useMemo(() => {
     return Array.isArray(monthlyMyAttendance?.records) ? monthlyMyAttendance.records : [];
   }, [monthlyMyAttendance]);
+  const exportAttendanceWorkbook = async () => {
+    try {
+      const XLSX = await import("xlsx");
+      const personal = activeTab === "myAttendance";
+      const people = personal ? (monthlyMyAttendance ? [monthlyMyAttendance] : []) : filteredEmployees;
+      const summary = [["Employee", "Email", "Department", "Working Days", "Present", "Absent", "Late", "Leave"], ...people.map(p => [p.full_name, p.email, p.department_name, p.total, p.present, p.absent, p.late, p.leave])];
+      const records = [["Employee", "Date", "Status", "Check In", "Check Out", "Working Hours", "Remarks"], ...people.flatMap(p => (p.records || []).map(r => [p.full_name, r.attendance_date, r.status, r.check_in_time, r.check_out_time, r.working_hours, r.remarks]))];
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), "Summary");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(records), "Daily Records");
+      XLSX.writeFile(wb, `attendance-${personal ? "personal" : "department"}-${selectedMonth || "all"}.xlsx`);
+    } catch (err) { console.error(err); window.alert("Unable to export attendance."); }
+  };
   const currentVisits =
     fieldVisitMode === "team"
       ? teamVisits
@@ -1269,7 +1284,7 @@ const isPremal =
             </span>
           </div>
         </div>
-        <div style={styles.employeeStatsGrid}>
+        <div className="rms-attendance-employee-stats" style={styles.employeeStatsGrid}>
           <SummaryBox compact label="Working Days" value={employee.total} />
           <SummaryBox compact label="Present" value={employee.present} />
           <SummaryBox compact label="Absent" value={employee.absent} />
@@ -1310,6 +1325,7 @@ const isPremal =
         >
           Employee Summary
         </button>
+        <button type="button" disabled={loading} onClick={exportAttendanceWorkbook} style={{padding:"10px 16px",border:"1px solid #ff5733",borderRadius:10,background:"#fff",color:"#ff5733",fontWeight:700,cursor:"pointer"}}>Export Excel</button>
         <label htmlFor="admin-attendance-month" style={{display:"inline-flex",alignItems:"center",gap:8,fontWeight:800,color:"#334155",marginLeft:8}}>Month
           <select id="admin-attendance-month" value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} disabled={loading||!availableMonths.length} style={{height:44,padding:"0 12px",borderRadius:11,border:"1px solid #cbd5e1",background:"#fff",fontWeight:700,minWidth:160}}>
             <option value="all">All Records</option>
@@ -1333,7 +1349,7 @@ const isPremal =
               </span>
             </div>
           </div>
-          <div style={styles.myStatsGrid}>
+          <div className="rms-attendance-my-stats" style={styles.myStatsGrid}>
             <SummaryBox label="Working Days" value={monthlyMyAttendance?.total || 0} />
             <SummaryBox label="Present" value={monthlyMyAttendance?.present || 0} />
             <SummaryBox label="Absent" value={monthlyMyAttendance?.absent || 0} />
@@ -1390,7 +1406,7 @@ const isPremal =
       )}
       {activeTab === "employeeSummary" && (
         <section style={styles.contentBlock}>
-          <div style={styles.employeeSummaryHeader}>
+          <div className="rms-attendance-summary-header" style={styles.employeeSummaryHeader}>
             <div>
               <h2 style={styles.sectionTitle}>
                 {employeeSummary[0]?.department_name || "Department"} Users
@@ -1407,7 +1423,7 @@ const isPremal =
               Refresh
             </button>
           </div>
-          <div style={styles.searchRow}>
+          <div className="rms-attendance-search-row" style={styles.searchRow}>
             <input
               style={styles.searchInput}
               type="text"
@@ -1415,16 +1431,42 @@ const isPremal =
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
             />
-            <div style={styles.totalBadge}>
-              Total: {filteredEmployees.length}
-            </div>
+            <div className="rms-attendance-view-controls">
+    <div className="rms-attendance-total" style={styles.totalBadge}>
+        Total: {filteredEmployees.length}
+    </div>
+
+    <div className="rms-attendance-view-switch">
+        {[
+            ["grid", "Grid"],
+            ["list", "List"]
+        ].map(([value, label]) => (
+            <button
+                key={value}
+                type="button"
+                aria-pressed={employeeView === value}
+                className={
+                    employeeView === value
+                        ? "rms-view-button active"
+                        : "rms-view-button"
+                }
+                onClick={() => setEmployeeView(value)}
+            >
+                {label}
+            </button>
+        ))}
+    </div>
+</div>
           </div>
           {loading ? (
             <div style={styles.emptyBox}>Loading employee summary...</div>
           ) : filteredEmployees.length === 0 ? (
             <div style={styles.emptyBox}>No employees found.</div>
           ) : (
-            <div style={styles.employeeGrid}>
+            <div
+    className={`rms-attendance-employees rms-attendance-${employeeView}`}
+    style={styles.employeeGrid}
+>
               {filteredEmployees.map((employee) => (
                 <EmployeeCard employee={employee} key={employee.user_id} />
               ))}

@@ -1,0 +1,15 @@
+/* Scoped project form adjustments; no workflow changes. */
+.rms-assign-project-form{box-sizing:border-box;max-width:calc(100vw - 24px);min-width:0}
+.rms-assign-project-form label,.rms-assign-project-form input,.rms-assign-project-form textarea,.rms-assign-project-form select{min-width:0;box-sizing:border-box;max-width:100%}
+.rms-assign-project-form .rms-project-assignee-row{grid-template-columns:24px 42px minmax(0,1fr) minmax(0,auto)!important;gap:10px!important;padding:12px!important;overflow-wrap:anywhere}
+.rms-project-assignee-row .rms-project-assignee-avatar{width:42px!important;height:42px!important;border-radius:50%!important}
+.rms-project-assignee-row .rms-project-assignee-info{min-width:0;overflow-wrap:anywhere}
+.rms-assign-project-form .rms-project-assignee-dept{max-width:160px;overflow-wrap:anywhere}
+.rms-assign-project-form .rms-project-assign-footer{flex-wrap:wrap;gap:10px!important}
+.rms-assign-project-form .rms-project-assign-footer button{min-width:0!important;max-width:100%;white-space:normal}
+.rms-design-request-form .dr-form label,.rms-design-request-form .dr-form input,.rms-design-request-form .dr-form textarea,.rms-design-request-form .dr-form select{min-width:0;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere}
+@media(max-width:767px){.rms-assign-project-form{padding:18px!important}.rms-assign-project-form .rms-project-assign-grid{grid-template-columns:minmax(0,1fr)!important;gap:8px!important}.rms-assign-project-form .rms-project-assignee-row{grid-template-columns:24px 36px minmax(0,1fr)!important}.rms-project-assignee-row .rms-project-assignee-avatar{width:36px!important;height:36px!important}.rms-assign-project-form .rms-project-assignee-dept{grid-column:3;max-width:100%;font-size:12px!important}.rms-assign-project-form .rms-project-assign-footer button{flex:1 1 100%}}
+
+.rms-design-request-form .dr-question-grid{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:16px}
+.rms-design-request-form .dr-question{min-width:0;align-content:start}.rms-design-request-form .dr-question > label{min-width:0}.rms-design-request-form fieldset{min-width:0;box-sizing:border-box;max-width:100%}
+@media(max-width:767px){.rms-design-request-form .dr-question-grid{grid-template-columns:minmax(0,1fr)}}

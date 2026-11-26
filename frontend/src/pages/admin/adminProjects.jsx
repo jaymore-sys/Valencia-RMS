@@ -1,3 +1,5 @@
+import './adminFinalProjectPolish.css';
+import "./adminProjectsPolish.css";
 import { DesignProjectPanel, DesignTaskExtras, combineDesignProjects, useDesignProjects } from "./DesignProjectWork";
 import { DesignRequestForm, DesignRequestRows, DesignRequestsContent, loadDesignDepartment, loadDesignRequests } from "./DesignRequests";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -2300,6 +2302,9 @@ const submitInterdepartmentReview = async (action) => {
                         >
                           <span style={styles.projectTileTitle}>
                             {project.project_title}
+{normalizeStatus(project.status) === "on_hold" && (
+  <span className="rms-project-hold-badge">On Hold</span>
+)}
                           </span>
                         </button>
                       ))
@@ -2313,8 +2318,8 @@ const submitInterdepartmentReview = async (action) => {
       </section>
 
       {showAssignModal && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.assignModal}>
+        <div className="rms-project-overlay" style={styles.modalOverlay}>
+          <div className="rms-assign-project-form" style={styles.assignModal}>
             <button
               type="button"
               style={styles.closeButton}
@@ -2332,8 +2337,8 @@ const submitInterdepartmentReview = async (action) => {
               be added after opening the project tile.
             </p>
 
-            <div style={styles.formGrid}>
-              <label style={styles.field}>
+            <div className="rms-project-form-grid rms-project-assign-grid" style={styles.formGrid}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Title</span>
                 <input
                   value={newProject.project_title}
@@ -2347,7 +2352,7 @@ const submitInterdepartmentReview = async (action) => {
                 />
               </label>
 
-              <label style={styles.field}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Division</span>
 
                 <select
@@ -2392,10 +2397,15 @@ const submitInterdepartmentReview = async (action) => {
                 </select>
               </label>
 
-              <label style={styles.field}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Start Date</span>
                 <input
                   type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                   value={newProject.start_date}
                   onChange={(event) =>
                     setNewProject((previous) => ({
@@ -2406,10 +2416,15 @@ const submitInterdepartmentReview = async (action) => {
                 />
               </label>
 
-              <label style={styles.field}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Deadline</span>
                 <input
                   type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                   value={newProject.end_date}
                   onChange={(event) =>
                     setNewProject((previous) => ({
@@ -2421,7 +2436,7 @@ const submitInterdepartmentReview = async (action) => {
               </label>
             </div>
 
-            <label style={styles.field}>
+            <label className="rms-project-field" style={styles.field}>
               <span>Project Description</span>
               <textarea
                 value={newProject.project_description}
@@ -2436,7 +2451,7 @@ const submitInterdepartmentReview = async (action) => {
             </label>
 
             <div style={styles.assigneePanel}>
-              <div style={styles.panelHeader}>
+              <div className="rms-project-panel-header" style={styles.panelHeader}>
                 <div>
                   <h3 style={styles.panelTitle}>Project Assignees</h3>
                   <p style={styles.panelSubtitle}>
@@ -2469,23 +2484,23 @@ const submitInterdepartmentReview = async (action) => {
                       .includes(userId);
 
                     return (
-                      <label style={styles.assigneeRow} key={userId}>
+                      <label className="rms-project-assignee rms-project-assignee-row" style={styles.assigneeRow} key={userId}>
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleNewProjectAssignee(userId)}
                         />
 
-                        <div style={styles.assigneeAvatar}>
+                        <div className="rms-project-avatar rms-project-assignee-avatar" style={styles.assigneeAvatar}>
                           {getInitials(getUserName(user))}
                         </div>
 
-                        <div style={styles.assigneeInfo}>
+                        <div className="rms-project-assignee-info" style={styles.assigneeInfo}>
                           <strong>{getUserName(user)}</strong>
                           <span>{getUserEmail(user)}</span>
                         </div>
 
-                        <b style={styles.assigneeDept}>
+                        <b className="rms-project-assignee-dept" style={styles.assigneeDept}>
                           {user.department_name || "-"}
                         </b>
                       </label>
@@ -2495,7 +2510,7 @@ const submitInterdepartmentReview = async (action) => {
               </div>
             </div>
 
-            <div style={styles.modalFooter}>
+            <div className="rms-project-assign-footer" style={styles.modalFooter}>
   <button
     type="button"
     style={styles.fullPrimaryButton}
@@ -2817,7 +2832,7 @@ const submitInterdepartmentReview = async (action) => {
     {successMessage}
   </div>
 )}
-     
+
       <div style={styles.detailsGrid}>
         <div style={styles.detailBox}>
           <span style={styles.detailLabel}>Project</span>
@@ -2848,7 +2863,7 @@ const submitInterdepartmentReview = async (action) => {
         </div>
       </div>
 
-      <label style={styles.field}>
+      <label className="rms-project-field" style={styles.field}>
         <span>Project Description</span>
         <textarea
           value={newProject.project_description}
@@ -2856,8 +2871,8 @@ const submitInterdepartmentReview = async (action) => {
         />
       </label>
 
-      <div style={styles.formGrid}>
-        <label style={styles.field}>
+      <div className="rms-project-form-grid" style={styles.formGrid}>
+        <label className="rms-project-field" style={styles.field}>
           <span>Requested Department</span>
 
           <select
@@ -2888,8 +2903,8 @@ const submitInterdepartmentReview = async (action) => {
         <DesignRequestForm project={newProject} projectDraft={getNewProjectPayload()}
           onSent={({ project_id }) => setInterdepartmentProjectId(project_id)} onClose={closeInterdepartmentRequestModal} />
       ) : <>
-      <div style={styles.formGrid}>
-        <label style={styles.field}>
+      <div className="rms-project-form-grid" style={styles.formGrid}>
+        <label className="rms-project-field" style={styles.field}>
           <span>Requested Division</span>
 
           <select
@@ -2917,7 +2932,7 @@ const submitInterdepartmentReview = async (action) => {
         <div />
       </div>
 
-      <label style={styles.field}>
+      <label className="rms-project-field" style={styles.field}>
         <span>Work Required in Detail</span>
 
         <textarea
@@ -2932,12 +2947,17 @@ const submitInterdepartmentReview = async (action) => {
         />
       </label>
 
-      <div style={styles.formGrid}>
-        <label style={styles.field}>
+      <div className="rms-project-form-grid" style={styles.formGrid}>
+        <label className="rms-project-field" style={styles.field}>
           <span>Requested Start Date</span>
 
           <input
             type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
             min={newProject.start_date || undefined}
             max={newProject.end_date || undefined}
             value={interdepartmentForm.requested_start_date}
@@ -2950,11 +2970,16 @@ const submitInterdepartmentReview = async (action) => {
           />
         </label>
 
-        <label style={styles.field}>
+        <label className="rms-project-field" style={styles.field}>
           <span>Requested End Date</span>
 
           <input
             type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
             min={
               interdepartmentForm.requested_start_date ||
               newProject.start_date ||
@@ -3001,8 +3026,8 @@ const submitInterdepartmentReview = async (action) => {
 )}
 
       {selectedProject && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
+        <div className="rms-project-overlay" style={styles.modalOverlay}>
+          <div className="rms-project-modal" style={styles.modal}>
             <div style={styles.floatingCloseLayer}>
               <button
                 type="button"
@@ -3013,8 +3038,8 @@ const submitInterdepartmentReview = async (action) => {
               </button>
             </div>
 
-            <div style={styles.projectModalNormalHeader}>
-              <div style={styles.projectModalTitleBlock}>
+            <div className="rms-project-header" style={styles.projectModalNormalHeader}>
+              <div className="rms-project-title-block" style={styles.projectModalTitleBlock}>
                 <h2 style={styles.modalTitle}>{selectedProject.project_title}</h2>
                 <p style={styles.modalSubtitle}>
                   View project details, manage tasks, and track project progress.
@@ -3027,10 +3052,14 @@ const submitInterdepartmentReview = async (action) => {
                 {!selectedProject.design_team.length && !teamPicker && <button type="button"
                   style={styles.projectModalEditButton} disabled={actionLoading}
                   onClick={openDesignTeamPicker}><Plus size={18} /> Add Employees</button>}
-              </div> : <button type="button" style={styles.projectModalEditButton}
-                onClick={() => setShowEditProjectModal(true)}>
-                <Edit size={18} /> Edit Project
-              </button>}
+              </div> : <div className="rms-project-header-actions">
+
+    <button type="button"
+      style={styles.projectModalEditButton}
+      onClick={() => setShowEditProjectModal(true)}>
+      <Edit size={18} /> Edit Project
+    </button>
+  </div>}
             </div>
 
             {error && (
@@ -3045,9 +3074,7 @@ const submitInterdepartmentReview = async (action) => {
   </div>
 )}
 
-            {!designRequestId && (existingDesignProject === selectedProject.project_id
-              ? <DesignRequestForm project={selectedProject} onClose={() => setExistingDesignProject(null)} onSent={fetchProjects} />
-              : <button type="button" onClick={() => setExistingDesignProject(selectedProject.project_id)}>Request Design work</button>)}
+
 
             <div style={styles.detailsGrid}>
               <div style={styles.detailBox}>
@@ -3238,7 +3265,7 @@ const submitInterdepartmentReview = async (action) => {
             {(designRequestId ? canManageDesign : canEditMainTasks(selectedProject.status)) && (
               <section style={styles.editSection}>
                 <h3 style={styles.modalSectionTitle}>
-                  <Plus size={21} color="#ff5733" />
+
                   Add Main Task
                 </h3>
 
@@ -3246,7 +3273,7 @@ const submitInterdepartmentReview = async (action) => {
                   Select one or more assignees from this project's assignees only.
                 </p>
 
-                <label style={styles.field}>
+                <label className="rms-project-field" style={styles.field}>
                   <span>Main Task Title</span>
                   <input
                     value={newMainTask.task_title}
@@ -3260,7 +3287,7 @@ const submitInterdepartmentReview = async (action) => {
                   />
                 </label>
 
-                <label style={styles.field}>
+                <label className="rms-project-field" style={styles.field}>
                   <span>Main Task Description</span>
                   <textarea
                     value={newMainTask.task_description}
@@ -3274,11 +3301,16 @@ const submitInterdepartmentReview = async (action) => {
                   />
                 </label>
 
-                <div style={styles.formGrid}>
-                  <label style={styles.field}>
+                <div className="rms-project-form-grid" style={styles.formGrid}>
+                  <label className="rms-project-field" style={styles.field}>
                     <span>Main Task Start Date</span>
                     <input
                       type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                       value={newMainTask.start_date}
                       min={selectedProject.start_date || undefined}
                       max={selectedProject.end_date || undefined}
@@ -3297,10 +3329,15 @@ const submitInterdepartmentReview = async (action) => {
                     />
                   </label>
 
-                  <label style={styles.field}>
+                  <label className="rms-project-field" style={styles.field}>
                     <span>Main Task Deadline</span>
                     <input
                       type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                       value={newMainTask.due_date}
                       min={newMainTask.start_date || selectedProject.start_date || undefined}
                       max={selectedProject.end_date || undefined}
@@ -3373,7 +3410,7 @@ const submitInterdepartmentReview = async (action) => {
                       <div style={styles.mainTaskCard} key={task.task_id}>
                         {!isEditing ? (
                           <>
-                            <div style={styles.mainTaskTop}>
+                            <div className="rms-project-task-top" style={styles.mainTaskTop}>
                               <div style={styles.mainTaskTextBlock}>
                                 <h4>{task.task_title}</h4>
                                 <p>
@@ -3427,11 +3464,11 @@ const submitInterdepartmentReview = async (action) => {
       </span>
     </div>
   </div>
-)} 
+)}
 
                               <div style={styles.mainTaskActions}>
                                 <span style={styles.taskStatusBadge}>
-                                  {getStatusLabel(task.status)} Â·{" "}
+                                  {getStatusLabel(task.status)} {" · "}
                                   {task.progress || 0}%
                                 </span>
 
@@ -3482,7 +3519,7 @@ const submitInterdepartmentReview = async (action) => {
                           </>
                         ) : (
                           <div style={styles.mainTaskEditBox}>
-                            <label style={styles.field}>
+                            <label className="rms-project-field" style={styles.field}>
                               <span>Main Task Title</span>
                               <input
                                 value={editMainTask.task_title}
@@ -3496,7 +3533,7 @@ const submitInterdepartmentReview = async (action) => {
                               />
                             </label>
 
-                            <label style={styles.field}>
+                            <label className="rms-project-field" style={styles.field}>
                               <span>Main Task Description</span>
                               <textarea
                                 value={editMainTask.task_description}
@@ -3510,11 +3547,16 @@ const submitInterdepartmentReview = async (action) => {
                               />
                             </label>
 
-                            <div style={styles.formGrid}>
-                              <label style={styles.field}>
+                            <div className="rms-project-form-grid" style={styles.formGrid}>
+                              <label className="rms-project-field" style={styles.field}>
                                 <span>Main Task Start Date</span>
                                 <input
                                   type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                                   value={editMainTask.start_date}
                                   min={selectedProject.start_date || undefined}
                                   max={selectedProject.end_date || undefined}
@@ -3534,10 +3576,15 @@ const submitInterdepartmentReview = async (action) => {
                                 />
                               </label>
 
-                              <label style={styles.field}>
+                              <label className="rms-project-field" style={styles.field}>
                                 <span>Main Task Deadline</span>
                                 <input
                                   type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                                   value={editMainTask.due_date}
                                   min={
                                     editMainTask.start_date ||
@@ -3628,6 +3675,13 @@ const submitInterdepartmentReview = async (action) => {
               >
                 Cancel
               </button>
+<button
+  type="button"
+  className="rms-project-done"
+  onClick={closeProjectDetails}
+>
+  Done
+</button>
             </div>
           </div>
         </div>
@@ -3673,8 +3727,8 @@ const submitInterdepartmentReview = async (action) => {
               </button>
             </div>
 
-            <div style={styles.formGrid}>
-              <label style={styles.field}>
+            <div className="rms-project-form-grid" style={styles.formGrid}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Title</span>
                 <input
                   value={editProject.project_title}
@@ -3687,7 +3741,7 @@ const submitInterdepartmentReview = async (action) => {
                 />
               </label>
 
-              <label style={styles.field}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Division</span>
 
                 <select
@@ -3732,10 +3786,15 @@ const submitInterdepartmentReview = async (action) => {
                 </select>
               </label>
 
-              <label style={styles.field}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Start Date</span>
                 <input
                   type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                   value={editProject.start_date}
                   onChange={(event) =>
                     setEditProject((previous) => ({
@@ -3746,10 +3805,15 @@ const submitInterdepartmentReview = async (action) => {
                 />
               </label>
 
-              <label style={styles.field}>
+              <label className="rms-project-field" style={styles.field}>
                 <span>Project Deadline</span>
                 <input
                   type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
                   value={editProject.end_date}
                   onChange={(event) =>
                     setEditProject((previous) => ({
@@ -3761,7 +3825,7 @@ const submitInterdepartmentReview = async (action) => {
               </label>
             </div>
 
-            <label style={styles.field}>
+            <label className="rms-project-field" style={styles.field}>
               <span>Project Description</span>
               <textarea
                 value={editProject.project_description}
@@ -3801,7 +3865,7 @@ const submitInterdepartmentReview = async (action) => {
             </div>
 
             <div style={styles.assigneePanel}>
-              <div style={styles.panelHeader}>
+              <div className="rms-project-panel-header" style={styles.panelHeader}>
                 <div>
                   <h3 style={styles.panelTitle}>Project Assignees</h3>
                   <p style={styles.panelSubtitle}>
@@ -3835,18 +3899,18 @@ const submitInterdepartmentReview = async (action) => {
                       .includes(userId);
 
                     return (
-                      <label style={styles.assigneeRow} key={userId}>
+                      <label className="rms-project-assignee" style={styles.assigneeRow} key={userId}>
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleEditProjectAssignee(userId)}
                         />
 
-                        <div style={styles.assigneeAvatar}>
+                        <div className="rms-project-avatar" style={styles.assigneeAvatar}>
                           {getInitials(getUserName(user))}
                         </div>
 
-                        <div style={styles.assigneeInfo}>
+                        <div className="rms-project-assignee-info" style={styles.assigneeInfo}>
                           <strong>{getUserName(user)}</strong>
                           <span>{getUserEmail(user)}</span>
                         </div>
@@ -3967,7 +4031,7 @@ const submitInterdepartmentReview = async (action) => {
         </section>
 
         <div style={styles.assigneePanel}>
-          <div style={styles.panelHeader}>
+          <div className="rms-project-panel-header" style={styles.panelHeader}>
             <div>
               <h3 style={styles.panelTitle}>
                 Select Employee(s)
@@ -4007,11 +4071,11 @@ const submitInterdepartmentReview = async (action) => {
                       }
                     />
 
-                    <div style={styles.assigneeAvatar}>
+                    <div className="rms-project-avatar" style={styles.assigneeAvatar}>
                       {getInitials(getUserName(user))}
                     </div>
 
-                    <div style={styles.assigneeInfo}>
+                    <div className="rms-project-assignee-info" style={styles.assigneeInfo}>
                       <strong>{getUserName(user)}</strong>
                       <span>{getUserEmail(user)}</span>
                     </div>
@@ -4026,12 +4090,17 @@ const submitInterdepartmentReview = async (action) => {
           </div>
         </div>
 
-        <div style={styles.formGrid}>
-          <label style={styles.field}>
+        <div className="rms-project-form-grid" style={styles.formGrid}>
+          <label className="rms-project-field" style={styles.field}>
             <span>Approved Start Date</span>
 
             <input
               type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
               min={
                 selectedInterdepartmentRequest.project_start_date ||
                 undefined
@@ -4050,11 +4119,16 @@ const submitInterdepartmentReview = async (action) => {
             />
           </label>
 
-          <label style={styles.field}>
+          <label className="rms-project-field" style={styles.field}>
             <span>Approved End Date</span>
 
             <input
               type="date"
+onClick={(event) => {
+  try {
+    event.currentTarget.showPicker?.();
+  } catch {}
+}}
               min={
                 interdepartmentReview.approved_start_date ||
                 selectedInterdepartmentRequest.project_start_date ||
@@ -4075,7 +4149,7 @@ const submitInterdepartmentReview = async (action) => {
           </label>
         </div>
 
-        <label style={styles.field}>
+        <label className="rms-project-field" style={styles.field}>
           <span>Review Note / Rejection Reason</span>
 
           <textarea

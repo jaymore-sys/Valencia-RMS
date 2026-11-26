@@ -18,4 +18,5 @@ router.put(
   authMiddleware,
   changeAdminPassword
 );
+router.patch('/me/contact', authMiddleware, require('../controllers/admincontactcontroller').saveOwn);
 module.exports = router;

@@ -37,6 +37,10 @@ export function useDesignProjects(view, revision) {
 
 function designProjectStatus(project) {
   if (project.request_status === "completed") return "completed";
+  const remaining = project.tasks.filter(task => task.status !== 'completed');
+  if (remaining.length && remaining.every(task=>task.status==='on_hold')) return 'on_hold';
+  if (remaining.length && remaining.every(task=>task.status==='under_review')) return 'under_review';
+  if (remaining.length && remaining.every(task=>task.status==='rejected')) return 'rejected';
   const started = project.tasks.some(task => !["not_started", "to_do", "todo", "pending"].includes(task.status));
   return project.request_status === "in_progress" || started ? "in_progress" : "not_started";
 }
@@ -109,7 +113,7 @@ function ReviewForm({ requestId, target, onClose, onSave }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const approve = target.action === "approve";
-  const label = approve ? "Approve" : "Reject";
+  const label = ({approve:"Approve",reject:"Reject",on_hold:"Hold",in_progress:"Resume"})[target.action];
   async function submit(event) {
     event.preventDefault();
     const note = new FormData(event.currentTarget).get("note");
@@ -125,7 +129,7 @@ function ReviewForm({ requestId, target, onClose, onSave }) {
     }
   }
   return <form className="dr-work-form dr-card" onSubmit={submit}>
-    <label>{approve ? "Review note (optional)" : "Reason for rejection"}
+    <label>{approve ? "Review note (optional)" : `Reason for ${label.toLowerCase()}`}
       <textarea name="note" required={!approve} maxLength={1000} />
     </label>
     {error && <p role="alert" className="dr-error">{error}</p>}
@@ -154,9 +158,9 @@ export function DesignTaskExtras({ task, project, people, canManage, onChange })
   function reviewButtons(item) {
     if (!canManage || form) return null;
     return <div className="dr-buttons">
-      {["approve", "reject"].map(action => <button key={action} type="button"
+      {(item.task_id === task.task_id ? (item.status === "on_hold" ? ["in_progress"] : ["approve", "on_hold", "reject"]) : ["approve", "reject"]).map(action => <button key={action} type="button"
         onClick={() => setForm({ action, taskId: item.task_id })}>
-        {action === "approve" ? "Approve" : "Reject"}
+        {({approve:"Approve",reject:"Reject",on_hold:"Hold",in_progress:"Resume"})[action]}
       </button>)}
     </div>;
   }
@@ -164,7 +168,7 @@ export function DesignTaskExtras({ task, project, people, canManage, onChange })
   return <div className="design-requests">
     {task.review_status && task.review_status !== "none" && <p>Review · {workStatuses[task.review_status] || task.review_status}</p>}
     {task.review_note && <p>{task.review_note}</p>}
-    {task.status === "under_review" && reviewButtons(task)}
+    {["under_review","on_hold"].includes(task.status) && reviewButtons(task)}
     {!!task.subtasks?.length && <ul className="dr-list">{task.subtasks.map(child => <li key={child.task_id}>
       <strong>{child.task_title}</strong> · {child.assignee_name || "Unassigned"} · {workStatuses[child.status] || child.status}
       <div>{workDates(child)}</div>

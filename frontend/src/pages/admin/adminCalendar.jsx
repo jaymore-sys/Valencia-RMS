@@ -119,6 +119,13 @@ const AdminCalendar = () => {
   });
 
   const [employees, setEmployees] = useState([]);
+  const [calendarEmployeeId, setCalendarEmployeeId] = useState("all");
+  const [calendarDepartmentEmployees, setCalendarDepartmentEmployees] = useState([]);
+  const calendarEvents = useMemo(() => {
+    if (calendarEmployeeId === "all") return events;
+    const matches = item => (item.employee_ids || []).some(id => String(id) === calendarEmployeeId);
+    return { projects: events.projects.filter(matches), tasks: events.tasks.filter(matches), meetings: events.meetings.filter(matches), mini_tasks: events.mini_tasks.filter(item => String(item.employee_id) === calendarEmployeeId) };
+  }, [events, calendarEmployeeId]);
 const [
   employeeSearch,
   setEmployeeSearch,
@@ -172,6 +179,9 @@ const [
       const data = await response.json();
 
       if (data.success) {
+        const team = Array.isArray(data.department_employees) ? data.department_employees : [];
+        setCalendarDepartmentEmployees(team);
+        setCalendarEmployeeId(previous => previous === "all" || team.some(e => String(e.user_id) === previous) ? previous : "all");
         setEvents({
           projects: data.projects || [],
           tasks: data.tasks || [],
@@ -198,7 +208,7 @@ const [
       const data = await response.json();
 
       if (data.success) {
-        
+
 
         setEmployees(data.employees || []);
       }
@@ -298,7 +308,7 @@ const [
   /*
     Get all project/task/meeting/mini-task events
     that belong to a particular week.
-  
+
     Projects and tasks become continuous bars
     between start_date and end_date.
   */
@@ -311,7 +321,7 @@ const [
 
     /* ---------------- PROJECTS ---------------- */
 
-    events.projects.forEach((item) => {
+    calendarEvents.projects.forEach((item) => {
       const start = normalizeDate(item.start_date);
       const end = normalizeDate(item.end_date);
 
@@ -333,7 +343,7 @@ const [
 
     /* ---------------- TASKS ---------------- */
 
-    events.tasks.forEach((item) => {
+    calendarEvents.tasks.forEach((item) => {
       const start = normalizeDate(item.start_date);
       const end = normalizeDate(item.end_date);
 
@@ -355,7 +365,7 @@ const [
 
     /* ---------------- MEETINGS ---------------- */
 
-    events.meetings.forEach((item) => {
+    calendarEvents.meetings.forEach((item) => {
       const date = normalizeDate(
         item.meeting_date
       );
@@ -377,7 +387,7 @@ const [
 
     /* ---------------- MINI TASKS ---------------- */
 
-    events.mini_tasks.forEach((item) => {
+    calendarEvents.mini_tasks.forEach((item) => {
       const date = normalizeDate(
         item.task_date ||
         item.date ||
@@ -484,7 +494,7 @@ const [
 
     const result = [];
 
-    events.projects.forEach((item) => {
+    calendarEvents.projects.forEach((item) => {
       const start = normalizeDate(item.start_date);
       const end = normalizeDate(item.end_date);
 
@@ -502,7 +512,7 @@ const [
       }
     });
 
-    events.tasks.forEach((item) => {
+    calendarEvents.tasks.forEach((item) => {
       const start = normalizeDate(item.start_date);
       const end = normalizeDate(item.end_date);
 
@@ -520,7 +530,7 @@ const [
       }
     });
 
-    events.meetings.forEach((item) => {
+    calendarEvents.meetings.forEach((item) => {
       if (
         normalizeDate(item.meeting_date) ===
         dateString
@@ -533,7 +543,7 @@ const [
       }
     });
 
-    events.mini_tasks.forEach((item) => {
+    calendarEvents.mini_tasks.forEach((item) => {
       const miniDate = normalizeDate(
         item.task_date ||
         item.date ||
@@ -557,7 +567,7 @@ const [
       selectedDate
         ? detailEventsForDate(selectedDate)
         : [],
-    [selectedDate, events]
+    [selectedDate, calendarEvents]
   );
 
   const selectedProjects = selectedEvents.filter(
@@ -865,7 +875,7 @@ setTimeout(() => {
 
     /*
       We need actual participant IDs for editing.
-  
+
       Until the Admin Calendar API returns them,
       populate them from the meeting once we add
       employee_ids to the backend response below.
@@ -1109,7 +1119,7 @@ setTimeout(() => {
       <div className="admin-cal-card">
         {/* ================= TOOLBAR ================= */}
 
-        <div className="admin-cal-toolbar">
+        <div className="admin-cal-toolbar rms-department-calendar-toolbar">
           <div className="admin-cal-filter-row">
             <button
               type="button"
@@ -1168,6 +1178,10 @@ setTimeout(() => {
             </button>
           </div>
 
+          <select className="rms-calendar-employee-select" aria-label="Filter calendar by employee" value={calendarEmployeeId} onChange={event => {setCalendarEmployeeId(event.target.value); setSelectedDate("");}}>
+              <option value="all">All Employees</option>
+              {calendarDepartmentEmployees.map(e => <option key={e.user_id} value={String(e.user_id)}>{e.full_name}</option>)}
+            </select>
           <div className="admin-cal-navigation">
             <button
               type="button"

@@ -1,0 +1,29 @@
+/* Scoped Admin profile and contact editor. */
+.rms-admin-profile .rms-profile-summary{display:grid !important;grid-template-columns:88px minmax(0,1fr) !important;align-items:center !important;gap:20px !important;padding:24px !important;margin-bottom:18px !important;box-sizing:border-box;}
+.rms-admin-profile .rms-profile-summary h1{font-size:clamp(24px,3vw,30px) !important;line-height:1.2 !important;margin:0 0 6px !important;}
+.rms-admin-profile .rms-profile-summary p{margin-bottom:8px !important;line-height:1.4 !important;}
+.rms-admin-profile .rms-profile-summary span{font-size:13px !important;}
+.rms-profile-action-row{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin-top:14px;}
+.rms-profile-action-row button,.rms-contact-trigger{display:inline-flex !important;align-items:center;justify-content:center;gap:7px;min-height:40px !important;margin:0 !important;padding:8px 14px !important;box-sizing:border-box;border:1px solid #ff5733 !important;border-radius:9px !important;background:#fff !important;color:#ff5733 !important;font:inherit;font-size:14px !important;font-weight:700 !important;cursor:pointer;}
+.rms-admin-profile .rms-profile-details{gap:12px !important;}
+.rms-admin-profile .rms-profile-details > div{box-sizing:border-box;min-width:0;min-height:88px !important;padding:16px !important;gap:6px !important;overflow-wrap:anywhere;}
+.rms-admin-profile section{box-sizing:border-box;min-width:0;}
+.rms-admin-profile section:nth-of-type(2){padding:24px !important;}
+.rms-admin-profile section:nth-of-type(2) h2{font-size:24px !important;}
+.rms-contact-dialog{box-sizing:border-box;width:min(460px,calc(100vw - 28px));max-height:calc(100dvh - 28px);overflow:auto;padding:24px;border:1px solid #e2e8f0;border-radius:16px;background:#fff;color:#111827;box-shadow:0 20px 60px #11182733;font:14px/1.5 Inter,system-ui,sans-serif;}
+.rms-contact-dialog::backdrop{background:rgb(15 23 42 / 48%);}
+.rms-contact-dialog form{display:grid;gap:16px;margin:0;}
+.rms-contact-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.rms-contact-header h2{font-size:22px;line-height:1.2;margin:0 0 5px;font-weight:750;}
+.rms-contact-header p{color:#64748b;margin:0;font-size:13px;}
+.rms-contact-dialog label{display:grid;gap:6px;font-weight:650;min-width:0;}
+.rms-contact-dialog input{width:100%;min-width:0;box-sizing:border-box;height:42px;border:1px solid #cbd5e1;border-radius:8px;padding:9px 12px;background:#fff;color:#111827;font:inherit;}
+.rms-contact-dialog input:focus{outline:2px solid #ff5733;outline-offset:1px;}
+.rms-contact-dialog footer{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.rms-contact-dialog button{font:inherit;font-weight:700;min-height:40px;border-radius:8px;padding:8px 15px;cursor:pointer;}
+.rms-contact-dialog .rms-contact-cancel,.rms-contact-dialog .rms-contact-close{background:#fff;color:#334155;border:1px solid #dbe1e9;}
+.rms-contact-dialog .rms-contact-close{display:grid;place-items:center;width:36px;min-height:36px;padding:0;}
+.rms-contact-dialog .rms-contact-save{background:#ff5733;color:white;border:1px solid #ff5733;}
+.rms-contact-dialog button:disabled{opacity:.55;cursor:default;}
+.rms-contact-error{color:#b42318;margin:0;}
+@media(max-width:600px){.rms-admin-profile .rms-profile-summary{grid-template-columns:64px minmax(0,1fr) !important;gap:12px !important;padding:16px !important;}.rms-admin-profile .rms-profile-avatar-box{width:64px !important;height:64px !important;}.rms-admin-profile .rms-profile-avatar{width:48px !important;height:48px !important;}.rms-admin-profile section:nth-of-type(2){padding:16px !important;}.rms-profile-action-row{gap:8px;}.rms-contact-dialog{padding:18px;}}

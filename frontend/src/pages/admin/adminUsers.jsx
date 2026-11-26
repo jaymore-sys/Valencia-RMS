@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../../api/axios";
+import AdminContactEditor from "../../components/AdminContactEditor";
 
 const AdminUsers = () => {
 const [users, setUsers] = useState([]);
@@ -503,6 +504,7 @@ const formatSessionTime = (value) => {
               </div>
             </div>
 
+            {selectedUser.is_my_team_member && String(selectedUser.role_name).toLowerCase()==='employee' && <AdminContactEditor key={selectedUser.user_id||selectedUser.id} person={selectedUser} url={`/admin/users/${selectedUser.user_id||selectedUser.id}/contact`} onSaved={data=>{setSelectedUser(previous=>previous?({...previous,...data}):previous);fetchDepartmentUsers()}} />}
             <div style={styles.detailsGrid}>
               <div style={styles.detailCard}>
                 <span style={styles.detailLabel}>Employee Code</span>
@@ -848,7 +850,7 @@ noSkills: {
   fontSize: "12px",
   fontWeight: 700,
 },
-  
+
   modalOverlay: {
     position: "fixed",
     inset: 0,

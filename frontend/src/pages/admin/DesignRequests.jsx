@@ -1,3 +1,5 @@
+import './adminFinalProjectPolish.css';
+import "./adminRemainingPolish.css";
 import { readBriefAnswers } from "./DesignBriefDescription";
 import { DesignWorkAssignments, designProjectHref } from "./DesignProjectWork";
 import { Link, Navigate, useSearchParams, useParams } from "react-router-dom";
@@ -319,7 +321,7 @@ export function DesignRequestForm({ project, projectDraft, onClose, onSent }) {
   }
 
   return (
-    <section className="design-requests dr-card" aria-label="Design request details">
+    <section className="design-requests dr-card rms-design-request-form" aria-label="Design request details">
       {error && <p role="alert" className="dr-error">{error}</p>}
       {sentId ? <>
         <p role="status">Request sent to the Design Team.</p>
@@ -354,7 +356,7 @@ export function DesignRequestForm({ project, projectDraft, onClose, onSent }) {
           <label><span>Needed by <span className="dr-required" aria-hidden="true">*</span></span>
             <input type="date" name="needed_by" defaultValue={(project?.end_date || project?.due_date || "").slice(0, 10)} required />
           </label>
-          <div className="dr-buttons">
+          <div className="dr-buttons rms-design-submit-row">
             <button className="dr-primary" disabled={busy}>{busy ? "Sending…" : "Send to Design Team"}</button>
           </div>
         </form>}

@@ -1486,21 +1486,21 @@ const reviewDepartmentTask = async (
     Main Task is Under Review.
     */
 
-    const invalidTask =
-      taskRows.find(
-        (task) =>
-          normalizeStatus(
-            task.status
-          ) !==
-          "under_review"
-      );
+    const invalidTask = taskRows.find((task) => {
+    const currentStatus = normalizeStatus(task.status);
+
+    return !(
+      currentStatus === "under_review" ||
+      (currentStatus === "on_hold" && action === "in_progress")
+    );
+});
 
     if (invalidTask) {
       return res.status(400).json({
         success: false,
 
         message:
-          `"${invalidTask.task_title}" is not currently Under Review.`,
+          `"${invalidTask.task_title}" is not eligible for this review action.`,
       });
     }
 

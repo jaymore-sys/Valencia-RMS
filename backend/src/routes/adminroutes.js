@@ -43,4 +43,5 @@ router.get(
   "/projects/export",
   exportAdminProjectsCsv
 );
+router.patch('/users/:userId/contact', require('../controllers/admincontactcontroller').saveEmployee);
 module.exports = router;

@@ -279,7 +279,7 @@ async function assignWorkTask(connection, task, assigneeId, actorId, subtaskId) 
 }
 
 async function reviewWorkTask(connection, requestId, taskId, actorId, body) {
-    if (!["approve", "reject"].includes(body.action)) {
+    if (!["approve", "reject", "on_hold", "in_progress"].includes(body.action)) {
         throw new DesignRequestError(400, "Choose Approve or Reject.");
     }
     const approved = body.action === "approve";
@@ -292,6 +292,7 @@ async function reviewWorkTask(connection, requestId, taskId, actorId, body) {
     `, [taskId, requestId]);
     if (!task) throw new DesignRequestError(404, "Design task not found.");
     if (task.parent_task_id) {
+        if (!['approve','reject'].includes(body.action)) throw new DesignRequestError(400,'Hold and Resume apply only to Main Tasks.');
         if (!["not_started", "ongoing", "under_review"].includes(task.parent_status)
             || task.status !== "completed" || task.review_status === "approved") {
             throw new DesignRequestError(409, "Only completed subtasks on open Main Tasks are available for review.");
@@ -308,6 +309,12 @@ async function reviewWorkTask(connection, requestId, taskId, actorId, body) {
                 reviewed_at = NOW(), review_note = ?, updated_at = NOW() WHERE task_id = ?
             `, [actorId, note, task.parent_task_id]);
         }
+        return;
+    }
+    if (body.action === 'on_hold' || body.action === 'in_progress') {
+        const resume=body.action==='in_progress';
+        if (task.status !== (resume?'on_hold':'under_review')) throw new DesignRequestError(409,'Invalid Main Task transition.');
+        await connection.query("UPDATE tasks SET status=?, review_status=?, reviewed_by_user_id=?, reviewed_at=NOW(), review_note=?, completed_at=NULL, updated_at=NOW() WHERE task_id=?",[resume?'ongoing':'on_hold',resume?'changes_requested':'on_hold',actorId,note,taskId]);
         return;
     }
     if (task.status !== "under_review") throw new DesignRequestError(409, "This Main Task is not under review.");

@@ -1,0 +1,175 @@
+.rms-attendance-view-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.rms-attendance-total {
+    display: inline-flex !important;
+    justify-content: center;
+    align-items: center;
+    white-space: nowrap;
+    min-height: 42px;
+    box-sizing: border-box;
+}
+
+.rms-attendance-view-switch {
+    display: flex;
+    gap: 5px;
+}
+
+.rms-view-button {
+    background: #ffffff;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+    border-radius: 9px;
+    padding: 10px 16px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.rms-view-button.active {
+    border-color: #ff5733;
+    color: #ff5733;
+    background: #fff7ed;
+}
+
+.rms-attendance-employees {
+    min-width: 0;
+    gap: 16px !important;
+}
+
+.rms-attendance-list {
+    grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.rms-attendance-employees > * {
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
+.rms-attendance-summary-header,
+.rms-attendance-search-row {
+    flex-wrap: wrap;
+    align-items: center !important;
+    gap: 12px !important;
+}
+
+.rms-attendance-search-row input {
+    box-sizing: border-box;
+    min-width: 0 !important;
+    max-width: 100%;
+}
+
+.valencia-premal-field-visits .premal-visit-tabs {
+    display: grid !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 8px !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.valencia-premal-field-visits .premal-visit-tabs > button {
+    width: 100% !important;
+    min-width: 0 !important;
+    min-height: 44px;
+    white-space: normal !important;
+    box-sizing: border-box;
+}
+
+.rms-admin-leave-modal {
+    box-sizing: border-box;
+    max-width: calc(100vw - 24px) !important;
+    max-height: 92vh !important;
+    overflow-y: auto !important;
+}
+
+.rms-leave-modal-header {
+    flex-wrap: wrap;
+    padding-right: 42px;
+    gap: 10px;
+}
+
+.rms-leave-info-grid,
+.rms-leave-info-box {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.rms-leave-info-box strong {
+    line-height: 1.5;
+}
+
+.rms-admin-leave-modal textarea {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.rms-design-submit-row {
+    display: flex !important;
+    justify-content: flex-end !important;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    width: 100%;
+}
+
+.rms-design-submit-row > button {
+    margin-left: auto !important;
+    min-height: 42px;
+    max-width: 100%;
+    white-space: normal;
+}
+
+@media (max-width: 767px) {
+    .rms-attendance-employees {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .rms-attendance-employee-stats,
+    .rms-attendance-my-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .rms-attendance-search-row input {
+        width: 100% !important;
+    }
+
+    .rms-attendance-view-controls {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .valencia-premal-field-visits .premal-visit-tabs {
+        grid-auto-flow: row;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .rms-admin-leave-modal {
+        width: calc(100vw - 24px) !important;
+        padding: 16px !important;
+    }
+
+    .rms-leave-info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .rms-leave-info-box {
+        padding: 12px !important;
+    }
+
+    .rms-admin-leave-modal button {
+        min-height: 40px;
+        white-space: normal;
+    }
+
+    .rms-design-submit-row > button {
+        width: 100%;
+    }
+}

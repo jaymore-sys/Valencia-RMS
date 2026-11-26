@@ -777,6 +777,13 @@ const canEditSubtask = (subtask) => {
 
   setEditingSubtask(subtask);
 
+  if (projectViewSwitch) {
+    requestAnimationFrame(() => {
+      document.getElementById("rms-personal-edit-form")
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+
   setSubtaskTitle(
     getSubtaskTitle(subtask)
   );
@@ -1560,7 +1567,7 @@ const handleSaveSubtask = async (event) => {
 
                   {canAddSubtask && (
                     <form
-                      style={styles.subtaskForm}
+                      id="rms-personal-edit-form" style={styles.subtaskForm}
                       onSubmit={
                         editingSubtask
                           ? handleSaveSubtask
@@ -1578,10 +1585,10 @@ const handleSaveSubtask = async (event) => {
                           {editingSubtask ? (
                             <Pencil size={18} />
                           ) : (
-                            <Plus size={18} />
+                            projectViewSwitch ? null : <Plus size={18} />
                           )}
 
-                          <h3 style={{ margin: 0 }}>
+                          <h3 style={{ margin: 0, ...(projectViewSwitch ? { color: "#111827" } : {}) }}>
                             {editingSubtask
                               ? "Edit Subtask"
                               : "Add Subtask"}
@@ -1844,6 +1851,21 @@ const handleSaveSubtask = async (event) => {
               >
                 Cancel
               </button>
+{projectViewSwitch && (
+  <button
+    type="button"
+    style={{
+      ...styles.cancelModalButton,
+      marginLeft: "10px",
+      background: "#ff5733",
+      borderColor: "#ff5733",
+      color: "#ffffff"
+    }}
+    onClick={closeProjectModal}
+  >
+    Done
+  </button>
+)}
             </div>
 
           </div>
@@ -1864,7 +1886,15 @@ const handleSaveSubtask = async (event) => {
             <div style={styles.confirmActions}>
               <button
                 type="button"
-                style={styles.confirmCancelBtn}
+                style={{
+  ...styles.confirmCancelBtn,
+  ...(projectViewSwitch ? {
+    background: "#ffffff",
+    color: "#111827",
+    border: "1px solid #d1d5db",
+    minHeight: "40px"
+  } : {})
+}}
                 onClick={() => setConfirmSubtask(null)}
               >
                 Cancel

@@ -1,3 +1,4 @@
+import "./adminDashboardPolish.css";
 import { useEffect, useMemo, useState } from "react";
 import {
   Building2,
@@ -2198,7 +2199,7 @@ const AdminReports = () => {
   ======================================================= */
 
   return (
-    <div style={styles.page}>
+    <div className="rms-admin-reports" style={styles.page}>
       <div
         style={styles.header}
       >
@@ -2318,8 +2319,7 @@ const AdminReports = () => {
         </button>
       </div>
 
-      <div
-        style={styles.filters}
+      <div className="rms-report-filters" style={styles.filters}
       >
         <Filter label="Period">
           <select
@@ -2561,10 +2561,7 @@ const AdminReports = () => {
         )}
       </div>
 
-      <div
-        style={
-          styles.viewTabs
-        }
+      <div className="rms-report-tabs" style={styles.viewTabs}
       >
         <Tab
           active={
@@ -2664,10 +2661,7 @@ const AdminReports = () => {
         </div>
       ) : (
         <>
-          <div
-            style={
-              styles.stats
-            }
+          <div className="rms-report-stats" style={styles.stats}
           >
             <StatCard
               label={
@@ -3334,9 +3328,7 @@ const Tab = ({
 }) => (
   <button
     type="button"
-    onClick={onClick}
-    style={{
-      ...styles.tab,
+    onClick={onClick} aria-pressed={active} style={{ ...styles.tab,
 
       ...(active
         ? styles.tabActive

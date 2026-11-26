@@ -1,3 +1,4 @@
+import "./adminRemainingPolish.css";
 import {
   useEffect,
   useMemo,
@@ -81,25 +82,18 @@ const AdminLeaveApplications = () => {
   };
 
   const formatDateTime = (value) => {
+    // RMS_IST_DISPLAY: convert timestamps with explicit offsets; retain unzoned database wall time.
     if (!value) return "-";
-
-    const text =
-      String(value);
-
-    const date =
-      text.slice(0, 10);
-
-    const time =
-      text.includes(" ")
-        ? text.split(" ")[1]?.slice(
-            0,
-            5
-          )
-        : "";
-
-    return `${formatDate(date)}${
-      time ? ` · ${time}` : ""
-    }`;
+    const text = String(value).trim();
+    if (value instanceof Date || /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text)) {
+      const date = new Date(value);
+      if (!Number.isNaN(date.getTime())) {
+        const options = { timeZone: "Asia/Kolkata" };
+        return date.toLocaleDateString("en-GB", {...options,day:"2-digit",month:"2-digit",year:"numeric"}).replaceAll("/","-") + " · " + date.toLocaleTimeString("en-GB", {...options,hour:"2-digit",minute:"2-digit",hour12:false}) + " IST";
+      }
+    }
+    const match = text.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+    return match ? formatDate(match[1]) + " · " + match[2] : formatDate(text);
   };
 
   const formatDays = (value) => {
@@ -197,7 +191,7 @@ const AdminLeaveApplications = () => {
           "/admin-leaves"
         );
 
-    
+
             const nextApplications = Array.isArray(response.data?.applications)
         ? response.data.applications : [];
       setApplications(nextApplications);
@@ -308,7 +302,7 @@ const AdminLeaveApplications = () => {
   return null;
 }
 
-       
+
 
    const leaveYear =
   Number(
@@ -672,7 +666,7 @@ if (
     },
   ];
 
-  
+
 // OPEN_LEAVE_AUTO_POPUP
 useEffect(() => {
 
@@ -1130,7 +1124,7 @@ return (
           }
         >
           <div
-            style={styles.modal}
+            className="rms-admin-leave-modal" style={styles.modal}
             onMouseDown={(
               event
             ) =>
@@ -1147,7 +1141,7 @@ return (
               <X size={20} />
             </button>
 
-            <div style={styles.modalHeader}>
+            <div className="rms-leave-modal-header" style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
                 Leave Application
               </h2>
@@ -1221,8 +1215,8 @@ return (
               </div>
             </section>
 
-            <div style={styles.infoGrid}>
-              <div style={styles.infoBox}>
+            <div className="rms-leave-info-grid" style={styles.infoGrid}>
+              <div className="rms-leave-info-box" style={styles.infoBox}>
                 <span>Leave Type</span>
                 <strong>
                   {getLeaveLabel(
@@ -1231,7 +1225,7 @@ return (
                 </strong>
               </div>
 
-              <div style={styles.infoBox}>
+              <div className="rms-leave-info-box" style={styles.infoBox}>
                 <span>Duration</span>
                 <strong>
                   {getDurationLabel(
@@ -1240,7 +1234,7 @@ return (
                 </strong>
               </div>
 
-              <div style={styles.infoBox}>
+              <div className="rms-leave-info-box" style={styles.infoBox}>
                 <span>From</span>
                 <strong>
                   {formatDate(
@@ -1249,7 +1243,7 @@ return (
                 </strong>
               </div>
 
-              <div style={styles.infoBox}>
+              <div className="rms-leave-info-box" style={styles.infoBox}>
                 <span>To</span>
                 <strong>
                   {formatDate(
@@ -1258,7 +1252,7 @@ return (
                 </strong>
               </div>
 
-              <div style={styles.infoBox}>
+              <div className="rms-leave-info-box" style={styles.infoBox}>
                 <span>Leave Days</span>
                 <strong>
                   {formatDays(
@@ -1267,7 +1261,7 @@ return (
                 </strong>
               </div>
 
-              <div style={styles.infoBox}>
+              <div className="rms-leave-info-box" style={styles.infoBox}>
                 <span>Applied On</span>
                 <strong>
                   {formatDateTime(
@@ -1389,7 +1383,7 @@ return (
         </>
       )}
     </div>
-  )}  
+  )}
 
             {selectedBalance && (
               <section
@@ -1556,7 +1550,7 @@ return (
       )}
     </strong>
   </div>
-</section>  
+</section>
   ) : !(
   admin?.can_review_leave ||
   String(
@@ -1682,7 +1676,7 @@ return (
   >
     <div>
       <span>
-        Reviewed By :  
+        Reviewed By :
       </span>
 
       <strong>
@@ -1694,7 +1688,7 @@ return (
 
     <div>
       <span>
-        Reviewed On : 
+        Reviewed On :
       </span>
 
       <strong>
@@ -1709,7 +1703,7 @@ return (
       .review_remark && (
       <div>
         <span>
-          Admin Remark : 
+          Admin Remark :
         </span>
 
         <strong>
@@ -1795,9 +1789,13 @@ return (
               >
                 <button
                   type="button"
-                  style={
-                    styles.cancelConfirmBtn
-                  }
+                  style={{
+    ...styles.cancelConfirmBtn,
+    background: "#ffffff",
+    color: "#111827",
+    border: "1px solid #cbd5e1",
+    minHeight: "42px"
+}}
                   onClick={() =>
                     setConfirmation(
                       null

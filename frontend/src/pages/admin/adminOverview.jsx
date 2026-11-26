@@ -1,3 +1,4 @@
+import "./adminDashboardPolish.css";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -304,6 +305,8 @@ const AdminOverview = () => {
   const [tasks, setTasks] = useState([]);
   const [miniTasks, setMiniTasks] = useState([]);
   const [attendanceSummary, setAttendanceSummary] = useState({});
+const [attendanceView, setAttendanceView] = useState("department");
+const [personalAttendance, setPersonalAttendance] = useState(null);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -363,6 +366,13 @@ const AdminOverview = () => {
         const newDepartmentTotals = attendanceData?.department_totals || {};
         const employeeSummary = attendanceData?.employee_summary || [];
         const myAttendance = attendanceData?.my_attendance || null;
+
+setPersonalAttendance(myAttendance ? {
+    total_records: myAttendance.total ?? 0,
+    present_count: myAttendance.present ?? 0,
+    absent_count: myAttendance.absent ?? 0,
+    late_count: myAttendance.late ?? 0,
+} : null);
 
         const employeeCount = getNumber(
           oldSummary.total_people,
@@ -456,7 +466,7 @@ const AdminOverview = () => {
           task.status
       );
 
-      return status === "under_review";
+      return status === "under_review" && Number(task.can_review ?? 1) === 1;
     })
     .map((task) => {
       const assignees = Array.isArray(
@@ -508,14 +518,19 @@ const AdminOverview = () => {
     );
 }, [tasks]);
 
-  const attendancePercentage = useMemo(() => {
-    const totalRecords = getNumber(attendanceSummary.total_records);
-    const presentCount = getNumber(attendanceSummary.present_count);
+  const displayedAttendance =
+    attendanceView === "personal"
+        ? (personalAttendance || {})
+        : attendanceSummary;
+
+const attendancePercentage = useMemo(() => {
+    const totalRecords = getNumber(displayedAttendance.total_records);
+    const presentCount = getNumber(displayedAttendance.present_count);
 
     if (totalRecords === 0) return 0;
 
     return Math.round((presentCount / totalRecords) * 100);
-  }, [attendanceSummary]);
+  }, [displayedAttendance]);
 
   const activities = useMemo(() => {
     const taskActivities = tasks.slice(0, 4).map((task) => ({
@@ -550,14 +565,9 @@ const AdminOverview = () => {
   }
 
   return (
-  <div style={styles.page}>
+  <div className="rms-admin-overview" style={styles.page}>
 
-    <div
-  style={{
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    marginBottom: "18px",
+    <div className="rms-overview-bell" style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: "18px",
     paddingRight: "14px",
   }}
 >
@@ -570,7 +580,7 @@ const AdminOverview = () => {
       </div>
     )}
 
-      <section style={styles.statsGrid}>
+      <section className="rms-overview-stats" style={styles.statsGrid}>
   <div
     style={{
       ...styles.statCard,
@@ -658,7 +668,7 @@ const AdminOverview = () => {
     </strong>
   </div>
 </section>
-<section style={styles.card}>
+<section className="rms-overview-meetings" style={styles.card}>
   <div
     style={{
       display: "flex",
@@ -780,7 +790,7 @@ const AdminOverview = () => {
     </div>
   )}
 </section>
-      <section style={styles.card}>
+      <section className="rms-overview-reviews" style={styles.card}>
         <div style={styles.reviewHeader}>
           <div>
             <h2 style={styles.sectionTitle}>
@@ -871,7 +881,7 @@ const AdminOverview = () => {
       </section>
 
       <AdminReviewPopup />
-      <section style={styles.card}>
+      <section className="rms-overview-mini-tasks" style={styles.card}>
   <h2 style={styles.sectionTitle}>
     <ClipboardList size={22} color="#ff5733" />
     Employee Mini Tasks
@@ -912,7 +922,7 @@ const AdminOverview = () => {
   )}
 </section>
 
-      <section style={styles.gridTwo}>
+      <section className="rms-overview-two" style={styles.gridTwo}>
         <div style={styles.card}>
           <h2 style={styles.sectionTitle}>
             <Activity size={22} color="#ff5733" />
@@ -949,10 +959,47 @@ const AdminOverview = () => {
             Attendance
           </h2>
           <p style={styles.sectionSubtitle}>
-            Department attendance summary for {adminName}.
+            {attendanceView === "personal"
+    ? "Your personal attendance summary."
+    : `Department attendance summary for ${adminName}.`}
           </p>
 
-          <div style={styles.attendanceBarContainer}>
+          <div style={{
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px",
+    marginBottom: "16px"
+}}>
+    {[
+        ["department", "Departmental"],
+        ["personal", "Personal"]
+    ].map(([value, label]) => (
+        <button
+            key={value}
+            type="button"
+            aria-pressed={attendanceView === value}
+            disabled={value === "personal" && !personalAttendance}
+            onClick={() => setAttendanceView(value)}
+            style={{
+                padding: "9px 14px",
+                borderRadius: "10px",
+                fontWeight: 700,
+                cursor: "pointer",
+                border: attendanceView === value
+                    ? "1px solid #ff5733"
+                    : "1px solid #e5e7eb",
+                background: attendanceView === value
+                    ? "#fff7ed" : "#ffffff",
+                color: attendanceView === value
+                    ? "#ff5733" : "#64748b"
+            }}
+        >
+            {label}
+        </button>
+    ))}
+</div>
+
+<div style={styles.attendanceBarContainer}>
 
   <div style={styles.attendanceBarLabel}>
     <span>Attendance Completion</span>
@@ -972,28 +1019,28 @@ const AdminOverview = () => {
           <div style={styles.miniGrid}>
             <div style={styles.miniCard}>
               <strong style={styles.miniValue}>
-                {attendanceSummary.present_count || 0}
+                {displayedAttendance.present_count || 0}
               </strong>
               <span style={styles.miniLabel}>Present</span>
             </div>
 
             <div style={styles.miniCard}>
               <strong style={styles.miniValue}>
-                {attendanceSummary.absent_count || 0}
+                {displayedAttendance.absent_count || 0}
               </strong>
               <span style={styles.miniLabel}>Absent</span>
             </div>
 
             <div style={styles.miniCard}>
               <strong style={styles.miniValue}>
-                {attendanceSummary.late_count || 0}
+                {displayedAttendance.late_count || 0}
               </strong>
               <span style={styles.miniLabel}>Late</span>
             </div>
 
             <div style={styles.miniCard}>
               <strong style={styles.miniValue}>
-                {attendanceSummary.total_records || 0}
+                {displayedAttendance.total_records || 0}
               </strong>
               <span style={styles.miniLabel}>Total Records</span>
             </div>

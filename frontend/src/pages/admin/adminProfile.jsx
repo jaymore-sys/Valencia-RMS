@@ -1,6 +1,8 @@
+import "./adminDashboardPolish.css";
 import React, { useEffect, useMemo, useState } from "react";
 import { Eye, EyeOff, Lock, X } from "lucide-react";
 import api from "../../api/axios";
+import AdminContactEditor from "../../components/AdminContactEditor";
 
 const getStoredUser = () => {
   try {
@@ -168,12 +170,12 @@ const changePassword = async()=>{
   }, [profile]);
 
   return (
-    <div style={styles.page}>
+    <div className="rms-admin-profile" style={styles.page}>
       {error && <div style={styles.errorBox}>{error}</div>}
 
-      <section style={styles.profileSummaryBlock}>
-        <div style={styles.avatarBox}>
-          <div style={styles.avatar}>{getInitials(adminName)}</div>
+      <section className="rms-profile-summary" style={styles.profileSummaryBlock}>
+        <div className="rms-profile-avatar-box" style={styles.avatarBox}>
+          <div className="rms-profile-avatar" style={styles.avatar}>{getInitials(adminName)}</div>
         </div>
 
         <div style={styles.adminInfoBox}>
@@ -187,7 +189,7 @@ const changePassword = async()=>{
 </div>
 
 
-<button
+<div className="rms-profile-action-row"><button
   type="button"
   style={styles.passwordButton}
   onClick={() => setShowPasswordBox(true)}
@@ -195,6 +197,7 @@ const changePassword = async()=>{
   <Lock size={16}/>
   Change Password
 </button>
+<AdminContactEditor person={profile} url="/admin-profile/me/contact" onSaved={data=>setProfile(previous=>({...previous,...data}))} /></div>
         </div>
       </section>
 
@@ -206,7 +209,7 @@ const changePassword = async()=>{
           </p>
         </div>
 
-        <div style={styles.detailsGrid}>
+        <div className="rms-profile-details" style={styles.detailsGrid}>
           {otherDetails.map((item) => (
             <div style={styles.detailCard} key={item.label}>
               <span style={styles.detailLabel}>{item.label}</span>
